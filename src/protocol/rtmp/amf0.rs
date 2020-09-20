@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use byteorder::BigEndian;
 use bytes::Bytes;
 use std::io::Cursor;
 use std::io::Read;
@@ -34,7 +34,12 @@ struct UnOrderedMap {
 }
 
 impl UnOrderedMap {
-    fn insert(self, key: String, val: Amf0Type) -> Option(Amf0ValueType) {
+    pub fn new() -> UnOrderedMap {
+        UnOrderedMap {
+            properties: Vec::new(),
+        }
+    }
+    fn insert(self, key: String, val: Amf0ValueType) -> Option(Amf0ValueType) {
         for i in self.properties {
             if i.key == key {
                 let tmpVal = i.Value;
@@ -99,25 +104,77 @@ fn read_bool<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
         _ => Ok(Amf0ValueType::Boolean(false)),
     }
 }
-fn read_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+
+fn read_raw_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
     let l = bytes.read_u16::<BigEndian>()?;
     let mut buffer: Vec<u8> = vec![0_u8; l as usize];
     bytes.read(&mut buffer);
 
     let val = String::from_utf8(buffer)?;
-    Ok(Amf0ValueType::UTF8String(val))
+    Ok(val)
+}
+
+fn read_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+    let raw_string = read_raw_string(bytes)?;
+    Ok(Amf0ValueType::UTF8String(raw_string))
 }
 
 fn read_null() -> Result<Amf0ValueType, Amf0ReadError> {
     Ok(Amf0ValueType::Null)
 }
 
-fn read_object<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
-
+fn is_read_object_eof<R: Read>(bytes: &mut R) -> Result<bool, Amf0ReadError> {
+    let marker = bytes.read_u24::<BigEndian>()?;
+    if marker == 0x09 {
+        Ok(true)
+    }
+    bytes.write_u24::<BigEndian>(marker)?;
+    Ok(false)
 }
 
-fn read_ecma_array<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {}
-fn read_long_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {}
+fn read_object<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+    let mut properties = UnOrderedMap::new();
+
+    loop {
+        let is_eof = is_read_object_eof(bytes)?;
+
+        if is_eof {
+            break;
+        }
+
+        let key = read_raw_string(bytes)?;
+        let val = read_any(bytes)?;
+
+        properties.insert(key, val);
+    }
+
+    Ok(Amf0ValueType::Object(properties))
+}
+
+fn read_ecma_array<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+    let len = bytes.read_u32::<BigEndian>()?;
+
+    let mut properties = UnOrderedMap::new();
+
+    for i in 0..len {
+        let key = read_raw_string(bytes)?;
+        let val = read_any(bytes)?;
+        properties.insert(key, val);
+    }
+
+    is_read_object_eof(bytes)?;
+
+    Ok(Amf0ValueType::Object(properties))
+}
+
+fn read_long_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+    let l = bytes.read_u32::<BigEndian>()?;
+    let mut buffer: Vec<u8> = vec![0_u8; l as usize];
+    bytes.read(&mut buffer);
+
+    let val = String::from_utf8(buffer)?;
+    Ok(Amf0ValueType::LongUTF8String(val))
+}
 
 #[cfg(test)]
 mod tests {
@@ -125,12 +182,12 @@ mod tests {
     #[test]
 
     fn test_byte_order() {
-        use byteorder::{ByteOrder, LittleEndian};
+        use byteorder::{BigEndian, ByteOrder};
 
         let phi = 1.6180339887;
         let mut buf = [0; 8];
-        LittleEndian::write_f64(&mut buf, phi);
-        assert_eq!(phi, LittleEndian::read_f64(&buf));
+        BigEndian::write_f64(&mut buf, phi);
+        assert_eq!(phi, BigEndian::read_f64(&buf));
         println!("tsetstt")
     }
 }
