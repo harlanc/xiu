@@ -3,70 +3,7 @@ use bytes::Bytes;
 use std::io::Cursor;
 use std::io::Read;
 
-mod amf0_markers {
-    pub const NUMBER: u8 = 0x00;
-    pub const BOOLEAN: u8 = 0x01;
-    pub const STRING: u8 = 0x02;
-    pub const OBJECT: u8 = 0x03;
-    pub const NULL: u8 = 0x05;
-    pub const ECMA_ARRAY: u8 = 0x08;
-    pub const OBJECT_END: u8 = 0x09;
-    pub const LONG_STRING: u8 = 0x0c;
-}
-
-enum Amf0ValueType {
-    Number(f64),
-    Boolean(bool),
-    UTF8String(String),
-    Object(UnOrderedMap),
-    Null,
-    EcmaArray(UnOrderedMap),
-    LongUTF8String(String),
-}
-
-struct Object {
-    key: String,
-    Value: Amf0ValueType,
-}
-
-struct UnOrderedMap {
-    properties: Vec<Object>,
-}
-
-impl UnOrderedMap {
-    pub fn new() -> UnOrderedMap {
-        UnOrderedMap {
-            properties: Vec::new(),
-        }
-    }
-    fn insert(self, key: String, val: Amf0ValueType) -> Option(Amf0ValueType) {
-        for i in self.properties {
-            if i.key == key {
-                let tmpVal = i.Value;
-                i.Value = val;
-                return Option(tmpVal);
-            }
-        }
-
-        let obj = Object {
-            key: key,
-            Value: val,
-        };
-        self.properties.push(obj);
-
-        Option(None)
-    }
-    fn get(self, key: String) -> Option(Amf0ValueType) {
-        for i in self.properties {
-            if i.key == key {
-                return Option(i.key);
-            }
-        }
-        Option(None)
-    }
-}
-
-fn read_any<R: Read>(bytes: &mut Vec<u8>) -> Result<Amf0ValueType, Amf0ReadError> {
+fn read_any<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
     let mut buffer: [u8; 1] = [0];
     let bytes_num = bytes.read(&mut buffer)?;
 
@@ -90,7 +27,7 @@ fn read_any<R: Read>(bytes: &mut Vec<u8>) -> Result<Amf0ValueType, Amf0ReadError
     }
 }
 
-fn read_number<R: Read>(bytes: &mut Vec<u8>) -> Result<Amf0ValueType, Amf0ReadError> {
+fn read_number<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
     let number = bytes.read_f64::<BigEndian>()?;
     let value = Amf0ValueType::Number(number);
     Ok(value)

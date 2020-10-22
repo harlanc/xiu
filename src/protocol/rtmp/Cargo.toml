@@ -1,0 +1,19 @@
+[package]
+name = "rtmp"
+description = "a powerful live server by Rust ."
+version = "0.0.1"
+authors = ["HarlanC <wawacry@qq.com"]
+repository = "https://github.com/harlanc/liverust"
+license = "MIT"
+readme = "README.md"
+categories = ["multimedia", "multimedia::video", 'multimedia::audio']
+keywords = ["rtmp", "video", "streaming"]
+
+[dependencies]
+
+byteorder = "1.2.1"
+bytes = "0.5"
+rand = "0.3"
+failure = "0.1.1"
+hmac = "0.6.2"
+sha2 = "0.7.1"

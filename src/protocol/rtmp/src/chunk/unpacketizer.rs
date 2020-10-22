@@ -1,9 +1,12 @@
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
+use chunk::ChunkUnpackError;
+use chunk::{ChunkBasicHeader, ChunkHeader, ChunkMessageHeader};
+use std::collections::HashMap;
 
 #[derive(Eq, PartialEq, Debug)]
 enum UnpackResult {
-    ChunkBasicHeader(ChunkBasicHeader),
-    ChunkMessageHeader(ChunkMessageHeader),
+    ChunkBasicHeaderResult(ChunkBasicHeader),
+    ChunkMessageHeaderResult(ChunkMessageHeader),
     Success,
     NotEnoughBytes,
 }
@@ -18,14 +21,19 @@ enum ChunkParseState {
 
 pub struct ChunkUnpacketizer {
     buffer: BytesMut,
+    csid_2_chunk_header: HashMap<u32, ChunkHeader>,
+    pub basic_header: ChunkBasicHeader,
 }
 
 impl ChunkUnpacketizer {
-    pub fn read_chunk(&mut self, bytes: &[u8]) -> Result {
+    pub fn read_chunk(&mut self, bytes: &[u8]) -> Result<UnpackResult, ChunkUnpackError> {
         self.buffer.extend_from_slice(bytes);
+        self.read_basic_header()?;
+
+        Ok(UnpackResult::Success)
     }
 
-    pub fn read_bytes(&mut self, bytes_num: &usize) -> BytesMut {
+    pub fn read_bytes(&mut self, bytes_num: usize) -> BytesMut {
         self.buffer.split_to(bytes_num)
     }
     /**
@@ -77,10 +85,10 @@ impl ChunkUnpacketizer {
             return Ok(UnpackResult::NotEnoughBytes);
         }
 
-        let byte = self.read_bytes(1);
+        let byte = self.read_bytes(1)[0] as u32;
 
-        let format_id = byte & 0b11000000;
-        let csid = byte & 0b00111111;
+        let format_id = ((byte >> 6) & 0b00000011) as u8;
+        let mut csid = byte & 0b00111111;
 
         match csid {
             0 => {
@@ -88,21 +96,36 @@ impl ChunkUnpacketizer {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
-                csid += self.read_bytes(1) as u32;
+                csid += self.read_bytes(1)[0] as u32;
             }
             1 => {
                 if self.buffer.len() < 1 {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
-                csid += self.read_bytes(1) as u32;
-                csid += self.read_bytes(1) as u32 * 256;
+                csid += self.read_bytes(1)[0] as u32;
+                csid += self.read_bytes(1)[0] as u32 * 256;
             }
+            _ => {}
         }
-        ChunkBasicHeader::new(format_id, csid)
+
+        self.basic_header.chunk_stream_id = csid;
+        self.basic_header.format = format_id;
+
+        Ok(UnpackResult::ChunkBasicHeaderResult(ChunkBasicHeader::new(
+            format_id, csid,
+        )))
     }
 
-    pub fn read_message_header(&mut self) {
+    pub fn read_message_header(&mut self) -> Result<UnpackResult, ChunkUnpackError> {
         
+        match slf.basic_header.format {
+            0 => {}
+            1 => {}
+            2 => {
+
+            }
+        }
+        Ok(UnpackResult::Success)
     }
 }
