@@ -1,4 +1,4 @@
-use bytes::{ BytesMut};
+use bytes::BytesMut;
 
 //5.3.1.1
 #[derive(Eq, PartialEq, Debug)]
@@ -20,11 +20,11 @@ impl ChunkBasicHeader {
 //5.3.1.2
 #[derive(Eq, PartialEq, Debug)]
 pub struct ChunkMessageHeader {
-    timestamp: u64,
-    msg_length: u32,
-    msg_type_id: u8,
-    msg_streamd_id: u32,
-    timestamp_delta: u32,
+    pub timestamp: u32,
+    pub msg_length: u32,
+    pub msg_type_id: u8,
+    pub msg_streamd_id: u32,
+    pub timestamp_delta: u32,
 }
 
 impl ChunkMessageHeader {

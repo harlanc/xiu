@@ -1,12 +1,4 @@
-[package]
-authors = ["harlanc <wawacry@qq.com>"]
-edition = "2018"
-name = "liverust"
-version = "0.1.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-byteorder = "1"
-bytes = "0.5"
-
+[workspace]
+members = [
+    "protocol/rtmp",
+]

@@ -9,8 +9,15 @@ readme = "README.md"
 categories = ["multimedia", "multimedia::video", 'multimedia::audio']
 keywords = ["rtmp", "video", "streaming"]
 
-[dependencies]
+# [dependencies]
+# byteorder = "1.2.1"
+# bytes = "0.5.6"
+# rand = "0.3"
+# failure = "0.1.1"
+# hmac = "0.6.2"
+# sha2 = "0.7.1"
 
+[dependencies]
 byteorder = "1.2.1"
 bytes = "0.5"
 rand = "0.3"
