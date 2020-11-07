@@ -7,7 +7,6 @@ pub struct ChunkBasicHeader {
     pub chunk_stream_id: u32,
 }
 
-
 impl ChunkBasicHeader {
     pub fn new(fmt: u8, csid: u32) -> ChunkBasicHeader {
         ChunkBasicHeader {
@@ -25,6 +24,7 @@ pub struct ChunkMessageHeader {
     pub msg_type_id: u8,
     pub msg_streamd_id: u32,
     pub timestamp_delta: u32,
+    pub is_extended_timestamp: bool,
 }
 
 impl ChunkMessageHeader {
@@ -35,6 +35,7 @@ impl ChunkMessageHeader {
             msg_type_id: 0,
             msg_streamd_id: 0,
             timestamp_delta: 0,
+            is_extended_timestamp: false,
         }
     }
 }
