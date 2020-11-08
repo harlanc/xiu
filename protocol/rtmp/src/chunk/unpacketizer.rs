@@ -2,8 +2,8 @@ use byteorder::ByteOrder;
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::Bytes;
 use bytes::BytesMut;
-use chunk::ChunkUnpackError;
-use chunk::{ChunkBasicHeader, ChunkHeader, ChunkMessageHeader};
+// use chunk::ChunkUnpackError;
+use chunk::{ChunkBasicHeader, ChunkMessageHeader};
 use std::collections::HashMap;
 use std::io;
 use std::io::Cursor;
@@ -18,6 +18,7 @@ pub enum UnpackResult {
 
 pub enum UnpackErrorValue {
     NotEnoughBytes,
+    UnknowReadState,
     IO(io::Error),
 }
 
@@ -62,28 +63,37 @@ impl ChunkInfo {
     }
 }
 
-pub struct ChunkUnpacketizer {
+pub struct ChunkUnpacketizer<'a> {
     buffer: BytesMut,
     csid_2_chunk_info: HashMap<u32, ChunkInfo>,
-    pub current_chunk_info: ChunkInfo,
+    //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
+    pub current_chunk_info: &'a mut ChunkInfo,
     current_read_state: ChunkReadState,
+
+    // test: HashMap<u32, u32>,
+    // pub testval : & 'a mut u32,
 }
 
-impl ChunkUnpacketizer {
+impl<'a> ChunkUnpacketizer<'a> {
     pub fn read_chunk(&mut self, bytes: &[u8]) -> Result<UnpackResult, UnpackError> {
         self.buffer.extend_from_slice(bytes);
         self.current_read_state = ChunkReadState::ReadBasicHeader;
 
         loop {
-            let data = match self.current_read_state {
+            match self.current_read_state {
                 ChunkReadState::ReadBasicHeader => self.read_basic_header()?,
                 ChunkReadState::ReadMessageHeader => self.read_message_header()?,
                 ChunkReadState::ReadExtendedTimestamp => self.read_extended_timestamp()?,
                 ChunkReadState::ReadMessagePayload => self.read_message_payload()?,
+                _ => {
+                    return Err(UnpackError {
+                        value: UnpackErrorValue::UnknowReadState,
+                    });
+                }
             };
         }
 
-        Ok(UnpackResult::Success)
+        // Ok(UnpackResult::Success)
     }
 
     fn read_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, UnpackError> {
@@ -190,17 +200,33 @@ impl ChunkUnpacketizer {
             _ => {}
         }
 
-        if !self.csid_2_chunk_info.contains_key(&csid){
+        let csid2 = 32 as u32;
 
-            self.csid_2_chunk_info.insert(csid, ChunkInfo::new());
+        // test: HashMap<u32, u32>,
+        // pub testval : & 'a mut u32,
 
-        }else{
-            let val = self.csid_2_chunk_info.get(&csid).unwrap();
-            self.current_chunk_info = val;
+        // match self.test.get_mut(&csid2) {
+        //     Some(val) => {
+      
+        //         self.testval = val;
+        //     }
+        //     None => {
+        //         self.test.insert(csid2, 0);
+        //     }
+        // }
+
+        match self.csid_2_chunk_info.get_mut(&csid2) {
+            Some(chunk_info) => {
+                let aa  = chunk_info;
+                self.current_chunk_info = aa;
+            }
+            None => {
+                self.csid_2_chunk_info.insert(csid, ChunkInfo::new());
+            }
         }
 
-        self.basic_header.chunk_stream_id = csid;
-        self.basic_header.format = format_id;
+        self.current_chunk_info.basic_header.chunk_stream_id = csid;
+        self.current_chunk_info.basic_header.format = format_id;
 
         self.current_read_state = ChunkReadState::ReadMessageHeader;
 
@@ -209,34 +235,38 @@ impl ChunkUnpacketizer {
         )))
     }
 
+    fn current_message_header(&mut self) -> &mut ChunkMessageHeader {
+        &mut self.current_chunk_info.message_header
+    }
+
     #[allow(dead_code)]
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
-        match self.basic_header.format {
+        match self.current_chunk_info.basic_header.format {
             0 => {
                 // let mut val = self.read_bytes(11);
-                self.message_header.timestamp = self.read_u24::<BigEndian>()?;
-                self.message_header.msg_length = self.read_u24::<BigEndian>()?;
-                self.message_header.msg_type_id = self.read_u8()?;
-                self.message_header.msg_streamd_id = self.read_u32::<BigEndian>()?;
+                self.current_message_header().timestamp = self.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_length = self.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_type_id = self.read_u8()?;
+                self.current_message_header().msg_streamd_id = self.read_u32::<BigEndian>()?;
 
-                if self.message_header.timestamp >= 0xFFFFFF {
-                    self.message_header.is_extended_timestamp = true;
+                if self.current_message_header().timestamp >= 0xFFFFFF {
+                    self.current_message_header().is_extended_timestamp = true;
                 }
             }
             1 => {
-                self.message_header.timestamp_delta = self.read_u24::<BigEndian>()?;
-                self.message_header.msg_length = self.read_u24::<BigEndian>()?;
-                self.message_header.msg_type_id = self.read_u8()?;
+                self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_length = self.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_type_id = self.read_u8()?;
 
-                if self.message_header.timestamp_delta >= 0xFFFFFF {
-                    self.message_header.is_extended_timestamp = true;
+                if self.current_message_header().timestamp_delta >= 0xFFFFFF {
+                    self.current_message_header().is_extended_timestamp = true;
                 }
             }
             2 => {
-                self.message_header.timestamp_delta = self.read_u24::<BigEndian>()?;
+                self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
 
-                if self.message_header.timestamp_delta >= 0xFFFFFF {
-                    self.message_header.is_extended_timestamp = true;
+                if self.current_message_header().timestamp_delta >= 0xFFFFFF {
+                    self.current_message_header().is_extended_timestamp = true;
                 }
             }
             _ => {}
@@ -250,30 +280,32 @@ impl ChunkUnpacketizer {
     pub fn read_extended_timestamp(&mut self) -> Result<UnpackResult, UnpackError> {
         let mut extended_timestamp: u32 = 0;
 
-        if self.message_header.is_extended_timestamp {
+        if self.current_message_header().is_extended_timestamp {
             extended_timestamp = self.read_u32::<BigEndian>()?;
         }
 
-        match self.basic_header.format {
+        match self.current_chunk_info.basic_header.format {
             0 => {
-                if self.message_header.is_extended_timestamp {
-                    self.message_header.timestamp = extended_timestamp;
+                if self.current_message_header().is_extended_timestamp {
+                    self.current_message_header().timestamp = extended_timestamp;
                 }
             }
             1 => {
-                if self.message_header.is_extended_timestamp {
-                    self.message_header.timestamp += extended_timestamp;
+                if self.current_message_header().is_extended_timestamp {
+                    self.current_message_header().timestamp += extended_timestamp;
                 } else {
-                    self.message_header.timestamp += self.message_header.timestamp_delta;
+                    self.current_message_header().timestamp +=
+                        self.current_message_header().timestamp_delta;
                 }
             }
             2 => {
-                self.message_header.timestamp_delta = self.read_u24::<BigEndian>()?;
+                self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
 
-                if self.message_header.is_extended_timestamp {
-                    self.message_header.timestamp += extended_timestamp;
+                if self.current_message_header().is_extended_timestamp {
+                    self.current_message_header().timestamp += extended_timestamp;
                 } else {
-                    self.message_header.timestamp += self.message_header.timestamp_delta;
+                    self.current_message_header().timestamp +=
+                        self.current_message_header().timestamp_delta;
                 }
             }
             _ => {}
