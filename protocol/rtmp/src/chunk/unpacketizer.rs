@@ -1,9 +1,10 @@
 use byteorder::ByteOrder;
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::Bytes;
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
 use chunk::{ChunkBasicHeader, ChunkMessageHeader};
+use std::cmp::min;
 use std::collections::HashMap;
 use std::io;
 use std::io::Cursor;
@@ -12,6 +13,7 @@ use std::io::Cursor;
 pub enum UnpackResult {
     ChunkBasicHeaderResult(ChunkBasicHeader),
     ChunkMessageHeaderResult(ChunkMessageHeader),
+    ChunkInfo(ChunkInfo),
     Success,
     NotEnoughBytes,
 }
@@ -47,18 +49,18 @@ enum ChunkReadState {
     ReadExtendedTimestamp,
     ReadMessagePayload,
 }
-
+#[derive(Eq, PartialEq, Debug)]
 pub struct ChunkInfo {
     pub basic_header: ChunkBasicHeader,
     pub message_header: ChunkMessageHeader,
-    pub payload: Bytes,
+    pub payload: BytesMut,
 }
 impl ChunkInfo {
     pub fn new() -> ChunkInfo {
         ChunkInfo {
             basic_header: ChunkBasicHeader::new(0, 0),
             message_header: ChunkMessageHeader::new(),
-            payload: Bytes::new(),
+            payload: BytesMut::new(),
         }
     }
 }
@@ -69,7 +71,7 @@ pub struct ChunkUnpacketizer<'a> {
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     pub current_chunk_info: &'a mut ChunkInfo,
     current_read_state: ChunkReadState,
-
+    max_chunk_size: usize,
     // test: HashMap<u32, u32>,
     // pub testval : & 'a mut u32,
 }
@@ -207,7 +209,7 @@ impl<'a> ChunkUnpacketizer<'a> {
 
         // match self.test.get_mut(&csid2) {
         //     Some(val) => {
-      
+
         //         self.testval = val;
         //     }
         //     None => {
@@ -217,7 +219,7 @@ impl<'a> ChunkUnpacketizer<'a> {
 
         match self.csid_2_chunk_info.get_mut(&csid2) {
             Some(chunk_info) => {
-                let aa  = chunk_info;
+                let aa = chunk_info;
                 self.current_chunk_info = aa;
             }
             None => {
@@ -317,6 +319,31 @@ impl<'a> ChunkUnpacketizer<'a> {
     }
 
     pub fn read_message_payload(&mut self) -> Result<UnpackResult, UnpackError> {
+        let mut whole_msg_length = self.current_message_header().msg_length as usize;
+        let remaining_bytes = whole_msg_length - self.current_chunk_info.payload.len();
+
+        let need_read_length = remaining_bytes;
+        if whole_msg_length > self.max_chunk_size {
+            need_read_length = min(remaining_bytes, self.max_chunk_size);
+        }
+
+        let remaining_mut = self.current_chunk_info.payload.remaining_mut();
+        if need_read_length > remaining_mut {
+            let additional = need_read_length - remaining_mut;
+            self.current_chunk_info.payload.reserve(additional);
+        }
+
+        let payload_data = self.read_bytes(need_read_length)?;
+        self.current_chunk_info
+            .payload
+            .extend_from_slice(&payload_data[..]);
+
+        if self.current_chunk_info.payload.len() == whole_msg_length {
+            return Ok(UnpackResult::ChunkInfo(self.current_chunk_info));
+        }
+
+        self.current_read_state = ChunkReadState::ReadBasicHeader;
+
         Ok(UnpackResult::Success)
     }
 }
