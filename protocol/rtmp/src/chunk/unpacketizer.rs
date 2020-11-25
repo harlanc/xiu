@@ -1,13 +1,14 @@
 use byteorder::ByteOrder;
 use byteorder::{BigEndian, ReadBytesExt};
-use bytes::Bytes;
+//use bytes::Bytes;
 use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
-use chunk::{ChunkBasicHeader, ChunkMessageHeader};
+use chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
 use std::cmp::min;
 use std::collections::HashMap;
 use std::io;
 use std::io::Cursor;
+use std::mem;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {
@@ -49,26 +50,12 @@ enum ChunkReadState {
     ReadExtendedTimestamp,
     ReadMessagePayload,
 }
-#[derive(Eq, PartialEq, Debug)]
-pub struct ChunkInfo {
-    pub basic_header: ChunkBasicHeader,
-    pub message_header: ChunkMessageHeader,
-    pub payload: BytesMut,
-}
-impl ChunkInfo {
-    pub fn new() -> ChunkInfo {
-        ChunkInfo {
-            basic_header: ChunkBasicHeader::new(0, 0),
-            message_header: ChunkMessageHeader::new(),
-            payload: BytesMut::new(),
-        }
-    }
-}
 
 pub struct ChunkUnpacketizer<'a> {
     buffer: BytesMut,
     csid_2_chunk_info: HashMap<u32, ChunkInfo>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
+    //https://zhuanlan.zhihu.com/p/165976086
     pub current_chunk_info: &'a mut ChunkInfo,
     current_read_state: ChunkReadState,
     max_chunk_size: usize,
@@ -294,17 +281,19 @@ impl<'a> ChunkUnpacketizer<'a> {
             }
             1 => {
                 if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp += extended_timestamp;
+                    self.current_message_header().timestamp =
+                        self.current_message_header().timestamp - 0xFFFFFF + extended_timestamp;
                 } else {
                     self.current_message_header().timestamp +=
                         self.current_message_header().timestamp_delta;
                 }
             }
             2 => {
-                self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
+                //self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
 
                 if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp += extended_timestamp;
+                    self.current_message_header().timestamp =
+                        self.current_message_header().timestamp - 0xFFFFFF + extended_timestamp;
                 } else {
                     self.current_message_header().timestamp +=
                         self.current_message_header().timestamp_delta;
@@ -339,7 +328,8 @@ impl<'a> ChunkUnpacketizer<'a> {
             .extend_from_slice(&payload_data[..]);
 
         if self.current_chunk_info.payload.len() == whole_msg_length {
-            return Ok(UnpackResult::ChunkInfo(self.current_chunk_info));
+            let chunkinfo = mem::replace(self.current_chunk_info, ChunkInfo::new());
+            return Ok(UnpackResult::ChunkInfo(chunkinfo));
         }
 
         self.current_read_state = ChunkReadState::ReadBasicHeader;

@@ -41,8 +41,8 @@ impl ChunkMessageHeader {
 }
 
 pub struct ChunkHeader {
-    basic_header: ChunkBasicHeader,
-    message_header: ChunkMessageHeader,
+    pub basic_header: ChunkBasicHeader,
+    pub message_header: ChunkMessageHeader,
 }
 
 impl ChunkHeader {
@@ -58,6 +58,22 @@ pub struct Chunk {
     basic_header: ChunkBasicHeader,
     message_header: ChunkMessageHeader,
     raw_data: BytesMut,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub struct ChunkInfo {
+    pub basic_header: ChunkBasicHeader,
+    pub message_header: ChunkMessageHeader,
+    pub payload: BytesMut,
+}
+impl ChunkInfo {
+    pub fn new() -> ChunkInfo {
+        ChunkInfo {
+            basic_header: ChunkBasicHeader::new(0, 0),
+            message_header: ChunkMessageHeader::new(),
+            payload: BytesMut::new(),
+        }
+    }
 }
 
 // impl Chunk {

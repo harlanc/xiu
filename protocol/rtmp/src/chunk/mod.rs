@@ -9,5 +9,5 @@ mod packetizer;
 // pub use self::deserializer::{ChunkDeserializer};
 // pub use self::serializer::{ChunkSerializer, Packet};
 
-pub use self::chunk::{ChunkBasicHeader,ChunkMessageHeader,Chunk,ChunkHeader};
+pub use self::chunk::{ChunkBasicHeader,ChunkMessageHeader,Chunk,ChunkHeader,ChunkInfo};
 pub use self::unpacketizer_errors::ChunkUnpackError;
