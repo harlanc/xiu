@@ -2,6 +2,7 @@ mod unpacketizer_errors;
 mod unpacketizer;
 mod chunk;
 mod packetizer;
+mod handshake;
 
 
 // pub use self::deserialization_errors::{ChunkDeserializationError, ChunkDeserializationErrorKind};

@@ -1,5 +1,5 @@
 use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
-use bytes::BytesMut;
+
 use chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 use std::collections::HashMap;
 use std::io;
@@ -36,7 +36,6 @@ impl From<io::Error> for PackError {
 }
 
 pub struct ChunkPacketizer {
-    buffer: BytesMut,
     csid_2_chunk_header: HashMap<u32, ChunkHeader>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
