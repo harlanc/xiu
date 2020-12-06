@@ -1,2 +1,2 @@
-pub mod netio_reader;
-pub mod netio_writer;
+pub mod reader;
+pub mod writer;
