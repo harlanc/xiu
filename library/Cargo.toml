@@ -1,0 +1,13 @@
+[package]
+name = "liverust_lib"
+version = "0.1.0"
+authors = ["HarlanC <wawacry@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+byteorder = "1.2.1"
+bytes = "0.5"
+rand = "0.3"
+failure = "0.1.1"
