@@ -1,5 +1,4 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
-use bytes::BytesMut;
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use std::io;
 use std::io::{Cursor, Write};
 pub struct IOWriteError {

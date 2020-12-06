@@ -1,7 +1,7 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{ByteOrder, ReadBytesExt};
 use bytes::BytesMut;
 use std::io;
-use std::io::{Cursor, Write};
+use std::io::Cursor;
 
 pub enum IOReadErrorValue {
     NotEnoughBytes,

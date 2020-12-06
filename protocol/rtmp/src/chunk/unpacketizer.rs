@@ -1,13 +1,12 @@
-use byteorder::ByteOrder;
+
 use byteorder::{BigEndian, ReadBytesExt};
 //use bytes::Bytes;
 use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
 use chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
+use liverust_lib::netio::reader::{IOReadError, Reader};
 use std::cmp::min;
 use std::collections::HashMap;
-use std::io;
-use std::io::Cursor;
 use std::mem;
 
 #[derive(Eq, PartialEq, Debug)]
@@ -20,9 +19,9 @@ pub enum UnpackResult {
 }
 
 pub enum UnpackErrorValue {
-    NotEnoughBytes,
+    IO(IOReadError),
     UnknowReadState,
-    IO(io::Error),
+    //IO(io::Error),
 }
 
 pub struct UnpackError {
@@ -35,13 +34,21 @@ impl From<UnpackErrorValue> for UnpackError {
     }
 }
 
-impl From<io::Error> for UnpackError {
-    fn from(error: io::Error) -> Self {
+impl From<IOReadError> for UnpackError {
+    fn from(error: IOReadError) -> Self {
         UnpackError {
             value: UnpackErrorValue::IO(error),
         }
     }
 }
+
+// impl From<IOReadErrorValue> for UnpackError {
+//     fn from(error: IOReadErrorValue) -> Self {
+//         UnpackError {
+//             value: UnpackErrorValue::IOReadErrorValue(error),
+//         }
+//     }
+// }
 
 enum ChunkReadState {
     Init,
@@ -53,6 +60,8 @@ enum ChunkReadState {
 
 pub struct ChunkUnpacketizer<'a> {
     buffer: BytesMut,
+    reader: Reader,
+    //reader :
     csid_2_chunk_info: HashMap<u32, ChunkInfo>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
@@ -85,40 +94,6 @@ impl<'a> ChunkUnpacketizer<'a> {
         // Ok(UnpackResult::Success)
     }
 
-    fn read_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, UnpackError> {
-        if self.buffer.len() < bytes_num {
-            return Err(UnpackError {
-                value: UnpackErrorValue::NotEnoughBytes,
-            });
-        }
-        Ok(self.buffer.split_to(bytes_num))
-    }
-
-    fn read_bytes_cursor(&mut self, bytes_num: usize) -> Result<Cursor<BytesMut>, UnpackError> {
-        let tmp_bytes = self.read_bytes(bytes_num)?;
-        let tmp_cursor = Cursor::new(tmp_bytes);
-        Ok(tmp_cursor)
-    }
-
-    fn read_u8(&mut self) -> Result<u8, UnpackError> {
-        let mut cursor = self.read_bytes_cursor(1)?;
-        Ok(cursor.read_u8()?)
-    }
-
-    fn read_u24<T: ByteOrder>(&mut self) -> Result<u32, UnpackError> {
-        let mut cursor = self.read_bytes_cursor(3)?;
-        let val = cursor.read_u24::<T>()?;
-        Ok(val)
-    }
-
-    fn read_u32<T: ByteOrder>(&mut self) -> Result<u32, UnpackError> {
-        let mut cursor = self.read_bytes_cursor(4)?;
-        let val = cursor.read_u32::<T>()?;
-
-        Ok(val)
-    }
-
-    // fn read_u32<>
     /**
      * 5.3.1.1. Chunk Basic Header
      * The Chunk Basic Header encodes the chunk stream ID and the chunk
@@ -165,7 +140,7 @@ impl<'a> ChunkUnpacketizer<'a> {
      */
     #[allow(dead_code)]
     pub fn read_basic_header(&mut self) -> Result<UnpackResult, UnpackError> {
-        let byte = self.read_u8()?;
+        let byte = self.reader.read_u8()?;
 
         let format_id = ((byte >> 6) & 0b00000011) as u8;
         let mut csid = (byte & 0b00111111) as u32;
@@ -176,15 +151,15 @@ impl<'a> ChunkUnpacketizer<'a> {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
-                csid += self.read_u8()? as u32;
+                csid += self.reader.read_u8()? as u32;
             }
             1 => {
                 if self.buffer.len() < 1 {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
-                csid += self.read_u8()? as u32;
-                csid += self.read_u8()? as u32 * 256;
+                csid += self.reader.read_u8()? as u32;
+                csid += self.reader.read_u8()? as u32 * 256;
             }
             _ => {}
         }
@@ -233,26 +208,29 @@ impl<'a> ChunkUnpacketizer<'a> {
         match self.current_chunk_info.basic_header.format {
             0 => {
                 // let mut val = self.read_bytes(11);
-                self.current_message_header().timestamp = self.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_length = self.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_type_id = self.read_u8()?;
-                self.current_message_header().msg_streamd_id = self.read_u32::<BigEndian>()?;
+                self.current_message_header().timestamp = self.reader.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_length = self.reader.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_type_id = self.reader.read_u8()?;
+                self.current_message_header().msg_streamd_id =
+                    self.reader.read_u32::<BigEndian>()?;
 
                 if self.current_message_header().timestamp >= 0xFFFFFF {
                     self.current_message_header().is_extended_timestamp = true;
                 }
             }
             1 => {
-                self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_length = self.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_type_id = self.read_u8()?;
+                self.current_message_header().timestamp_delta =
+                    self.reader.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_length = self.reader.read_u24::<BigEndian>()?;
+                self.current_message_header().msg_type_id = self.reader.read_u8()?;
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
                     self.current_message_header().is_extended_timestamp = true;
                 }
             }
             2 => {
-                self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
+                self.current_message_header().timestamp_delta =
+                    self.reader.read_u24::<BigEndian>()?;
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
                     self.current_message_header().is_extended_timestamp = true;
@@ -270,7 +248,7 @@ impl<'a> ChunkUnpacketizer<'a> {
         let mut extended_timestamp: u32 = 0;
 
         if self.current_message_header().is_extended_timestamp {
-            extended_timestamp = self.read_u32::<BigEndian>()?;
+            extended_timestamp = self.reader.read_u32::<BigEndian>()?;
         }
 
         match self.current_chunk_info.basic_header.format {
@@ -322,7 +300,7 @@ impl<'a> ChunkUnpacketizer<'a> {
             self.current_chunk_info.payload.reserve(additional);
         }
 
-        let payload_data = self.read_bytes(need_read_length)?;
+        let payload_data = self.reader.read_bytes(need_read_length)?;
         self.current_chunk_info
             .payload
             .extend_from_slice(&payload_data[..]);

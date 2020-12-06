@@ -1,9 +1,8 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{BigEndian, LittleEndian};
 
 use chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
+use liverust_lib::netio::writer::{IOWriteError, Writer};
 use std::collections::HashMap;
-use std::io;
-use std::io::{Cursor, Write};
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum PackResult {
@@ -14,7 +13,8 @@ pub enum PackResult {
 pub enum PackErrorValue {
     NotExistHeader,
     UnknowReadState,
-    IO(io::Error),
+    // IO(io::Error),
+    IO(IOWriteError),
 }
 
 pub struct PackError {
@@ -27,8 +27,8 @@ impl From<PackErrorValue> for PackError {
     }
 }
 
-impl From<io::Error> for PackError {
-    fn from(error: io::Error) -> Self {
+impl From<IOWriteError> for PackError {
+    fn from(error: IOWriteError) -> Self {
         PackError {
             value: PackErrorValue::IO(error),
         }
@@ -41,7 +41,8 @@ pub struct ChunkPacketizer {
     //https://zhuanlan.zhihu.com/p/165976086
     chunk_info: ChunkInfo,
     max_chunk_size: usize,
-    bytes: Cursor<Vec<u8>>,
+    //bytes: Cursor<Vec<u8>>,
+    writer: Writer,
 }
 
 impl ChunkPacketizer {
@@ -82,40 +83,15 @@ impl ChunkPacketizer {
         Ok(PackResult::Success)
     }
 
-    fn write_u8(&mut self, byte: u8) -> Result<(), PackError> {
-        self.bytes.write_u8(byte)?;
-        Ok(())
-    }
-
-    fn write_u16(&mut self, bytes: u16) -> Result<(), PackError> {
-        self.bytes.write_u16::<BigEndian>(bytes)?;
-        Ok(())
-    }
-
-    fn write_u24(&mut self, bytes: u32) -> Result<(), PackError> {
-        self.bytes.write_u24::<BigEndian>(bytes)?;
-        Ok(())
-    }
-
-    fn write_u32<T: ByteOrder>(&mut self, bytes: u32) -> Result<(), PackError> {
-        self.bytes.write_u32::<T>(bytes)?;
-        Ok(())
-    }
-
-    fn write(&mut self, buf: &[u8]) -> Result<(), PackError> {
-        self.bytes.write(buf)?;
-        Ok(())
-    }
-
     fn write_basic_header(&mut self, fmt: u8, csid: u32) -> Result<(), PackError> {
         if csid >= 64 + 255 {
-            self.write_u8(fmt << 6 | 1)?;
-            self.write_u16((csid - 64) as u16)?;
+            self.writer.write_u8(fmt << 6 | 1)?;
+            self.writer.write_u16((csid - 64) as u16)?;
         } else if csid >= 64 {
-            self.write_u8(fmt << 6 | 0)?;
-            self.write_u8((csid - 64) as u8)?;
+            self.writer.write_u8(fmt << 6 | 0)?;
+            self.writer.write_u8((csid - 64) as u8)?;
         } else {
-            self.write_u8(fmt << 6 | csid as u8)?;
+            self.writer.write_u8(fmt << 6 | csid as u8)?;
         }
 
         Ok(())
@@ -134,16 +110,17 @@ impl ChunkPacketizer {
 
         match basic_header.format {
             0 => {
-                self.write_u24(timestamp)?;
-                self.write_u24(message_header.msg_length)?;
-                self.write_u32::<LittleEndian>(message_header.msg_streamd_id)?;
+                self.writer.write_u24(timestamp)?;
+                self.writer.write_u24(message_header.msg_length)?;
+                self.writer
+                    .write_u32::<LittleEndian>(message_header.msg_streamd_id)?;
             }
             1 => {
-                self.write_u24(timestamp)?;
-                self.write_u24(message_header.msg_length)?;
+                self.writer.write_u24(timestamp)?;
+                self.writer.write_u24(message_header.msg_length)?;
             }
             2 => {
-                self.write_u24(timestamp)?;
+                self.writer.write_u24(timestamp)?;
             }
             3 => {}
         }
@@ -152,7 +129,7 @@ impl ChunkPacketizer {
     }
 
     fn write_extened_timestamp(&mut self, timestamp: u32) -> Result<(), PackError> {
-        self.write_u32::<BigEndian>(timestamp)?;
+        self.writer.write_u32::<BigEndian>(timestamp)?;
 
         Ok(())
     }
@@ -182,7 +159,7 @@ impl ChunkPacketizer {
             };
 
             let payload_bytes = chunk_info.payload.split_to(cur_payload_size);
-            self.write(&payload_bytes[0..])?;
+            self.writer.write(&payload_bytes[0..])?;
 
             whole_payload_size -= cur_payload_size;
 
