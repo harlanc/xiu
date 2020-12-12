@@ -2,8 +2,7 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
 use bytes::BytesMut;
 use rand;
 use rand::Rng;
-use std::collections::HashMap;
-
+use std::{collections::HashMap, ops::BitOr};
 
 use liverust_lib::netio::{
     reader::{IOReadError, Reader},
@@ -58,13 +57,25 @@ pub struct SimpleHandshakeClient {
     // buffer: BytesMut,
     reader: Reader,
     writer: Writer,
+    s1_bytes: BytesMut,
+}
+
+fn current_time() -> u32 {
+    let duration = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
+
+    match duration {
+        Ok(result) => result.as_nanos() as u32,
+        _ => 0,
+    }
 }
 
 impl SimpleHandshakeClient {
+    fn write_c0(&mut self) -> Result<(), HandshakeError> {
+        self.writer.write_u8(RTMP_VERSION as u8)?;
+        Ok(())
+    }
     fn write_c1(&mut self) -> Result<(), HandshakeError> {
-        let duration = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-        self.writer
-            .write_u32::<BigEndian>(duration.as_nanos() as u32)?;
+        self.writer.write_u32::<BigEndian>(current_time())?;
         self.writer.write_u32::<BigEndian>(0)?;
 
         let mut rng = rand::thread_rng();
@@ -75,10 +86,22 @@ impl SimpleHandshakeClient {
     }
 
     fn write_c2(&mut self) -> Result<(), HandshakeError> {
+        //let time = self.s1_bytes.split_to(4);
+        self.writer.write(&self.s1_bytes[0..])?;
+        self.writer.write_u32::<BigEndian>(current_time())?;
         Ok(())
     }
 
     fn read_s0(&mut self) -> Result<(), HandshakeError> {
+        self.reader.read_u8()?;
+        Ok(())
+    }
+    fn read_s1(&mut self) -> Result<(), HandshakeError> {
+        self.s1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        Ok(())
+    }
+    fn read_s2(&mut self) -> Result<(), HandshakeError> {
+        let s2_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
         Ok(())
     }
 }
