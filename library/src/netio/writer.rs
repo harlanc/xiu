@@ -1,4 +1,6 @@
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use rand;
+use rand::Rng;
 use std::io;
 use std::io::{Cursor, Write};
 pub struct IOWriteError {
@@ -6,14 +8,7 @@ pub struct IOWriteError {
 }
 
 pub enum IOWriteErrorValue {
-    NotEnoughBytes,
     IO(io::Error),
-}
-
-impl From<IOWriteErrorValue> for IOWriteError {
-    fn from(val: IOWriteErrorValue) -> Self {
-        IOWriteError { value: val }
-    }
 }
 
 impl From<io::Error> for IOWriteError {
@@ -55,6 +50,14 @@ impl Writer {
 
     pub fn write(&mut self, buf: &[u8]) -> Result<(), IOWriteError> {
         self.bytes.write(buf)?;
+        Ok(())
+    }
+
+    pub fn write_random_bytes(&mut self, length: u32) -> Result<(), IOWriteError> {
+        let mut rng = rand::thread_rng();
+        for _ in 0..length {
+            self.bytes.write_u8(rng.gen())?;
+        }
         Ok(())
     }
 }
