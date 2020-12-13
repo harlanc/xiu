@@ -34,6 +34,11 @@ impl Reader {
     pub fn new(input: BytesMut) -> Reader {
         Reader { buffer: input }
     }
+    pub fn new_with_extend(input: BytesMut, extend: &[u8]) -> Reader {
+        let mut reader = Reader { buffer: input };
+        reader.extend_from_slice(extend);
+        reader
+    }
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
         self.buffer.extend_from_slice(extend)
     }
