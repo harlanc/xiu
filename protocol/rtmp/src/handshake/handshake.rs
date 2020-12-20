@@ -4,6 +4,7 @@ use hmac::{Hmac, Mac};
 use rand;
 use rand::Rng;
 use sha2::Sha256;
+use std::convert::TryInto;
 use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
 
@@ -21,9 +22,9 @@ const RTMP_KEY_SECOND_HALF: [u8; 32] = [
     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB, 0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
 ];
 //30
-const RTMP_CLIENT_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
+const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
 //36
-const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Player 001";
+const RTMP_CLIENT_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Player 001";
 const RTMP_DIGEST_LENGTH: usize = 32;
 
 enum ClientReadState {
@@ -44,6 +45,7 @@ pub enum HandshakeErrorValue {
     IORead(IOReadError),
     IOWrite(IOWriteError),
     SysTimeError(SystemTimeError),
+    DigestNotFound,
 }
 
 pub struct HandshakeError {
@@ -189,6 +191,12 @@ enum SchemaVersion {
     Schema1,
 }
 
+struct DigestMsg {
+    left_part: Vec<u8>,
+    right_part: Vec<u8>,
+    digest: [u8; RTMP_DIGEST_LENGTH],
+}
+
 fn make_digest(left_part: &[u8], right_part: &[u8], key: &[u8]) -> [u8; RTMP_DIGEST_LENGTH] {
     // let mut inputs = Vec::with_capacity(left_part.len() + right_part.len());
     // for index in 0..left_part.len() {
@@ -221,7 +229,7 @@ fn make_digest(left_part: &[u8], right_part: &[u8], key: &[u8]) -> [u8; RTMP_DIG
     output
 }
 
-fn find_digest_offset(data: &[u8], version: SchemaVersion) -> u32 {
+fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: SchemaVersion) -> u32 {
     match version {
         SchemaVersion::Schema0 => {
             ((data[772] as u32) + (data[773] as u32) + (data[774] as u32) + (data[775] as u32))
@@ -232,6 +240,42 @@ fn find_digest_offset(data: &[u8], version: SchemaVersion) -> u32 {
             ((data[8] as u32) + (data[9] as u32) + (data[10] as u32) + (data[11] as u32)) % 728 + 12
         }
     }
+}
+// clone a slice https://stackoverflow.com/questions/28219231/how-to-idiomatically-copy-a-slice
+fn find_digest(
+    data: &[u8; RTMP_HANDSHAKE_SIZE],
+    key: &[u8],
+) -> Result<[u8; RTMP_DIGEST_LENGTH], HandshakeError> {
+    let mut schemas = Vec::new();
+    schemas.push(SchemaVersion::Schema0);
+    schemas.push(SchemaVersion::Schema1);
+
+    for version in schemas {
+        let digest_offset = find_digest_offset(&data, version);
+        let msg = cook_handshake_msg(data, digest_offset)?;
+        let digest = make_digest(&msg.left_part, &msg.right_part, key);
+        if digest == msg.digest {
+            return Ok(msg.digest);
+        }
+    }
+
+    Err(HandshakeError {
+        value: HandshakeErrorValue::DigestNotFound,
+    })
+}
+
+fn cook_handshake_msg(
+    handshake: &[u8; RTMP_HANDSHAKE_SIZE],
+    digest_offset: u32,
+) -> Result<DigestMsg, HandshakeError> {
+    let (left_part, rest) = handshake.split_at(digest_offset as usize);
+    let (raw_digest, right_part) = rest.split_at(RTMP_DIGEST_LENGTH);
+
+    Ok(DigestMsg {
+        left_part: Vec::from(left_part),
+        right_part: Vec::from(right_part),
+        digest: raw_digest.try_into().expect("slice with incorrect length"),
+    })
 }
 
 pub struct ComplexHandshakeClient {
@@ -258,13 +302,22 @@ impl ComplexHandshakeClient {
         c1_bytes.write(&RTMP_CLIENT_VERSION);
         generate_random_bytes(&mut c1_bytes[8..RTMP_HANDSHAKE_SIZE]);
 
+        let c1_array: [u8; RTMP_HANDSHAKE_SIZE] =
+            c1_bytes.try_into().unwrap_or_else(|v: Vec<u8>| {
+                panic!(
+                    "Expected a Vec of length {} but it was {}",
+                    RTMP_HANDSHAKE_SIZE,
+                    v.len()
+                )
+            });
+
         // self.writer.write_u32::<BigEndian>(current_time())?;
         // self.writer.write(&RTMP_CLIENT_VERSION)?;
 
         // let mut buf: [u8; RTMP_HANDSHAKE_SIZE - 8];
         // generate_random_bytes(&mut buf);
 
-        let offset: u32 = find_digest_offset(&c1_bytes[..], SchemaVersion::Schema1);
+        let offset: u32 = find_digest_offset(&c1_array, SchemaVersion::Schema1);
 
         let left_part = &c1_bytes[0..(offset as usize)];
         let right_part = &c1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
@@ -291,7 +344,8 @@ impl ComplexHandshakeClient {
     fn read_s1(&mut self) -> Result<(), HandshakeError> {
         self.s1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
 
-        
+        let buffer = self.s1_bytes.clone();
+        let reader = Reader::new_with_extend(buffer, &self.s1_bytes);
 
         Ok(())
     }
