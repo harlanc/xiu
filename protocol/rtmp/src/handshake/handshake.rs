@@ -27,6 +27,31 @@ const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Serv
 const RTMP_CLIENT_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Player 001";
 const RTMP_DIGEST_LENGTH: usize = 32;
 
+
+const RTMP_SERVER_KEY[u8;68] = [
+    0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
+    0x41, 0x64, 0x6f, 0x62, 0x65, 0x20, 0x46, 0x6c,
+    0x61, 0x73, 0x68, 0x20, 0x4d, 0x65, 0x64, 0x69,
+    0x61, 0x20, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72,
+    0x20, 0x30, 0x30, 0x31, // Genuine Adobe Flash Media Server 001
+    0xf0, 0xee, 0xc2, 0x4a, 0x80, 0x68, 0xbe, 0xe8,
+    0x2e, 0x00, 0xd0, 0xd1, 0x02, 0x9e, 0x7e, 0x57,
+    0x6e, 0xec, 0x5d, 0x2d, 0x29, 0x80, 0x6f, 0xab,
+    0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae
+]; // 68
+
+// 62bytes FP key which is used to sign the client packet.
+const RTMP_CLIENT_KEY[u8;62] = [
+    0x47, 0x65, 0x6E, 0x75, 0x69, 0x6E, 0x65, 0x20,
+    0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x46, 0x6C,
+    0x61, 0x73, 0x68, 0x20, 0x50, 0x6C, 0x61, 0x79,
+    0x65, 0x72, 0x20, 0x30, 0x30, 0x31, // Genuine Adobe Flash Player 001
+    0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8,
+    0x2E, 0x00, 0xD0, 0xD1, 0x02, 0x9E, 0x7E, 0x57,
+    0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
+    0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE
+]; 
+
 enum ClientReadState {
     ReadS0S1,
     ReadS2,
@@ -46,6 +71,7 @@ pub enum HandshakeErrorValue {
     IOWrite(IOWriteError),
     SysTimeError(SystemTimeError),
     DigestNotFound,
+    S0VersionNotCorrect,
 }
 
 pub struct HandshakeError {
@@ -197,7 +223,7 @@ struct DigestMsg {
     digest: [u8; RTMP_DIGEST_LENGTH],
 }
 
-fn make_digest(left_part: &[u8], right_part: &[u8], key: &[u8]) -> [u8; RTMP_DIGEST_LENGTH] {
+fn make_digest(input: &[u8], key: &[u8]) -> [u8; RTMP_DIGEST_LENGTH] {
     // let mut inputs = Vec::with_capacity(left_part.len() + right_part.len());
     // for index in 0..left_part.len() {
     //     inputs.push(left_part[index]);
@@ -207,7 +233,7 @@ fn make_digest(left_part: &[u8], right_part: &[u8], key: &[u8]) -> [u8; RTMP_DIG
     //     inputs.push(right_part[index]);
     // }
 
-    let mut input = [left_part, right_part].concat();
+    //let mut input = [left_part, right_part].concat();
     let mut mac = Hmac::<Sha256>::new_varkey(key).unwrap();
     mac.input(&input[..]);
 
@@ -253,7 +279,8 @@ fn find_digest(
     for version in schemas {
         let digest_offset = find_digest_offset(&data, version);
         let msg = cook_handshake_msg(data, digest_offset)?;
-        let digest = make_digest(&msg.left_part, &msg.right_part, key);
+        let input = [msg.left_part, msg.right_part].concat();
+        let digest = make_digest(&input, key);
         if digest == msg.digest {
             return Ok(msg.digest);
         }
@@ -282,13 +309,16 @@ pub struct ComplexHandshakeClient {
     reader: Reader,
     writer: Writer,
     // s1_random_bytes: BytesMut,
-    // s1_timestamp: u32,
+    s1_timestamp: u32,
     // s1_version: u32,
     s1_bytes: BytesMut,
 
     state: ClientReadState,
 }
 
+//// 1536bytes C2S2
+//random-data: 1504bytes
+//digest-data: 32bytes
 impl ComplexHandshakeClient {
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
@@ -321,8 +351,8 @@ impl ComplexHandshakeClient {
 
         let left_part = &c1_bytes[0..(offset as usize)];
         let right_part = &c1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
-        let digest_bytes =
-            make_digest(left_part, right_part, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes());
+        let input = [left_part, right_part].concat();
+        let digest_bytes = make_digest(&input, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes());
 
         for idx in 0..RTMP_DIGEST_LENGTH {
             c1_bytes[(offset as usize) + idx] = digest_bytes[idx];
@@ -332,13 +362,34 @@ impl ComplexHandshakeClient {
     }
     fn write_c2(&mut self) -> Result<(), HandshakeError> {
         //let time = self.s1_bytes.split_to(4);
-        self.writer.write(&self.s1_bytes[0..])?;
         self.writer.write_u32::<BigEndian>(current_time())?;
+        self.writer.write_u32::<BigEndian>(self.s1_timestamp)?;
+
+        let s1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.s1_bytes[..]
+            .try_into()
+            .expect("slice with incorrect length");
+
+        let digest = find_digest(&s1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
+
+        let tmp_key = make_digest(digest,RTMP_CLIENT_KEY);
+        let key = make_digest(tmp_key,)
+        
+
+        let mut c2_bytes = vec![];
+        c2_bytes.write_u32::<BigEndian>(current_time());
+        c2_bytes.write(&RTMP_CLIENT_VERSION);
+        generate_random_bytes(&mut c1_bytes[8..RTMP_HANDSHAKE_SIZE]);
+
         Ok(())
     }
 
     fn read_s0(&mut self) -> Result<(), HandshakeError> {
-        self.reader.read_u8()?;
+        let version = self.reader.read_u8()?;
+        if version != RTMP_VERSION as u8 {
+            return Err(HandshakeError {
+                value: HandshakeErrorValue::S0VersionNotCorrect,
+            });
+        }
         Ok(())
     }
     fn read_s1(&mut self) -> Result<(), HandshakeError> {
@@ -346,6 +397,11 @@ impl ComplexHandshakeClient {
 
         let buffer = self.s1_bytes.clone();
         let reader = Reader::new_with_extend(buffer, &self.s1_bytes);
+
+        //time
+        self.s1_timestamp = reader.read_u32::<BigEndian>()?;
+        //version
+        reader.read_bytes(4)?;
 
         Ok(())
     }
