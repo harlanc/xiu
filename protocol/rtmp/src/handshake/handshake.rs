@@ -44,9 +44,18 @@ const RTMP_CLIENT_KEY: [u8; 62] = [
     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB, 0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
 ];
 
-enum ClientReadState {
-    ReadS0S1,
-    ReadS2,
+enum ClientHandshakeState {
+    WriteC0C1,
+    ReadS0S1S2,
+    WriteC2,
+    Finish,
+}
+
+enum ServerHandshakeState {
+    ReadC0C1,
+    WriteS0S1S2,
+    ReadC2,
+    Finish,
 }
 enum ServerReadState {
     ReadC0,
@@ -103,7 +112,7 @@ pub struct SimpleHandshakeClient {
     reader: Reader,
     writer: Writer,
     s1_bytes: BytesMut,
-    state: ClientReadState,
+    state: ClientHandshakeState,
 }
 
 fn current_time() -> u32 {
@@ -156,22 +165,27 @@ impl SimpleHandshakeClient {
         Ok(())
     }
 
-    pub fn init(&mut self) -> Result<(), HandshakeError> {
-        self.write_c0()?;
-        self.write_c1()?;
-        Ok(())
-    }
-
-    pub fn process_bytes(&mut self) -> Result<(), HandshakeError> {
+    pub fn handshake(&mut self) -> Result<(), HandshakeError> {
         match self.state {
-            ClientReadState::ReadS0S1 => {
+            ClientHandshakeState::WriteC0C1 => {
+                self.write_c0()?;
+                self.write_c1()?;
+                self.state = ClientHandshakeState::ReadS0S1S2;
+            }
+
+            ClientHandshakeState::ReadS0S1S2 => {
                 self.read_s0()?;
                 self.read_s1()?;
-                self.write_c2()?;
-            }
-            ClientReadState::ReadS2 => {
                 self.read_s2()?;
+                self.state = ClientHandshakeState::WriteC2;
             }
+
+            ClientHandshakeState::WriteC2 => {
+                self.write_c2()?;
+                self.state = ClientHandshakeState::Finish;
+            }
+
+            ClientHandshakeState::Finish => {}
         }
 
         Ok(())
@@ -207,6 +221,7 @@ random-data:(764-4-offset-32)bytes
 enum SchemaVersion {
     Schema0,
     Schema1,
+    Unknown,
 }
 
 struct DigestMsg {
@@ -216,16 +231,6 @@ struct DigestMsg {
 }
 
 fn make_digest(input: &[u8], key: &[u8]) -> [u8; RTMP_DIGEST_LENGTH] {
-    // let mut inputs = Vec::with_capacity(left_part.len() + right_part.len());
-    // for index in 0..left_part.len() {
-    //     inputs.push(left_part[index]);
-    // }
-
-    // for index in 0..right_part.len() {
-    //     inputs.push(right_part[index]);
-    // }
-
-    //let mut input = [left_part, right_part].concat();
     let mut mac = Hmac::<Sha256>::new_varkey(key).unwrap();
     mac.input(&input[..]);
 
@@ -257,16 +262,19 @@ fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: SchemaVersion) 
         SchemaVersion::Schema1 => {
             ((data[8] as u32) + (data[9] as u32) + (data[10] as u32) + (data[11] as u32)) % 728 + 12
         }
+        SchemaVersion::Unknown => 0,
     }
 }
 // clone a slice https://stackoverflow.com/questions/28219231/how-to-idiomatically-copy-a-slice
 fn find_digest(
     data: &[u8; RTMP_HANDSHAKE_SIZE],
     key: &[u8],
+    schema: &SchemaVersion,
 ) -> Result<[u8; RTMP_DIGEST_LENGTH], HandshakeError> {
     let mut schemas = Vec::new();
     schemas.push(SchemaVersion::Schema0);
     schemas.push(SchemaVersion::Schema1);
+    schema = &SchemaVersion::Unknown;
 
     for version in schemas {
         let digest_offset = find_digest_offset(&data, version);
@@ -274,6 +282,8 @@ fn find_digest(
         let input = [msg.left_part, msg.right_part].concat();
         let digest = make_digest(&input, key);
         if digest == msg.digest {
+            schema = &version;
+
             return Ok(msg.digest);
         }
     }
@@ -305,7 +315,7 @@ pub struct ComplexHandshakeClient {
     // s1_version: u32,
     s1_bytes: BytesMut,
 
-    state: ClientReadState,
+    state: ClientHandshakeState,
 }
 
 //// 1536bytes C2S2
@@ -322,6 +332,7 @@ impl ComplexHandshakeClient {
         let mut c1_bytes = vec![];
         c1_bytes.write_u32::<BigEndian>(current_time());
         c1_bytes.write(&RTMP_CLIENT_VERSION);
+
         generate_random_bytes(&mut c1_bytes[8..RTMP_HANDSHAKE_SIZE]);
 
         let c1_array: [u8; RTMP_HANDSHAKE_SIZE] =
@@ -337,6 +348,7 @@ impl ComplexHandshakeClient {
 
         let left_part = &c1_bytes[0..(offset as usize)];
         let right_part = &c1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
+
         let input = [left_part, right_part].concat();
         let digest_bytes = make_digest(&input, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes());
 
@@ -358,7 +370,13 @@ impl ComplexHandshakeClient {
             .try_into()
             .expect("slice with incorrect length");
 
-        let digest = find_digest(&s1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
+        let mut schemaVersion: SchemaVersion;
+
+        let digest = find_digest(
+            &s1_array,
+            RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
+            &schemaVersion,
+        )?;
 
         let tmp_key = make_digest(&digest, &RTMP_CLIENT_KEY);
         let mut digest = make_digest(&c2_bytes[..1504], &tmp_key);
@@ -382,7 +400,7 @@ impl ComplexHandshakeClient {
         self.s1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
 
         let buffer = self.s1_bytes.clone();
-        let reader = Reader::new_with_extend(buffer, &self.s1_bytes);
+        let reader = Reader::new(buffer);
 
         //time
         self.s1_timestamp = reader.read_u32::<BigEndian>()?;
@@ -395,12 +413,40 @@ impl ComplexHandshakeClient {
         let s2_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
         Ok(())
     }
+
+    pub fn handshake(&mut self) -> Result<(), HandshakeError> {
+        match self.state {
+            ClientHandshakeState::WriteC0C1 => {
+                self.write_c0()?;
+                self.write_c1()?;
+                self.state = ClientHandshakeState::ReadS0S1S2;
+            }
+
+            ClientHandshakeState::ReadS0S1S2 => {
+                self.read_s0()?;
+                self.read_s1()?;
+                self.read_s2()?;
+                self.state = ClientHandshakeState::WriteC2;
+            }
+
+            ClientHandshakeState::WriteC2 => {
+                self.write_c2()?;
+                self.state = ClientHandshakeState::Finish;
+            }
+
+            ClientHandshakeState::Finish => {}
+        }
+
+        Ok(())
+    }
 }
 
 pub struct SimpleHandshakeServer {
     reader: Reader,
     writer: Writer,
     c1_bytes: BytesMut,
+    c1_timestamp: u32,
+    state: ServerHandshakeState,
 }
 
 impl SimpleHandshakeServer {
@@ -410,7 +456,11 @@ impl SimpleHandshakeServer {
     }
 
     fn read_c1(&mut self) -> Result<(), HandshakeError> {
-        self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        let buffer = self.c1_bytes.clone();
+        let reader = Reader::new(buffer);
+        self.c1_timestamp = reader.read_u32::<BigEndian>()?;
+
         Ok(())
     }
 
@@ -425,8 +475,201 @@ impl SimpleHandshakeServer {
     }
 
     fn write_s1(&mut self) -> Result<(), HandshakeError> {
-        self.writer.write_u32::<BigEndian>(current_time())?;
-        
+        self.writer.write_u32::<BigEndian>(current_time());
+        self.writer.write_u32::<BigEndian>(self.c1_timestamp)?;
+        self.writer
+            .write_random_bytes(RTMP_HANDSHAKE_SIZE as u32 - 8)?;
+        Ok(())
+    }
+
+    fn write_s2(&mut self) -> Result<(), HandshakeError> {
+        self.writer.write(&self.c1_bytes)?;
+        Ok(())
+    }
+
+    pub fn handshake(&mut self) -> Result<(), HandshakeError> {
+        match self.state {
+            ServerHandshakeState::ReadC0C1 => {
+                self.read_c0()?;
+                self.read_c1()?;
+                self.state = ServerHandshakeState::WriteS0S1S2;
+            }
+
+            ServerHandshakeState::WriteS0S1S2 => {
+                self.write_s0()?;
+                self.write_s1()?;
+                self.write_s2()?;
+                self.state = ServerHandshakeState::ReadC2;
+            }
+
+            ServerHandshakeState::ReadC2 => {
+                self.read_c2()?;
+                self.state = ServerHandshakeState::Finish;
+            }
+
+            ServerHandshakeState::Finish => {}
+        }
+
+        Ok(())
+    }
+}
+
+pub struct ComplexHandshakeServer {
+    reader: Reader,
+    writer: Writer,
+
+    c1_bytes: BytesMut,
+    c1_schema_version: SchemaVersion,
+    c1_digest: [u8; RTMP_DIGEST_LENGTH],
+    c1_timestamp: u32,
+
+    state: ServerHandshakeState,
+}
+
+/**************************************
+// c1s1 schema0  (1536 bytes)
+time:4 bytes
+version:4 bytes
+key:764 bytes
+digest:764 bytes
+
+//c1s1 schema1  (1536 bytes)
+time: 4bytes
+version: 4bytes
+digest: 764bytes
+key: 764bytes
+
+// 764 bytes key
+random-data:(offset)bytes
+key-data:128bytes
+random-data:(764-offset-128-4)bytes
+offset:4bytes
+
+// 764 bytes digest
+offset:4bytes
+random-data:(offset)bytes
+digest-data:32bytes
+random-data:(764-4-offset-32)bytes
+****************************************/
+
+impl ComplexHandshakeServer {
+    fn read_c0(&mut self) -> Result<(), HandshakeError> {
+        self.reader.read_u8()?;
+        Ok(())
+    }
+
+    fn read_c1(&mut self) -> Result<(), HandshakeError> {
+        self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+
+        let buffer = self.c1_bytes.clone();
+        let reader = Reader::new(buffer);
+        self.c1_timestamp = reader.read_u32::<BigEndian>()?;
+
+        let s1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.c1_bytes[..]
+            .try_into()
+            .expect("slice with incorrect length");
+
+        self.c1_digest = find_digest(
+            &s1_array,
+            RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
+            &self.c1_schema_version,
+        )?;
+        Ok(())
+    }
+
+    fn read_c2(&mut self) -> Result<(), HandshakeError> {
+        self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        Ok(())
+    }
+
+    fn write_s0(&mut self) -> Result<(), HandshakeError> {
+        self.writer.write_u8(RTMP_VERSION as u8)?;
+        Ok(())
+    }
+
+    fn write_s1(&mut self) -> Result<(), HandshakeError> {
+        let mut s1_bytes = vec![];
+        s1_bytes.write_u32::<BigEndian>(current_time());
+        s1_bytes.write(&RTMP_SERVER_VERSION);
+        generate_random_bytes(&mut s1_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
+
+        let s1_array: [u8; RTMP_HANDSHAKE_SIZE] =
+            s1_bytes.try_into().unwrap_or_else(|v: Vec<u8>| {
+                panic!(
+                    "Expected a Vec of length {} but it was {}",
+                    RTMP_HANDSHAKE_SIZE,
+                    v.len()
+                )
+            });
+
+        let offset = find_digest_offset(&s1_array, self.c1_schema_version);
+
+        let left_part = &s1_bytes[0..(offset as usize)];
+        let right_part = &s1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
+
+        let input = [left_part, right_part].concat();
+        let digest_bytes = make_digest(&input, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes());
+
+        for idx in 0..RTMP_DIGEST_LENGTH {
+            s1_bytes[(offset as usize) + idx] = digest_bytes[idx];
+        }
+
+        self.writer.write(&s1_bytes)?;
+
+        Ok(())
+    }
+
+    fn write_s2(&mut self) -> Result<(), HandshakeError> {
+        let mut s2_bytes = vec![];
+        s2_bytes.write_u32::<BigEndian>(current_time());
+
+        s2_bytes.write_u32::<BigEndian>(self.c1_timestamp);
+        generate_random_bytes(&mut s2_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
+
+        let c1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.c1_bytes[..]
+            .try_into()
+            .expect("slice with incorrect length");
+
+        let mut schemaVersion: SchemaVersion;
+
+        let digest = find_digest(
+            &c1_array,
+            RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
+            &schemaVersion,
+        )?;
+
+        let tmp_key = make_digest(&digest, &RTMP_SERVER_KEY);
+        let mut digest = make_digest(&s2_bytes[..1504], &tmp_key);
+
+        s2_bytes.append(&mut digest.to_vec());
+        self.writer.write(&s2_bytes[..])?;
+
+        Ok(())
+    }
+
+    pub fn handshake(&mut self) -> Result<(), HandshakeError> {
+        match self.state {
+            ServerHandshakeState::ReadC0C1 => {
+                self.read_c0()?;
+                self.read_c1()?;
+                self.state = ServerHandshakeState::WriteS0S1S2;
+            }
+
+            ServerHandshakeState::WriteS0S1S2 => {
+                self.write_s0()?;
+                self.write_s1()?;
+                self.write_s2()?;
+                self.state = ServerHandshakeState::ReadC2;
+            }
+
+            ServerHandshakeState::ReadC2 => {
+                self.read_c2()?;
+                self.state = ServerHandshakeState::Finish;
+            }
+
+            ServerHandshakeState::Finish => {}
+        }
+
         Ok(())
     }
 }
