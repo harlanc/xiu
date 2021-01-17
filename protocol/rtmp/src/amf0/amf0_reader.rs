@@ -1,34 +1,34 @@
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
-use bytes::BytesMut;
-use std::io::Read;
-use super::Amf0ValueType;
-use super::Amf0ReadError;
 use super::amf0_markers;
+use super::Amf0ReadError;
+use super::{Amf0ValueType, Amf0WriteError};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
 
+use super::define::UnOrderedMap;
+
+use super::error::Amf0ReadErrorValue;
 use liverust_lib::netio::{
-    reader::{IOReadError, Reader},
-    writer::{IOWriteError, Writer},
+    reader::{ Reader},
+    writer::{Writer},
 };
 
-
-
 fn read_any(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
-
     let markers = bytes.read_u8()?;
-    
+
     if markers == amf0_markers::OBJECT_END {
         return Ok(Amf0ValueType::END);
     }
 
     match markers {
-        amf0_markers::NUMBER => read_number(bytes).map(Some),
-        amf0_markers::BOOLEAN => read_bool(bytes).map(Some),
-        amf0_markers::STRING => read_string(bytes).map(Some),
-        amf0_markers::OBJECT_END => read_object(bytes).map(Some),
-        amf0_markers::NULL => read_null().map(Some),
-        amf0_markers::ECMA_ARRAY => read_ecma_array(bytes).map(Some),
-        amf0_markers::LONG_STRING => read_long_string(bytes).map(Some),
-        _ => Err(Amf0ReadError::UnknownMarker { marker: buffer[0] }),
+        amf0_markers::NUMBER => read_number(bytes),
+        amf0_markers::BOOLEAN => read_bool(bytes),
+        amf0_markers::STRING => read_string(bytes),
+        amf0_markers::OBJECT_END => read_object(bytes),
+        amf0_markers::NULL => read_null(),
+        amf0_markers::ECMA_ARRAY => read_ecma_array(bytes),
+        amf0_markers::LONG_STRING => read_long_string(bytes),
+        _ => Err(Amf0ReadError {
+            value: Amf0ReadErrorValue::UnknownMarker { marker: markers },
+        }),
     }
 }
 
@@ -47,16 +47,17 @@ fn read_bool(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
     }
 }
 
-fn read_raw_string(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
-    let l = bytes.read::<BigEndian>()?;
+fn read_raw_string(bytes: &mut Reader) -> Result<String, Amf0ReadError> {
+    let l = bytes.read_u16::<BigEndian>()?;
     let mut buffer: Vec<u8> = vec![0_u8; l as usize];
-    bytes.read(&mut buffer);
+    let bytes = bytes.read_bytes(l as usize)?;
 
-    let val = String::from_utf8(buffer)?;
+    let val = String::from_utf8(bytes.to_vec())?;
+  
     Ok(val)
 }
 
-fn read_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+fn read_string(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
     let raw_string = read_raw_string(bytes)?;
     Ok(Amf0ValueType::UTF8String(raw_string))
 }
@@ -65,16 +66,15 @@ fn read_null() -> Result<Amf0ValueType, Amf0ReadError> {
     Ok(Amf0ValueType::Null)
 }
 
-fn is_read_object_eof<R: Read>(bytes: &mut R) -> Result<bool, Amf0ReadError> {
-    let marker = bytes.read_u24::<BigEndian>()?;
+fn is_read_object_eof(bytes: &mut Reader) -> Result<bool, Amf0ReadError> {
+    let marker = bytes.advance_u24::<BigEndian>()?;
     if marker == 0x09 {
-        Ok(true)
+        return Ok(true);
     }
-    bytes.write_u24::<BigEndian>(marker)?;
     Ok(false)
 }
 
-fn read_object<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+fn read_object(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
     let mut properties = UnOrderedMap::new();
 
     loop {
@@ -93,7 +93,7 @@ fn read_object<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
     Ok(Amf0ValueType::Object(properties))
 }
 
-fn read_ecma_array<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+fn read_ecma_array(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
     let len = bytes.read_u32::<BigEndian>()?;
 
     let mut properties = UnOrderedMap::new();
@@ -109,12 +109,12 @@ fn read_ecma_array<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadErro
     Ok(Amf0ValueType::Object(properties))
 }
 
-fn read_long_string<R: Read>(bytes: &mut R) -> Result<Amf0ValueType, Amf0ReadError> {
+fn read_long_string(bytes: &mut Reader) -> Result<Amf0ValueType, Amf0ReadError> {
     let l = bytes.read_u32::<BigEndian>()?;
-    let mut buffer: Vec<u8> = vec![0_u8; l as usize];
-    bytes.read(&mut buffer);
 
-    let val = String::from_utf8(buffer)?;
+    let buff = bytes.read_bytes(l as usize)?;
+
+    let val = String::from_utf8(buff.to_vec())?;
     Ok(Amf0ValueType::LongUTF8String(val))
 }
 

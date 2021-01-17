@@ -86,7 +86,7 @@ impl ChunkPacketizer {
     fn write_basic_header(&mut self, fmt: u8, csid: u32) -> Result<(), PackError> {
         if csid >= 64 + 255 {
             self.writer.write_u8(fmt << 6 | 1)?;
-            self.writer.write_u16((csid - 64) as u16)?;
+            self.writer.write_u16::<BigEndian>((csid - 64) as u16)?;
         } else if csid >= 64 {
             self.writer.write_u8(fmt << 6 | 0)?;
             self.writer.write_u8((csid - 64) as u8)?;
@@ -110,17 +110,17 @@ impl ChunkPacketizer {
 
         match basic_header.format {
             0 => {
-                self.writer.write_u24(timestamp)?;
-                self.writer.write_u24(message_header.msg_length)?;
+                self.writer.write_u24::<BigEndian>(timestamp)?;
+                self.writer.write_u24::<BigEndian>(message_header.msg_length)?;
                 self.writer
                     .write_u32::<LittleEndian>(message_header.msg_streamd_id)?;
             }
             1 => {
-                self.writer.write_u24(timestamp)?;
-                self.writer.write_u24(message_header.msg_length)?;
+                self.writer.write_u24::<BigEndian>(timestamp)?;
+                self.writer.write_u24::<BigEndian>(message_header.msg_length)?;
             }
             2 => {
-                self.writer.write_u24(timestamp)?;
+                self.writer.write_u24::<BigEndian>(timestamp)?;
             }
             3 => {}
         }

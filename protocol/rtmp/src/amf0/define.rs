@@ -10,8 +10,8 @@ pub enum Amf0ValueType {
 }
 
 pub struct Amf0Object {
-    key: String,
-    Value: Amf0ValueType,
+    pub key: String,
+    pub value: Amf0ValueType,
 }
 
 pub struct UnOrderedMap {
@@ -24,18 +24,18 @@ impl UnOrderedMap {
             properties: Vec::new(),
         }
     }
-    fn insert(self, key: String, val: Amf0ValueType) -> Option<Amf0ValueType> {
+    pub fn insert(self, key: String, val: Amf0ValueType) -> Option<Amf0ValueType> {
         for i in &self.properties {
             if i.key == key {
-                let tmpVal = i.Value;
-                i.Value = val;
+                let tmpVal = i.value;
+                i.value = val;
                 return Some(tmpVal);
             }
         }
 
         let obj = Amf0Object {
             key: key,
-            Value: val,
+            value: val,
         };
         self.properties.push(obj);
 
@@ -44,17 +44,17 @@ impl UnOrderedMap {
     fn get_by_key(self, key: String) -> Option<Amf0ValueType> {
         for i in self.properties {
             if i.key == key {
-                return Some(i.Value);
+                return Some(i.value);
             }
         }
         None
     }
 
-    // fn get<I>(self, idx: I) -> Option<Amf0Object> {
-    //     self.properties[idx]
-    // }
+    pub fn get(self, idx: usize) -> Amf0Object {
+        self.properties[idx]
+    }
 
-    fn len(self) -> usize {
+    pub fn len(self) -> usize {
         self.properties.len()
     }
 }
