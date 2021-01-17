@@ -63,6 +63,12 @@ impl Reader {
         Ok(cursor.read_u8()?)
     }
 
+    pub fn read_u16<T: ByteOrder>(&mut self) -> Result<u16, IOReadError> {
+        let mut cursor = self.read_bytes_cursor(3)?;
+        let val = cursor.read_u16::<T>()?;
+        Ok(val)
+    }
+    
     pub fn read_u24<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
         let mut cursor = self.read_bytes_cursor(3)?;
         let val = cursor.read_u24::<T>()?;
@@ -72,6 +78,13 @@ impl Reader {
     pub fn read_u32<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
         let mut cursor = self.read_bytes_cursor(4)?;
         let val = cursor.read_u32::<T>()?;
+
+        Ok(val)
+    }
+
+    pub fn read_f64<T: ByteOrder>(&mut self) -> Result<f64, IOReadError> {
+        let mut cursor = self.read_bytes_cursor(4)?;
+        let val = cursor.read_f64::<T>()?;
 
         Ok(val)
     }
