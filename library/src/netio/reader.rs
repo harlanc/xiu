@@ -1,5 +1,5 @@
 use byteorder::{ByteOrder, ReadBytesExt};
-use bytes::{BufMut, BytesMut};
+use bytes::{BytesMut};
 use std::io;
 use std::io::Cursor;
 
