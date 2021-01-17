@@ -57,6 +57,19 @@ impl Reader {
         Ok(tmp_cursor)
     }
 
+    pub fn only_read_u8(&mut self) -> Result<u8, IOReadError> {
+        let val = self.buffer.get(0);
+
+        match val {
+            None => {
+                return Err(IOReadError {
+                    value: IOReadErrorValue::NotEnoughBytes,
+                })
+            }
+            Some(v) => return Ok(v.clone()),
+        }
+    }
+
     pub fn read_u8(&mut self) -> Result<u8, IOReadError> {
         let mut cursor = self.read_bytes_cursor(1)?;
 
@@ -64,11 +77,11 @@ impl Reader {
     }
 
     pub fn read_u16<T: ByteOrder>(&mut self) -> Result<u16, IOReadError> {
-        let mut cursor = self.read_bytes_cursor(3)?;
+        let mut cursor = self.read_bytes_cursor(2)?;
         let val = cursor.read_u16::<T>()?;
         Ok(val)
     }
-    
+
     pub fn read_u24<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
         let mut cursor = self.read_bytes_cursor(3)?;
         let val = cursor.read_u24::<T>()?;
@@ -83,7 +96,7 @@ impl Reader {
     }
 
     pub fn read_f64<T: ByteOrder>(&mut self) -> Result<f64, IOReadError> {
-        let mut cursor = self.read_bytes_cursor(4)?;
+        let mut cursor = self.read_bytes_cursor(8)?;
         let val = cursor.read_f64::<T>()?;
 
         Ok(val)
