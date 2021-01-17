@@ -1,3 +1,11 @@
+
+use super::Amf0ValueType;
+use super::Amf0WriteError;
+use super::amf0_markers;
+use byteorder::BigEndian;
+
+
+
 fn write_any(value: &Amf0ValueType, bytes: &mut Vec<u8>) -> Result<(), Amf0WriteError> {
     match *value {
         Amf0ValueType::Boolean(ref val) => Ok(write_bool(&val, bytes)),
@@ -5,6 +13,7 @@ fn write_any(value: &Amf0ValueType, bytes: &mut Vec<u8>) -> Result<(), Amf0Write
         Amf0ValueType::Number(ref val) => write_number(&val, bytes),
         Amf0ValueType::UTF8String(ref val) => write_string(&val, bytes),
         Amf0ValueType::Object(ref val) => write_object(&val, bytes),
+        _ => Ok(())
     }
 }
 

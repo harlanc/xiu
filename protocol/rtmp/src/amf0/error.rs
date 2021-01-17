@@ -1,4 +1,11 @@
 use std::{io, string};
+use failure::{Fail};
+
+use liverust_lib::netio::{
+    reader::{IOReadError, Reader},
+    writer::{IOWriteError, Writer},
+};
+
 
 #[derive(Debug, Fail)]
 pub enum Amf0ReadError {
@@ -16,6 +23,8 @@ pub enum Amf0ReadError {
 
     #[fail(display = "Failed to read a utf8 string from the byte buffer: {}", _0)]
     StringParseError(#[cause] string::FromUtf8Error),
+
+    IORead(IOReadError),
 }
 
 // Since an IO error can only be thrown while reading the buffer, auto-conversion should work
@@ -30,6 +39,16 @@ impl From<string::FromUtf8Error> for Amf0ReadError {
         Amf0ReadError::StringParseError(error)
     }
 }
+
+
+impl From<IOReadError> for Amf0ReadError {
+    fn from(error: IOReadError) -> Self {
+        Amf0ReadError {
+            value: Amf0ReadError::IORead(error),
+        }
+    }
+}
+
 
 /// Errors raised during to the serialization process
 #[derive(Debug, Fail)]
