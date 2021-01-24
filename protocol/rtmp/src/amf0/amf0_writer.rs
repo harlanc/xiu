@@ -2,8 +2,9 @@ use super::amf0_markers;
 use super::Amf0ValueType;
 use super::Amf0WriteError;
 use byteorder::BigEndian;
+use std::collections::HashMap;
 
-use super::define::UnOrderedMap;
+// use super::define::UnOrderedMap;
 use super::error::Amf0WriteErrorValue;
 
 use liverust_lib::netio::writer::Writer;
@@ -14,7 +15,6 @@ pub struct Amf0Writer {
 
 impl Amf0Writer {
     pub fn write_anys(&mut self, values: &Vec<Amf0ValueType>) -> Result<(), Amf0WriteError> {
-        
         for val in values {
             self.write_any(val)?;
         }
@@ -69,17 +69,16 @@ impl Amf0Writer {
         Ok(())
     }
 
-    pub fn write_object(&mut self, properties: &UnOrderedMap) -> Result<(), Amf0WriteError> {
+    pub fn write_object(
+        &mut self,
+        properties: &HashMap<String, Amf0ValueType>,
+    ) -> Result<(), Amf0WriteError> {
         self.writer.write_u8(amf0_markers::OBJECT_END)?;
 
-        let len: usize = properties.len();
-
-        for i in 0..len {
-            let obj = properties.get(i);
-            self.writer.write_u16::<BigEndian>(obj.key.len() as u16)?;
-            self.writer.write(obj.key.as_bytes())?;
-
-            self.write_any(&obj.value)?;
+        for (key, value) in properties {
+            self.writer.write_u16::<BigEndian>(key.len() as u16)?;
+            self.writer.write(key.as_bytes())?;
+            self.write_any(value)?;
         }
 
         self.write_object_eof();

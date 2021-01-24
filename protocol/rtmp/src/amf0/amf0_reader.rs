@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use super::amf0_markers;
 use super::Amf0ReadError;
 use super::{Amf0ValueType, Amf0WriteError};
 use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
 
-use super::define::UnOrderedMap;
+// use super::define::UnOrderedMap;
 
 use super::error::Amf0ReadErrorValue;
 use liverust_lib::netio::{reader::Reader, writer::Writer};
@@ -34,13 +36,13 @@ impl Amf0Reader {
         }
     }
 
-    pub fn read_number(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
+    pub fn read_number(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let number = self.reader.read_f64::<BigEndian>()?;
         let value = Amf0ValueType::Number(number);
         Ok(value)
     }
 
-    pub fn read_bool(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
+    pub fn read_bool(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let value = self.reader.read_u8()?;
 
         match value {
@@ -49,7 +51,7 @@ impl Amf0Reader {
         }
     }
 
-    pub fn read_raw_string(&mut self,) -> Result<String, Amf0ReadError> {
+    pub fn read_raw_string(&mut self) -> Result<String, Amf0ReadError> {
         let l = self.reader.read_u16::<BigEndian>()?;
         let mut buffer: Vec<u8> = vec![0_u8; l as usize];
         let bytes = self.reader.read_bytes(l as usize)?;
@@ -59,16 +61,16 @@ impl Amf0Reader {
         Ok(val)
     }
 
-    pub fn read_string(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
+    pub fn read_string(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let raw_string = self.read_raw_string()?;
         Ok(Amf0ValueType::UTF8String(raw_string))
     }
 
-    pub fn read_null(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
+    pub fn read_null(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         Ok(Amf0ValueType::Null)
     }
 
-    pub fn is_read_object_eof(&mut self,) -> Result<bool, Amf0ReadError> {
+    pub fn is_read_object_eof(&mut self) -> Result<bool, Amf0ReadError> {
         let marker = self.reader.advance_u24::<BigEndian>()?;
         if marker == 0x09 {
             return Ok(true);
@@ -76,8 +78,8 @@ impl Amf0Reader {
         Ok(false)
     }
 
-    pub fn read_object(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
-        let mut properties = UnOrderedMap::new();
+    pub fn read_object(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
+        let mut properties = HashMap::new();
 
         loop {
             let is_eof = self.is_read_object_eof()?;
@@ -95,10 +97,10 @@ impl Amf0Reader {
         Ok(Amf0ValueType::Object(properties))
     }
 
-    pub fn read_ecma_array(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
+    pub fn read_ecma_array(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let len = self.reader.read_u32::<BigEndian>()?;
 
-        let mut properties = UnOrderedMap::new();
+        let properties = HashMap::new();
 
         for i in 0..len {
             let key = self.read_raw_string()?;
@@ -111,7 +113,7 @@ impl Amf0Reader {
         Ok(Amf0ValueType::Object(properties))
     }
 
-    pub fn read_long_string(&mut self,) -> Result<Amf0ValueType, Amf0ReadError> {
+    pub fn read_long_string(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let l = self.reader.read_u32::<BigEndian>()?;
 
         let buff = self.reader.read_bytes(l as usize)?;

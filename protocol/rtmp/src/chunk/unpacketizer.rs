@@ -1,4 +1,3 @@
-
 use byteorder::{BigEndian, ReadBytesExt};
 //use bytes::Bytes;
 use bytes::{BufMut, BytesMut};
@@ -8,6 +7,8 @@ use liverust_lib::netio::reader::{IOReadError, Reader};
 use std::cmp::min;
 use std::collections::HashMap;
 use std::mem;
+
+use crate::netconnection;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {
@@ -58,21 +59,30 @@ enum ChunkReadState {
     ReadMessagePayload,
 }
 
-pub struct ChunkUnpacketizer<'a> {
+pub struct ChunkUnpacketizer {
     buffer: BytesMut,
     reader: Reader,
     //reader :
-    csid_2_chunk_info: HashMap<u32, ChunkInfo>,
+    //: HashMap<u32, ChunkInfo>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
-    pub current_chunk_info: &'a mut ChunkInfo,
+    pub current_chunk_info: ChunkInfo,
     current_read_state: ChunkReadState,
     max_chunk_size: usize,
     // test: HashMap<u32, u32>,
     // pub testval : & 'a mut u32,
 }
 
-impl<'a> ChunkUnpacketizer<'a> {
+impl ChunkUnpacketizer {
+    pub fn new(input: BytesMut) -> ChunkUnpacketizer {
+        ChunkUnpacketizer {
+            buffer: BytesMut::new(),
+            reader: Reader::new(input),
+            current_chunk_info: ChunkInfo::new(),
+            current_read_state: ChunkReadState::Init,
+            max_chunk_size: 0,
+        }
+    }
     pub fn read_chunk(&mut self, bytes: &[u8]) -> Result<UnpackResult, UnpackError> {
         self.buffer.extend_from_slice(bytes);
         self.current_read_state = ChunkReadState::ReadBasicHeader;
@@ -179,15 +189,15 @@ impl<'a> ChunkUnpacketizer<'a> {
         //     }
         // }
 
-        match self.csid_2_chunk_info.get_mut(&csid2) {
-            Some(chunk_info) => {
-                let aa = chunk_info;
-                self.current_chunk_info = aa;
-            }
-            None => {
-                self.csid_2_chunk_info.insert(csid, ChunkInfo::new());
-            }
-        }
+        // match self.csid_2_chunk_info.get_mut(&csid2) {
+        //     Some(chunk_info) => {
+        //         let aa = chunk_info;
+        //         self.current_chunk_info = aa;
+        //     }
+        //     None => {
+        //         self.csid_2_chunk_info.insert(csid, ChunkInfo::new());
+        //     }
+        // }
 
         self.current_chunk_info.basic_header.chunk_stream_id = csid;
         self.current_chunk_info.basic_header.format = format_id;
@@ -289,7 +299,7 @@ impl<'a> ChunkUnpacketizer<'a> {
         let mut whole_msg_length = self.current_message_header().msg_length as usize;
         let remaining_bytes = whole_msg_length - self.current_chunk_info.payload.len();
 
-        let need_read_length = remaining_bytes;
+        let mut need_read_length = remaining_bytes;
         if whole_msg_length > self.max_chunk_size {
             need_read_length = min(remaining_bytes, self.max_chunk_size);
         }
@@ -306,7 +316,7 @@ impl<'a> ChunkUnpacketizer<'a> {
             .extend_from_slice(&payload_data[..]);
 
         if self.current_chunk_info.payload.len() == whole_msg_length {
-            let chunkinfo = mem::replace(self.current_chunk_info, ChunkInfo::new());
+            let chunkinfo = mem::replace(&mut self.current_chunk_info, ChunkInfo::new());
             return Ok(UnpackResult::ChunkInfo(chunkinfo));
         }
 

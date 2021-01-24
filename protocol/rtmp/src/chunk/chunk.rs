@@ -17,7 +17,7 @@ impl ChunkBasicHeader {
 }
 
 //5.3.1.2
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug,Clone)]
 pub struct ChunkMessageHeader {
     pub timestamp: u32,
     pub msg_length: u32,

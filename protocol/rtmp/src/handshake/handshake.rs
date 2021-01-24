@@ -269,12 +269,12 @@ fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: SchemaVersion) 
 fn find_digest(
     data: &[u8; RTMP_HANDSHAKE_SIZE],
     key: &[u8],
-    schema: &SchemaVersion,
+    schema: &mut SchemaVersion,
 ) -> Result<[u8; RTMP_DIGEST_LENGTH], HandshakeError> {
     let mut schemas = Vec::new();
     schemas.push(SchemaVersion::Schema0);
     schemas.push(SchemaVersion::Schema1);
-    schema = &SchemaVersion::Unknown;
+    schema = &mut SchemaVersion::Unknown;
 
     for version in schemas {
         let digest_offset = find_digest_offset(&data, version);
@@ -282,7 +282,7 @@ fn find_digest(
         let input = [msg.left_part, msg.right_part].concat();
         let digest = make_digest(&input, key);
         if digest == msg.digest {
-            schema = &version;
+            schema = &mut version;
 
             return Ok(msg.digest);
         }
@@ -370,12 +370,12 @@ impl ComplexHandshakeClient {
             .try_into()
             .expect("slice with incorrect length");
 
-        let mut schemaVersion: SchemaVersion;
+        let schemaVersion: SchemaVersion;
 
         let digest = find_digest(
             &s1_array,
             RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-            &schemaVersion,
+            &mut schemaVersion,
         )?;
 
         let tmp_key = make_digest(&digest, &RTMP_CLIENT_KEY);
@@ -572,7 +572,7 @@ impl ComplexHandshakeServer {
         self.c1_digest = find_digest(
             &s1_array,
             RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-            &self.c1_schema_version,
+            &mut self.c1_schema_version,
         )?;
         Ok(())
     }
@@ -635,7 +635,7 @@ impl ComplexHandshakeServer {
         let digest = find_digest(
             &c1_array,
             RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-            &schemaVersion,
+            &mut schemaVersion,
         )?;
 
         let tmp_key = make_digest(&digest, &RTMP_SERVER_KEY);

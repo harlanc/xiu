@@ -46,7 +46,7 @@ pub struct ChunkPacketizer {
 }
 
 impl ChunkPacketizer {
-    fn zip_chunk_header(self, chunk_info: &ChunkInfo) -> Result<PackResult, PackError> {
+    fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
         // let mut buffer =  Cursor::new(Vec::new());
 
         // let mut bytes = Cursor::new(Vec::new());
@@ -59,12 +59,12 @@ impl ChunkPacketizer {
 
         match pre_header {
             Some(val) => {
-                let cur_msg_header = &chunk_info.message_header;
+                let cur_msg_header =  &mut chunk_info.message_header;
                 let pre_msg_header = &val.message_header;
 
                 if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
                     chunk_info.basic_header.format = 1;
-                    chunk_info.message_header.timestamp -= pre_msg_header.timestamp;
+                    cur_msg_header.timestamp -= pre_msg_header.timestamp;
 
                     if cur_msg_header.msg_type_id == pre_msg_header.msg_type_id
                         && cur_msg_header.msg_length == pre_msg_header.msg_length
@@ -122,7 +122,7 @@ impl ChunkPacketizer {
             2 => {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
             }
-            3 => {}
+            _ => {}
         }
 
         Ok(())
@@ -134,10 +134,10 @@ impl ChunkPacketizer {
         Ok(())
     }
 
-    fn write_chunk(self, chunk_info: &ChunkInfo) -> Result<(), PackError> {
+    fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
         self.zip_chunk_header(chunk_info)?;
 
-        let whole_payload_size = chunk_info.payload.len();
+        let mut whole_payload_size = chunk_info.payload.len();
 
         self.write_basic_header(
             chunk_info.basic_header.format,
@@ -149,7 +149,7 @@ impl ChunkPacketizer {
             self.write_extened_timestamp(chunk_info.message_header.timestamp)?;
         }
 
-        let cur_payload_size: usize;
+        let mut cur_payload_size: usize;
 
         while whole_payload_size > 0 {
             cur_payload_size = if whole_payload_size > self.max_chunk_size {
