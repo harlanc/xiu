@@ -1,4 +1,4 @@
-use std::{clone, collections::HashMap};
+use std::{ collections::HashMap};
 #[derive(Clone)]
 pub enum Amf0ValueType {
     Number(f64),

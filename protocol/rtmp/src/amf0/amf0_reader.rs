@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use super::amf0_markers;
 use super::Amf0ReadError;
-use super::{Amf0ValueType, Amf0WriteError};
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
+use super::{Amf0ValueType};
+use byteorder::{BigEndian};
 
 // use super::define::UnOrderedMap;
 
 use super::error::Amf0ReadErrorValue;
-use liverust_lib::netio::{reader::Reader, writer::Writer};
+use liverust_lib::netio::{reader::Reader};
 
 pub struct Amf0Reader {
     reader: Reader,
@@ -53,7 +53,7 @@ impl Amf0Reader {
 
     pub fn read_raw_string(&mut self) -> Result<String, Amf0ReadError> {
         let l = self.reader.read_u16::<BigEndian>()?;
-        let mut buffer: Vec<u8> = vec![0_u8; l as usize];
+        // let mut buffer: Vec<u8> = vec![0_u8; l as usize];
         let bytes = self.reader.read_bytes(l as usize)?;
 
         let val = String::from_utf8(bytes.to_vec())?;
@@ -100,9 +100,9 @@ impl Amf0Reader {
     pub fn read_ecma_array(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let len = self.reader.read_u32::<BigEndian>()?;
 
-        let properties = HashMap::new();
+        let mut properties = HashMap::new();
 
-        for i in 0..len {
+        for _ in 0..len {
             let key = self.read_raw_string()?;
             let val = self.read_any()?;
             properties.insert(key, val);

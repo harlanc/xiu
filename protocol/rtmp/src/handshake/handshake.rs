@@ -252,7 +252,7 @@ fn make_digest(input: &[u8], key: &[u8]) -> [u8; RTMP_DIGEST_LENGTH] {
     output
 }
 
-fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: SchemaVersion) -> u32 {
+fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: &SchemaVersion) -> u32 {
     match version {
         SchemaVersion::Schema0 => {
             ((data[772] as u32) + (data[773] as u32) + (data[774] as u32) + (data[775] as u32))
@@ -265,26 +265,37 @@ fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: SchemaVersion) 
         SchemaVersion::Unknown => 0,
     }
 }
+
+struct DigestResult {
+    digest_content: [u8; RTMP_DIGEST_LENGTH],
+    version: SchemaVersion,
+}
+
+impl DigestResult {
+    pub fn new(content: [u8; RTMP_DIGEST_LENGTH], ver: SchemaVersion) -> DigestResult {
+        DigestResult {
+            digest_content: content,
+            version: ver,
+        }
+    }
+}
+
 // clone a slice https://stackoverflow.com/questions/28219231/how-to-idiomatically-copy-a-slice
 fn find_digest(
     data: &[u8; RTMP_HANDSHAKE_SIZE],
     key: &[u8],
-    schema: &mut SchemaVersion,
-) -> Result<[u8; RTMP_DIGEST_LENGTH], HandshakeError> {
+) -> Result<DigestResult, HandshakeError> {
     let mut schemas = Vec::new();
     schemas.push(SchemaVersion::Schema0);
     schemas.push(SchemaVersion::Schema1);
-    schema = &mut SchemaVersion::Unknown;
 
-    for version in schemas {
-        let digest_offset = find_digest_offset(&data, version);
+    for mut version in schemas {
+        let digest_offset = find_digest_offset(&data, &version);
         let msg = cook_handshake_msg(data, digest_offset)?;
         let input = [msg.left_part, msg.right_part].concat();
         let digest = make_digest(&input, key);
         if digest == msg.digest {
-            schema = &mut version;
-
-            return Ok(msg.digest);
+            return Ok(DigestResult::new(msg.digest, version));
         }
     }
 
@@ -336,7 +347,7 @@ impl ComplexHandshakeClient {
         generate_random_bytes(&mut c1_bytes[8..RTMP_HANDSHAKE_SIZE]);
 
         let c1_array: [u8; RTMP_HANDSHAKE_SIZE] =
-            c1_bytes.try_into().unwrap_or_else(|v: Vec<u8>| {
+            c1_bytes.clone().try_into().unwrap_or_else(|v: Vec<u8>| {
                 panic!(
                     "Expected a Vec of length {} but it was {}",
                     RTMP_HANDSHAKE_SIZE,
@@ -344,7 +355,7 @@ impl ComplexHandshakeClient {
                 )
             });
 
-        let offset: u32 = find_digest_offset(&c1_array, SchemaVersion::Schema1);
+        let offset: u32 = find_digest_offset(&c1_array, &SchemaVersion::Schema1);
 
         let left_part = &c1_bytes[0..(offset as usize)];
         let right_part = &c1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
@@ -370,16 +381,12 @@ impl ComplexHandshakeClient {
             .try_into()
             .expect("slice with incorrect length");
 
-        let schemaVersion: SchemaVersion;
+   
 
-        let digest = find_digest(
-            &s1_array,
-            RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-            &mut schemaVersion,
-        )?;
+        let result = find_digest(&s1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
 
-        let tmp_key = make_digest(&digest, &RTMP_CLIENT_KEY);
-        let mut digest = make_digest(&c2_bytes[..1504], &tmp_key);
+        let tmp_key = make_digest(&result.digest_content, &RTMP_CLIENT_KEY);
+        let  digest = make_digest(&c2_bytes[..1504], &tmp_key);
 
         c2_bytes.append(&mut digest.to_vec());
         self.writer.write(&c2_bytes[..])?;
@@ -400,7 +407,7 @@ impl ComplexHandshakeClient {
         self.s1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
 
         let buffer = self.s1_bytes.clone();
-        let reader = Reader::new(buffer);
+        let mut reader = Reader::new(buffer);
 
         //time
         self.s1_timestamp = reader.read_u32::<BigEndian>()?;
@@ -458,7 +465,7 @@ impl SimpleHandshakeServer {
     fn read_c1(&mut self) -> Result<(), HandshakeError> {
         self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
         let buffer = self.c1_bytes.clone();
-        let reader = Reader::new(buffer);
+        let mut reader = Reader::new(buffer);
         self.c1_timestamp = reader.read_u32::<BigEndian>()?;
 
         Ok(())
@@ -562,18 +569,16 @@ impl ComplexHandshakeServer {
         self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
 
         let buffer = self.c1_bytes.clone();
-        let reader = Reader::new(buffer);
+        let mut reader = Reader::new(buffer);
         self.c1_timestamp = reader.read_u32::<BigEndian>()?;
 
         let s1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.c1_bytes[..]
             .try_into()
             .expect("slice with incorrect length");
 
-        self.c1_digest = find_digest(
-            &s1_array,
-            RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-            &mut self.c1_schema_version,
-        )?;
+        let result = find_digest(&s1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
+
+        self.c1_digest = result.digest_content;
         Ok(())
     }
 
@@ -594,7 +599,7 @@ impl ComplexHandshakeServer {
         generate_random_bytes(&mut s1_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
 
         let s1_array: [u8; RTMP_HANDSHAKE_SIZE] =
-            s1_bytes.try_into().unwrap_or_else(|v: Vec<u8>| {
+            s1_bytes.clone().try_into().unwrap_or_else(|v: Vec<u8>| {
                 panic!(
                     "Expected a Vec of length {} but it was {}",
                     RTMP_HANDSHAKE_SIZE,
@@ -602,7 +607,7 @@ impl ComplexHandshakeServer {
                 )
             });
 
-        let offset = find_digest_offset(&s1_array, self.c1_schema_version);
+        let offset = find_digest_offset(&s1_array, &self.c1_schema_version);
 
         let left_part = &s1_bytes[0..(offset as usize)];
         let right_part = &s1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
@@ -630,16 +635,16 @@ impl ComplexHandshakeServer {
             .try_into()
             .expect("slice with incorrect length");
 
-        let mut schemaVersion: SchemaVersion;
+       
 
-        let digest = find_digest(
+        let result = find_digest(
             &c1_array,
             RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-            &mut schemaVersion,
+          
         )?;
 
-        let tmp_key = make_digest(&digest, &RTMP_SERVER_KEY);
-        let mut digest = make_digest(&s2_bytes[..1504], &tmp_key);
+        let tmp_key = make_digest(&result.digest_content, &RTMP_SERVER_KEY);
+        let  digest = make_digest(&s2_bytes[..1504], &tmp_key);
 
         s2_bytes.append(&mut digest.to_vec());
         self.writer.write(&s2_bytes[..])?;
