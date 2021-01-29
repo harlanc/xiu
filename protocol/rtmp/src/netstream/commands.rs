@@ -1,6 +1,8 @@
 use super::errors::NetStreamError;
 use crate::amf0::amf0_writer::Amf0Writer;
+use crate::amf0::define::Amf0ValueType;
 use liverust_lib::netio::writer::Writer;
+use std::collections::HashMap;
 pub struct NetStream {
     writer: Writer,
     amf0_writer: Amf0Writer,
@@ -106,6 +108,45 @@ impl NetStream {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_bool(pause)?;
         self.amf0_writer.write_number(ms)?;
+
+        Ok(())
+    }
+
+    fn on_bw_done(&mut self, transaction_id: &f64, bandwidth: &f64) -> Result<(), NetStreamError> {
+        self.amf0_writer.write_string(&String::from("onBWDone"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+        self.amf0_writer.write_null()?;
+        self.amf0_writer.write_number(bandwidth)?;
+        Ok(())
+    }
+
+    fn on_status(
+        &mut self,
+        transaction_id: &f64,
+        level: &String,
+        code: &String,
+        description: &String,
+    ) -> Result<(), NetStreamError> {
+        self.amf0_writer.write_string(&String::from("onStatus"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+        self.amf0_writer.write_null()?;
+
+        let mut properties_map = HashMap::new();
+
+        properties_map.insert(
+            String::from("level"),
+            Amf0ValueType::UTF8String(level.clone()),
+        );
+        properties_map.insert(
+            String::from("code"),
+            Amf0ValueType::UTF8String(code.clone()),
+        );
+        properties_map.insert(
+            String::from("description"),
+            Amf0ValueType::UTF8String(description.clone()),
+        );
+
+        self.amf0_writer.write_object(&properties_map)?;
 
         Ok(())
     }
