@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, LittleEndian};
 
-use chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
+use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 use liverust_lib::netio::writer::{IOWriteError, Writer};
 use std::collections::HashMap;
 
@@ -46,6 +46,14 @@ pub struct ChunkPacketizer {
 }
 
 impl ChunkPacketizer {
+    pub fn new(io_writer: Writer) -> ChunkPacketizer {
+        ChunkPacketizer {
+            csid_2_chunk_header: HashMap::new(),
+            chunk_info: ChunkInfo::new(),
+            writer: io_writer,
+            max_chunk_size: 0,
+        }
+    }
     fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
         // let mut buffer =  Cursor::new(Vec::new());
 
@@ -59,7 +67,7 @@ impl ChunkPacketizer {
 
         match pre_header {
             Some(val) => {
-                let cur_msg_header =  &mut chunk_info.message_header;
+                let cur_msg_header = &mut chunk_info.message_header;
                 let pre_msg_header = &val.message_header;
 
                 if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
@@ -111,13 +119,15 @@ impl ChunkPacketizer {
         match basic_header.format {
             0 => {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
-                self.writer.write_u24::<BigEndian>(message_header.msg_length)?;
+                self.writer
+                    .write_u24::<BigEndian>(message_header.msg_length)?;
                 self.writer
                     .write_u32::<LittleEndian>(message_header.msg_streamd_id)?;
             }
             1 => {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
-                self.writer.write_u24::<BigEndian>(message_header.msg_length)?;
+                self.writer
+                    .write_u24::<BigEndian>(message_header.msg_length)?;
             }
             2 => {
                 self.writer.write_u24::<BigEndian>(timestamp)?;

@@ -2,7 +2,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 //use bytes::Bytes;
 use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
-use chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
+use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
 use liverust_lib::netio::reader::{IOReadError, Reader};
 use std::cmp::min;
 use std::collections::HashMap;

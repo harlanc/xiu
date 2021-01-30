@@ -1,44 +1,58 @@
+use super::errors::{self, IOReadError, IOReadErrorValue};
 use byteorder::{ByteOrder, ReadBytesExt};
-use bytes::{BytesMut};
+use bytes::BytesMut;
 use std::io;
 use std::io::Cursor;
+use std::time::Duration;
 
-pub enum IOReadErrorValue {
-    NotEnoughBytes,
-    IO(io::Error),
+use tokio::{
+    prelude::*,
+    stream::StreamExt,
+    sync::{self, mpsc, oneshot},
+    time::timeout,
+};
+use tokio_util::codec::BytesCodec;
+use tokio_util::codec::Framed;
+
+pub struct Reader<S>
+where
+    S: AsyncRead + Unpin,
+{
+    buffer: BytesMut,
+    bytes_stream: Framed<S, BytesCodec>,
+    timeout: Duration,
 }
 
-pub struct IOReadError {
-    pub value: IOReadErrorValue,
-}
-
-impl From<IOReadErrorValue> for IOReadError {
-    fn from(val: IOReadErrorValue) -> Self {
-        IOReadError { value: val }
-    }
-}
-
-impl From<io::Error> for IOReadError {
-    fn from(error: io::Error) -> Self {
-        IOReadError {
-            value: IOReadErrorValue::IO(error),
+impl<S> Reader<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(stream: S, ms: Duration) -> Self {
+        Self {
+            buffer: BytesMut::new(),
+            bytes_stream: Framed::new(stream, BytesCodec::new()),
+            timeout: ms,
         }
     }
-}
+    // pub fn new_with_extend(input: BytesMut, extend: &[u8]) -> Reader {
+    //     let mut reader = Reader { buffer: input };
+    //     reader.extend_from_slice(extend);
+    //     reader
+    // }
 
-pub struct Reader {
-    buffer: BytesMut,
-}
+    pub async fn try_next(&mut self) -> Result<(), IOReadError> {
+        let val = self.bytes_stream.try_next();
+        match timeout(self.timeout, val).await? {
+            Ok(Some(data)) => {
+                self.buffer.extend_from_slice(&data[..]);
+                Ok(())
+            }
+            _ => Err(IOReadError {
+                value: IOReadErrorValue::IO(io::Error::new(io::ErrorKind::InvalidData,"cannot get data")),
+            })
+        }
+    }
 
-impl Reader {
-    pub fn new(input: BytesMut) -> Reader {
-        Reader { buffer: input }
-    }
-    pub fn new_with_extend(input: BytesMut, extend: &[u8]) -> Reader {
-        let mut reader = Reader { buffer: input };
-        reader.extend_from_slice(extend);
-        reader
-    }
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
         self.buffer.extend_from_slice(extend)
     }
@@ -68,12 +82,15 @@ impl Reader {
         Ok(tmp_cursor)
     }
 
-    pub fn advance_bytes_cursor(&mut self, bytes_num: usize) -> Result<Cursor<BytesMut>, IOReadError> {
+    pub fn advance_bytes_cursor(
+        &mut self,
+        bytes_num: usize,
+    ) -> Result<Cursor<BytesMut>, IOReadError> {
         let tmp_bytes = self.advance_bytes(bytes_num)?;
         let tmp_cursor = Cursor::new(tmp_bytes);
         Ok(tmp_cursor)
     }
-    
+
     pub fn read_u8(&mut self) -> Result<u8, IOReadError> {
         let mut cursor = self.read_bytes_cursor(1)?;
 
@@ -84,7 +101,7 @@ impl Reader {
         let mut cursor = self.advance_bytes_cursor(1)?;
         Ok(cursor.read_u8()?)
     }
-    
+
     pub fn read_u16<T: ByteOrder>(&mut self) -> Result<u16, IOReadError> {
         let mut cursor = self.read_bytes_cursor(2)?;
         let val = cursor.read_u16::<T>()?;
@@ -101,7 +118,7 @@ impl Reader {
         let mut cursor = self.advance_bytes_cursor(3)?;
         Ok(cursor.read_u24::<T>()?)
     }
-    
+
     pub fn read_u32<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
         let mut cursor = self.read_bytes_cursor(4)?;
         let val = cursor.read_u32::<T>()?;
