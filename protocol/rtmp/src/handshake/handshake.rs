@@ -9,7 +9,8 @@ use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
 
 use liverust_lib::netio::{
-    reader::{IOReadError, Reader},
+    reader::Reader,
+    errors::IOReadError,
     writer::{IOWriteError, Writer},
 };
 
@@ -108,8 +109,8 @@ impl From<SystemTimeError> for HandshakeError {
         }
     }
 }
-pub struct SimpleHandshakeClient {
-    reader: Reader,
+pub struct SimpleHandshakeClient <S>{
+    reader: Reader<S>,
     writer: Writer,
     s1_bytes: BytesMut,
     state: ClientHandshakeState,
@@ -132,7 +133,7 @@ fn generate_random_bytes(buffer: &mut [u8]) {
     }
 }
 
-impl SimpleHandshakeClient {
+impl<S> SimpleHandshakeClient <S>{
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
         Ok(())
@@ -318,8 +319,8 @@ fn cook_handshake_msg(
     })
 }
 
-pub struct ComplexHandshakeClient {
-    reader: Reader,
+pub struct ComplexHandshakeClient <S>{
+    reader: Reader<S>,
     writer: Writer,
     // s1_random_bytes: BytesMut,
     s1_timestamp: u32,
@@ -332,7 +333,7 @@ pub struct ComplexHandshakeClient {
 //// 1536bytes C2S2
 //random-data: 1504bytes
 //digest-data: 32bytes
-impl ComplexHandshakeClient {
+impl<S> ComplexHandshakeClient<S> {
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
         Ok(())
@@ -381,12 +382,10 @@ impl ComplexHandshakeClient {
             .try_into()
             .expect("slice with incorrect length");
 
-   
-
         let result = find_digest(&s1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
 
         let tmp_key = make_digest(&result.digest_content, &RTMP_CLIENT_KEY);
-        let  digest = make_digest(&c2_bytes[..1504], &tmp_key);
+        let digest = make_digest(&c2_bytes[..1504], &tmp_key);
 
         c2_bytes.append(&mut digest.to_vec());
         self.writer.write(&c2_bytes[..])?;
@@ -635,16 +634,10 @@ impl ComplexHandshakeServer {
             .try_into()
             .expect("slice with incorrect length");
 
-       
-
-        let result = find_digest(
-            &c1_array,
-            RTMP_CLIENT_KEY_FIRST_HALF.as_bytes(),
-          
-        )?;
+        let result = find_digest(&c1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
 
         let tmp_key = make_digest(&result.digest_content, &RTMP_SERVER_KEY);
-        let  digest = make_digest(&s2_bytes[..1504], &tmp_key);
+        let digest = make_digest(&s2_bytes[..1504], &tmp_key);
 
         s2_bytes.append(&mut digest.to_vec());
         self.writer.write(&s2_bytes[..])?;

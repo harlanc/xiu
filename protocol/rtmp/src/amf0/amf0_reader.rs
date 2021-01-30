@@ -2,19 +2,19 @@ use std::collections::HashMap;
 
 use super::amf0_markers;
 use super::Amf0ReadError;
-use super::{Amf0ValueType};
-use byteorder::{BigEndian};
+use super::Amf0ValueType;
+use byteorder::BigEndian;
 
 // use super::define::UnOrderedMap;
 
 use super::error::Amf0ReadErrorValue;
-use liverust_lib::netio::{reader::Reader};
+use liverust_lib::netio::reader::Reader;
 
-pub struct Amf0Reader {
-    reader: Reader,
+pub struct Amf0Reader<S> {
+    reader: Reader<S>,
 }
 
-impl Amf0Reader {
+impl<S> Amf0Reader<S> {
     pub fn read_any(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let markers = self.reader.read_u8()?;
 

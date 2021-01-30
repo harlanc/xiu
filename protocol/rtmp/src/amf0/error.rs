@@ -2,7 +2,8 @@ use failure::Fail;
 use std::{io, string};
 
 use liverust_lib::netio::{
-    reader::{IOReadError, Reader},
+    errors::IOReadError,
+    reader::Reader,
     writer::{IOWriteError, Writer},
 };
 
@@ -90,4 +91,3 @@ impl From<IOWriteError> for Amf0WriteError {
         }
     }
 }
-

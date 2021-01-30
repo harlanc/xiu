@@ -3,6 +3,7 @@ use tokio::time::Elapsed;
 
 pub enum IOReadErrorValue {
     NotEnoughBytes,
+    EmptyStream,
     IO(io::Error),
     TimeoutError(Elapsed),
 }

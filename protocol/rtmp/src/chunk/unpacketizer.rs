@@ -3,7 +3,8 @@ use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
 use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
-use liverust_lib::netio::reader::{IOReadError, Reader};
+use liverust_lib::netio::reader::Reader;
+use liverust_lib::netio::errors::IOReadError;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::mem;
@@ -59,9 +60,9 @@ enum ChunkReadState {
     ReadMessagePayload,
 }
 
-pub struct ChunkUnpacketizer {
+pub struct ChunkUnpacketizer<S> {
     buffer: BytesMut,
-    reader: Reader,
+    reader: Reader<S>,
     //reader :
     //: HashMap<u32, ChunkInfo>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
@@ -73,9 +74,9 @@ pub struct ChunkUnpacketizer {
     // pub testval : & 'a mut u32,
 }
 
-impl ChunkUnpacketizer {
-    pub fn new(input: BytesMut) -> ChunkUnpacketizer {
-        ChunkUnpacketizer {
+impl<S> ChunkUnpacketizer<S> {
+    pub fn new(input: BytesMut) -> Self {
+        Self {
             buffer: BytesMut::new(),
             reader: Reader::new(input),
             current_chunk_info: ChunkInfo::new(),
