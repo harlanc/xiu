@@ -2,18 +2,15 @@ use super::errors::ServerError;
 use crate::chunk::packetizer::ChunkPacketizer;
 use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::ChunkHeader;
+use crate::handshake::handshake::SimpleHandshakeServer;
 use bytes::BytesMut;
 use liverust_lib::netio::writer::{IOWriteError, Writer};
-use std::{
-    net::{TcpListener, TcpStream},
-    time::Duration,
-};
+use std::{net::{TcpListener, TcpStream}, slice::SplitMut, time::Duration};
 use tokio::{
     prelude::*,
     stream::StreamExt,
     sync::{self, mpsc, oneshot},
     time::timeout,
-    
 };
 // use tokio_util::codec::Framed;
 // use tokio_util::codec::BytesCodec;
@@ -25,19 +22,21 @@ where
     //writer: Writer,
     packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
+    handshaker: SimpleHandshakeServer,
     bytes_stream: tokio_util::codec::Framed<S, tokio_util::codec::BytesCodec>,
+  
 }
 
 impl<S> ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    fn new(io_writer: Writer, stream: S) -> Self {
+    fn new(io_writer: Writer, stream: S, timeout: Duration) -> Self {
         let bytesMut = BytesMut::new();
         Self {
             //writer: io_writer,
             packetizer: ChunkPacketizer::new(io_writer),
-            unpacketizer: ChunkUnpacketizer::new(bytesMut),
+            unpacketizer: ChunkUnpacketizer::new(BytesMut::new()),
             bytes_stream: tokio_util::codec::Framed::new(
                 stream,
                 tokio_util::codec::BytesCodec::new(),
@@ -50,9 +49,10 @@ where
         let val = self.bytes_stream.try_next();
         match timeout(duration, val).await? {
             Ok(Some(data)) => {
-                // for event in self.proto.handle_bytes(&data).unwrap() {
-                //     self.handle_event(event).await?;
-                // }
+       
+                self.unpacketizer.read_chunk(&data[..])?;
+                
+            
             }
             _ => {}
         }

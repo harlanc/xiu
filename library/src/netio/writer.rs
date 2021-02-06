@@ -24,8 +24,8 @@ pub struct Writer {
 }
 
 impl Writer {
-    pub fn new(input: Cursor<Vec<u8>>) -> Writer {
-        Writer { bytes: input }
+    pub fn new() -> Writer {
+        Writer { bytes: Cursor::new(Vec::new()) }
     }
 
     pub fn write_u8(&mut self, byte: u8) -> Result<(), IOWriteError> {

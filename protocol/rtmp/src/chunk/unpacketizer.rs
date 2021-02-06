@@ -4,10 +4,12 @@ use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
 use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
 use liverust_lib::netio::reader::Reader;
-use liverust_lib::netio::errors::IOReadError;
+use super::errors::UnpackError;
+use super::errors::UnpackErrorValue;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::mem;
+use std::time::Duration;
 
 use crate::netconnection;
 
@@ -20,29 +22,6 @@ pub enum UnpackResult {
     NotEnoughBytes,
 }
 
-pub enum UnpackErrorValue {
-    IO(IOReadError),
-    UnknowReadState,
-    //IO(io::Error),
-}
-
-pub struct UnpackError {
-    pub value: UnpackErrorValue,
-}
-
-impl From<UnpackErrorValue> for UnpackError {
-    fn from(val: UnpackErrorValue) -> Self {
-        UnpackError { value: val }
-    }
-}
-
-impl From<IOReadError> for UnpackError {
-    fn from(error: IOReadError) -> Self {
-        UnpackError {
-            value: UnpackErrorValue::IO(error),
-        }
-    }
-}
 
 // impl From<IOReadErrorValue> for UnpackError {
 //     fn from(error: IOReadErrorValue) -> Self {
@@ -60,9 +39,9 @@ enum ChunkReadState {
     ReadMessagePayload,
 }
 
-pub struct ChunkUnpacketizer<S> {
+pub struct ChunkUnpacketizer {
     buffer: BytesMut,
-    reader: Reader<S>,
+    pub reader: Reader,
     //reader :
     //: HashMap<u32, ChunkInfo>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
@@ -74,11 +53,11 @@ pub struct ChunkUnpacketizer<S> {
     // pub testval : & 'a mut u32,
 }
 
-impl<S> ChunkUnpacketizer<S> {
-    pub fn new(input: BytesMut) -> Self {
+impl ChunkUnpacketizer {
+    pub fn new(bytes :BytesMut) -> Self {
         Self {
             buffer: BytesMut::new(),
-            reader: Reader::new(input),
+            reader: Reader::new(bytes),
             current_chunk_info: ChunkInfo::new(),
             current_read_state: ChunkReadState::Init,
             max_chunk_size: 0,

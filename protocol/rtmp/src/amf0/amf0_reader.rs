@@ -7,14 +7,14 @@ use byteorder::BigEndian;
 
 // use super::define::UnOrderedMap;
 
-use super::error::Amf0ReadErrorValue;
+use super::errors::Amf0ReadErrorValue;
 use liverust_lib::netio::reader::Reader;
 
-pub struct Amf0Reader<S> {
-    reader: Reader<S>,
+pub struct Amf0Reader{
+    reader: Reader,
 }
 
-impl<S> Amf0Reader<S> {
+impl Amf0Reader {
     pub fn read_any(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let markers = self.reader.read_u8()?;
 

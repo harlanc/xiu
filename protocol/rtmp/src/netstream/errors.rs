@@ -3,7 +3,7 @@
 use failure::{Backtrace, Fail};
 use std::fmt;
 use std::io;
-use crate::amf0::error::{Amf0WriteError, Amf0WriteErrorValue};
+use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
 
 
 pub struct NetStreamError {

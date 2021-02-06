@@ -9,8 +9,9 @@ use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
 
 use liverust_lib::netio::{
-    reader::Reader,
     errors::IOReadError,
+    reader::NetworkReader,
+    reader::Reader,
     writer::{IOWriteError, Writer},
 };
 
@@ -58,11 +59,6 @@ enum ServerHandshakeState {
     ReadC2,
     Finish,
 }
-enum ServerReadState {
-    ReadC0,
-    ReadC1,
-    ReadC2,
-}
 
 use std::time::{SystemTime, SystemTimeError};
 const RTMP_VERSION: usize = 3;
@@ -109,8 +105,8 @@ impl From<SystemTimeError> for HandshakeError {
         }
     }
 }
-pub struct SimpleHandshakeClient <S>{
-    reader: Reader<S>,
+pub struct SimpleHandshakeClient {
+    reader: Reader,
     writer: Writer,
     s1_bytes: BytesMut,
     state: ClientHandshakeState,
@@ -133,7 +129,7 @@ fn generate_random_bytes(buffer: &mut [u8]) {
     }
 }
 
-impl<S> SimpleHandshakeClient <S>{
+impl SimpleHandshakeClient {
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
         Ok(())
@@ -319,8 +315,8 @@ fn cook_handshake_msg(
     })
 }
 
-pub struct ComplexHandshakeClient <S>{
-    reader: Reader<S>,
+pub struct ComplexHandshakeClient {
+    reader: Reader,
     writer: Writer,
     // s1_random_bytes: BytesMut,
     s1_timestamp: u32,
@@ -333,7 +329,7 @@ pub struct ComplexHandshakeClient <S>{
 //// 1536bytes C2S2
 //random-data: 1504bytes
 //digest-data: 32bytes
-impl<S> ComplexHandshakeClient<S> {
+impl ComplexHandshakeClient {
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
         Ok(())
@@ -456,6 +452,13 @@ pub struct SimpleHandshakeServer {
 }
 
 impl SimpleHandshakeServer {
+    fn new(input: BytesMut,output:BytesMut)  -> Self{
+        Self{
+            reader : Reader::new(input),
+            writer: Writer::new(output),
+
+        }
+    }
     fn read_c0(&mut self) -> Result<(), HandshakeError> {
         self.reader.read_u8()?;
         Ok(())
@@ -494,26 +497,30 @@ impl SimpleHandshakeServer {
     }
 
     pub fn handshake(&mut self) -> Result<(), HandshakeError> {
-        match self.state {
-            ServerHandshakeState::ReadC0C1 => {
-                self.read_c0()?;
-                self.read_c1()?;
-                self.state = ServerHandshakeState::WriteS0S1S2;
-            }
+        loop {
+            match self.state {
+                ServerHandshakeState::ReadC0C1 => {
+                    self.read_c0()?;
+                    self.read_c1()?;
+                    self.state = ServerHandshakeState::WriteS0S1S2;
+                }
 
-            ServerHandshakeState::WriteS0S1S2 => {
-                self.write_s0()?;
-                self.write_s1()?;
-                self.write_s2()?;
-                self.state = ServerHandshakeState::ReadC2;
-            }
+                ServerHandshakeState::WriteS0S1S2 => {
+                    self.write_s0()?;
+                    self.write_s1()?;
+                    self.write_s2()?;
+                    self.state = ServerHandshakeState::ReadC2;
+                }
 
-            ServerHandshakeState::ReadC2 => {
-                self.read_c2()?;
-                self.state = ServerHandshakeState::Finish;
-            }
+                ServerHandshakeState::ReadC2 => {
+                    self.read_c2()?;
+                    self.state = ServerHandshakeState::Finish;
+                }
 
-            ServerHandshakeState::Finish => {}
+                ServerHandshakeState::Finish => {
+                    break;
+                }
+            }
         }
 
         Ok(())

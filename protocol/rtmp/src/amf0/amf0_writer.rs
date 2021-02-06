@@ -5,7 +5,7 @@ use byteorder::BigEndian;
 use std::collections::HashMap;
 
 // use super::define::UnOrderedMap;
-use super::error::Amf0WriteErrorValue;
+use super::errors::Amf0WriteErrorValue;
 
 use liverust_lib::netio::writer::Writer;
 
