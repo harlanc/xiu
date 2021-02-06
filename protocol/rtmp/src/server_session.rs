@@ -1,5 +1,5 @@
 use super::errors::ServerError;
-use crate::chunk::packetizer::ChunkPacketizer;
+use crate::{chunk::packetizer::ChunkPacketizer, handshake};
 use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::ChunkHeader;
 use crate::handshake::handshake::SimpleHandshakeServer;
@@ -37,6 +37,7 @@ where
             //writer: io_writer,
             packetizer: ChunkPacketizer::new(io_writer),
             unpacketizer: ChunkUnpacketizer::new(BytesMut::new()),
+            handshaker: SimpleHandshakeServer::new(),
             bytes_stream: tokio_util::codec::Framed::new(
                 stream,
                 tokio_util::codec::BytesCodec::new(),

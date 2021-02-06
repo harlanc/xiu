@@ -452,11 +452,13 @@ pub struct SimpleHandshakeServer {
 }
 
 impl SimpleHandshakeServer {
-    fn new(input: BytesMut,output:BytesMut)  -> Self{
-        Self{
-            reader : Reader::new(input),
-            writer: Writer::new(output),
-
+    pub fn new(input: BytesMut, output: BytesMut) -> Self {
+        Self {
+            reader: Reader::new(input),
+            writer: Writer::new(),
+            c1_bytes: BytesMut::new(),
+            c1_timestamp: 0,
+            state: ServerHandshakeState::ReadC0C1,
         }
     }
     fn read_c0(&mut self) -> Result<(), HandshakeError> {
