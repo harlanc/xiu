@@ -3,7 +3,7 @@ use crate::amf0::amf0_writer::Amf0Writer;
 use crate::amf0::define::Amf0ValueType;
 
 use super::event_types;
-use crate::messages::rtmp_message_type;
+use crate::messages::msg_types;
 use byteorder::{BigEndian, LittleEndian};
 use liverust_lib::netio::writer::Writer;
 
@@ -23,7 +23,7 @@ impl EventMessages {
         self.writer.write_u24::<BigEndian>(0)?; //timestamp 3 bytes and value 0
         self.writer.write_u32::<BigEndian>(len)?; //msg length
         self.writer
-            .write_u8(rtmp_message_type::RTMP_MSG_TYPE_USER_CONTROL_EVENT)?; //msg type id
+            .write_u8(msg_types::USER_CONTROL_EVENT)?; //msg type id
         self.writer.write_u32::<BigEndian>(0)?; //msg stream ID 0
         Ok(())
     }

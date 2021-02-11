@@ -1,19 +1,26 @@
 use super::errors::ServerError;
-use crate::{chunk::packetizer::ChunkPacketizer, handshake};
 use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::ChunkHeader;
 use crate::handshake::handshake::SimpleHandshakeServer;
+use crate::{chunk::packetizer::ChunkPacketizer, handshake};
 use bytes::BytesMut;
 use liverust_lib::netio::writer::{IOWriteError, Writer};
-use std::{net::{TcpListener, TcpStream}, slice::SplitMut, time::Duration};
+use std::{
+    net::{TcpListener, TcpStream},
+    slice::SplitMut,
+    time::Duration,
+};
 use tokio::{
     prelude::*,
     stream::StreamExt,
     sync::{self, mpsc, oneshot},
     time::timeout,
 };
-// use tokio_util::codec::Framed;
-// use tokio_util::codec::BytesCodec;
+
+enum ServerSessionState {
+    Handshake,
+    ReadChunk,
+}
 
 pub struct ServerSession<S>
 where
@@ -24,7 +31,7 @@ where
     unpacketizer: ChunkUnpacketizer,
     handshaker: SimpleHandshakeServer,
     bytes_stream: tokio_util::codec::Framed<S, tokio_util::codec::BytesCodec>,
-  
+    state: ServerSessionState,
 }
 
 impl<S> ServerSession<S>
@@ -37,25 +44,37 @@ where
             //writer: io_writer,
             packetizer: ChunkPacketizer::new(io_writer),
             unpacketizer: ChunkUnpacketizer::new(BytesMut::new()),
-            handshaker: SimpleHandshakeServer::new(),
+            handshaker: SimpleHandshakeServer::new(BytesMut::new()),
             bytes_stream: tokio_util::codec::Framed::new(
                 stream,
                 tokio_util::codec::BytesCodec::new(),
             ),
+            state: ServerSessionState::Handshake,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), ServerError> {
         let duration = Duration::new(10, 10);
-        let val = self.bytes_stream.try_next();
-        match timeout(duration, val).await? {
-            Ok(Some(data)) => {
-       
-                self.unpacketizer.read_chunk(&data[..])?;
-                
-            
+
+        loop {
+            let val = self.bytes_stream.try_next();
+            match timeout(duration, val).await? {
+                Ok(Some(data)) => match self.state {
+                    ServerSessionState::Handshake => {
+                        let result = self.handshaker.handshake();
+                        match result {
+                            Ok(v) => {
+                                self.state = ServerSessionState::ReadChunk;
+                            }
+                            Err(e) => {}
+                        }
+                    }
+                    ServerSessionState::ReadChunk => {
+                        let result = self.unpacketizer.read_chunk(&data[..])?;
+                    }
+                },
+                _ => {}
             }
-            _ => {}
         }
 
         Ok(())

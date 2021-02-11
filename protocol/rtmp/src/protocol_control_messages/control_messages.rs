@@ -2,7 +2,7 @@ use super::errors::ControlMessagesError;
 use crate::amf0::amf0_writer::Amf0Writer;
 use crate::amf0::define::Amf0ValueType;
 
-use crate::messages::rtmp_message_type;
+use crate::messages::msg_types;
 use byteorder::{BigEndian, LittleEndian};
 use liverust_lib::netio::writer::Writer;
 
@@ -30,21 +30,21 @@ impl ControlMessages {
         Ok(())
     }
     fn set_chunk_size(&mut self, chunk_size: u32) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(rtmp_message_type::RTMP_MSG_TYPE_SET_CHUNK_SIZE, 4)?;
+        self.write_control_message_header(msg_types::SET_CHUNK_SIZE, 4)?;
         self.writer
             .write_u32::<BigEndian>(chunk_size & 0x7FFFFFFF)?; //first bit must be 0
         Ok(())
     }
 
     fn abort_message(&mut self, chunk_stream_id: u32) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(rtmp_message_type::RTMP_MSG_TYPE_ABORT, 4)?;
+        self.write_control_message_header(msg_types::ABORT, 4)?;
         self.writer.write_u32::<BigEndian>(chunk_stream_id)?;
 
         Ok(())
     }
 
     fn acknowledgement(&mut self, sequence_number: u32) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(rtmp_message_type::RTMP_MSG_TYPE_ACKNOWLEDGEMENT, 4)?;
+        self.write_control_message_header(msg_types::ACKNOWLEDGEMENT, 4)?;
         self.writer.write_u32::<BigEndian>(sequence_number)?;
 
         Ok(())
@@ -54,7 +54,7 @@ impl ControlMessages {
         &mut self,
         window_size: u32,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(rtmp_message_type::RTMP_MSG_TYPE_WIN_ACKNOWLEDGEMENT_SIZE, 4)?;
+        self.write_control_message_header(msg_types::WIN_ACKNOWLEDGEMENT_SIZE, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
 
         Ok(())
@@ -65,7 +65,7 @@ impl ControlMessages {
         window_size: u32,
         limit_type: u8,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(rtmp_message_type::RTMP_MSG_TYPE_SET_PEER_BANDWIDTH, 4)?;
+        self.write_control_message_header(msg_types::SET_PEER_BANDWIDTH, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
         self.writer.write_u8(limit_type)?;
 

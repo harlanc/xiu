@@ -1,5 +1,3 @@
-
-
 use liverust_lib::netio::errors::IOReadError;
 pub enum UnpackErrorValue {
     IO(IOReadError),

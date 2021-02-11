@@ -452,7 +452,7 @@ pub struct SimpleHandshakeServer {
 }
 
 impl SimpleHandshakeServer {
-    pub fn new(input: BytesMut, output: BytesMut) -> Self {
+    pub fn new(input: BytesMut) -> Self {
         Self {
             reader: Reader::new(input),
             writer: Writer::new(),

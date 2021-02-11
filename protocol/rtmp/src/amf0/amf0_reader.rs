@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ptr::read};
 
 use super::amf0_markers;
 use super::Amf0ReadError;
@@ -10,11 +10,34 @@ use byteorder::BigEndian;
 use super::errors::Amf0ReadErrorValue;
 use liverust_lib::netio::reader::Reader;
 
-pub struct Amf0Reader{
+use bytes::BytesMut;
+
+pub struct Amf0Reader {
     reader: Reader,
 }
 
 impl Amf0Reader {
+    pub fn new(reader: Reader) -> Self {
+        Self { reader: reader }
+    }
+    pub fn read_all(&mut self) -> Result<Vec<Amf0ValueType>, Amf0ReadError> {
+        let mut results = vec![];
+
+        loop {
+            let result = self.read_any()?;
+
+            match result {
+                Amf0ValueType::END => {
+                    break;
+                }
+                _ => {
+                    results.push(result);
+                }
+            }
+        }
+
+        Ok(results)
+    }
     pub fn read_any(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
         let markers = self.reader.read_u8()?;
 
