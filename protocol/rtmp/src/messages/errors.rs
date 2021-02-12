@@ -4,6 +4,7 @@ pub enum MessageErrorValue {
     IO(IOReadError),
     UnknowReadState,
     Amf0ReadError(Amf0ReadError),
+    UnknowMessageType,
     //IO(io::Error),
 }
 

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, ptr::read};
 
-use super::amf0_markers;
 use super::Amf0ReadError;
 use super::Amf0ValueType;
+use super::{amf0_markers, errors::Amf0WriteErrorValue};
 use byteorder::BigEndian;
 
 // use super::define::UnOrderedMap;
@@ -57,6 +57,17 @@ impl Amf0Reader {
                 value: Amf0ReadErrorValue::UnknownMarker { marker: markers },
             }),
         }
+    }
+    pub fn read_with_type(&mut self, specified_marker: u8) -> Result<Amf0ValueType, Amf0ReadError> {
+        let marker = self.reader.advance_u8()?;
+
+        if marker != specified_marker {
+            return Err(Amf0ReadError {
+                value: Amf0ReadErrorValue::WrongType,
+            });
+        }
+
+        return self.read_any();
     }
 
     pub fn read_number(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {

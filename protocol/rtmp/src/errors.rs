@@ -4,6 +4,7 @@ use liverust_lib::netio::writer::IOWriteError;
 use std::fmt;
 use std::io;
 use crate::chunk::errors::UnpackError;
+use crate::messages::errors::MessageError;
 use {
    
     //thiserror::Error,
@@ -21,6 +22,7 @@ pub enum ServerErrorValue {
     //IOError(Error),
     TimeoutError(Elapsed),
     UnPackError(UnpackError),
+    MessageError(MessageError),
 
 }
 
@@ -63,3 +65,15 @@ impl From<UnpackError> for ServerError {
         }
     }
 }
+
+impl From<MessageError> for ServerError {
+    fn from(error: MessageError) -> Self {
+        ServerError {
+            value: ServerErrorValue::MessageError(error),
+        }
+    }
+}
+
+
+
+

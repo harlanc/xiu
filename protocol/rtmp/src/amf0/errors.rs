@@ -26,6 +26,7 @@ pub enum Amf0ReadErrorValue {
 
     //#[fail(display = "Failed to read a utf8 string from the byte buffer: {}", _0)]
     IORead(IOReadError),
+    WrongType,
 }
 
 pub struct Amf0ReadError {

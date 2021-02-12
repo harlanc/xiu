@@ -1,4 +1,6 @@
 use super::errors::MessageError;
+use super::errors::MessageErrorValue;
+use super::messages::Rtmp_Messages;
 use super::msg_types;
 use crate::chunk::ChunkInfo;
 use liverust_lib::netio::{
@@ -8,13 +10,19 @@ use liverust_lib::netio::{
     writer::{IOWriteError, Writer},
 };
 
+use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;
 pub struct MessageProcessor {
     chunk_info: ChunkInfo,
 }
 
 impl MessageProcessor {
-    pub fn execute(&mut self) -> Result<(), MessageError> {
+    pub fn new(chunk_info: ChunkInfo) -> Self {
+        Self {
+            chunk_info: chunk_info,
+        }
+    }
+    pub fn execute(&mut self) -> Result<Rtmp_Messages, MessageError> {
         let mut reader = Reader::new(self.chunk_info.payload.clone());
 
         if self.chunk_info.message_header.msg_type_id == msg_types::COMMAND_AMF0 {
@@ -25,7 +33,14 @@ impl MessageProcessor {
 
         match self.chunk_info.message_header.msg_type_id {
             msg_types::COMMAND_AMF0 => {
-                amf_reader.read_any()?;
+                let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
+                let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
+                let command_obj = amf_reader.read_with_type(amf0_markers::OBJECT)?;
+                return Ok(Rtmp_Messages::AMF0_COMMAND {
+                    command_name: command_name,
+                    transaction_id: transaction_id,
+                    command_object: command_obj,
+                });
             }
             msg_types::COMMAND_AMF3 => {}
 
@@ -46,9 +61,14 @@ impl MessageProcessor {
 
             msg_types::AGGREGATE => {}
 
-            _ => {}
+            _ => {
+                return Err(MessageError {
+                    value: MessageErrorValue::UnknowMessageType,
+                });
+            }
         }
-
-        Ok(())
+        return Err(MessageError {
+            value: MessageErrorValue::UnknowMessageType,
+        });
     }
 }
