@@ -4,11 +4,16 @@ use crate::amf0::define::Amf0ValueType;
 use liverust_lib::netio::writer::Writer;
 use std::collections::HashMap;
 pub struct NetStream {
-    writer: Writer,
+  
     amf0_writer: Amf0Writer,
 }
 
 impl NetStream {
+    pub fn new(writer: Writer) -> Self {
+        Self {
+            amf0_writer: Amf0Writer::new(writer),
+        }
+    }
     fn play(
         &mut self,
         transaction_id: &f64,
@@ -120,7 +125,7 @@ impl NetStream {
         Ok(())
     }
 
-    fn on_status(
+    pub fn on_status(
         &mut self,
         transaction_id: &f64,
         level: &String,

@@ -14,6 +14,9 @@ pub struct Amf0Writer {
 }
 
 impl Amf0Writer {
+    pub fn new(writer: Writer) -> Self {
+        Self { writer: writer }
+    }
     pub fn write_anys(&mut self, values: &Vec<Amf0ValueType>) -> Result<(), Amf0WriteError> {
         for val in values {
             self.write_any(val)?;
@@ -73,7 +76,7 @@ impl Amf0Writer {
         &mut self,
         properties: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), Amf0WriteError> {
-        self.writer.write_u8(amf0_markers::OBJECT_END)?;
+        self.writer.write_u8(amf0_markers::OBJECT)?;
 
         for (key, value) in properties {
             self.writer.write_u16::<BigEndian>(key.len() as u16)?;

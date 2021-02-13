@@ -1,16 +1,14 @@
-use crate::{amf0::errors::{Amf0WriteError, Amf0WriteErrorValue}};
+use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
+use crate::chunk::errors::UnpackError;
+use crate::messages::errors::MessageError;
+use crate::netconnection::errors::NetConnectionError;
+use crate::netstream::errors::NetStreamError;
+use crate::protocol_control_messages::errors::ControlMessagesError;
 use failure::{Backtrace, Fail};
 use liverust_lib::netio::writer::IOWriteError;
 use std::fmt;
 use std::io;
-use crate::chunk::errors::UnpackError;
-use crate::messages::errors::MessageError;
-use {
-   
-    //thiserror::Error,
-    tokio::time::Elapsed
-    //crate::proto::Error as ProtocolError,
-};
+use tokio::time::Elapsed;
 
 pub struct ServerError {
     pub value: ServerErrorValue,
@@ -19,20 +17,15 @@ pub struct ServerError {
 pub enum ServerErrorValue {
     Amf0WriteError(Amf0WriteError),
     IOWriteError(IOWriteError),
-    //IOError(Error),
     TimeoutError(Elapsed),
     UnPackError(UnpackError),
     MessageError(MessageError),
-
+    ControlMessagesError(ControlMessagesError),
+    NetConnectionError(NetConnectionError),
+    NetStreamError(NetStreamError),
+    Amf0ValueCountNotCorrect,
+    Amf0ValueTypeNotCorrect,
 }
-
-// impl From<Error> for ServerError {
-//     fn from(error: Error) -> Self {
-//         ServerError {
-//             value: ServerErrorValue::IOError(error),
-//         }
-//     }
-// }
 
 impl From<Amf0WriteError> for ServerError {
     fn from(error: Amf0WriteError) -> Self {
@@ -74,6 +67,26 @@ impl From<MessageError> for ServerError {
     }
 }
 
+impl From<ControlMessagesError> for ServerError {
+    fn from(error: ControlMessagesError) -> Self {
+        ServerError {
+            value: ServerErrorValue::ControlMessagesError(error),
+        }
+    }
+}
 
+impl From<NetConnectionError> for ServerError {
+    fn from(error: NetConnectionError) -> Self {
+        ServerError {
+            value: ServerErrorValue::NetConnectionError(error),
+        }
+    }
+}
 
-
+impl From<NetStreamError> for ServerError {
+    fn from(error: NetStreamError) -> Self {
+        ServerError {
+            value: ServerErrorValue::NetStreamError(error),
+        }
+    }
+}

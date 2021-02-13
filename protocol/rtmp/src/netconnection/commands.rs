@@ -1,6 +1,6 @@
 use super::errors::NetConnectionError;
-use crate::amf0::amf0_writer::Amf0Writer;
 use crate::amf0::define::Amf0ValueType;
+use crate::amf0::{self, amf0_writer::Amf0Writer};
 use std::collections::HashMap;
 
 use liverust_lib::netio::writer::Writer;
@@ -20,11 +20,16 @@ pub struct ConnectProperties {
 }
 
 pub struct NetConnection {
-    writer: Writer,
+    // writer: Writer,
     amf0_writer: Amf0Writer,
 }
 
 impl NetConnection {
+    pub fn new(writer: Writer) -> Self {
+        Self {
+            amf0_writer: Amf0Writer::new(writer),
+        }
+    }
     fn connect(
         &mut self,
         transaction_id: &f64,
@@ -86,7 +91,7 @@ impl NetConnection {
         Ok(())
     }
 
-    fn connect_reply(
+    pub fn connect_reply(
         &mut self,
         transaction_id: &f64,
         fmsver: &String,
@@ -94,7 +99,7 @@ impl NetConnection {
         code: &String,
         level: &String,
         description: &String,
-        encoding: &String,
+        encoding: &f64,
     ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_result"))?;
         self.amf0_writer.write_number(transaction_id)?;
@@ -128,7 +133,7 @@ impl NetConnection {
         );
         properties_map_b.insert(
             String::from("objectEncoding"),
-            Amf0ValueType::UTF8String(encoding.clone()),
+            Amf0ValueType::Number(encoding.clone()),
         );
 
         self.amf0_writer.write_object(&properties_map_b)?;

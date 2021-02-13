@@ -1,12 +1,17 @@
+use super::define;
 use super::errors::ServerError;
-use crate::chunk::ChunkHeader;
-use crate::chunk::{
-    unpacketizer::{self, ChunkUnpacketizer},
-    ChunkInfo,
-};
+use super::errors::ServerErrorValue;
+use crate::chunk::{Chunk, ChunkHeader};
 use crate::handshake::handshake::SimpleHandshakeServer;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
 use crate::{chunk::packetizer::ChunkPacketizer, handshake};
+use crate::{
+    chunk::{
+        unpacketizer::{self, ChunkUnpacketizer},
+        ChunkInfo,
+    },
+    netconnection,
+};
 
 use crate::messages::messages::Rtmp_Messages;
 use crate::messages::processor::MessageProcessor;
@@ -17,6 +22,10 @@ use std::{
     slice::SplitMut,
     time::Duration,
 };
+
+use crate::netconnection::commands::NetConnection;
+use crate::netstream::commands::NetStream;
+use crate::protocol_control_messages::control_messages::ControlMessages;
 
 use std::collections::HashMap;
 
@@ -85,7 +94,9 @@ where
                         match result {
                             UnpackResult::ChunkInfo(chunk_info) => {
                                 let mut message_parser = MessageProcessor::new(chunk_info);
-                                let rtmp_msg = message_parser.execute()?;
+                                let mut rtmp_msg = message_parser.execute()?;
+
+                                self.process_rtmp_message(&mut rtmp_msg)?;
                             }
                             _ => {}
                         }
@@ -97,15 +108,22 @@ where
 
         Ok(())
     }
-    pub fn process_rtmp_message(&mut self, rtmp_msg: Rtmp_Messages) -> Result<(), ServerError> {
+    pub fn process_rtmp_message(
+        &mut self,
+        rtmp_msg: &mut Rtmp_Messages,
+    ) -> Result<(), ServerError> {
         match rtmp_msg {
             Rtmp_Messages::AMF0_COMMAND {
                 command_name,
                 transaction_id,
                 command_object,
-            } => {
-                self.process_amf0_command_message(command_name, transaction_id, command_object)?
-            }
+                others,
+            } => self.process_amf0_command_message(
+                command_name,
+                transaction_id,
+                command_object,
+                others,
+            )?,
 
             _ => {}
         }
@@ -125,41 +143,141 @@ where
 
     pub fn process_amf0_command_message(
         &mut self,
-        command_name: Amf0ValueType,
-        transaction_id: Amf0ValueType,
-        command_object: Amf0ValueType,
-    ) -> Result<(), ServerError>{
+        command_name: &Amf0ValueType,
+        transaction_id: &Amf0ValueType,
+        command_object: &Amf0ValueType,
+        others: &mut Vec<Amf0ValueType>,
+    ) -> Result<(), ServerError> {
+        let empty_cmd_name = &String::new();
         let cmd_name = match command_name {
             Amf0ValueType::UTF8String(str) => str,
-            _ => String::new(),
+            _ => empty_cmd_name,
         };
 
         let transaction_id = match transaction_id {
             Amf0ValueType::Number(number) => number,
-            _ => 0.0,
+            _ => &0.0,
         };
 
+        let empty_cmd_obj: HashMap<String, Amf0ValueType> = HashMap::new();
         let obj = match command_object {
             Amf0ValueType::Object(obj) => obj,
-            _ => HashMap::new(),
+            _ => &empty_cmd_obj,
         };
 
-        match cmd_name.as_str(){
-            "connect" => {},
-            "closeStream" => {},
-            "createStream" =>{},
-            "deleteStream" => {},
-            "play" => {},
-            "publish" => (),
-            _ =>{},
+        match cmd_name.as_str() {
+            "connect" => {
+                self.on_connect(&transaction_id, &obj)?;
+            }
+            "createStream" => {
+                self.on_create_stream(transaction_id)?;
+            }
+            "deleteStream" => {
+                if others.len() > 1 {
+                    let stream_id = match others.pop() {
+                        Some(val) => match val {
+                            Amf0ValueType::Number(streamid) => streamid,
+                            _ => 0.0,
+                        },
+                        _ => 0.0,
+                    };
 
+                    self.on_delete_stream(transaction_id, &stream_id)?;
+                }
+            }
+            "play" => {}
+            "publish" => (),
+            _ => {}
         }
 
         Ok(())
     }
 
-    fn on_connect() -> Result<(), ServerError> {
-        
+    fn on_connect(
+        &mut self,
+        transaction_id: &f64,
+        command_obj: &HashMap<String, Amf0ValueType>,
+    ) -> Result<(), ServerError> {
+        let mut control_message = ControlMessages::new(Writer::new());
+        control_message.window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
+        control_message.set_peer_bandwidth(
+            define::PEER_BANDWIDTH,
+            define::PeerBandWidthLimitType::DYNAMIC,
+        )?;
+        control_message.set_chunk_size(define::CHUNK_SIZE)?;
+
+        let obj_encoding = command_obj.get("objectEncoding");
+        let encoding = match obj_encoding {
+            Some(Amf0ValueType::Number(encoding)) => encoding,
+            _ => &define::OBJENCODING_AMF0,
+        };
+
+        let mut netconnection = NetConnection::new(Writer::new());
+        netconnection.connect_reply(
+            &transaction_id,
+            &define::FMSVER.to_string(),
+            &define::CAPABILITIES,
+            &String::from("NetConnection.Connect.Success"),
+            &define::LEVEL.to_string(),
+            &String::from("Connection Succeeded."),
+            encoding,
+        )?;
+        Ok(())
+    }
+
+    pub fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), ServerError> {
+        let mut netconnection = NetConnection::new(Writer::new());
+        netconnection.create_stream_reply(transaction_id, &define::STREAM_ID)?;
+
+        Ok(())
+    }
+
+    pub fn on_delete_stream(
+        &mut self,
+        transaction_id: &f64,
+        stream_id: &f64,
+    ) -> Result<(), ServerError> {
+        let mut netstream = NetStream::new(Writer::new());
+        netstream.on_status(
+            transaction_id,
+            &"status".to_string(),
+            &"NetStream.DeleteStream.Suceess".to_string(),
+            &"".to_string(),
+        )?;
+
+        Ok(())
+    }
+    pub fn on_play(&mut self, other_values: &Vec<Amf0ValueType>) -> Result<(), ServerError> {
+        if other_values.len() != 4 {
+            return Err(ServerError {
+                value: ServerErrorValue::Amf0ValueCountNotCorrect,
+            });
+        }
+
+        let mut play_types: Vec<Amf0ValueType> = Vec::new();
+        play_types.push(Amf0ValueType::UTF8String);
+
+
+        let play_types = vec![Amf0ValueType::UTF8String,Amf0ValueType::Number];
+
+        let stream_name = match &other_values[0] {
+            Amf0ValueType::UTF8String(val) => val,
+            _ => {
+                return Err(ServerError {
+                    value: ServerErrorValue::Amf0ValueTypeNotCorrect,
+                });
+            }
+        };
+
+        let start = match &other_values[1] {
+            Amf0ValueType::UTF8String(val) => val,
+            _ => {
+                return Err(ServerError {
+                    value: ServerErrorValue::Amf0ValueTypeNotCorrect,
+                });
+            }
+        };
+
         Ok(())
     }
 }

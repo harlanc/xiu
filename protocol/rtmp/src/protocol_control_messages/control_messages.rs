@@ -8,10 +8,13 @@ use liverust_lib::netio::writer::Writer;
 
 pub struct ControlMessages {
     writer: Writer,
-    amf0_writer: Amf0Writer,
+    //amf0_writer: Amf0Writer,
 }
 
 impl ControlMessages {
+    pub fn new(writer: Writer) -> Self {
+        Self { writer: writer }
+    }
     fn write_control_message_header(
         &mut self,
         msg_type_id: u8,
@@ -29,28 +32,28 @@ impl ControlMessages {
         self.writer.write_u32::<BigEndian>(0)?; //msg stream ID 0
         Ok(())
     }
-    fn set_chunk_size(&mut self, chunk_size: u32) -> Result<(), ControlMessagesError> {
+    pub fn set_chunk_size(&mut self, chunk_size: u32) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_types::SET_CHUNK_SIZE, 4)?;
         self.writer
             .write_u32::<BigEndian>(chunk_size & 0x7FFFFFFF)?; //first bit must be 0
         Ok(())
     }
 
-    fn abort_message(&mut self, chunk_stream_id: u32) -> Result<(), ControlMessagesError> {
+    pub fn abort_message(&mut self, chunk_stream_id: u32) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_types::ABORT, 4)?;
         self.writer.write_u32::<BigEndian>(chunk_stream_id)?;
 
         Ok(())
     }
 
-    fn acknowledgement(&mut self, sequence_number: u32) -> Result<(), ControlMessagesError> {
+    pub fn acknowledgement(&mut self, sequence_number: u32) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_types::ACKNOWLEDGEMENT, 4)?;
         self.writer.write_u32::<BigEndian>(sequence_number)?;
 
         Ok(())
     }
 
-    fn window_acknowledgement_size(
+    pub fn window_acknowledgement_size(
         &mut self,
         window_size: u32,
     ) -> Result<(), ControlMessagesError> {
@@ -60,7 +63,7 @@ impl ControlMessages {
         Ok(())
     }
 
-    fn set_peer_bandwidth(
+    pub fn set_peer_bandwidth(
         &mut self,
         window_size: u32,
         limit_type: u8,

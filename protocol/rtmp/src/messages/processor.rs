@@ -2,7 +2,7 @@ use super::errors::MessageError;
 use super::errors::MessageErrorValue;
 use super::messages::Rtmp_Messages;
 use super::msg_types;
-use crate::chunk::ChunkInfo;
+use crate::{amf0, chunk::ChunkInfo};
 use liverust_lib::netio::{
     errors::IOReadError,
     reader::NetworkReader,
@@ -12,6 +12,8 @@ use liverust_lib::netio::{
 
 use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;
+use crate::amf0::Amf0ReadError;
+use crate::amf0::Amf0ValueType;
 pub struct MessageProcessor {
     chunk_info: ChunkInfo,
 }
@@ -35,11 +37,21 @@ impl MessageProcessor {
             msg_types::COMMAND_AMF0 => {
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
-                let command_obj = amf_reader.read_with_type(amf0_markers::OBJECT)?;
+
+                //The third value can be an object or NULL object
+                let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
+                let command_obj = match command_obj_raw {
+                    Ok(val) => val,
+                    Err(_) => amf_reader.read_with_type(amf0_markers::NULL)?,
+                };
+
+                let others = amf_reader.read_all()?;
+
                 return Ok(Rtmp_Messages::AMF0_COMMAND {
                     command_name: command_name,
                     transaction_id: transaction_id,
                     command_object: command_obj,
+                    others,
                 });
             }
             msg_types::COMMAND_AMF3 => {}
