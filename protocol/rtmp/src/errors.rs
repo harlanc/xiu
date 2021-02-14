@@ -4,6 +4,7 @@ use crate::messages::errors::MessageError;
 use crate::netconnection::errors::NetConnectionError;
 use crate::netstream::errors::NetStreamError;
 use crate::protocol_control_messages::errors::ControlMessagesError;
+use crate::user_control_messages::errors::EventMessagesError;
 use failure::{Backtrace, Fail};
 use liverust_lib::netio::writer::IOWriteError;
 use std::fmt;
@@ -23,6 +24,7 @@ pub enum ServerErrorValue {
     ControlMessagesError(ControlMessagesError),
     NetConnectionError(NetConnectionError),
     NetStreamError(NetStreamError),
+    EventMessagesError(EventMessagesError),
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
 }
@@ -87,6 +89,14 @@ impl From<NetStreamError> for ServerError {
     fn from(error: NetStreamError) -> Self {
         ServerError {
             value: ServerErrorValue::NetStreamError(error),
+        }
+    }
+}
+
+impl From<EventMessagesError> for ServerError {
+    fn from(error: EventMessagesError) -> Self {
+        ServerError {
+            value: ServerErrorValue::EventMessagesError(error),
         }
     }
 }

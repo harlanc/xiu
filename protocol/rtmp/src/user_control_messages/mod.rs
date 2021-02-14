@@ -1,3 +1,3 @@
-mod event_messages;
-mod event_types;
-mod errors;
+pub mod event_messages;
+pub mod event_types;
+pub mod errors;

@@ -34,7 +34,7 @@ impl MessageProcessor {
         let mut amf_reader = Amf0Reader::new(reader);
 
         match self.chunk_info.message_header.msg_type_id {
-            msg_types::COMMAND_AMF0 => {
+            msg_types::COMMAND_AMF0 | msg_types::COMMAND_AMF3 => {
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
 
@@ -48,14 +48,14 @@ impl MessageProcessor {
                 let others = amf_reader.read_all()?;
 
                 return Ok(Rtmp_Messages::AMF0_COMMAND {
+                    msg_stream_id: self.chunk_info.message_header.msg_streamd_id,
                     command_name: command_name,
                     transaction_id: transaction_id,
                     command_object: command_obj,
                     others,
                 });
             }
-            msg_types::COMMAND_AMF3 => {}
-
+            // msg_types::COMMAND_AMF3 => {}
             msg_types::AUDIO => {}
             msg_types::VIDEO => {}
 

@@ -1,7 +1,6 @@
 use super::define;
 use super::errors::ServerError;
 use super::errors::ServerErrorValue;
-use crate::chunk::{Chunk, ChunkHeader};
 use crate::handshake::handshake::SimpleHandshakeServer;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
 use crate::{chunk::packetizer::ChunkPacketizer, handshake};
@@ -11,6 +10,10 @@ use crate::{
         ChunkInfo,
     },
     netconnection,
+};
+use crate::{
+    chunk::{Chunk, ChunkHeader},
+    netstream,
 };
 
 use crate::messages::messages::Rtmp_Messages;
@@ -26,6 +29,8 @@ use std::{
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
 use crate::protocol_control_messages::control_messages::ControlMessages;
+use crate::user_control_messages::errors::EventMessagesError;
+use crate::user_control_messages::event_messages::EventMessages;
 
 use std::collections::HashMap;
 
@@ -114,11 +119,13 @@ where
     ) -> Result<(), ServerError> {
         match rtmp_msg {
             Rtmp_Messages::AMF0_COMMAND {
+                msg_stream_id,
                 command_name,
                 transaction_id,
                 command_object,
                 others,
             } => self.process_amf0_command_message(
+                msg_stream_id,
                 command_name,
                 transaction_id,
                 command_object,
@@ -143,6 +150,7 @@ where
 
     pub fn process_amf0_command_message(
         &mut self,
+        stream_id: &u32,
         command_name: &Amf0ValueType,
         transaction_id: &Amf0ValueType,
         command_object: &Amf0ValueType,
@@ -185,8 +193,12 @@ where
                     self.on_delete_stream(transaction_id, &stream_id)?;
                 }
             }
-            "play" => {}
-            "publish" => (),
+            "play" => {
+                self.on_play(transaction_id, stream_id, others)?;
+            }
+            "publish" => {
+                self.on_publish(transaction_id, stream_id, others)?;
+            }
             _ => {}
         }
 
@@ -247,36 +259,131 @@ where
 
         Ok(())
     }
-    pub fn on_play(&mut self, other_values: &Vec<Amf0ValueType>) -> Result<(), ServerError> {
-        if other_values.len() != 4 {
+    pub fn on_play(
+        &mut self,
+        transaction_id: &f64,
+        stream_id: &u32,
+        other_values: &mut Vec<Amf0ValueType>,
+    ) -> Result<(), ServerError> {
+        let length = other_values.len() as u8;
+        let mut index: u8 = 0;
+
+        let mut stream_name: Option<String> = None;
+        let mut start: Option<f64> = None;
+        let mut duration: Option<f64> = None;
+        let mut reset: Option<bool> = None;
+
+        loop {
+            if index >= length {
+                break;
+            }
+            index = index + 1;
+            stream_name = match other_values.remove(0) {
+                Amf0ValueType::UTF8String(val) => Some(val),
+                _ => None,
+            };
+
+            if index >= length {
+                break;
+            }
+            index = index + 1;
+            start = match other_values.remove(0) {
+                Amf0ValueType::Number(val) => Some(val),
+                _ => None,
+            };
+
+            if index >= length {
+                break;
+            }
+            index = index + 1;
+            duration = match other_values.remove(0) {
+                Amf0ValueType::Number(val) => Some(val),
+                _ => None,
+            };
+
+            if index >= length {
+                break;
+            }
+            index = index + 1;
+            reset = match other_values.remove(0) {
+                Amf0ValueType::Boolean(val) => Some(val),
+                _ => None,
+            };
+            break;
+        }
+
+        let mut event_messages = EventMessages::new(Writer::new());
+        event_messages.stream_begin(stream_id.clone())?;
+
+        let mut netstream = NetStream::new(Writer::new());
+        match reset {
+            Some(val) => {
+                if val {
+                    netstream.on_status(
+                        transaction_id,
+                        &"status".to_string(),
+                        &"NetStream.Play.Reset".to_string(),
+                        &"".to_string(),
+                    )?;
+                }
+            }
+            _ => {}
+        }
+
+        netstream.on_status(
+            transaction_id,
+            &"status".to_string(),
+            &"NetStream.Play.Start".to_string(),
+            &"".to_string(),
+        )?;
+
+        event_messages.stream_is_record(stream_id.clone())?;
+
+        Ok(())
+    }
+
+    pub fn on_publish(
+        &mut self,
+        transaction_id: &f64,
+        stream_id: &u32,
+        other_values: &mut Vec<Amf0ValueType>,
+    ) -> Result<(), ServerError> {
+        let length = other_values.len();
+
+        if length < 2 {
             return Err(ServerError {
                 value: ServerErrorValue::Amf0ValueCountNotCorrect,
             });
         }
 
-        let mut play_types: Vec<Amf0ValueType> = Vec::new();
-        play_types.push(Amf0ValueType::UTF8String);
-
-
-        let play_types = vec![Amf0ValueType::UTF8String,Amf0ValueType::Number];
-
-        let stream_name = match &other_values[0] {
+        let stream_name = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
                 return Err(ServerError {
-                    value: ServerErrorValue::Amf0ValueTypeNotCorrect,
+                    value: ServerErrorValue::Amf0ValueCountNotCorrect,
                 });
             }
         };
 
-        let start = match &other_values[1] {
+        let stream_type = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
                 return Err(ServerError {
-                    value: ServerErrorValue::Amf0ValueTypeNotCorrect,
+                    value: ServerErrorValue::Amf0ValueCountNotCorrect,
                 });
             }
         };
+
+        let mut event_messages = EventMessages::new(Writer::new());
+        event_messages.stream_begin(stream_id.clone())?;
+
+        let mut netstream = NetStream::new(Writer::new());
+        netstream.on_status(
+            transaction_id,
+            &"status".to_string(),
+            &"NetStream.Publish.Start".to_string(),
+            &"".to_string(),
+        )?;
 
         Ok(())
     }
