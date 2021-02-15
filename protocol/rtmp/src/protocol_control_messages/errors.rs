@@ -8,17 +8,17 @@ pub struct ControlMessagesError {
 }
 
 pub enum ControlMessagesErrorValue {
-    Amf0WriteError(Amf0WriteError),
+    //Amf0WriteError(Amf0WriteError),
     IOWriteError(IOWriteError),
 }
 
-impl From<Amf0WriteError> for ControlMessagesError {
-    fn from(error: Amf0WriteError) -> Self {
-        ControlMessagesError {
-            value: ControlMessagesErrorValue::Amf0WriteError(error),
-        }
-    }
-}
+// impl From<Amf0WriteError> for ControlMessagesError {
+//     fn from(error: Amf0WriteError) -> Self {
+//         ControlMessagesError {
+//             value: ControlMessagesErrorValue::Amf0WriteError(error),
+//         }
+//     }
+// }
 
 impl From<IOWriteError> for ControlMessagesError {
     fn from(error: IOWriteError) -> Self {
@@ -26,4 +26,9 @@ impl From<IOWriteError> for ControlMessagesError {
             value: ControlMessagesErrorValue::IOWriteError(error),
         }
     }
+}
+
+pub struct ProtocolControlMessageReaderError{
+    IOReadError()
+
 }

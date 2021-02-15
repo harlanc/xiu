@@ -7,7 +7,6 @@ pub enum IOReadErrorValue {
     IO(io::Error),
     TimeoutError(Elapsed),
 }
-
 pub struct IOReadError {
     pub value: IOReadErrorValue,
 }
@@ -30,6 +29,22 @@ impl From<Elapsed> for IOReadError {
     fn from(error: Elapsed) -> Self {
         IOReadError {
             value: IOReadErrorValue::TimeoutError(error),
+        }
+    }
+}
+
+pub struct IOWriteError {
+    pub value: IOWriteErrorValue,
+}
+
+pub enum IOWriteErrorValue {
+    IO(io::Error),
+}
+
+impl From<io::Error> for IOWriteError {
+    fn from(error: io::Error) -> Self {
+        IOWriteError {
+            value: IOWriteErrorValue::IO(error),
         }
     }
 }

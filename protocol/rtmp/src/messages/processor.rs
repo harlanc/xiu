@@ -27,14 +27,13 @@ impl MessageProcessor {
     pub fn execute(&mut self) -> Result<Rtmp_Messages, MessageError> {
         let mut reader = Reader::new(self.chunk_info.payload.clone());
 
-        if self.chunk_info.message_header.msg_type_id == msg_types::COMMAND_AMF0 {
-            reader.read_u8()?;
-        }
-
-        let mut amf_reader = Amf0Reader::new(reader);
-
         match self.chunk_info.message_header.msg_type_id {
             msg_types::COMMAND_AMF0 | msg_types::COMMAND_AMF3 => {
+                if self.chunk_info.message_header.msg_type_id == msg_types::COMMAND_AMF0 {
+                    reader.read_u8()?;
+                }
+                let mut amf_reader = Amf0Reader::new(reader);
+
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
 
