@@ -2,9 +2,9 @@ use failure::Fail;
 use std::{io, string};
 
 use liverust_lib::netio::{
-    errors::IOReadError,
+    errors::{IOReadError, IOWriteError},
     reader::Reader,
-    writer::{IOWriteError, Writer},
+    writer::Writer,
 };
 
 //#[derive(Debug, Fail)]

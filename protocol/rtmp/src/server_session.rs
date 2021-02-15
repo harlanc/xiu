@@ -16,10 +16,11 @@ use crate::{
     netstream,
 };
 
-use crate::messages::messages::Rtmp_Messages;
+use crate::messages::define::Rtmp_Messages;
 use crate::messages::processor::MessageProcessor;
 use bytes::BytesMut;
-use liverust_lib::netio::writer::{IOWriteError, Writer};
+use liverust_lib::netio::errors::IOWriteError;
+use liverust_lib::netio::writer::Writer;
 use std::{
     net::{TcpListener, TcpStream},
     slice::SplitMut,
@@ -211,12 +212,12 @@ where
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), ServerError> {
         let mut control_message = ControlMessages::new(Writer::new());
-        control_message.window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
-        control_message.set_peer_bandwidth(
+        control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
+        control_message.write_set_peer_bandwidth(
             define::PEER_BANDWIDTH,
             define::PeerBandWidthLimitType::DYNAMIC,
         )?;
-        control_message.set_chunk_size(define::CHUNK_SIZE)?;
+        control_message.write_set_chunk_size(define::CHUNK_SIZE)?;
 
         let obj_encoding = command_obj.get("objectEncoding");
         let encoding = match obj_encoding {

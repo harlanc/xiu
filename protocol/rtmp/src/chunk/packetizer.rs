@@ -1,7 +1,8 @@
 use byteorder::{BigEndian, LittleEndian};
 
 use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
-use liverust_lib::netio::writer::{IOWriteError, Writer};
+use liverust_lib::netio::writer::Writer;
+use liverust_lib::netio::errors::IOWriteError;
 use std::collections::HashMap;
 
 #[derive(Eq, PartialEq, Debug)]

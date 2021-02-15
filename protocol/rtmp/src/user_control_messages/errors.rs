@@ -1,6 +1,6 @@
 use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
 use failure::{Backtrace, Fail};
-use liverust_lib::netio::writer::IOWriteError;
+use liverust_lib::netio::errors::IOWriteError;
 use std::fmt;
 use std::io;
 pub struct EventMessagesError {

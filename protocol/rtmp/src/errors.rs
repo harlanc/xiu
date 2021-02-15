@@ -6,7 +6,7 @@ use crate::netstream::errors::NetStreamError;
 use crate::protocol_control_messages::errors::ControlMessagesError;
 use crate::user_control_messages::errors::EventMessagesError;
 use failure::{Backtrace, Fail};
-use liverust_lib::netio::writer::IOWriteError;
+use liverust_lib::netio::errors::IOWriteError;
 use std::fmt;
 use std::io;
 use tokio::time::Elapsed;

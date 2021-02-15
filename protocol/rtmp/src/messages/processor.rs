@@ -1,19 +1,15 @@
+use super::define::Rtmp_Messages;
 use super::errors::MessageError;
 use super::errors::MessageErrorValue;
-use super::messages::Rtmp_Messages;
 use super::msg_types;
-use crate::{amf0, chunk::ChunkInfo};
-use liverust_lib::netio::{
-    errors::IOReadError,
-    reader::NetworkReader,
-    reader::Reader,
-    writer::{IOWriteError, Writer},
-};
+use crate::chunk::{self, ChunkInfo};
+use liverust_lib::netio::reader::Reader;
 
 use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;
-use crate::amf0::Amf0ReadError;
-use crate::amf0::Amf0ValueType;
+
+use crate::protocol_control_messages::reader::ProtocolControlMessageReader;
+
 pub struct MessageProcessor {
     chunk_info: ChunkInfo,
 }
@@ -60,11 +56,38 @@ impl MessageProcessor {
 
             msg_types::USER_CONTROL_EVENT => {}
 
-            msg_types::SET_CHUNK_SIZE
-            | msg_types::ABORT
-            | msg_types::ACKNOWLEDGEMENT
-            | msg_types::WIN_ACKNOWLEDGEMENT_SIZE
-            | msg_types::SET_PEER_BANDWIDTH => {}
+            msg_types::SET_CHUNK_SIZE => {
+                let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
+                return Ok(Rtmp_Messages::SET_CHUNK_SIZE {
+                    chunk_size: chunk_size,
+                });
+            }
+            msg_types::ABORT => {
+                let chunk_stream_id =
+                    ProtocolControlMessageReader::new(reader).read_abort_message()?;
+                return Ok(Rtmp_Messages::ABORT_MESSAGE {
+                    chunk_stream_id: chunk_stream_id,
+                });
+            }
+            msg_types::ACKNOWLEDGEMENT => {
+                let sequence_number =
+                    ProtocolControlMessageReader::new(reader).read_acknowledgement()?;
+                return Ok(Rtmp_Messages::ACKNOWLEDGEMENT {
+                    sequence_number: sequence_number,
+                });
+            }
+            msg_types::WIN_ACKNOWLEDGEMENT_SIZE => {
+                let size =
+                    ProtocolControlMessageReader::new(reader).read_window_acknowledgement_size()?;
+                return Ok(Rtmp_Messages::WINDOW_ACKNOWLEDGEMENT_SIZE { size: size });
+            }
+            msg_types::SET_PEER_BANDWIDTH => {
+                let properties =
+                    ProtocolControlMessageReader::new(reader).read_set_peer_bandwidth()?;
+                return Ok(Rtmp_Messages::SET_PEER_BANDWIDTH {
+                    properties: properties,
+                });
+            }
 
             msg_types::DATA_AMF0 | msg_types::DATA_AMF3 => {}
 

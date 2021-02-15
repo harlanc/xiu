@@ -1,6 +1,7 @@
 use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
 use failure::{Backtrace, Fail};
-use liverust_lib::netio::writer::IOWriteError;
+use liverust_lib::netio::errors::IOReadError;
+use liverust_lib::netio::errors::IOWriteError;
 use std::fmt;
 use std::io;
 pub struct ControlMessagesError {
@@ -28,7 +29,18 @@ impl From<IOWriteError> for ControlMessagesError {
     }
 }
 
-pub struct ProtocolControlMessageReaderError{
-    IOReadError()
+pub struct ProtocolControlMessageReaderError {
+    pub value: ProtocolControlMessageReaderErrorValue,
+}
 
+pub enum ProtocolControlMessageReaderErrorValue {
+    IOReadError(IOReadError),
+}
+
+impl From<IOReadError> for ProtocolControlMessageReaderError {
+    fn from(error: IOReadError) -> Self {
+        ProtocolControlMessageReaderError {
+            value: ProtocolControlMessageReaderErrorValue::IOReadError(error),
+        }
+    }
 }
