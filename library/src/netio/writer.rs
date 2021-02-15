@@ -3,21 +3,9 @@ use rand;
 use rand::Rng;
 use std::io;
 use std::io::{Cursor, Write};
-pub struct IOWriteError {
-    pub value: IOWriteErrorValue,
-}
 
-pub enum IOWriteErrorValue {
-    IO(io::Error),
-}
+use super::errors::{IOWriteError, IOWriteErrorValue};
 
-impl From<io::Error> for IOWriteError {
-    fn from(error: io::Error) -> Self {
-        IOWriteError {
-            value: IOWriteErrorValue::IO(error),
-        }
-    }
-}
 
 pub struct Writer {
     bytes: Cursor<Vec<u8>>,
