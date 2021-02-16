@@ -7,14 +7,21 @@ use sha2::Sha256;
 use std::convert::TryInto;
 use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
+use tokio_util::codec::{BytesCodec, Framed};
 
 use liverust_lib::netio::{
-    errors::{IOReadError,IOWriteError},
+    errors::{IOReadError, IOWriteError},
     reader::NetworkReader,
     reader::Reader,
-    writer::{ Writer},
+    writer::Writer,
 };
 
+use tokio::{
+    prelude::*,
+    stream::StreamExt,
+    sync::{self, mpsc, oneshot},
+    time::timeout,
+};
 
 const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
@@ -106,11 +113,15 @@ impl From<SystemTimeError> for HandshakeError {
         }
     }
 }
-pub struct SimpleHandshakeClient {
+pub struct SimpleHandshakeClient<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     reader: Reader,
     writer: Writer,
     s1_bytes: BytesMut,
     state: ClientHandshakeState,
+    stream: Framed<S, BytesCodec>,
 }
 
 fn current_time() -> u32 {
@@ -130,7 +141,20 @@ fn generate_random_bytes(buffer: &mut [u8]) {
     }
 }
 
-impl SimpleHandshakeClient {
+impl<S> SimpleHandshakeClient<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(input: BytesMut, writer: Writer, stream: Framed<S, BytesCodec>) -> Self {
+        Self {
+            reader: Reader::new(input),
+            writer: Writer::new(),
+            s1_bytes: BytesMut::new(),
+            state: ClientHandshakeState::WriteC0C1,
+            stream: stream,
+        }
+    }
+
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
         Ok(())
@@ -163,27 +187,36 @@ impl SimpleHandshakeClient {
         Ok(())
     }
 
-    pub fn handshake(&mut self) -> Result<(), HandshakeError> {
-        match self.state {
-            ClientHandshakeState::WriteC0C1 => {
-                self.write_c0()?;
-                self.write_c1()?;
-                self.state = ClientHandshakeState::ReadS0S1S2;
-            }
+    // async fn flush_data(&mut self)-> Result<(), HandshakeError> {
+    //     self.stream.send().;
+    // }
 
-            ClientHandshakeState::ReadS0S1S2 => {
-                self.read_s0()?;
-                self.read_s1()?;
-                self.read_s2()?;
-                self.state = ClientHandshakeState::WriteC2;
-            }
+    pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
+        loop {
+            let val = self.stream.try_next();
+            match self.state {
+                ClientHandshakeState::WriteC0C1 => {
+                    self.write_c0()?;
+                    self.write_c1()?;
+                    self.state = ClientHandshakeState::ReadS0S1S2;
+                }
 
-            ClientHandshakeState::WriteC2 => {
-                self.write_c2()?;
-                self.state = ClientHandshakeState::Finish;
-            }
+                ClientHandshakeState::ReadS0S1S2 => {
+                    self.read_s0()?;
+                    self.read_s1()?;
+                    self.read_s2()?;
+                    self.state = ClientHandshakeState::WriteC2;
+                }
 
-            ClientHandshakeState::Finish => {}
+                ClientHandshakeState::WriteC2 => {
+                    self.write_c2()?;
+                    self.state = ClientHandshakeState::Finish;
+                }
+
+                ClientHandshakeState::Finish => {
+                    break;
+                }
+            }
         }
 
         Ok(())
