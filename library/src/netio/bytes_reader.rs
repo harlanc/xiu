@@ -17,8 +17,8 @@ impl BytesReader {
         Self { buffer: input }
     }
 
-    // pub fn new_with_extend(input: BytesMut, extend: &[u8]) -> Reader {
-    //     let mut reader = Reader { buffer: input };
+    // pub fn new_with_extend(input: BytesMut, extend: &[u8]) -> BytesReader {
+    //     let mut reader = BytesReader { buffer: input };
     //     reader.extend_from_slice(extend);
     //     reader
     // }

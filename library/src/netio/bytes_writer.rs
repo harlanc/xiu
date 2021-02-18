@@ -11,19 +11,22 @@ use tokio::{prelude::*, stream::StreamExt, time::timeout};
 use tokio_util::codec::BytesCodec;
 use tokio_util::codec::Framed;
 
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
+
 pub struct BytesWriter<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     pub bytes: Vec<u8>,
-    pub io: NetworkIO<S>,
+    pub io: Rc<RefCell<NetworkIO<S>>>,
 }
 
 impl<S> BytesWriter<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(io: NetworkIO<S>) -> Self {
+    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
         Self {
             bytes: Vec::new(),
             io: io,
@@ -68,7 +71,10 @@ where
         Ok(())
     }
     pub async fn flush(&mut self) -> Result<(), BytesWriteError> {
-        self.io.write(self.bytes.clone().into()).await?;
+        self.io
+            .borrow_mut()
+            .write(self.bytes.clone().into())
+            .await?;
         self.bytes.clear();
         Ok(())
     }
