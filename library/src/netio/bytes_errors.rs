@@ -2,34 +2,34 @@ use std::io;
 use tokio::time::Elapsed;
 use super::netio_errors::{NetIOError,NetIOErrorValue};
 
-pub enum IOReadErrorValue {
+pub enum BytesReadErrorValue {
     NotEnoughBytes,
     EmptyStream,
     IO(io::Error),
     TimeoutError(Elapsed),
 }
-pub struct IOReadError {
-    pub value: IOReadErrorValue,
+pub struct BytesReadError {
+    pub value: BytesReadErrorValue,
 }
 
-impl From<IOReadErrorValue> for IOReadError {
-    fn from(val: IOReadErrorValue) -> Self {
-        IOReadError { value: val }
+impl From<BytesReadErrorValue> for BytesReadError {
+    fn from(val: BytesReadErrorValue) -> Self {
+        BytesReadError { value: val }
     }
 }
 
-impl From<io::Error> for IOReadError {
+impl From<io::Error> for BytesReadError {
     fn from(error: io::Error) -> Self {
-        IOReadError {
-            value: IOReadErrorValue::IO(error),
+        BytesReadError {
+            value: BytesReadErrorValue::IO(error),
         }
     }
 }
 
-impl From<Elapsed> for IOReadError {
+impl From<Elapsed> for BytesReadError {
     fn from(error: Elapsed) -> Self {
-        IOReadError {
-            value: IOReadErrorValue::TimeoutError(error),
+        BytesReadError {
+            value: BytesReadErrorValue::TimeoutError(error),
         }
     }
 }

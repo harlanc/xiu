@@ -1,4 +1,4 @@
-use super::bytes_errors::{IOReadError, IOReadErrorValue};
+use super::bytes_errors::{BytesReadError, BytesReadErrorValue};
 use byteorder::{ByteOrder, ReadBytesExt};
 use bytes::BytesMut;
 use std::io;
@@ -26,19 +26,19 @@ impl BytesReader {
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
         self.buffer.extend_from_slice(extend)
     }
-    pub fn read_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, IOReadError> {
+    pub fn read_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, BytesReadError> {
         if self.buffer.len() < bytes_num {
-            return Err(IOReadError {
-                value: IOReadErrorValue::NotEnoughBytes,
+            return Err(BytesReadError {
+                value: BytesReadErrorValue::NotEnoughBytes,
             });
         }
         Ok(self.buffer.split_to(bytes_num))
     }
 
-    pub fn advance_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, IOReadError> {
+    pub fn advance_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, BytesReadError> {
         if self.buffer.len() < bytes_num {
-            return Err(IOReadError {
-                value: IOReadErrorValue::NotEnoughBytes,
+            return Err(BytesReadError {
+                value: BytesReadErrorValue::NotEnoughBytes,
             });
         }
 
@@ -46,7 +46,7 @@ impl BytesReader {
         Ok(self.buffer.clone().split_to(bytes_num))
     }
 
-    pub fn read_bytes_cursor(&mut self, bytes_num: usize) -> Result<Cursor<BytesMut>, IOReadError> {
+    pub fn read_bytes_cursor(&mut self, bytes_num: usize) -> Result<Cursor<BytesMut>, BytesReadError> {
         let tmp_bytes = self.read_bytes(bytes_num)?;
         let tmp_cursor = Cursor::new(tmp_bytes);
         Ok(tmp_cursor)
@@ -55,48 +55,48 @@ impl BytesReader {
     pub fn advance_bytes_cursor(
         &mut self,
         bytes_num: usize,
-    ) -> Result<Cursor<BytesMut>, IOReadError> {
+    ) -> Result<Cursor<BytesMut>, BytesReadError> {
         let tmp_bytes = self.advance_bytes(bytes_num)?;
         let tmp_cursor = Cursor::new(tmp_bytes);
         Ok(tmp_cursor)
     }
 
-    pub fn read_u8(&mut self) -> Result<u8, IOReadError> {
+    pub fn read_u8(&mut self) -> Result<u8, BytesReadError> {
         let mut cursor = self.read_bytes_cursor(1)?;
 
         Ok(cursor.read_u8()?)
     }
 
-    pub fn advance_u8(&mut self) -> Result<u8, IOReadError> {
+    pub fn advance_u8(&mut self) -> Result<u8, BytesReadError> {
         let mut cursor = self.advance_bytes_cursor(1)?;
         Ok(cursor.read_u8()?)
     }
 
-    pub fn read_u16<T: ByteOrder>(&mut self) -> Result<u16, IOReadError> {
+    pub fn read_u16<T: ByteOrder>(&mut self) -> Result<u16, BytesReadError> {
         let mut cursor = self.read_bytes_cursor(2)?;
         let val = cursor.read_u16::<T>()?;
         Ok(val)
     }
 
-    pub fn read_u24<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
+    pub fn read_u24<T: ByteOrder>(&mut self) -> Result<u32, BytesReadError> {
         let mut cursor = self.read_bytes_cursor(3)?;
         let val = cursor.read_u24::<T>()?;
         Ok(val)
     }
 
-    pub fn advance_u24<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
+    pub fn advance_u24<T: ByteOrder>(&mut self) -> Result<u32, BytesReadError> {
         let mut cursor = self.advance_bytes_cursor(3)?;
         Ok(cursor.read_u24::<T>()?)
     }
 
-    pub fn read_u32<T: ByteOrder>(&mut self) -> Result<u32, IOReadError> {
+    pub fn read_u32<T: ByteOrder>(&mut self) -> Result<u32, BytesReadError> {
         let mut cursor = self.read_bytes_cursor(4)?;
         let val = cursor.read_u32::<T>()?;
 
         Ok(val)
     }
 
-    pub fn read_f64<T: ByteOrder>(&mut self) -> Result<f64, IOReadError> {
+    pub fn read_f64<T: ByteOrder>(&mut self) -> Result<f64, BytesReadError> {
         let mut cursor = self.read_bytes_cursor(8)?;
         let val = cursor.read_f64::<T>()?;
 
