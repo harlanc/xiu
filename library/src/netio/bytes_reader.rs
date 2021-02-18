@@ -1,4 +1,4 @@
-use super::errors::{IOReadError, IOReadErrorValue};
+use super::bytes_errors::{IOReadError, IOReadErrorValue};
 use byteorder::{ByteOrder, ReadBytesExt};
 use bytes::BytesMut;
 use std::io;
@@ -9,10 +9,10 @@ use tokio::{prelude::*, stream::StreamExt, time::timeout};
 use tokio_util::codec::BytesCodec;
 use tokio_util::codec::Framed;
 
-pub struct Reader {
+pub struct BytesReader {
     buffer: BytesMut,
 }
-impl Reader {
+impl BytesReader {
     pub fn new(input: BytesMut) -> Self {
         Self { buffer: input }
     }
@@ -104,40 +104,3 @@ impl Reader {
     }
 }
 
-pub struct NetworkReader<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    pub reader: Reader,
-    bytes_stream: Framed<S, BytesCodec>,
-    timeout: Duration,
-}
-
-impl<S> NetworkReader<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn new(stream: S, ms: Duration) -> Self {
-        Self {
-            reader: Reader::new(BytesMut::new()),
-            bytes_stream: Framed::new(stream, BytesCodec::new()),
-            timeout: ms,
-        }
-    }
-
-    pub async fn try_next(&mut self) -> Result<(), IOReadError> {
-        let val = self.bytes_stream.try_next();
-        match timeout(self.timeout, val).await? {
-            Ok(Some(data)) => {
-                self.reader.extend_from_slice(&data[..]);
-                Ok(())
-            }
-            _ => Err(IOReadError {
-                value: IOReadErrorValue::IO(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "cannot get data",
-                )),
-            }),
-        }
-    }
-}

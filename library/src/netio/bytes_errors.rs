@@ -1,5 +1,6 @@
 use std::io;
 use tokio::time::Elapsed;
+use super::netio_errors::{NetIOError,NetIOErrorValue};
 
 pub enum IOReadErrorValue {
     NotEnoughBytes,
@@ -33,18 +34,28 @@ impl From<Elapsed> for IOReadError {
     }
 }
 
-pub struct IOWriteError {
-    pub value: IOWriteErrorValue,
+pub struct BytesWriteError {
+    pub value: BytesWriteErrorValue,
 }
 
-pub enum IOWriteErrorValue {
+pub enum BytesWriteErrorValue {
     IO(io::Error),
+    NetIOError(NetIOError),
 }
 
-impl From<io::Error> for IOWriteError {
+impl From<io::Error> for BytesWriteError {
     fn from(error: io::Error) -> Self {
-        IOWriteError {
-            value: IOWriteErrorValue::IO(error),
+        BytesWriteError {
+            value: BytesWriteErrorValue::IO(error),
         }
     }
 }
+
+impl From<NetIOError> for BytesWriteError {
+    fn from(error: NetIOError) -> Self {
+        BytesWriteError {
+            value: BytesWriteErrorValue::NetIOError(error),
+        }
+    }
+}
+
