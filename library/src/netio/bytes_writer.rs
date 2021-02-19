@@ -1,4 +1,5 @@
 use byteorder::{ByteOrder, WriteBytesExt};
+use bytes::BytesMut;
 use rand;
 use rand::Rng;
 use std::io;
@@ -70,11 +71,12 @@ where
         }
         Ok(())
     }
-    pub fn extract_current_bytes(&mut self) -> Vec<u8> {
-        let rv = self.bytes.clone();
+    pub fn extract_current_bytes(&mut self) -> BytesMut {
+        let mut rv_data = BytesMut::new();
+        rv_data.extend_from_slice(&self.bytes.clone()[..]);
         self.bytes.clear();
 
-        rv
+        rv_data
     }
     pub async fn flush(&mut self) -> Result<(), BytesWriteError> {
         self.io
