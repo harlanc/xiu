@@ -45,7 +45,7 @@ where
     csid_2_chunk_header: HashMap<u32, ChunkHeader>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
-    chunk_info: ChunkInfo,
+    //chunk_info: ChunkInfo,
     max_chunk_size: usize,
     //bytes: Cursor<Vec<u8>>,
     writer: AsyncBytesWriter<S>,
@@ -58,7 +58,7 @@ where
     pub fn new(io_writer: AsyncBytesWriter<S>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
-            chunk_info: ChunkInfo::new(),
+            //chunk_info: ChunkInfo::new(),
             writer: io_writer,
             max_chunk_size: 0,
         }

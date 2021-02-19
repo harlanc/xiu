@@ -102,7 +102,7 @@ where
         let properties = ConnectProperties::new(app_name);
 
         let mut netconnection = NetConnection::new(BytesWriter::new());
-        netconnection.connect(transaction_id, &properties)?;
+        let r = netconnection.connect(transaction_id, &properties)?;
         Ok(())
     }
 

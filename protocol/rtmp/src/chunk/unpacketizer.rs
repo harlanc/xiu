@@ -65,6 +65,15 @@ impl ChunkUnpacketizer {
     pub fn extend_data(&mut self, data: &[u8]) {
         self.buffer.extend_from_slice(data);
     }
+
+    /******************************************************************************
+     * 5.3.1 Chunk Format
+     * Each chunk consists of a header and data. The header itself has three parts:
+     * +--------------+----------------+--------------------+--------------+
+     * | Basic Header | Message Header | Extended Timestamp | Chunk Data |
+     * +--------------+----------------+--------------------+--------------+
+     * |<------------------- Chunk Header ----------------->|
+     ******************************************************************************/
     pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
         self.current_read_state = ChunkReadState::ReadBasicHeader;
 
@@ -85,7 +94,7 @@ impl ChunkUnpacketizer {
         // Ok(UnpackResult::Success)
     }
 
-    /**
+    /******************************************************************
      * 5.3.1.1. Chunk Basic Header
      * The Chunk Basic Header encodes the chunk stream ID and the chunk
      * type(represented by fmt field in the figure below). Chunk type
@@ -128,7 +137,7 @@ impl ChunkUnpacketizer {
      *
      * Chunk stream IDs with values 64-319 could be represented by both 2-
      * byte version and 3-byte version of this field.
-     */
+     ***********************************************************************/
     #[allow(dead_code)]
     pub fn read_basic_header(&mut self) -> Result<UnpackResult, UnpackError> {
         let byte = self.reader.read_u8()?;
@@ -197,6 +206,19 @@ impl ChunkUnpacketizer {
     #[allow(dead_code)]
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
         match self.current_chunk_info.basic_header.format {
+            /*****************************************************************/
+            /*      5.3.1.2.1. Type 0                                        */
+            /*****************************************************************
+             0                   1                   2                   3
+             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            |                timestamp(3bytes)              |message length |
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            | message length (cont)(3bytes) |message type id| msg stream id |
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            |       message stream id (cont) (4bytes)       |
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            *****************************************************************/
             0 => {
                 // let mut val = self.read_bytes(11);
                 self.current_message_header().timestamp = self.reader.read_u24::<BigEndian>()?;
@@ -209,6 +231,17 @@ impl ChunkUnpacketizer {
                     self.current_message_header().is_extended_timestamp = true;
                 }
             }
+            /*****************************************************************/
+            /*      5.3.1.2.2. Type 1                                        */
+            /*****************************************************************
+             0                   1                   2                   3
+             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            |                timestamp(3bytes)              |message length |
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            | message length (cont)(3bytes) |message type id|
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            *****************************************************************/
             1 => {
                 self.current_message_header().timestamp_delta =
                     self.reader.read_u24::<BigEndian>()?;
@@ -219,6 +252,15 @@ impl ChunkUnpacketizer {
                     self.current_message_header().is_extended_timestamp = true;
                 }
             }
+            /************************************************/
+            /*      5.3.1.2.3. Type 2                       */
+            /************************************************
+             0                   1                   2
+             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            |                timestamp(3bytes)              |
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            ***************************************************/
             2 => {
                 self.current_message_header().timestamp_delta =
                     self.reader.read_u24::<BigEndian>()?;
