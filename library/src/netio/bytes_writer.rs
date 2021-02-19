@@ -72,7 +72,7 @@ pub struct AsyncBytesWriter<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    bytes_writer: BytesWriter,
+    pub bytes_writer: BytesWriter,
     pub io: Rc<RefCell<NetworkIO<S>>>,
 }
 
