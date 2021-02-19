@@ -2,7 +2,7 @@ use byteorder::{BigEndian, LittleEndian};
 
 use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 use liverust_lib::netio::bytes_errors::BytesWriteError;
-use liverust_lib::netio::bytes_writer::BytesWriter;
+use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
 
 use tokio::prelude::*;
@@ -48,14 +48,14 @@ where
     chunk_info: ChunkInfo,
     max_chunk_size: usize,
     //bytes: Cursor<Vec<u8>>,
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
 }
 
 impl<S> ChunkPacketizer<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(io_writer: BytesWriter<S>) -> Self {
+    pub fn new(io_writer: AsyncBytesWriter<S>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
             chunk_info: ChunkInfo::new(),

@@ -13,7 +13,7 @@ use liverust_lib::netio::{
     bytes_errors::{BytesReadError, BytesWriteError},
     //bytes_reader::NetworkReader,
     bytes_reader::BytesReader,
-    bytes_writer::BytesWriter,
+    bytes_writer::AsyncBytesWriter,
     netio::NetworkIO,
 };
 
@@ -117,7 +117,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     reader: BytesReader,
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
     s1_bytes: BytesMut,
     state: ClientHandshakeState,
 }
@@ -156,7 +156,7 @@ where
     pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
-            writer: BytesWriter::new(io),
+            writer: AsyncBytesWriter::new(io),
             s1_bytes: BytesMut::new(),
             state: ClientHandshakeState::WriteC0C1,
         }
@@ -370,7 +370,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     reader: BytesReader,
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
     // s1_random_bytes: BytesMut,
     s1_timestamp: u32,
     // s1_version: u32,
@@ -504,7 +504,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     reader: BytesReader,
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
     c1_bytes: BytesMut,
     c1_timestamp: u32,
     state: ServerHandshakeState,
@@ -517,7 +517,7 @@ where
     pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
-            writer: BytesWriter::new(io),
+            writer: AsyncBytesWriter::new(io),
             c1_bytes: BytesMut::new(),
             c1_timestamp: 0,
             state: ServerHandshakeState::ReadC0C1,
@@ -607,7 +607,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     reader: BytesReader,
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
 
     c1_bytes: BytesMut,
     c1_schema_version: SchemaVersion,

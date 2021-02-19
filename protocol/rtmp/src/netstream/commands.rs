@@ -1,21 +1,16 @@
 use super::errors::NetStreamError;
 use crate::amf0::amf0_writer::Amf0Writer;
 use crate::amf0::define::Amf0ValueType;
+use bytes::BytesMut;
 use liverust_lib::netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
 use tokio::prelude::*;
-pub struct NetStream<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    amf0_writer: Amf0Writer<S>,
+pub struct NetStream {
+    amf0_writer: Amf0Writer,
 }
 
-impl<S> NetStream<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn new(writer: BytesWriter<S>) -> Self {
+impl NetStream {
+    pub fn new(writer: BytesWriter) -> Self {
         Self {
             amf0_writer: Amf0Writer::new(writer),
         }
@@ -27,7 +22,7 @@ where
         start: &f64,
         duration: &f64,
         reset: &bool,
-    ) -> Result<(), NetStreamError> {
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer.write_string(&String::from("play"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
@@ -36,76 +31,84 @@ where
         self.amf0_writer.write_number(duration)?;
         self.amf0_writer.write_bool(reset)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
     pub fn delete_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
-    ) -> Result<(), NetStreamError> {
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer
             .write_string(&String::from("deleteStream"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(stream_id)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
     pub fn close_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
-    ) -> Result<(), NetStreamError> {
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer
             .write_string(&String::from("closeStream"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(stream_id)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
-    fn receive_audio(&mut self, transaction_id: &f64, enable: &bool) -> Result<(), NetStreamError> {
+    fn receive_audio(
+        &mut self,
+        transaction_id: &f64,
+        enable: &bool,
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer
             .write_string(&String::from("receiveAudio"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_bool(enable)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
-    fn receive_video(&mut self, transaction_id: &f64, enable: &bool) -> Result<(), NetStreamError> {
+    fn receive_video(
+        &mut self,
+        transaction_id: &f64,
+        enable: &bool,
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer
             .write_string(&String::from("receiveVideo"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_bool(enable)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
     pub fn publish(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
         stream_type: &String,
-    ) -> Result<(), NetStreamError> {
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer.write_string(&String::from("publish"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_string(stream_name)?;
         self.amf0_writer.write_string(stream_type)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
-    fn seek(&mut self, transaction_id: &f64, ms: &f64) -> Result<(), NetStreamError> {
+    fn seek(&mut self, transaction_id: &f64, ms: &f64) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer.write_string(&String::from("seek"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(ms)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
     fn pause(
@@ -113,22 +116,26 @@ where
         transaction_id: &f64,
         pause: &bool,
         ms: &f64,
-    ) -> Result<(), NetStreamError> {
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer.write_string(&String::from("pause"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_bool(pause)?;
         self.amf0_writer.write_number(ms)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
-    fn on_bw_done(&mut self, transaction_id: &f64, bandwidth: &f64) -> Result<(), NetStreamError> {
+    fn on_bw_done(
+        &mut self,
+        transaction_id: &f64,
+        bandwidth: &f64,
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer.write_string(&String::from("onBWDone"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(bandwidth)?;
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
     pub fn on_status(
@@ -137,7 +144,7 @@ where
         level: &String,
         code: &String,
         description: &String,
-    ) -> Result<(), NetStreamError> {
+    ) -> Result<BytesMut, NetStreamError> {
         self.amf0_writer.write_string(&String::from("onStatus"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
@@ -159,6 +166,6 @@ where
 
         self.amf0_writer.write_object(&properties_map)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 }

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use liverust_lib::netio::bytes_writer::BytesWriter;
 
+use bytes::BytesMut;
 use tokio::prelude::*;
 pub struct ConnectProperties {
     app: String,         // Server application name, e.g.: testapp
@@ -48,19 +49,13 @@ impl ConnectProperties {
     }
 }
 
-pub struct NetConnection<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
+pub struct NetConnection {
     // writer: BytesWriter,
-    amf0_writer: Amf0Writer<S>,
+    amf0_writer: Amf0Writer,
 }
 
-impl<S> NetConnection<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn new(writer: BytesWriter<S>) -> Self {
+impl NetConnection {
+    pub fn new(writer: BytesWriter) -> Self {
         Self {
             amf0_writer: Amf0Writer::new(writer),
         }
@@ -69,7 +64,7 @@ where
         &mut self,
         transaction_id: &f64,
         properties: &ConnectProperties,
-    ) -> Result<(), NetConnectionError> {
+    ) -> Result<BytesMut, NetConnectionError> {
         self.amf0_writer.write_string(&String::from("connect"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
@@ -123,7 +118,7 @@ where
 
         self.amf0_writer.write_object(&properties_map)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
     pub fn connect_response(
@@ -135,7 +130,7 @@ where
         level: &String,
         description: &String,
         encoding: &f64,
-    ) -> Result<(), NetConnectionError> {
+    ) -> Result<BytesMut, NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_result"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
@@ -173,28 +168,28 @@ where
 
         self.amf0_writer.write_object(&properties_map_b)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
-    pub fn create_stream(&mut self, transaction_id: &f64) -> Result<(), NetConnectionError> {
+    pub fn create_stream(&mut self, transaction_id: &f64) -> Result<BytesMut, NetConnectionError> {
         self.amf0_writer
             .write_string(&String::from("createStream"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 
     pub fn create_stream_response(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
-    ) -> Result<(), NetConnectionError> {
+    ) -> Result<BytesMut, NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_result"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(stream_id)?;
 
-        Ok(())
+        return Ok(self.amf0_writer.extract_current_bytes());
     }
 }

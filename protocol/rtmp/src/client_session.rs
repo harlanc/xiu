@@ -1,17 +1,17 @@
 use super::errors::ClientError;
 
+use crate::chunk::packetizer::ChunkPacketizer;
+use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::unpacketizer::UnpackResult;
-use crate::{chunk::packetizer::ChunkPacketizer, netconnection};
-use crate::{chunk::unpacketizer::ChunkUnpacketizer, netstream};
 
 use crate::handshake::handshake::SimpleHandshakeClient;
 
 use crate::messages::processor::MessageProcessor;
-use bytes::BytesMut;
 
 use liverust_lib::netio::bytes_writer::BytesWriter;
+use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use liverust_lib::netio::netio::NetworkIO;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -49,7 +49,7 @@ where
 {
     fn new(stream: S, timeout: Duration) -> Self {
         let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
-        let bytes_writer = BytesWriter::new(net_io.clone());
+        let bytes_writer = AsyncBytesWriter::new(net_io.clone());
 
         Self {
             io: net_io.clone(),
@@ -101,14 +101,14 @@ where
         let app_name = String::from("app");
         let properties = ConnectProperties::new(app_name);
 
-        let mut netconnection = NetConnection::new(BytesWriter::new(self.io.clone()));
+        let mut netconnection = NetConnection::new(BytesWriter::new());
         netconnection.connect(transaction_id, &properties)?;
         Ok(())
     }
 
     pub fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), ClientError> {
-        let mut netconnection = NetConnection::new(BytesWriter::new(self.io.clone()));
-        netconnection.create_stream(transaction_id)?;
+        let mut netconnection = NetConnection::new(BytesWriter::new());
+        let data = netconnection.create_stream(transaction_id)?;
         Ok(())
     }
 
@@ -117,7 +117,7 @@ where
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), ClientError> {
-        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
+        let mut netstream = NetStream::new(BytesWriter::new());
         netstream.delete_stream(transaction_id, stream_id)?;
         Ok(())
     }
@@ -128,11 +128,11 @@ where
         stream_name: &String,
         stream_type: &String,
     ) -> Result<(), ClientError> {
-        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
+        let mut netstream = NetStream::new(BytesWriter::new());
         netstream.publish(transaction_id, stream_name, stream_type)?;
         Ok(())
     }
 
-//     pub fn send_play(&mut self)-> Result<(), ClientError> {
-//     }
- }
+    //     pub fn send_play(&mut self)-> Result<(), ClientError> {
+    //     }
+}

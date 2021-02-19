@@ -1,29 +1,19 @@
 use super::amf0_markers;
+use super::errors::Amf0WriteErrorValue;
 use super::Amf0ValueType;
 use super::Amf0WriteError;
 use byteorder::BigEndian;
-use std::collections::HashMap;
-
-// use super::define::UnOrderedMap;
-use super::errors::Amf0WriteErrorValue;
-
-use tokio::{prelude::*};
-
+use bytes::BytesMut;
 use liverust_lib::netio::bytes_writer::BytesWriter;
+use std::collections::HashMap;
+use tokio::prelude::*;
 
-pub struct Amf0Writer<S> 
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    writer: BytesWriter<S>,
+pub struct Amf0Writer {
+    writer: BytesWriter,
 }
 
-
-impl<S> Amf0Writer<S> 
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn new(writer: BytesWriter<S>) -> Self {
+impl Amf0Writer {
+    pub fn new(writer: BytesWriter) -> Self {
         Self { writer: writer }
     }
     pub fn write_anys(&mut self, values: &Vec<Amf0ValueType>) -> Result<(), Amf0WriteError> {
@@ -95,5 +85,9 @@ where
 
         self.write_object_eof();
         Ok(())
+    }
+
+    pub fn extract_current_bytes(&mut self) -> BytesMut {
+        self.writer.extract_current_bytes()
     }
 }

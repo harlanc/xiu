@@ -1,8 +1,5 @@
-use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
-use crate::amf0::errors::{Amf0ReadError, Amf0ReadErrorValue};
-use failure::{Backtrace, Fail};
-use std::fmt;
-use std::io;
+use crate::amf0::errors::Amf0ReadError;
+use crate::amf0::errors::Amf0WriteError;
 
 pub struct NetConnectionError {
     pub value: NetConnectionErrorValue,
@@ -28,4 +25,3 @@ impl From<Amf0ReadError> for NetConnectionError {
         }
     }
 }
-

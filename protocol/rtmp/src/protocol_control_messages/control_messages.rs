@@ -1,17 +1,16 @@
 use super::errors::ControlMessagesError;
-use crate::amf0::amf0_writer::Amf0Writer;
-use crate::amf0::define::Amf0ValueType;
+
 
 use crate::messages::msg_types;
 use byteorder::{BigEndian, LittleEndian};
-use liverust_lib::netio::bytes_writer::BytesWriter;
+use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use tokio::prelude::*;
 
 pub struct ControlMessages<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
     //amf0_writer: Amf0Writer,
 }
 
@@ -19,7 +18,7 @@ impl<S> ControlMessages<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(writer: BytesWriter<S>) -> Self {
+    pub fn new(writer: AsyncBytesWriter<S>) -> Self {
         Self { writer: writer }
     }
     pub fn write_control_message_header(

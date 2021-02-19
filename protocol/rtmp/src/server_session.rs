@@ -20,6 +20,7 @@ use crate::messages::define::Rtmp_Messages;
 use crate::messages::processor::MessageProcessor;
 use bytes::BytesMut;
 
+use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use liverust_lib::netio::bytes_writer::BytesWriter;
 use liverust_lib::netio::netio::NetworkIO;
 use std::time::Duration;
@@ -61,7 +62,7 @@ where
 {
     fn new(stream: S, timeout: Duration) -> Self {
         let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
-        let bytes_writer = BytesWriter::new(net_io.clone());
+        let bytes_writer = AsyncBytesWriter::new(net_io.clone());
 
         Self {
             packetizer: ChunkPacketizer::new(bytes_writer),
@@ -196,7 +197,7 @@ where
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), ServerError> {
-        let mut control_message = ControlMessages::new(BytesWriter::new(self.io.clone()));
+        let mut control_message = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
         control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
         control_message.write_set_peer_bandwidth(
             define::PEER_BANDWIDTH,
@@ -210,7 +211,7 @@ where
             _ => &define::OBJENCODING_AMF0,
         };
 
-        let mut netconnection = NetConnection::new(BytesWriter::new(self.io.clone()));
+        let mut netconnection = NetConnection::new(BytesWriter::new());
         netconnection.connect_response(
             &transaction_id,
             &define::FMSVER.to_string(),
@@ -224,7 +225,7 @@ where
     }
 
     pub fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), ServerError> {
-        let mut netconnection = NetConnection::new(BytesWriter::new(self.io.clone()));
+        let mut netconnection = NetConnection::new(BytesWriter::new());
         netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
 
         Ok(())
@@ -235,7 +236,7 @@ where
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), ServerError> {
-        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
+        let mut netstream = NetStream::new(BytesWriter::new());
         netstream.on_status(
             transaction_id,
             &"status".to_string(),
@@ -298,10 +299,10 @@ where
             break;
         }
 
-        let mut event_messages = EventMessages::new(BytesWriter::new(self.io.clone()));
+        let mut event_messages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.stream_begin(stream_id.clone())?;
 
-        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
+        let mut netstream = NetStream::new(BytesWriter::new());
         match reset {
             Some(val) => {
                 if val {
@@ -360,10 +361,10 @@ where
             }
         };
 
-        let mut event_messages = EventMessages::new(BytesWriter::new(self.io.clone()));
+        let mut event_messages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.stream_begin(stream_id.clone())?;
 
-        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
+        let mut netstream = NetStream::new(BytesWriter::new());
         netstream.on_status(
             transaction_id,
             &"status".to_string(),

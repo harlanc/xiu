@@ -3,14 +3,14 @@ use super::errors::EventMessagesError;
 use super::event_types;
 use crate::messages::msg_types;
 use byteorder::BigEndian;
-use liverust_lib::netio::bytes_writer::BytesWriter;
-use tokio::{prelude::*};
+use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
+use tokio::prelude::*;
 
 pub struct EventMessages<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    writer: BytesWriter<S>,
+    writer: AsyncBytesWriter<S>,
     // amf0_writer: Amf0Writer,
 }
 
@@ -18,7 +18,7 @@ impl<S> EventMessages<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(writer: BytesWriter<S>) -> Self {
+    pub fn new(writer: AsyncBytesWriter<S>) -> Self {
         Self { writer: writer }
     }
     fn write_control_message_header(&mut self, len: u32) -> Result<(), EventMessagesError> {
