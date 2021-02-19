@@ -2,36 +2,24 @@ use byteorder::{ByteOrder, WriteBytesExt};
 use bytes::BytesMut;
 use rand;
 use rand::Rng;
-use std::io;
-use std::io::{Cursor, Write};
 
-use super::bytes_errors::{BytesWriteError, BytesWriteErrorValue};
+use std::io::Write;
+
+use super::bytes_errors::BytesWriteError;
 
 use super::netio::NetworkIO;
-use tokio::{prelude::*, stream::StreamExt, time::timeout};
-use tokio_util::codec::BytesCodec;
-use tokio_util::codec::Framed;
+use tokio::prelude::*;
 
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct BytesWriter<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
+pub struct BytesWriter {
     pub bytes: Vec<u8>,
-    pub io: Rc<RefCell<NetworkIO<S>>>,
 }
 
-impl<S> BytesWriter<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
-        Self {
-            bytes: Vec::new(),
-            io: io,
-        }
+impl BytesWriter {
+    pub fn new() -> Self {
+        Self { bytes: Vec::new() }
     }
 
     pub fn write_u8(&mut self, byte: u8) -> Result<(), BytesWriteError> {
@@ -78,12 +66,33 @@ where
 
         rv_data
     }
+}
+
+pub struct AsyncBytesWriter<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    bytes_writer: BytesWriter,
+    pub io: Rc<RefCell<NetworkIO<S>>>,
+}
+
+impl<S> AsyncBytesWriter<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
+        Self {
+            bytes_writer: BytesWriter::new(),
+            io: io,
+        }
+    }
+
     pub async fn flush(&mut self) -> Result<(), BytesWriteError> {
         self.io
             .borrow_mut()
-            .write(self.bytes.clone().into())
+            .write(self.bytes_writer.bytes.clone().into())
             .await?;
-        self.bytes.clear();
+        self.bytes_writer.bytes.clear();
         Ok(())
     }
 }
