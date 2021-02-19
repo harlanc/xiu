@@ -1,8 +1,8 @@
 use crate::amf0::errors::Amf0ReadError;
 use crate::protocol_control_messages::errors::ProtocolControlMessageReaderError;
-use liverust_lib::netio::errors::IOReadError;
+use liverust_lib::netio::bytes_errors::BytesReadError;
 pub enum MessageErrorValue {
-    IO(IOReadError),
+    BytesReadError(BytesReadError),
     UnknowReadState,
     Amf0ReadError(Amf0ReadError),
     UnknowMessageType,
@@ -20,10 +20,10 @@ impl From<MessageErrorValue> for MessageError {
     }
 }
 
-impl From<IOReadError> for MessageError {
-    fn from(error: IOReadError) -> Self {
+impl From<BytesReadError> for MessageError {
+    fn from(error: BytesReadError) -> Self {
         MessageError {
-            value: MessageErrorValue::IO(error),
+            value: MessageErrorValue::BytesReadError(error),
         }
     }
 }

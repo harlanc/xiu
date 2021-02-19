@@ -3,7 +3,7 @@ use super::errors::MessageError;
 use super::errors::MessageErrorValue;
 use super::msg_types;
 use crate::chunk::{self, ChunkInfo};
-use liverust_lib::netio::reader::Reader;
+use liverust_lib::netio::bytes_reader::BytesReader;
 
 use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;
@@ -21,7 +21,7 @@ impl MessageProcessor {
         }
     }
     pub fn execute(&mut self) -> Result<Rtmp_Messages, MessageError> {
-        let mut reader = Reader::new(self.chunk_info.payload.clone());
+        let mut reader = BytesReader::new(self.chunk_info.payload.clone());
 
         match self.chunk_info.message_header.msg_type_id {
             msg_types::COMMAND_AMF0 | msg_types::COMMAND_AMF3 => {

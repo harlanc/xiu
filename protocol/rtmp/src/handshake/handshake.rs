@@ -10,18 +10,17 @@ use std::{collections::HashMap, ops::BitOr};
 use tokio_util::codec::{BytesCodec, Framed};
 
 use liverust_lib::netio::{
-    errors::{IOReadError, IOWriteError},
-    reader::NetworkReader,
-    reader::Reader,
-    writer::Writer,
+    bytes_errors::{BytesReadError, BytesWriteError},
+    //bytes_reader::NetworkReader,
+    bytes_reader::BytesReader,
+    bytes_writer::BytesWriter,
+    netio::NetworkIO,
 };
 
-use tokio::{
-    prelude::*,
-    stream::StreamExt,
-    sync::{self, mpsc, oneshot},
-    time::timeout,
-};
+use tokio::prelude::*;
+
+use std::rc::Rc;
+use std::cell::{RefCell, RefMut};
 
 const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
@@ -73,8 +72,8 @@ const RTMP_VERSION: usize = 3;
 const RTMP_HANDSHAKE_SIZE: usize = 1536;
 
 pub enum HandshakeErrorValue {
-    IORead(IOReadError),
-    IOWrite(IOWriteError),
+    BytesReadError(BytesReadError),
+    BytesWriteError(BytesWriteError),
     SysTimeError(SystemTimeError),
     DigestNotFound,
     S0VersionNotCorrect,
@@ -90,18 +89,18 @@ impl From<HandshakeErrorValue> for HandshakeError {
     }
 }
 
-impl From<IOReadError> for HandshakeError {
-    fn from(error: IOReadError) -> Self {
+impl From<BytesReadError> for HandshakeError {
+    fn from(error: BytesReadError) -> Self {
         HandshakeError {
-            value: HandshakeErrorValue::IORead(error),
+            value: HandshakeErrorValue::BytesReadError(error),
         }
     }
 }
 
-impl From<IOWriteError> for HandshakeError {
-    fn from(error: IOWriteError) -> Self {
+impl From<BytesWriteError> for HandshakeError {
+    fn from(error: BytesWriteError) -> Self {
         HandshakeError {
-            value: HandshakeErrorValue::IOWrite(error),
+            value: HandshakeErrorValue::BytesWriteError(error),
         }
     }
 }
@@ -117,11 +116,10 @@ pub struct SimpleHandshakeClient<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    reader: Reader,
-    writer: Writer,
+    reader: BytesReader,
+    writer: BytesWriter<S>,
     s1_bytes: BytesMut,
     state: ClientHandshakeState,
-    stream: Framed<S, BytesCodec>,
 }
 
 fn current_time() -> u32 {
@@ -141,17 +139,26 @@ fn generate_random_bytes(buffer: &mut [u8]) {
     }
 }
 
+// pub fn new(io: NetworkIO<S>) -> Self {
+//     Self {
+//         reader: BytesReader::new(BytesMut::new()),
+//         writer: BytesWriter::new(io),
+//         c1_bytes: BytesMut::new(),
+//         c1_timestamp: 0,
+//         state: ServerHandshakeState::ReadC0C1,
+//     }
+// }
+
 impl<S> SimpleHandshakeClient<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    pub fn new(input: BytesMut, writer: Writer, stream: Framed<S, BytesCodec>) -> Self {
+    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
         Self {
-            reader: Reader::new(input),
-            writer: Writer::new(),
+            reader: BytesReader::new(BytesMut::new()),
+            writer: BytesWriter::new(io),
             s1_bytes: BytesMut::new(),
             state: ClientHandshakeState::WriteC0C1,
-            stream: stream,
         }
     }
 
@@ -191,13 +198,21 @@ where
     //     self.stream.send().;
     // }
 
+    pub fn extend_data(&mut self, data: &[u8]) {
+        self.reader.extend_from_slice(data);
+    }
+    pub async fn flush(&mut self) -> Result<(), HandshakeError> {
+        self.writer.flush().await?;
+        Ok(())
+    }
+
     pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
         loop {
-            let val = self.stream.try_next();
             match self.state {
                 ClientHandshakeState::WriteC0C1 => {
                     self.write_c0()?;
                     self.write_c1()?;
+                    self.flush().await?;
                     self.state = ClientHandshakeState::ReadS0S1S2;
                 }
 
@@ -210,6 +225,7 @@ where
 
                 ClientHandshakeState::WriteC2 => {
                     self.write_c2()?;
+                    self.flush().await?;
                     self.state = ClientHandshakeState::Finish;
                 }
 
@@ -349,9 +365,12 @@ fn cook_handshake_msg(
     })
 }
 
-pub struct ComplexHandshakeClient {
-    reader: Reader,
-    writer: Writer,
+pub struct ComplexHandshakeClient<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    reader: BytesReader,
+    writer: BytesWriter<S>,
     // s1_random_bytes: BytesMut,
     s1_timestamp: u32,
     // s1_version: u32,
@@ -363,7 +382,10 @@ pub struct ComplexHandshakeClient {
 //// 1536bytes C2S2
 //random-data: 1504bytes
 //digest-data: 32bytes
-impl ComplexHandshakeClient {
+impl<S> ComplexHandshakeClient<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
         Ok(())
@@ -436,7 +458,7 @@ impl ComplexHandshakeClient {
         self.s1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
 
         let buffer = self.s1_bytes.clone();
-        let mut reader = Reader::new(buffer);
+        let mut reader = BytesReader::new(buffer);
 
         //time
         self.s1_timestamp = reader.read_u32::<BigEndian>()?;
@@ -477,19 +499,25 @@ impl ComplexHandshakeClient {
     }
 }
 
-pub struct SimpleHandshakeServer {
-    reader: Reader,
-    writer: Writer,
+pub struct SimpleHandshakeServer<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    reader: BytesReader,
+    writer: BytesWriter<S>,
     c1_bytes: BytesMut,
     c1_timestamp: u32,
     state: ServerHandshakeState,
 }
 
-impl SimpleHandshakeServer {
-    pub fn new(input: BytesMut) -> Self {
+impl<S> SimpleHandshakeServer<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
         Self {
-            reader: Reader::new(input),
-            writer: Writer::new(),
+            reader: BytesReader::new(BytesMut::new()),
+            writer: BytesWriter::new(io),
             c1_bytes: BytesMut::new(),
             c1_timestamp: 0,
             state: ServerHandshakeState::ReadC0C1,
@@ -503,7 +531,7 @@ impl SimpleHandshakeServer {
     fn read_c1(&mut self) -> Result<(), HandshakeError> {
         self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
         let buffer = self.c1_bytes.clone();
-        let mut reader = Reader::new(buffer);
+        let mut reader = BytesReader::new(buffer);
         self.c1_timestamp = reader.read_u32::<BigEndian>()?;
 
         Ok(())
@@ -532,7 +560,16 @@ impl SimpleHandshakeServer {
         Ok(())
     }
 
-    pub fn handshake(&mut self) -> Result<(), HandshakeError> {
+    pub fn extend_data(&mut self, data: &[u8]) {
+        self.reader.extend_from_slice(data);
+    }
+
+    pub async fn flush(&mut self) -> Result<(), HandshakeError> {
+        self.writer.flush().await?;
+        Ok(())
+    }
+
+    pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
         loop {
             match self.state {
                 ServerHandshakeState::ReadC0C1 => {
@@ -545,6 +582,8 @@ impl SimpleHandshakeServer {
                     self.write_s0()?;
                     self.write_s1()?;
                     self.write_s2()?;
+                    self.flush().await?;
+
                     self.state = ServerHandshakeState::ReadC2;
                 }
 
@@ -563,9 +602,12 @@ impl SimpleHandshakeServer {
     }
 }
 
-pub struct ComplexHandshakeServer {
-    reader: Reader,
-    writer: Writer,
+pub struct ComplexHandshakeServer<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    reader: BytesReader,
+    writer: BytesWriter<S>,
 
     c1_bytes: BytesMut,
     c1_schema_version: SchemaVersion,
@@ -601,7 +643,10 @@ digest-data:32bytes
 random-data:(764-4-offset-32)bytes
 ****************************************/
 
-impl ComplexHandshakeServer {
+impl<S> ComplexHandshakeServer<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     fn read_c0(&mut self) -> Result<(), HandshakeError> {
         self.reader.read_u8()?;
         Ok(())
@@ -611,7 +656,7 @@ impl ComplexHandshakeServer {
         self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
 
         let buffer = self.c1_bytes.clone();
-        let mut reader = Reader::new(buffer);
+        let mut reader = BytesReader::new(buffer);
         self.c1_timestamp = reader.read_u32::<BigEndian>()?;
 
         let s1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.c1_bytes[..]

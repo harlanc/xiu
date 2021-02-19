@@ -19,13 +19,10 @@ use crate::{
 use crate::messages::define::Rtmp_Messages;
 use crate::messages::processor::MessageProcessor;
 use bytes::BytesMut;
-use liverust_lib::netio::errors::IOWriteError;
-use liverust_lib::netio::writer::Writer;
-use std::{
-    net::{TcpListener, TcpStream},
-    slice::SplitMut,
-    time::Duration,
-};
+
+use liverust_lib::netio::bytes_writer::BytesWriter;
+use liverust_lib::netio::netio::NetworkIO;
+use std::time::Duration;
 
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
@@ -35,12 +32,10 @@ use crate::user_control_messages::event_messages::EventMessages;
 
 use std::collections::HashMap;
 
-use tokio::{
-    prelude::*,
-    stream::StreamExt,
-    sync::{self, mpsc, oneshot},
-    time::timeout,
-};
+use tokio::prelude::*;
+
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
 
 enum ServerSessionState {
     Handshake,
@@ -51,11 +46,12 @@ pub struct ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    //writer: Writer,
-    packetizer: ChunkPacketizer,
+    packetizer: ChunkPacketizer<S>,
     unpacketizer: ChunkUnpacketizer,
-    handshaker: SimpleHandshakeServer,
-    bytes_stream: tokio_util::codec::Framed<S, tokio_util::codec::BytesCodec>,
+    handshaker: SimpleHandshakeServer<S>,
+    //bytes_stream: tokio_util::codec::Framed<S, tokio_util::codec::BytesCodec>,
+    io: Rc<RefCell<NetworkIO<S>>>,
+
     state: ServerSessionState,
 }
 
@@ -63,17 +59,16 @@ impl<S> ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    fn new(io_writer: Writer, stream: S, timeout: Duration) -> Self {
-        let bytesMut = BytesMut::new();
+    fn new(stream: S, timeout: Duration) -> Self {
+        let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
+        let bytes_writer = BytesWriter::new(net_io.clone());
+
         Self {
-            //writer: io_writer,
-            packetizer: ChunkPacketizer::new(io_writer),
-            unpacketizer: ChunkUnpacketizer::new(BytesMut::new()),
-            handshaker: SimpleHandshakeServer::new(BytesMut::new()),
-            bytes_stream: tokio_util::codec::Framed::new(
-                stream,
-                tokio_util::codec::BytesCodec::new(),
-            ),
+            packetizer: ChunkPacketizer::new(bytes_writer),
+            unpacketizer: ChunkUnpacketizer::new(),
+            handshaker: SimpleHandshakeServer::new(net_io.clone()),
+
+            io: net_io.clone(),
             state: ServerSessionState::Handshake,
         }
     }
@@ -82,33 +77,34 @@ where
         let duration = Duration::new(10, 10);
 
         loop {
-            let val = self.bytes_stream.try_next();
-            match timeout(duration, val).await? {
-                Ok(Some(data)) => match self.state {
-                    ServerSessionState::Handshake => {
-                        let result = self.handshaker.handshake();
-                        match result {
-                            Ok(v) => {
-                                self.state = ServerSessionState::ReadChunk;
-                            }
-                            Err(e) => {}
-                        }
-                    }
-                    ServerSessionState::ReadChunk => {
-                        let result = self.unpacketizer.read_chunk(&data[..])?;
+            let data = self.io.borrow_mut().read().await?;
 
-                        match result {
-                            UnpackResult::ChunkInfo(chunk_info) => {
-                                let mut message_parser = MessageProcessor::new(chunk_info);
-                                let mut rtmp_msg = message_parser.execute()?;
+            match self.state {
+                ServerSessionState::Handshake => {
+                    self.handshaker.extend_data(&data[..]);
+                    let result = self.handshaker.handshake().await;
 
-                                self.process_rtmp_message(&mut rtmp_msg)?;
-                            }
-                            _ => {}
+                    match result {
+                        Ok(v) => {
+                            self.state = ServerSessionState::ReadChunk;
                         }
+                        Err(e) => {}
                     }
-                },
-                _ => {}
+                }
+                ServerSessionState::ReadChunk => {
+                    self.unpacketizer.extend_data(&data[..]);
+                    let result = self.unpacketizer.read_chunk()?;
+
+                    match result {
+                        UnpackResult::ChunkInfo(chunk_info) => {
+                            let mut message_parser = MessageProcessor::new(chunk_info);
+                            let mut rtmp_msg = message_parser.execute()?;
+
+                            self.process_rtmp_message(&mut rtmp_msg)?;
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
 
@@ -136,17 +132,6 @@ where
             _ => {}
         }
         Ok(())
-    }
-    fn send_control() {
-
-        // struct rtmp_chunk_header_t header;
-        // header.fmt = RTMP_CHUNK_TYPE_0; // disable compact header
-        // header.cid = RTMP_CHANNEL_INVOKE;
-        // header.timestamp = 0;
-        // header.length = bytes;
-        // header.type = RTMP_TYPE_INVOKE;
-        // header.stream_id = stream_id; /* default 0 */
-        // return rtmp_chunk_write(rtmp, &header, payload);
     }
 
     pub fn process_amf0_command_message(
@@ -211,7 +196,7 @@ where
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), ServerError> {
-        let mut control_message = ControlMessages::new(Writer::new());
+        let mut control_message = ControlMessages::new(BytesWriter::new(self.io.clone()));
         control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
         control_message.write_set_peer_bandwidth(
             define::PEER_BANDWIDTH,
@@ -225,8 +210,8 @@ where
             _ => &define::OBJENCODING_AMF0,
         };
 
-        let mut netconnection = NetConnection::new(Writer::new());
-        netconnection.connect_reply(
+        let mut netconnection = NetConnection::new(BytesWriter::new(self.io.clone()));
+        netconnection.connect_response(
             &transaction_id,
             &define::FMSVER.to_string(),
             &define::CAPABILITIES,
@@ -239,8 +224,8 @@ where
     }
 
     pub fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), ServerError> {
-        let mut netconnection = NetConnection::new(Writer::new());
-        netconnection.create_stream_reply(transaction_id, &define::STREAM_ID)?;
+        let mut netconnection = NetConnection::new(BytesWriter::new(self.io.clone()));
+        netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
 
         Ok(())
     }
@@ -250,7 +235,7 @@ where
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), ServerError> {
-        let mut netstream = NetStream::new(Writer::new());
+        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
         netstream.on_status(
             transaction_id,
             &"status".to_string(),
@@ -313,10 +298,10 @@ where
             break;
         }
 
-        let mut event_messages = EventMessages::new(Writer::new());
+        let mut event_messages = EventMessages::new(BytesWriter::new(self.io.clone()));
         event_messages.stream_begin(stream_id.clone())?;
 
-        let mut netstream = NetStream::new(Writer::new());
+        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
         match reset {
             Some(val) => {
                 if val {
@@ -375,10 +360,10 @@ where
             }
         };
 
-        let mut event_messages = EventMessages::new(Writer::new());
+        let mut event_messages = EventMessages::new(BytesWriter::new(self.io.clone()));
         event_messages.stream_begin(stream_id.clone())?;
 
-        let mut netstream = NetStream::new(Writer::new());
+        let mut netstream = NetStream::new(BytesWriter::new(self.io.clone()));
         netstream.on_status(
             transaction_id,
             &"status".to_string(),

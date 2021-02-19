@@ -2,9 +2,9 @@ use failure::Fail;
 use std::{io, string};
 
 use liverust_lib::netio::{
-    errors::{IOReadError, IOWriteError},
-    reader::Reader,
-    writer::Writer,
+    bytes_errors::{BytesReadError, BytesWriteError},
+    bytes_reader::BytesReader,
+    bytes_writer::BytesWriter,
 };
 
 //#[derive(Debug, Fail)]
@@ -25,7 +25,7 @@ pub enum Amf0ReadErrorValue {
     StringParseError(string::FromUtf8Error),
 
     //#[fail(display = "Failed to read a utf8 string from the byte buffer: {}", _0)]
-    IORead(IOReadError),
+    BytesReadError(BytesReadError),
     WrongType,
 }
 
@@ -48,10 +48,10 @@ impl From<string::FromUtf8Error> for Amf0ReadError {
     }
 }
 
-impl From<IOReadError> for Amf0ReadError {
-    fn from(error: IOReadError) -> Self {
+impl From<BytesReadError> for Amf0ReadError {
+    fn from(error: BytesReadError) -> Self {
         Amf0ReadError {
-            value: Amf0ReadErrorValue::IORead(error),
+            value: Amf0ReadErrorValue::BytesReadError(error),
         }
     }
 }
@@ -68,9 +68,8 @@ impl From<IOReadError> for Amf0ReadError {
 
 pub enum Amf0WriteErrorValue {
     NormalStringTooLong,
-
     BufferWriteError(io::Error),
-    IOWriteError(IOWriteError),
+    BytesWriteError(BytesWriteError),
 }
 
 pub struct Amf0WriteError {
@@ -85,10 +84,10 @@ impl From<io::Error> for Amf0WriteError {
     }
 }
 
-impl From<IOWriteError> for Amf0WriteError {
-    fn from(error: IOWriteError) -> Self {
+impl From<BytesWriteError> for Amf0WriteError {
+    fn from(error: BytesWriteError) -> Self {
         Amf0WriteError {
-            value: Amf0WriteErrorValue::IOWriteError(error),
+            value: Amf0WriteErrorValue::BytesWriteError(error),
         }
     }
 }

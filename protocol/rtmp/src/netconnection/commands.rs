@@ -3,8 +3,9 @@ use crate::amf0::define::Amf0ValueType;
 use crate::amf0::{self, amf0_writer::Amf0Writer};
 use std::collections::HashMap;
 
-use liverust_lib::netio::writer::Writer;
+use liverust_lib::netio::bytes_writer::BytesWriter;
 
+use tokio::prelude::*;
 pub struct ConnectProperties {
     app: String,         // Server application name, e.g.: testapp
     flash_ver: String,   // Flash Player version, FMSc/1.0
@@ -19,18 +20,52 @@ pub struct ConnectProperties {
     page_url: String, // http://host/sample.html
 }
 
-pub struct NetConnection {
-    // writer: Writer,
-    amf0_writer: Amf0Writer,
+// Property 'app' String 'live'
+// Property 'flashVer' String 'LNX 9,0,124,2'
+// Property 'tcUrl' String 'rtmp://192.168.4.158/live'
+// Property 'fpad' Boolean false
+// Property 'capabilities' Number 15
+// Property 'audioCodecs' Number 3191
+// Property 'videoCodecs' Number 252
+// Property 'videoFunction' Number 1
+// Property 'objectEncoding' Number 0
+
+impl ConnectProperties {
+    pub fn new(app_name: String) -> Self {
+        Self {
+            app: app_name,
+            flash_ver: "LNX 9,0,124,2".to_string(),
+            swf_url: "".to_string(),
+            tc_url: "".to_string(),
+            fpad: false,
+            capabilities: 15_f64,
+            audio_codecs: 4071_f64,
+            video_codecs: 252_f64,
+            video_function: 1_f64,
+            object_encoding: 0_f64,
+            page_url: "".to_string(),
+        }
+    }
 }
 
-impl NetConnection {
-    pub fn new(writer: Writer) -> Self {
+pub struct NetConnection<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    // writer: BytesWriter,
+    amf0_writer: Amf0Writer<S>,
+}
+
+impl<S> NetConnection<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(writer: BytesWriter<S>) -> Self {
         Self {
             amf0_writer: Amf0Writer::new(writer),
         }
     }
-    fn connect(
+    pub fn connect(
         &mut self,
         transaction_id: &f64,
         properties: &ConnectProperties,
@@ -91,7 +126,7 @@ impl NetConnection {
         Ok(())
     }
 
-    pub fn connect_reply(
+    pub fn connect_response(
         &mut self,
         transaction_id: &f64,
         fmsver: &String,
@@ -150,7 +185,7 @@ impl NetConnection {
         Ok(())
     }
 
-    pub fn create_stream_reply(
+    pub fn create_stream_response(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,

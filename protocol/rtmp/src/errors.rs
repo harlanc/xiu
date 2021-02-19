@@ -6,9 +6,12 @@ use crate::netstream::errors::NetStreamError;
 use crate::protocol_control_messages::errors::ControlMessagesError;
 use crate::user_control_messages::errors::EventMessagesError;
 use failure::{Backtrace, Fail};
-use liverust_lib::netio::errors::IOWriteError;
+use liverust_lib::netio::bytes_errors::BytesWriteError;
+use liverust_lib::netio::netio_errors::NetIOError;
 use std::fmt;
 use std::io;
+
+
 use tokio::time::Elapsed;
 
 pub struct ServerError {
@@ -17,7 +20,7 @@ pub struct ServerError {
 
 pub enum ServerErrorValue {
     Amf0WriteError(Amf0WriteError),
-    IOWriteError(IOWriteError),
+    BytesWriteError(BytesWriteError),
     TimeoutError(Elapsed),
     UnPackError(UnpackError),
     MessageError(MessageError),
@@ -25,6 +28,7 @@ pub enum ServerErrorValue {
     NetConnectionError(NetConnectionError),
     NetStreamError(NetStreamError),
     EventMessagesError(EventMessagesError),
+    NetIOError(NetIOError),
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
 }
@@ -37,10 +41,10 @@ impl From<Amf0WriteError> for ServerError {
     }
 }
 
-impl From<IOWriteError> for ServerError {
-    fn from(error: IOWriteError) -> Self {
+impl From<BytesWriteError> for ServerError {
+    fn from(error: BytesWriteError) -> Self {
         ServerError {
-            value: ServerErrorValue::IOWriteError(error),
+            value: ServerErrorValue::BytesWriteError(error),
         }
     }
 }
@@ -101,6 +105,13 @@ impl From<EventMessagesError> for ServerError {
     }
 }
 
+impl From<NetIOError> for ServerError {
+    fn from(error: NetIOError) -> Self {
+        ServerError {
+            value: ServerErrorValue::NetIOError(error),
+        }
+    }
+}
 
 pub struct ClientError {
     pub value: ClientErrorValue,
@@ -108,7 +119,7 @@ pub struct ClientError {
 
 pub enum ClientErrorValue {
     Amf0WriteError(Amf0WriteError),
-    IOWriteError(IOWriteError),
+    BytesWriteError(BytesWriteError),
     TimeoutError(Elapsed),
     UnPackError(UnpackError),
     MessageError(MessageError),
@@ -116,6 +127,7 @@ pub enum ClientErrorValue {
     NetConnectionError(NetConnectionError),
     NetStreamError(NetStreamError),
     EventMessagesError(EventMessagesError),
+    NetIOError(NetIOError),
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
 }
@@ -128,10 +140,10 @@ impl From<Amf0WriteError> for ClientError {
     }
 }
 
-impl From<IOWriteError> for ClientError {
-    fn from(error: IOWriteError) -> Self {
+impl From<BytesWriteError> for ClientError {
+    fn from(error: BytesWriteError) -> Self {
         ClientError {
-            value: ClientErrorValue::IOWriteError(error),
+            value: ClientErrorValue::BytesWriteError(error),
         }
     }
 }
@@ -188,6 +200,14 @@ impl From<EventMessagesError> for ClientError {
     fn from(error: EventMessagesError) -> Self {
         ClientError {
             value: ClientErrorValue::EventMessagesError(error),
+        }
+    }
+}
+
+impl From<NetIOError> for ClientError {
+    fn from(error: NetIOError) -> Self {
+        ClientError {
+            value: ClientErrorValue::NetIOError(error),
         }
     }
 }

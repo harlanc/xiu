@@ -1,6 +1,6 @@
-use liverust_lib::netio::errors::IOReadError;
+use liverust_lib::netio::bytes_errors::BytesReadError;
 pub enum UnpackErrorValue {
-    IO(IOReadError),
+    BytesReadError(BytesReadError),
     UnknowReadState,
     //IO(io::Error),
 }
@@ -15,10 +15,10 @@ impl From<UnpackErrorValue> for UnpackError {
     }
 }
 
-impl From<IOReadError> for UnpackError {
-    fn from(error: IOReadError) -> Self {
+impl From<BytesReadError> for UnpackError {
+    fn from(error: BytesReadError) -> Self {
         UnpackError {
-            value: UnpackErrorValue::IO(error),
+            value: UnpackErrorValue::BytesReadError(error),
         }
     }
 }

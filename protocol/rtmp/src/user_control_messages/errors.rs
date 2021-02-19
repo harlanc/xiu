@@ -1,15 +1,14 @@
-use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
-use failure::{Backtrace, Fail};
-use liverust_lib::netio::errors::IOWriteError;
-use std::fmt;
-use std::io;
+use crate::amf0::errors::Amf0WriteError;
+
+use liverust_lib::netio::bytes_errors::BytesWriteError;
+
 pub struct EventMessagesError {
     pub value: EventMessagesErrorValue,
 }
 
 pub enum EventMessagesErrorValue {
     Amf0WriteError(Amf0WriteError),
-    IOWriteError(IOWriteError),
+    BytesWriteError(BytesWriteError),
 }
 
 impl From<Amf0WriteError> for EventMessagesError {
@@ -20,10 +19,10 @@ impl From<Amf0WriteError> for EventMessagesError {
     }
 }
 
-impl From<IOWriteError> for EventMessagesError {
-    fn from(error: IOWriteError) -> Self {
+impl From<BytesWriteError> for EventMessagesError {
+    fn from(error: BytesWriteError) -> Self {
         EventMessagesError {
-            value: EventMessagesErrorValue::IOWriteError(error),
+            value: EventMessagesErrorValue::BytesWriteError(error),
         }
     }
 }

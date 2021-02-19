@@ -8,16 +8,16 @@ use byteorder::BigEndian;
 // use super::define::UnOrderedMap;
 
 use super::errors::Amf0ReadErrorValue;
-use liverust_lib::netio::reader::Reader;
+use liverust_lib::netio::bytes_reader::BytesReader;
 
 use bytes::BytesMut;
 
 pub struct Amf0Reader {
-    reader: Reader,
+    reader: BytesReader,
 }
 
 impl Amf0Reader {
-    pub fn new(reader: Reader) -> Self {
+    pub fn new(reader: BytesReader) -> Self {
         Self { reader: reader }
     }
     pub fn read_all(&mut self) -> Result<Vec<Amf0ValueType>, Amf0ReadError> {

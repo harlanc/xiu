@@ -1,11 +1,11 @@
 use byteorder::{BigEndian, ReadBytesExt};
 //use bytes::Bytes;
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 // use chunk::ChunkUnpackError;
 use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
-use liverust_lib::netio::reader::Reader;
 use super::errors::UnpackError;
 use super::errors::UnpackErrorValue;
+use liverust_lib::netio::bytes_reader::BytesReader;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::mem;
@@ -21,7 +21,6 @@ pub enum UnpackResult {
     Success,
     NotEnoughBytes,
 }
-
 
 // impl From<IOReadErrorValue> for UnpackError {
 //     fn from(error: IOReadErrorValue) -> Self {
@@ -41,7 +40,7 @@ enum ChunkReadState {
 
 pub struct ChunkUnpacketizer {
     buffer: BytesMut,
-    pub reader: Reader,
+    pub reader: BytesReader,
     //reader :
     //: HashMap<u32, ChunkInfo>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
@@ -54,17 +53,19 @@ pub struct ChunkUnpacketizer {
 }
 
 impl ChunkUnpacketizer {
-    pub fn new(bytes :BytesMut) -> Self {
+    pub fn new() -> Self {
         Self {
             buffer: BytesMut::new(),
-            reader: Reader::new(bytes),
+            reader: BytesReader::new(BytesMut::new()),
             current_chunk_info: ChunkInfo::new(),
             current_read_state: ChunkReadState::Init,
             max_chunk_size: 0,
         }
     }
-    pub fn read_chunk(&mut self, bytes: &[u8]) -> Result<UnpackResult, UnpackError> {
-        self.buffer.extend_from_slice(bytes);
+    pub fn extend_data(&mut self, data: &[u8]) {
+        self.buffer.extend_from_slice(data);
+    }
+    pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
         self.current_read_state = ChunkReadState::ReadBasicHeader;
 
         loop {

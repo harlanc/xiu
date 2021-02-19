@@ -3,10 +3,10 @@ use crate::amf0::amf0_reader::Amf0Reader;
 use crate::amf0::define::Amf0ValueType;
 
 use liverust_lib::netio::{
-    errors::IOWriteError, reader::NetworkReader, reader::Reader, writer::Writer,
+    bytes_errors::BytesWriteError,netio::NetworkIO, bytes_reader::BytesReader, bytes_writer::BytesWriter,
 };
 pub struct NetConnectionReader {
-    reader: Reader,
+    reader: BytesReader,
     amf0_reader: Amf0Reader,
 }
 

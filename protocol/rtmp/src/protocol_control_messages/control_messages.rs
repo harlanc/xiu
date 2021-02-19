@@ -4,18 +4,25 @@ use crate::amf0::define::Amf0ValueType;
 
 use crate::messages::msg_types;
 use byteorder::{BigEndian, LittleEndian};
-use liverust_lib::netio::writer::Writer;
+use liverust_lib::netio::bytes_writer::BytesWriter;
+use tokio::prelude::*;
 
-pub struct ControlMessages {
-    writer: Writer,
+pub struct ControlMessages<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    writer: BytesWriter<S>,
     //amf0_writer: Amf0Writer,
 }
 
-impl ControlMessages {
-    pub fn new(writer: Writer) -> Self {
+impl<S> ControlMessages<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(writer: BytesWriter<S>) -> Self {
         Self { writer: writer }
     }
-    fn write_control_message_header(
+    pub fn write_control_message_header(
         &mut self,
         msg_type_id: u8,
         len: u32,
@@ -30,26 +37,37 @@ impl ControlMessages {
         self.writer.write_u32::<BigEndian>(len)?; //msg length
         self.writer.write_u8(msg_type_id)?; //msg type id
         self.writer.write_u32::<BigEndian>(0)?; //msg stream ID 0
+
         Ok(())
     }
     pub fn write_set_chunk_size(&mut self, chunk_size: u32) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_types::SET_CHUNK_SIZE, 4)?;
         self.writer
             .write_u32::<BigEndian>(chunk_size & 0x7FFFFFFF)?; //first bit must be 0
+
+        self.writer.flush();
         Ok(())
     }
 
-    pub fn write_abort_message(&mut self, chunk_stream_id: u32) -> Result<(), ControlMessagesError> {
+    pub fn write_abort_message(
+        &mut self,
+        chunk_stream_id: u32,
+    ) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_types::ABORT, 4)?;
         self.writer.write_u32::<BigEndian>(chunk_stream_id)?;
 
+        self.writer.flush();
         Ok(())
     }
 
-    pub fn write_acknowledgement(&mut self, sequence_number: u32) -> Result<(), ControlMessagesError> {
+    pub fn write_acknowledgement(
+        &mut self,
+        sequence_number: u32,
+    ) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_types::ACKNOWLEDGEMENT, 4)?;
         self.writer.write_u32::<BigEndian>(sequence_number)?;
 
+        self.writer.flush();
         Ok(())
     }
 
@@ -60,6 +78,7 @@ impl ControlMessages {
         self.write_control_message_header(msg_types::WIN_ACKNOWLEDGEMENT_SIZE, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
 
+        self.writer.flush();
         Ok(())
     }
 
@@ -71,6 +90,8 @@ impl ControlMessages {
         self.write_control_message_header(msg_types::SET_PEER_BANDWIDTH, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
         self.writer.write_u8(limit_type)?;
+
+        self.writer.flush();
 
         Ok(())
     }

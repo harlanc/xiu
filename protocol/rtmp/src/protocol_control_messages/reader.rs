@@ -1,14 +1,14 @@
 use super::errors::ProtocolControlMessageReaderError;
 use crate::messages::define::SetPeerBandwidthProperties;
 use byteorder::BigEndian;
-use liverust_lib::netio::reader::Reader;
+use liverust_lib::netio::bytes_reader::BytesReader;
 
 pub struct ProtocolControlMessageReader {
-    pub reader: Reader,
+    pub reader: BytesReader,
 }
 
 impl ProtocolControlMessageReader {
-    pub fn new(reader: Reader) -> Self {
+    pub fn new(reader: BytesReader) -> Self {
         Self { reader: reader }
     }
     pub fn read_set_chunk_size(&mut self) -> Result<u32, ProtocolControlMessageReaderError> {

@@ -1,20 +1,26 @@
 use super::errors::NetStreamError;
 use crate::amf0::amf0_writer::Amf0Writer;
 use crate::amf0::define::Amf0ValueType;
-use liverust_lib::netio::writer::Writer;
+use liverust_lib::netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
-pub struct NetStream {
-  
-    amf0_writer: Amf0Writer,
+use tokio::prelude::*;
+pub struct NetStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    amf0_writer: Amf0Writer<S>,
 }
 
-impl NetStream {
-    pub fn new(writer: Writer) -> Self {
+impl<S> NetStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(writer: BytesWriter<S>) -> Self {
         Self {
             amf0_writer: Amf0Writer::new(writer),
         }
     }
-    fn play(
+    pub fn play(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -32,7 +38,7 @@ impl NetStream {
 
         Ok(())
     }
-    fn delete_stream(
+    pub fn delete_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
@@ -46,7 +52,7 @@ impl NetStream {
         Ok(())
     }
 
-    fn close_stream(
+    pub fn close_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
@@ -79,7 +85,7 @@ impl NetStream {
 
         Ok(())
     }
-    fn publish(
+    pub fn publish(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,

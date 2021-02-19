@@ -7,14 +7,23 @@ use std::collections::HashMap;
 // use super::define::UnOrderedMap;
 use super::errors::Amf0WriteErrorValue;
 
-use liverust_lib::netio::writer::Writer;
+use tokio::{prelude::*};
 
-pub struct Amf0Writer {
-    writer: Writer,
+use liverust_lib::netio::bytes_writer::BytesWriter;
+
+pub struct Amf0Writer<S> 
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    writer: BytesWriter<S>,
 }
 
-impl Amf0Writer {
-    pub fn new(writer: Writer) -> Self {
+
+impl<S> Amf0Writer<S> 
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(writer: BytesWriter<S>) -> Self {
         Self { writer: writer }
     }
     pub fn write_anys(&mut self, values: &Vec<Amf0ValueType>) -> Result<(), Amf0WriteError> {

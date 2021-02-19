@@ -70,6 +70,12 @@ where
         }
         Ok(())
     }
+    pub fn extract_current_bytes(&mut self) -> Vec<u8> {
+        let rv = self.bytes.clone();
+        self.bytes.clear();
+
+        rv
+    }
     pub async fn flush(&mut self) -> Result<(), BytesWriteError> {
         self.io
             .borrow_mut()

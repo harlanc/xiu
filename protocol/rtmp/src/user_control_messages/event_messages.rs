@@ -1,19 +1,24 @@
 use super::errors::EventMessagesError;
-use crate::amf0::amf0_writer::Amf0Writer;
-use crate::amf0::define::Amf0ValueType;
 
 use super::event_types;
 use crate::messages::msg_types;
-use byteorder::{BigEndian, LittleEndian};
-use liverust_lib::netio::writer::Writer;
+use byteorder::BigEndian;
+use liverust_lib::netio::bytes_writer::BytesWriter;
+use tokio::{prelude::*};
 
-pub struct EventMessages {
-    writer: Writer,
+pub struct EventMessages<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    writer: BytesWriter<S>,
     // amf0_writer: Amf0Writer,
 }
 
-impl EventMessages {
-    pub fn new(writer: Writer) -> Self {
+impl<S> EventMessages<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(writer: BytesWriter<S>) -> Self {
         Self { writer: writer }
     }
     fn write_control_message_header(&mut self, len: u32) -> Result<(), EventMessagesError> {

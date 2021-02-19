@@ -1,9 +1,11 @@
 use byteorder::{BigEndian, LittleEndian};
 
 use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
-use liverust_lib::netio::writer::Writer;
-use liverust_lib::netio::errors::IOWriteError;
+use liverust_lib::netio::bytes_errors::BytesWriteError;
+use liverust_lib::netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
+
+use tokio::prelude::*;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum PackResult {
@@ -15,7 +17,7 @@ pub enum PackErrorValue {
     NotExistHeader,
     UnknowReadState,
     // IO(io::Error),
-    IO(IOWriteError),
+    BytesWriteError(BytesWriteError),
 }
 
 pub struct PackError {
@@ -28,27 +30,33 @@ impl From<PackErrorValue> for PackError {
     }
 }
 
-impl From<IOWriteError> for PackError {
-    fn from(error: IOWriteError) -> Self {
+impl From<BytesWriteError> for PackError {
+    fn from(error: BytesWriteError) -> Self {
         PackError {
-            value: PackErrorValue::IO(error),
+            value: PackErrorValue::BytesWriteError(error),
         }
     }
 }
 
-pub struct ChunkPacketizer {
+pub struct ChunkPacketizer<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     csid_2_chunk_header: HashMap<u32, ChunkHeader>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
     chunk_info: ChunkInfo,
     max_chunk_size: usize,
     //bytes: Cursor<Vec<u8>>,
-    writer: Writer,
+    writer: BytesWriter<S>,
 }
 
-impl ChunkPacketizer {
-    pub fn new(io_writer: Writer) -> ChunkPacketizer {
-        ChunkPacketizer {
+impl<S> ChunkPacketizer<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    pub fn new(io_writer: BytesWriter<S>) -> Self {
+        Self {
             csid_2_chunk_header: HashMap::new(),
             chunk_info: ChunkInfo::new(),
             writer: io_writer,
@@ -56,10 +64,6 @@ impl ChunkPacketizer {
         }
     }
     fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
-        // let mut buffer =  Cursor::new(Vec::new());
-
-        // let mut bytes = Cursor::new(Vec::new());
-
         chunk_info.basic_header.format = 0;
 
         let pre_header = self
