@@ -87,6 +87,38 @@ where
         }
     }
 
+    pub fn write_u8(&mut self, byte: u8) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write_u8(byte)
+    }
+
+    pub fn write_u16<T: ByteOrder>(&mut self, bytes: u16) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write_u16::<T>(bytes)
+    }
+
+    pub fn write_u24<T: ByteOrder>(&mut self, bytes: u32) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write_u24::<T>(bytes)
+    }
+
+    pub fn write_u32<T: ByteOrder>(&mut self, bytes: u32) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write_u32::<T>(bytes)
+    }
+
+    pub fn write_f64<T: ByteOrder>(&mut self, bytes: f64) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write_f64::<T>(bytes)
+    }
+
+    pub fn write(&mut self, buf: &[u8]) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write(buf)
+    }
+
+    pub fn write_random_bytes(&mut self, length: u32) -> Result<(), BytesWriteError> {
+        self.bytes_writer.write_random_bytes(length)
+    }
+    
+    pub fn extract_current_bytes(&mut self) -> BytesMut {
+        self.bytes_writer.extract_current_bytes()
+    }
+
     pub async fn flush(&mut self) -> Result<(), BytesWriteError> {
         self.io
             .borrow_mut()

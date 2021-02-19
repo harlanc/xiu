@@ -17,7 +17,7 @@ rand = "0.3"
 failure = "0.1.1"
 hmac = "0.6.2"
 sha2 = "0.7.1"
-liverust_lib = "0.1.18"
+liverust_lib = "0.1.22"
 tokio-util = { version = "0.3.1", features = ["codec"] }
 
 [dependencies.tokio]
