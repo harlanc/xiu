@@ -8,6 +8,7 @@ use std::convert::TryInto;
 use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
 use tokio_util::codec::{BytesCodec, Framed};
+use super::errors::{HandshakeError,HandshakeErrorValue};
 
 use liverust_lib::netio::{
     bytes_errors::{BytesReadError, BytesWriteError},
@@ -19,8 +20,9 @@ use liverust_lib::netio::{
 
 use tokio::prelude::*;
 
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::cell::{RefCell, RefMut};
+use std::time::{SystemTime, SystemTimeError};
 
 const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
@@ -67,51 +69,9 @@ enum ServerHandshakeState {
     Finish,
 }
 
-use std::time::{SystemTime, SystemTimeError};
 const RTMP_VERSION: usize = 3;
 const RTMP_HANDSHAKE_SIZE: usize = 1536;
 
-pub enum HandshakeErrorValue {
-    BytesReadError(BytesReadError),
-    BytesWriteError(BytesWriteError),
-    SysTimeError(SystemTimeError),
-    DigestNotFound,
-    S0VersionNotCorrect,
-}
-
-pub struct HandshakeError {
-    pub value: HandshakeErrorValue,
-}
-
-impl From<HandshakeErrorValue> for HandshakeError {
-    fn from(val: HandshakeErrorValue) -> Self {
-        HandshakeError { value: val }
-    }
-}
-
-impl From<BytesReadError> for HandshakeError {
-    fn from(error: BytesReadError) -> Self {
-        HandshakeError {
-            value: HandshakeErrorValue::BytesReadError(error),
-        }
-    }
-}
-
-impl From<BytesWriteError> for HandshakeError {
-    fn from(error: BytesWriteError) -> Self {
-        HandshakeError {
-            value: HandshakeErrorValue::BytesWriteError(error),
-        }
-    }
-}
-
-impl From<SystemTimeError> for HandshakeError {
-    fn from(error: SystemTimeError) -> Self {
-        HandshakeError {
-            value: HandshakeErrorValue::SysTimeError(error),
-        }
-    }
-}
 pub struct SimpleHandshakeClient<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,

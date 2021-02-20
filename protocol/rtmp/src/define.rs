@@ -1,6 +1,5 @@
 pub const WINDOW_ACKNOWLEDGEMENT_SIZE: u32 = 200000;
 pub const PEER_BANDWIDTH: u32 = 200000;
-pub const CHUNK_SIZE: u32 = 4096;
 
 pub mod PeerBandWidthLimitType {
     pub const HARD: u8 = 0;
@@ -17,5 +16,5 @@ pub const OBJENCODING_AMF3: f64 = 3.0;
 
 pub const STREAM_ID: f64 = 1.0;
 
-
-
+pub const TRANSACTION_ID_CONNECT: u8 = 1;
+pub const TRANSACTION_ID_CREATE_STREAM: u8 = 2;

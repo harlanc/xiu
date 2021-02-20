@@ -161,6 +161,7 @@ where
                 }
             }
         }
+        self.writer.flush();
 
         Ok(())
     }

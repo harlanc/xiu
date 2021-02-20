@@ -1,4 +1,4 @@
-use crate::amf0::errors::Amf0WriteError;
+use crate::amf0::errors::{self, Amf0WriteError};
 use crate::chunk::errors::UnpackError;
 use crate::messages::errors::MessageError;
 use crate::netconnection::errors::NetConnectionError;
@@ -6,11 +6,14 @@ use crate::netstream::errors::NetStreamError;
 use crate::protocol_control_messages::errors::ControlMessagesError;
 use crate::user_control_messages::errors::EventMessagesError;
 use crate::chunk::errors::PackError;
+use crate::handshake::errors::HandshakeError;
 
 use liverust_lib::netio::bytes_errors::BytesWriteError;
 use liverust_lib::netio::netio_errors::NetIOError;
 
 use tokio::time::Elapsed;
+
+
 
 pub struct ServerError {
     pub value: ServerErrorValue,
@@ -128,6 +131,8 @@ pub enum ClientErrorValue {
     EventMessagesError(EventMessagesError),
     NetIOError(NetIOError),
     PackError(PackError),
+    HandshakeError(HandshakeError),
+
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
 }
@@ -219,4 +224,13 @@ impl From<PackError> for ClientError {
         }
     }
 }
+
+impl From<HandshakeError> for ClientError {
+    fn from(error: HandshakeError) -> Self {
+        ClientError {
+            value: ClientErrorValue::HandshakeError(error),
+        }
+    }
+}
+
 

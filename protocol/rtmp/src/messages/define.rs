@@ -17,32 +17,32 @@ impl SetPeerBandwidthProperties {
     }
 }
 
-pub enum Rtmp_Messages {
-    AMF0_COMMAND {
+pub enum MessageTypes {
+    Amf0Command {
         msg_stream_id: u32,
         command_name: Amf0ValueType,
         transaction_id: Amf0ValueType,
         command_object: Amf0ValueType,
         others: Vec<Amf0ValueType>,
     },
-    SET_CHUNK_SIZE {
+    SetChunkSize {
         chunk_size: u32,
     },
-    ABORT_MESSAGE {
+    AbortMessage {
         chunk_stream_id: u32,
     },
-    ACKNOWLEDGEMENT {
+    Acknowledgement {
         sequence_number: u32,
     },
-    WINDOW_ACKNOWLEDGEMENT_SIZE {
+    WindowAcknowledgementSize {
         size: u32,
     },
-    SET_PEER_BANDWIDTH {
+    SetPeerBandwidth {
         properties: SetPeerBandwidthProperties,
     },
 }
 
-pub mod msg_type {
+pub mod msg_type_id {
     pub const AUDIO: u8 = 8;
     pub const VIDEO: u8 = 9;
 

@@ -21,16 +21,6 @@ pub struct ConnectProperties {
     page_url: String, // http://host/sample.html
 }
 
-// Property 'app' String 'live'
-// Property 'flashVer' String 'LNX 9,0,124,2'
-// Property 'tcUrl' String 'rtmp://192.168.4.158/live'
-// Property 'fpad' Boolean false
-// Property 'capabilities' Number 15
-// Property 'audioCodecs' Number 3191
-// Property 'videoCodecs' Number 252
-// Property 'videoFunction' Number 1
-// Property 'objectEncoding' Number 0
-
 impl ConnectProperties {
     pub fn new(app_name: String) -> Self {
         Self {

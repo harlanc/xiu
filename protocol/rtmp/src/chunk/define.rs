@@ -12,3 +12,5 @@ pub mod chunk_type {
     pub const TYPE_2: u8 = 2;
     pub const TYPE_3: u8 = 3;
 }
+
+pub const CHUNK_SIZE: u32 = 4096;

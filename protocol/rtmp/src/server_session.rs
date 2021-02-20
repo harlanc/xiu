@@ -5,19 +5,19 @@ use crate::handshake::handshake::SimpleHandshakeServer;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
 use crate::{chunk::packetizer::ChunkPacketizer, handshake};
 use crate::{
+    chunk::{define::CHUNK_SIZE, Chunk, ChunkHeader},
+    netstream,
+};
+use crate::{
     chunk::{
         unpacketizer::{self, ChunkUnpacketizer},
         ChunkInfo,
     },
     netconnection,
 };
-use crate::{
-    chunk::{Chunk, ChunkHeader},
-    netstream,
-};
 
-use crate::messages::define::Rtmp_Messages;
-use crate::messages::processor::MessageProcessor;
+use crate::messages::define::MessageTypes;
+use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
 
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
@@ -97,10 +97,10 @@ where
 
                     match result {
                         UnpackResult::ChunkInfo(chunk_info) => {
-                            let mut message_parser = MessageProcessor::new(chunk_info);
-                            let mut rtmp_msg = message_parser.execute()?;
+                            let mut message_parser = MessageParser::new(chunk_info);
+                            let mut msg = message_parser.parse()?;
 
-                            self.process_rtmp_message(&mut rtmp_msg)?;
+                            self.process_messages(&mut msg)?;
                         }
                         _ => {}
                     }
@@ -110,12 +110,9 @@ where
 
         Ok(())
     }
-    pub fn process_rtmp_message(
-        &mut self,
-        rtmp_msg: &mut Rtmp_Messages,
-    ) -> Result<(), ServerError> {
+    pub fn process_messages(&mut self, rtmp_msg: &mut MessageTypes) -> Result<(), ServerError> {
         match rtmp_msg {
-            Rtmp_Messages::AMF0_COMMAND {
+            MessageTypes::Amf0Command {
                 msg_stream_id,
                 command_name,
                 transaction_id,
@@ -202,7 +199,7 @@ where
             define::PEER_BANDWIDTH,
             define::PeerBandWidthLimitType::DYNAMIC,
         )?;
-        control_message.write_set_chunk_size(define::CHUNK_SIZE)?;
+        control_message.write_set_chunk_size(CHUNK_SIZE)?;
 
         let obj_encoding = command_obj.get("objectEncoding");
         let encoding = match obj_encoding {

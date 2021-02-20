@@ -1,7 +1,7 @@
 use super::errors::EventMessagesError;
 
 use super::event_types;
-use crate::messages::define::msg_type;
+use crate::messages::define::msg_type_id;
 use byteorder::BigEndian;
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use tokio::prelude::*;
@@ -30,7 +30,7 @@ where
         self.writer.write_u8(0x0 << 6 | 0x02)?; //fmt 0 and csid 2
         self.writer.write_u24::<BigEndian>(0)?; //timestamp 3 bytes and value 0
         self.writer.write_u32::<BigEndian>(len)?; //msg length
-        self.writer.write_u8(msg_type::USER_CONTROL_EVENT)?; //msg type id
+        self.writer.write_u8(msg_type_id::USER_CONTROL_EVENT)?; //msg type id
         self.writer.write_u32::<BigEndian>(0)?; //msg stream ID 0
         Ok(())
     }
@@ -62,7 +62,7 @@ where
         Ok(())
     }
 
-    fn stream_set_buffer_length(
+    pub fn set_buffer_length(
         &mut self,
         stream_id: u32,
         ms: u32,
@@ -85,7 +85,7 @@ where
         Ok(())
     }
 
-    fn ping(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
+    fn ping_request(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_PING)?;
@@ -94,7 +94,7 @@ where
         Ok(())
     }
 
-    fn pong(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
+    fn ping_response(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_PONG)?;

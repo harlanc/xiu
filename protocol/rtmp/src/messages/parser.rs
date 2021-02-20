@@ -1,7 +1,7 @@
-use super::define::Rtmp_Messages;
+use super::define::msg_type_id;
+use super::define::MessageTypes;
 use super::errors::MessageError;
 use super::errors::MessageErrorValue;
-use super::define::msg_type;
 use crate::chunk::{self, ChunkInfo};
 use liverust_lib::netio::bytes_reader::BytesReader;
 
@@ -10,22 +10,23 @@ use crate::amf0::amf0_reader::Amf0Reader;
 
 use crate::protocol_control_messages::reader::ProtocolControlMessageReader;
 
-pub struct MessageProcessor {
+pub struct MessageParser {
     chunk_info: ChunkInfo,
 }
 
-impl MessageProcessor {
+impl MessageParser {
     pub fn new(chunk_info: ChunkInfo) -> Self {
         Self {
             chunk_info: chunk_info,
         }
     }
-    pub fn execute(&mut self) -> Result<Rtmp_Messages, MessageError> {
+    pub fn parse(&mut self) -> Result<MessageTypes, MessageError> {
         let mut reader = BytesReader::new(self.chunk_info.payload.clone());
 
         match self.chunk_info.message_header.msg_type_id {
-            msg_type::COMMAND_AMF0 | msg_type::COMMAND_AMF3 => {
-                if self.chunk_info.message_header.msg_type_id == msg_type::COMMAND_AMF0 {
+            msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
+
+                if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF0 {
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
@@ -42,7 +43,7 @@ impl MessageProcessor {
 
                 let others = amf_reader.read_all()?;
 
-                return Ok(Rtmp_Messages::AMF0_COMMAND {
+                return Ok(MessageTypes::Amf0Command {
                     msg_stream_id: self.chunk_info.message_header.msg_streamd_id,
                     command_name: command_name,
                     transaction_id: transaction_id,
@@ -51,49 +52,49 @@ impl MessageProcessor {
                 });
             }
             // msg_types::COMMAND_AMF3 => {}
-            msg_type::AUDIO => {}
-            msg_type::VIDEO => {}
+            msg_type_id::AUDIO => {}
+            msg_type_id::VIDEO => {}
 
-            msg_type::USER_CONTROL_EVENT => {}
+            msg_type_id::USER_CONTROL_EVENT => {}
 
-            msg_type::SET_CHUNK_SIZE => {
+            msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
-                return Ok(Rtmp_Messages::SET_CHUNK_SIZE {
+                return Ok(MessageTypes::SetChunkSize {
                     chunk_size: chunk_size,
                 });
             }
-            msg_type::ABORT => {
+            msg_type_id::ABORT => {
                 let chunk_stream_id =
                     ProtocolControlMessageReader::new(reader).read_abort_message()?;
-                return Ok(Rtmp_Messages::ABORT_MESSAGE {
+                return Ok(MessageTypes::AbortMessage {
                     chunk_stream_id: chunk_stream_id,
                 });
             }
-            msg_type::ACKNOWLEDGEMENT => {
+            msg_type_id::ACKNOWLEDGEMENT => {
                 let sequence_number =
                     ProtocolControlMessageReader::new(reader).read_acknowledgement()?;
-                return Ok(Rtmp_Messages::ACKNOWLEDGEMENT {
+                return Ok(MessageTypes::Acknowledgement {
                     sequence_number: sequence_number,
                 });
             }
-            msg_type::WIN_ACKNOWLEDGEMENT_SIZE => {
+            msg_type_id::WIN_ACKNOWLEDGEMENT_SIZE => {
                 let size =
                     ProtocolControlMessageReader::new(reader).read_window_acknowledgement_size()?;
-                return Ok(Rtmp_Messages::WINDOW_ACKNOWLEDGEMENT_SIZE { size: size });
+                return Ok(MessageTypes::WindowAcknowledgementSize { size: size });
             }
-            msg_type::SET_PEER_BANDWIDTH => {
+            msg_type_id::SET_PEER_BANDWIDTH => {
                 let properties =
                     ProtocolControlMessageReader::new(reader).read_set_peer_bandwidth()?;
-                return Ok(Rtmp_Messages::SET_PEER_BANDWIDTH {
+                return Ok(MessageTypes::SetPeerBandwidth {
                     properties: properties,
                 });
             }
 
-            msg_type::DATA_AMF0 | msg_type::DATA_AMF3 => {}
+            msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {}
 
-            msg_type::SHARED_OBJ_AMF3 | msg_type::SHARED_OBJ_AMF0 => {}
+            msg_type_id::SHARED_OBJ_AMF3 | msg_type_id::SHARED_OBJ_AMF0 => {}
 
-            msg_type::AGGREGATE => {}
+            msg_type_id::AGGREGATE => {}
 
             _ => {
                 return Err(MessageError {
