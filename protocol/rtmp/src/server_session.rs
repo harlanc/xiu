@@ -50,9 +50,8 @@ where
     packetizer: ChunkPacketizer<S>,
     unpacketizer: ChunkUnpacketizer,
     handshaker: SimpleHandshakeServer<S>,
-    //bytes_stream: tokio_util::codec::Framed<S, tokio_util::codec::BytesCodec>,
-    io: Rc<RefCell<NetworkIO<S>>>,
 
+    io: Rc<RefCell<NetworkIO<S>>>,
     state: ServerSessionState,
 }
 

@@ -1,16 +1,14 @@
-use crate::amf0::errors::{Amf0WriteError, Amf0WriteErrorValue};
+use crate::amf0::errors::Amf0WriteError;
 use crate::chunk::errors::UnpackError;
 use crate::messages::errors::MessageError;
 use crate::netconnection::errors::NetConnectionError;
 use crate::netstream::errors::NetStreamError;
 use crate::protocol_control_messages::errors::ControlMessagesError;
 use crate::user_control_messages::errors::EventMessagesError;
-use failure::{Backtrace, Fail};
+use crate::chunk::errors::PackError;
+
 use liverust_lib::netio::bytes_errors::BytesWriteError;
 use liverust_lib::netio::netio_errors::NetIOError;
-use std::fmt;
-use std::io;
-
 
 use tokio::time::Elapsed;
 
@@ -29,6 +27,7 @@ pub enum ServerErrorValue {
     NetStreamError(NetStreamError),
     EventMessagesError(EventMessagesError),
     NetIOError(NetIOError),
+    PackError(PackError),
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
 }
@@ -128,6 +127,7 @@ pub enum ClientErrorValue {
     NetStreamError(NetStreamError),
     EventMessagesError(EventMessagesError),
     NetIOError(NetIOError),
+    PackError(PackError),
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
 }
@@ -211,3 +211,12 @@ impl From<NetIOError> for ClientError {
         }
     }
 }
+
+impl From<PackError> for ClientError {
+    fn from(error: PackError) -> Self {
+        ClientError {
+            value: ClientErrorValue::PackError(error),
+        }
+    }
+}
+

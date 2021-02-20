@@ -57,7 +57,7 @@ impl ChunkUnpacketizer {
         Self {
             buffer: BytesMut::new(),
             reader: BytesReader::new(BytesMut::new()),
-            current_chunk_info: ChunkInfo::new(),
+            current_chunk_info: ChunkInfo::default(),
             current_read_state: ChunkReadState::Init,
             max_chunk_size: 0,
         }
@@ -339,7 +339,7 @@ impl ChunkUnpacketizer {
             .extend_from_slice(&payload_data[..]);
 
         if self.current_chunk_info.payload.len() == whole_msg_length {
-            let chunkinfo = mem::replace(&mut self.current_chunk_info, ChunkInfo::new());
+            let chunkinfo = mem::replace(&mut self.current_chunk_info, ChunkInfo::default());
             return Ok(UnpackResult::ChunkInfo(chunkinfo));
         }
 

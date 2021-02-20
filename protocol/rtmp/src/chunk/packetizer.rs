@@ -1,6 +1,7 @@
 use byteorder::{BigEndian, LittleEndian};
 
 use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
+use super::errors::PackError;
 use liverust_lib::netio::bytes_errors::BytesWriteError;
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
@@ -11,31 +12,6 @@ use tokio::prelude::*;
 pub enum PackResult {
     Success,
     NotEnoughBytes,
-}
-
-pub enum PackErrorValue {
-    NotExistHeader,
-    UnknowReadState,
-    // IO(io::Error),
-    BytesWriteError(BytesWriteError),
-}
-
-pub struct PackError {
-    pub value: PackErrorValue,
-}
-
-impl From<PackErrorValue> for PackError {
-    fn from(val: PackErrorValue) -> Self {
-        PackError { value: val }
-    }
-}
-
-impl From<BytesWriteError> for PackError {
-    fn from(error: BytesWriteError) -> Self {
-        PackError {
-            value: PackErrorValue::BytesWriteError(error),
-        }
-    }
 }
 
 pub struct ChunkPacketizer<S>
@@ -149,7 +125,7 @@ where
         Ok(())
     }
 
-    fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
+    pub fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
         self.zip_chunk_header(chunk_info)?;
 
         let mut whole_payload_size = chunk_info.payload.len();

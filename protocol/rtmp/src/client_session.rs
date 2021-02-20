@@ -1,15 +1,17 @@
 use super::errors::ClientError;
 
-use crate::chunk::packetizer::ChunkPacketizer;
+use crate::chunk::define::{chunk_type, csid_type};
 use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::unpacketizer::UnpackResult;
+use crate::chunk::{packetizer::ChunkPacketizer, ChunkInfo};
 
 use crate::handshake::handshake::SimpleHandshakeClient;
 
+use crate::messages::define::msg_type;
 use crate::messages::processor::MessageProcessor;
 
-use liverust_lib::netio::bytes_writer::BytesWriter;
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
+use liverust_lib::netio::bytes_writer::BytesWriter;
 use liverust_lib::netio::netio::NetworkIO;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -64,6 +66,8 @@ where
 
     pub async fn run(&mut self) -> Result<(), ClientError> {
         loop {
+            //let data = self.io.borrow_mut().read().await?;
+
             let data = self.io.borrow_mut().read().await?;
             match self.state {
                 ClientSessionState::Handshake => {
@@ -103,12 +107,26 @@ where
 
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let r = netconnection.connect(transaction_id, &properties)?;
+        //self.packetizer.
         Ok(())
     }
 
     pub fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), ClientError> {
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.create_stream(transaction_id)?;
+
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::COMMAND_AMF0_AMF3,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type::COMMAND_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info)?;
+
         Ok(())
     }
 

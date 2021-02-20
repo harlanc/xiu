@@ -1,7 +1,7 @@
 use super::errors::ControlMessagesError;
 
 
-use crate::messages::msg_types;
+use crate::messages::define::msg_type;
 use byteorder::{BigEndian, LittleEndian};
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
 use tokio::prelude::*;
@@ -40,7 +40,7 @@ where
         Ok(())
     }
     pub fn write_set_chunk_size(&mut self, chunk_size: u32) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(msg_types::SET_CHUNK_SIZE, 4)?;
+        self.write_control_message_header(msg_type::SET_CHUNK_SIZE, 4)?;
         self.writer
             .write_u32::<BigEndian>(chunk_size & 0x7FFFFFFF)?; //first bit must be 0
 
@@ -52,7 +52,7 @@ where
         &mut self,
         chunk_stream_id: u32,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(msg_types::ABORT, 4)?;
+        self.write_control_message_header(msg_type::ABORT, 4)?;
         self.writer.write_u32::<BigEndian>(chunk_stream_id)?;
 
         self.writer.flush();
@@ -63,7 +63,7 @@ where
         &mut self,
         sequence_number: u32,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(msg_types::ACKNOWLEDGEMENT, 4)?;
+        self.write_control_message_header(msg_type::ACKNOWLEDGEMENT, 4)?;
         self.writer.write_u32::<BigEndian>(sequence_number)?;
 
         self.writer.flush();
@@ -74,7 +74,7 @@ where
         &mut self,
         window_size: u32,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(msg_types::WIN_ACKNOWLEDGEMENT_SIZE, 4)?;
+        self.write_control_message_header(msg_type::WIN_ACKNOWLEDGEMENT_SIZE, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
 
         self.writer.flush();
@@ -86,7 +86,7 @@ where
         window_size: u32,
         limit_type: u8,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(msg_types::SET_PEER_BANDWIDTH, 4)?;
+        self.write_control_message_header(msg_type::SET_PEER_BANDWIDTH, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
         self.writer.write_u8(limit_type)?;
 

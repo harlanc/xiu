@@ -1,4 +1,4 @@
-use liverust_lib::netio::bytes_errors::BytesReadError;
+use liverust_lib::netio::bytes_errors::{BytesReadError,BytesWriteError};
 pub enum UnpackErrorValue {
     BytesReadError(BytesReadError),
     UnknowReadState,
@@ -19,6 +19,31 @@ impl From<BytesReadError> for UnpackError {
     fn from(error: BytesReadError) -> Self {
         UnpackError {
             value: UnpackErrorValue::BytesReadError(error),
+        }
+    }
+}
+
+pub enum PackErrorValue {
+    NotExistHeader,
+    UnknowReadState,
+    // IO(io::Error),
+    BytesWriteError(BytesWriteError),
+}
+
+pub struct PackError {
+    pub value: PackErrorValue,
+}
+
+impl From<PackErrorValue> for PackError {
+    fn from(val: PackErrorValue) -> Self {
+        PackError { value: val }
+    }
+}
+
+impl From<BytesWriteError> for PackError {
+    fn from(error: BytesWriteError) -> Self {
+        PackError {
+            value: PackErrorValue::BytesWriteError(error),
         }
     }
 }

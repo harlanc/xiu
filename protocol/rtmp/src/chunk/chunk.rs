@@ -17,7 +17,7 @@ impl ChunkBasicHeader {
 }
 
 //5.3.1.2
-#[derive(Eq, PartialEq, Debug,Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ChunkMessageHeader {
     pub timestamp: u32,
     pub msg_length: u32,
@@ -28,12 +28,12 @@ pub struct ChunkMessageHeader {
 }
 
 impl ChunkMessageHeader {
-    pub fn new() -> ChunkMessageHeader {
-        ChunkMessageHeader {
-            timestamp: 0,
-            msg_length: 0,
-            msg_type_id: 0,
-            msg_streamd_id: 0,
+    pub fn new(timestamp: u32, msg_length: u32, msg_type_id: u8, msg_stream_id: u32) -> Self {
+        Self {
+            timestamp: timestamp,
+            msg_length: msg_length,
+            msg_type_id: msg_type_id,
+            msg_streamd_id: msg_stream_id,
             timestamp_delta: 0,
             is_extended_timestamp: false,
         }
@@ -49,7 +49,7 @@ impl ChunkHeader {
     pub fn new() -> ChunkHeader {
         ChunkHeader {
             basic_header: ChunkBasicHeader::new(0, 0),
-            message_header: ChunkMessageHeader::new(),
+            message_header: ChunkMessageHeader::new(0, 0, 0, 0),
         }
     }
 }
@@ -67,12 +67,29 @@ pub struct ChunkInfo {
     pub payload: BytesMut,
 }
 impl ChunkInfo {
-    pub fn new() -> ChunkInfo {
-        ChunkInfo {
-            basic_header: ChunkBasicHeader::new(0, 0),
-            message_header: ChunkMessageHeader::new(),
-            payload: BytesMut::new(),
+    pub fn new(
+        csid: u32,
+        format: u8,
+        timestamp: u32,
+        msg_length: u32,
+        msg_type_id: u8,
+        msg_stream_id: u32,
+        payload: BytesMut,
+    ) -> Self {
+        Self {
+            basic_header: ChunkBasicHeader::new(format, csid),
+            message_header: ChunkMessageHeader::new(
+                timestamp,
+                msg_length,
+                msg_type_id,
+                msg_stream_id,
+            ),
+            payload: payload,
         }
+    }
+
+    pub fn default() -> ChunkInfo {
+        ChunkInfo::new(0, 0, 0, 0, 0, 0, BytesMut::new())
     }
 }
 
