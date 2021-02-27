@@ -1,3 +1,4 @@
+use super::errors::{HandshakeError, HandshakeErrorValue};
 use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
 use bytes::BytesMut;
 use hmac::{Hmac, Mac};
@@ -8,7 +9,6 @@ use std::convert::TryInto;
 use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
 use tokio_util::codec::{BytesCodec, Framed};
-use super::errors::{HandshakeError,HandshakeErrorValue};
 
 use liverust_lib::netio::{
     bytes_errors::{BytesReadError, BytesWriteError},
@@ -55,7 +55,8 @@ const RTMP_CLIENT_KEY: [u8; 62] = [
     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB, 0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
 ];
 
-enum ClientHandshakeState {
+#[derive(PartialEq)]
+pub enum ClientHandshakeState {
     WriteC0C1,
     ReadS0S1S2,
     WriteC2,
@@ -79,7 +80,7 @@ where
     reader: BytesReader,
     writer: AsyncBytesWriter<S>,
     s1_bytes: BytesMut,
-    state: ClientHandshakeState,
+    pub state: ClientHandshakeState,
 }
 
 fn current_time() -> u32 {
@@ -167,31 +168,30 @@ where
     }
 
     pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
-        loop {
-            match self.state {
-                ClientHandshakeState::WriteC0C1 => {
-                    self.write_c0()?;
-                    self.write_c1()?;
-                    self.flush().await?;
-                    self.state = ClientHandshakeState::ReadS0S1S2;
-                }
+        
+        match self.state {
+            ClientHandshakeState::WriteC0C1 => {
+                self.write_c0()?;
+                self.write_c1()?;
+                self.flush().await?;
+                self.state = ClientHandshakeState::ReadS0S1S2;
+            }
 
-                ClientHandshakeState::ReadS0S1S2 => {
-                    self.read_s0()?;
-                    self.read_s1()?;
-                    self.read_s2()?;
-                    self.state = ClientHandshakeState::WriteC2;
-                }
+            ClientHandshakeState::ReadS0S1S2 => {
+                self.read_s0()?;
+                self.read_s1()?;
+                self.read_s2()?;
+                self.state = ClientHandshakeState::WriteC2;
+            }
 
-                ClientHandshakeState::WriteC2 => {
-                    self.write_c2()?;
-                    self.flush().await?;
-                    self.state = ClientHandshakeState::Finish;
-                }
+            ClientHandshakeState::WriteC2 => {
+                self.write_c2()?;
+                self.flush().await?;
+                self.state = ClientHandshakeState::Finish;
+            }
 
-                ClientHandshakeState::Finish => {
-                    break;
-                }
+            ClientHandshakeState::Finish => {
+                break;
             }
         }
 

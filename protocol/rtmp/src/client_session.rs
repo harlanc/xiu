@@ -20,6 +20,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::handshake::handshake::ClientHandshakeState;
 use crate::netconnection::commands::ConnectProperties;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
@@ -101,13 +102,10 @@ where
     }
 
     pub async fn run(&mut self) -> Result<(), ClientError> {
-        let mut data: BytesMut = BytesMut::new();
         loop {
             match self.state {
                 ClientSessionState::Handshake => {
-                    self.handshaker.extend_data(&data[..]);
-                    self.handshaker.handshake().await?;
-                    self.state = ClientSessionState::Connect;
+                    self.handshake().await?;
                 }
                 ClientSessionState::Connect => {
                     self.send_connect(&(define::TRANSACTION_ID_CONNECT as f64))?;
@@ -125,7 +123,7 @@ where
                 }
             }
 
-            data = self.io.borrow_mut().read().await?;
+            let data = self.io.borrow_mut().read().await?;
             self.unpacketizer.extend_data(&data[..]);
             let result = self.unpacketizer.read_chunk()?;
 
@@ -139,6 +137,21 @@ where
                 _ => {}
             }
         }
+
+        Ok(())
+    }
+
+    async fn handshake(&mut self) -> Result<(), ClientError> {
+        loop {
+            self.handshaker.handshake().await?;
+            if self.handshaker.state == ClientHandshakeState::Finish {
+                break;
+            }
+
+            let data = self.io.borrow_mut().read().await?;
+            self.handshaker.extend_data(&data[..]);
+        }
+        self.state = ClientSessionState::Connect;
 
         Ok(())
     }
