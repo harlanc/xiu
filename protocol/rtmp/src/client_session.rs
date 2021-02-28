@@ -1,9 +1,12 @@
 use super::errors::ClientError;
 
-use crate::chunk::define::{chunk_type, csid_type, CHUNK_SIZE};
 use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::unpacketizer::UnpackResult;
 use crate::chunk::{packetizer::ChunkPacketizer, ChunkInfo};
+use crate::{
+    chunk::define::{chunk_type, csid_type, CHUNK_SIZE},
+    errors::ClientErrorValue,
+};
 
 use crate::handshake::handshake::SimpleHandshakeClient;
 
@@ -172,6 +175,9 @@ where
                 others,
             )?,
             MessageTypes::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth()?,
+            MessageTypes::SetChunkSize { chunk_size } => self
+                .unpacketizer
+                .update_max_chunk_size(chunk_size.clone() as usize),
 
             _ => {}
         }
@@ -200,6 +206,7 @@ where
         let empty_cmd_obj: HashMap<String, Amf0ValueType> = HashMap::new();
         let obj = match command_object {
             Amf0ValueType::Object(obj) => obj,
+            // Amf0ValueType::Null =>
             _ => &empty_cmd_obj,
         };
 
@@ -213,8 +220,17 @@ where
                 }
                 _ => {}
             },
-            "_error" => {}
-            "onStatus" => {}
+            "_error" => {
+                self.on_error()?;
+            }
+            "onStatus" => {
+                match others.remove(0) {
+                    Amf0ValueType::Object(obj) => self.on_status(&obj),
+                    _ => Err(ClientError {
+                        value: ClientErrorValue::Amf0ValueCountNotCorrect,
+                    }),
+                };
+            }
 
             _ => {}
         }
@@ -379,6 +395,13 @@ where
 
     pub fn on_set_peer_bandwidth(&mut self) -> Result<(), ClientError> {
         self.send_window_acknowledgement_size(250000)?;
+        Ok(())
+    }
+    pub fn on_error(&mut self) -> Result<(), ClientError> {
+        Ok(())
+    }
+
+    pub fn on_status(&mut self, obj: &HashMap<String, Amf0ValueType>) -> Result<(), ClientError> {
         Ok(())
     }
 }

@@ -168,7 +168,6 @@ where
     }
 
     pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
-        
         match self.state {
             ClientHandshakeState::WriteC0C1 => {
                 self.write_c0()?;
@@ -190,9 +189,7 @@ where
                 self.state = ClientHandshakeState::Finish;
             }
 
-            ClientHandshakeState::Finish => {
-                break;
-            }
+            ClientHandshakeState::Finish => {}
         }
 
         Ok(())

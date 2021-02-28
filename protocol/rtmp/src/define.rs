@@ -18,3 +18,8 @@ pub const STREAM_ID: f64 = 1.0;
 
 pub const TRANSACTION_ID_CONNECT: u8 = 1;
 pub const TRANSACTION_ID_CREATE_STREAM: u8 = 2;
+
+//pub mod
+pub const RTMP_LEVEL_WARNING: &'static str = "warning";
+pub const RTMP_LEVEL_STATUS: &'static str = "status";
+pub const RTMP_LEVEL_ERROR: &'static str = "error";

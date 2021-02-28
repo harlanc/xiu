@@ -182,4 +182,34 @@ impl NetConnection {
 
         return Ok(self.amf0_writer.extract_current_bytes());
     }
+
+    pub fn error(
+        &mut self,
+        transaction_id: &f64,
+        code: &String,
+        level: &String,
+        description: &String,
+    ) -> Result<BytesMut, NetConnectionError> {
+        self.amf0_writer.write_string(&String::from("_error"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+        self.amf0_writer.write_null()?;
+
+        let mut properties_map = HashMap::new();
+
+        properties_map.insert(
+            String::from("level"),
+            Amf0ValueType::UTF8String(level.clone()),
+        );
+        properties_map.insert(
+            String::from("code"),
+            Amf0ValueType::UTF8String(code.clone()),
+        );
+        properties_map.insert(
+            String::from("description"),
+            Amf0ValueType::UTF8String(description.clone()),
+        );
+        self.amf0_writer.write_object(&properties_map)?;
+
+        return Ok(self.amf0_writer.extract_current_bytes());
+    }
 }

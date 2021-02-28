@@ -18,6 +18,7 @@ use crate::{
 
 use crate::messages::define::MessageTypes;
 use crate::messages::parser::MessageParser;
+use crate::messages::errors::MessageError;
 use bytes::BytesMut;
 
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
@@ -108,6 +109,9 @@ where
             }
         }
 
+        Ok(())
+    }
+    pub fn send_set_chunk_size(&mut self,)-> Result<(), ServerError> {
         Ok(())
     }
     pub fn process_messages(&mut self, rtmp_msg: &mut MessageTypes) -> Result<(), ServerError> {

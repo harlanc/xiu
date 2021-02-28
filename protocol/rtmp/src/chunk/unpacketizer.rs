@@ -66,6 +66,10 @@ impl ChunkUnpacketizer {
         self.buffer.extend_from_slice(data);
     }
 
+    pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
+        self.max_chunk_size = chunk_size;
+    }
+
     /******************************************************************************
      * 5.3.1 Chunk Format
      * Each chunk consists of a header and data. The header itself has three parts:
