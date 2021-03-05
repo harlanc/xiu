@@ -1,6 +1,6 @@
 use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;
-
+use bytes::BytesMut;
 use crate::amf0::define::Amf0ValueType;
 
 pub struct SetPeerBandwidthProperties {
@@ -19,7 +19,6 @@ impl SetPeerBandwidthProperties {
 
 pub enum MessageTypes {
     Amf0Command {
-        msg_stream_id: u32,
         command_name: Amf0ValueType,
         transaction_id: Amf0ValueType,
         command_object: Amf0ValueType,
@@ -39,6 +38,12 @@ pub enum MessageTypes {
     },
     SetPeerBandwidth {
         properties: SetPeerBandwidthProperties,
+    },
+    AudioData {
+        data: BytesMut,
+    },
+    VideoData {
+        data: BytesMut,
     },
 }
 

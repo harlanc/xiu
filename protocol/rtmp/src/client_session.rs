@@ -135,7 +135,7 @@ where
                     let mut message_parser = MessageParser::new(chunk_info);
                     let mut msg = message_parser.parse()?;
 
-                    self.process_messages(&mut msg)?;
+                    self.process_messages(&mut msg, &chunk_info)?;
                 }
                 _ => {}
             }
@@ -159,25 +159,27 @@ where
         Ok(())
     }
 
-    pub fn process_messages(&mut self, msg: &mut MessageTypes) -> Result<(), ClientError> {
+    pub fn process_messages(
+        &mut self,
+        msg: &mut MessageTypes,
+        chunk_info: &ChunkInfo,
+    ) -> Result<(), ClientError> {
         match msg {
             MessageTypes::Amf0Command {
-                msg_stream_id,
                 command_name,
                 transaction_id,
                 command_object,
                 others,
             } => self.process_amf0_command_message(
-                msg_stream_id,
                 command_name,
                 transaction_id,
                 command_object,
                 others,
             )?,
             MessageTypes::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth()?,
-            MessageTypes::SetChunkSize { chunk_size } => self
-                .unpacketizer
-                .update_max_chunk_size(chunk_size.clone() as usize),
+            MessageTypes::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
+            MessageTypes::AudioData { data } => {}
+            MessageTypes::VideoData { data } => {}
 
             _ => {}
         }
@@ -186,7 +188,6 @@ where
 
     pub fn process_amf0_command_message(
         &mut self,
-        stream_id: &u32,
         command_name: &Amf0ValueType,
         transaction_id: &Amf0ValueType,
         command_object: &Amf0ValueType,
@@ -389,7 +390,9 @@ where
         Ok(())
     }
 
-    pub fn on_set_chunk_size(&mut self) -> Result<(), ClientError> {
+    pub fn on_set_chunk_size(&mut self, chunk_size: &mut u32) -> Result<(), ClientError> {
+        self.unpacketizer
+            .update_max_chunk_size(chunk_size.clone() as usize);
         Ok(())
     }
 

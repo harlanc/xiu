@@ -17,8 +17,8 @@ use crate::{
 };
 
 use crate::messages::define::MessageTypes;
-use crate::messages::parser::MessageParser;
 use crate::messages::errors::MessageError;
+use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
 
 use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
@@ -98,10 +98,11 @@ where
 
                     match result {
                         UnpackResult::ChunkInfo(chunk_info) => {
+                            let msg_stream_id = chunk_info.message_header.msg_streamd_id;
                             let mut message_parser = MessageParser::new(chunk_info);
                             let mut msg = message_parser.parse()?;
 
-                            self.process_messages(&mut msg)?;
+                            self.process_messages(&mut msg, &msg_stream_id)?;
                         }
                         _ => {}
                     }
@@ -111,13 +112,16 @@ where
 
         Ok(())
     }
-    pub fn send_set_chunk_size(&mut self,)-> Result<(), ServerError> {
+    pub fn send_set_chunk_size(&mut self) -> Result<(), ServerError> {
         Ok(())
     }
-    pub fn process_messages(&mut self, rtmp_msg: &mut MessageTypes) -> Result<(), ServerError> {
+    pub fn process_messages(
+        &mut self,
+        rtmp_msg: &mut MessageTypes,
+        msg_stream_id: &u32,
+    ) -> Result<(), ServerError> {
         match rtmp_msg {
             MessageTypes::Amf0Command {
-                msg_stream_id,
                 command_name,
                 transaction_id,
                 command_object,

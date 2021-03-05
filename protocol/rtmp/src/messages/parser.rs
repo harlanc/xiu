@@ -21,12 +21,11 @@ impl MessageParser {
         }
     }
     pub fn parse(&mut self) -> Result<MessageTypes, MessageError> {
-        let mut reader = BytesReader::new(self.chunk_info.payload.clone());
+        let mut reader = BytesReader::new(self.chunk_info.payload);
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
-
-                if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF0 {
+                if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF3 {
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
@@ -44,7 +43,6 @@ impl MessageParser {
                 let others = amf_reader.read_all()?;
 
                 return Ok(MessageTypes::Amf0Command {
-                    msg_stream_id: self.chunk_info.message_header.msg_streamd_id,
                     command_name: command_name,
                     transaction_id: transaction_id,
                     command_object: command_obj,
@@ -52,8 +50,16 @@ impl MessageParser {
                 });
             }
             // msg_types::COMMAND_AMF3 => {}
-            msg_type_id::AUDIO => {}
-            msg_type_id::VIDEO => {}
+            msg_type_id::AUDIO => {
+                return Ok(MessageTypes::AudioData {
+                    data: self.chunk_info.payload.clone(),
+                })
+            }
+            msg_type_id::VIDEO => {
+                return Ok(MessageTypes::VideoData {
+                    data: self.chunk_info.payload.clone(),
+                })
+            }
 
             msg_type_id::USER_CONTROL_EVENT => {}
 
