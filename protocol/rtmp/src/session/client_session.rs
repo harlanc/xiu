@@ -1,13 +1,11 @@
-use super::errors::ClientError;
+use super::errors::SessionError;
 
+use crate::chunk::define::{chunk_type, csid_type, CHUNK_SIZE};
 use crate::chunk::unpacketizer::ChunkUnpacketizer;
 use crate::chunk::unpacketizer::UnpackResult;
 use crate::chunk::{packetizer::ChunkPacketizer, ChunkInfo};
-use crate::{
-    chunk::define::{chunk_type, csid_type, CHUNK_SIZE},
-    errors::ClientErrorValue,
-};
 
+use super::errors::SessionErrorValue;
 use crate::handshake::handshake::SimpleHandshakeClient;
 
 use crate::messages::define::msg_type_id;
@@ -104,7 +102,7 @@ where
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), ClientError> {
+    pub async fn run(&mut self) -> Result<(), SessionError> {
         loop {
             match self.state {
                 ClientSessionState::Handshake => {
@@ -135,7 +133,7 @@ where
                     let mut message_parser = MessageParser::new(chunk_info);
                     let mut msg = message_parser.parse()?;
 
-                    self.process_messages(&mut msg, &chunk_info)?;
+                    self.process_messages(&mut msg)?;
                 }
                 _ => {}
             }
@@ -144,7 +142,7 @@ where
         Ok(())
     }
 
-    async fn handshake(&mut self) -> Result<(), ClientError> {
+    async fn handshake(&mut self) -> Result<(), SessionError> {
         loop {
             self.handshaker.handshake().await?;
             if self.handshaker.state == ClientHandshakeState::Finish {
@@ -159,11 +157,7 @@ where
         Ok(())
     }
 
-    pub fn process_messages(
-        &mut self,
-        msg: &mut MessageTypes,
-        chunk_info: &ChunkInfo,
-    ) -> Result<(), ClientError> {
+    pub fn process_messages(&mut self, msg: &mut MessageTypes) -> Result<(), SessionError> {
         match msg {
             MessageTypes::Amf0Command {
                 command_name,
@@ -192,7 +186,7 @@ where
         transaction_id: &Amf0ValueType,
         command_object: &Amf0ValueType,
         others: &mut Vec<Amf0ValueType>,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), SessionError> {
         let empty_cmd_name = &String::new();
         let cmd_name = match command_name {
             Amf0ValueType::UTF8String(str) => str,
@@ -227,8 +221,8 @@ where
             "onStatus" => {
                 match others.remove(0) {
                     Amf0ValueType::Object(obj) => self.on_status(&obj),
-                    _ => Err(ClientError {
-                        value: ClientErrorValue::Amf0ValueCountNotCorrect,
+                    _ => Err(SessionError {
+                        value: SessionErrorValue::Amf0ValueCountNotCorrect,
                     }),
                 };
             }
@@ -239,7 +233,7 @@ where
         Ok(())
     }
 
-    pub fn send_connect(&mut self, transaction_id: &f64) -> Result<(), ClientError> {
+    pub fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         let app_name = String::from("app");
         let properties = ConnectProperties::new(app_name);
 
@@ -260,7 +254,7 @@ where
         Ok(())
     }
 
-    pub fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), ClientError> {
+    pub fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.create_stream(transaction_id)?;
 
@@ -283,7 +277,7 @@ where
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), SessionError> {
         let mut netstream = NetStream::new(BytesWriter::new());
         let data = netstream.delete_stream(transaction_id, stream_id)?;
 
@@ -306,7 +300,7 @@ where
         transaction_id: &f64,
         stream_name: &String,
         stream_type: &String,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), SessionError> {
         let mut netstream = NetStream::new(BytesWriter::new());
         let data = netstream.publish(transaction_id, stream_name, stream_type)?;
 
@@ -332,7 +326,7 @@ where
         start: &f64,
         duration: &f64,
         reset: &bool,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), SessionError> {
         let mut netstream = NetStream::new(BytesWriter::new());
         let data = netstream.play(transaction_id, stream_name, start, duration, reset)?;
 
@@ -351,7 +345,7 @@ where
         Ok(())
     }
 
-    pub fn send_set_chunk_size(&mut self) -> Result<(), ClientError> {
+    pub fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_set_chunk_size(CHUNK_SIZE)?;
         Ok(())
@@ -360,25 +354,57 @@ where
     pub fn send_window_acknowledgement_size(
         &mut self,
         window_size: u32,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_window_acknowledgement_size(window_size)?;
         Ok(())
     }
 
-    pub fn send_set_buffer_length(&mut self, stream_id: u32, ms: u32) -> Result<(), ClientError> {
+    pub fn send_set_buffer_length(&mut self, stream_id: u32, ms: u32) -> Result<(), SessionError> {
         let mut eventmessages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
         eventmessages.set_buffer_length(stream_id, ms)?;
 
         Ok(())
     }
 
-    pub fn on_result_connect(&mut self) -> Result<(), ClientError> {
+    pub fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::AUDIO,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::AUDIO,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info)?;
+
+        Ok(())
+    }
+
+    pub fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::VIDEO,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::VIDEO,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info)?;
+
+        Ok(())
+    }
+
+    pub fn on_result_connect(&mut self) -> Result<(), SessionError> {
         self.state = ClientSessionState::CreateStream;
         Ok(())
     }
 
-    pub fn on_result_create_stream(&mut self) -> Result<(), ClientError> {
+    pub fn on_result_create_stream(&mut self) -> Result<(), SessionError> {
         match self.client_type {
             ClientType::Play => {
                 self.state = ClientSessionState::Play;
@@ -390,21 +416,21 @@ where
         Ok(())
     }
 
-    pub fn on_set_chunk_size(&mut self, chunk_size: &mut u32) -> Result<(), ClientError> {
+    pub fn on_set_chunk_size(&mut self, chunk_size: &mut u32) -> Result<(), SessionError> {
         self.unpacketizer
             .update_max_chunk_size(chunk_size.clone() as usize);
         Ok(())
     }
 
-    pub fn on_set_peer_bandwidth(&mut self) -> Result<(), ClientError> {
+    pub fn on_set_peer_bandwidth(&mut self) -> Result<(), SessionError> {
         self.send_window_acknowledgement_size(250000)?;
         Ok(())
     }
-    pub fn on_error(&mut self) -> Result<(), ClientError> {
+    pub fn on_error(&mut self) -> Result<(), SessionError> {
         Ok(())
     }
 
-    pub fn on_status(&mut self, obj: &HashMap<String, Amf0ValueType>) -> Result<(), ClientError> {
+    pub fn on_status(&mut self, obj: &HashMap<String, Amf0ValueType>) -> Result<(), SessionError> {
         Ok(())
     }
 }

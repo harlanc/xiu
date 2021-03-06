@@ -21,7 +21,7 @@ impl MessageParser {
         }
     }
     pub fn parse(&mut self) -> Result<MessageTypes, MessageError> {
-        let mut reader = BytesReader::new(self.chunk_info.payload);
+        let mut reader = BytesReader::new(self.chunk_info.payload.clone());
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {

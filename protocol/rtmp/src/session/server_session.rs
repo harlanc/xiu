@@ -1,13 +1,14 @@
 use super::define;
-use super::errors::ServerError;
-use super::errors::ServerErrorValue;
-use crate::handshake::handshake::SimpleHandshakeServer;
+use super::errors::SessionError;
+use super::errors::SessionErrorValue;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
-use crate::{chunk::packetizer::ChunkPacketizer, handshake};
+use crate::{chunk::define::csid_type::VIDEO, handshake::handshake::SimpleHandshakeServer};
 use crate::{
+    chunk::define::{chunk_type, csid_type},
     chunk::{define::CHUNK_SIZE, Chunk, ChunkHeader},
     netstream,
 };
+use crate::{chunk::packetizer::ChunkPacketizer, handshake};
 use crate::{
     chunk::{
         unpacketizer::{self, ChunkUnpacketizer},
@@ -16,6 +17,7 @@ use crate::{
     netconnection,
 };
 
+use crate::messages::define::msg_type_id;
 use crate::messages::define::MessageTypes;
 use crate::messages::errors::MessageError;
 use crate::messages::parser::MessageParser;
@@ -74,7 +76,7 @@ where
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), ServerError> {
+    pub async fn run(&mut self) -> Result<(), SessionError> {
         let duration = Duration::new(10, 10);
 
         loop {
@@ -112,14 +114,48 @@ where
 
         Ok(())
     }
-    pub fn send_set_chunk_size(&mut self) -> Result<(), ServerError> {
+    pub fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
+        let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
+        controlmessage.write_set_chunk_size(CHUNK_SIZE)?;
+
+        Ok(())
+    }
+    pub fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::AUDIO,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::AUDIO,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info)?;
+
+        Ok(())
+    }
+
+    pub fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::VIDEO,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::VIDEO,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info)?;
+
         Ok(())
     }
     pub fn process_messages(
         &mut self,
         rtmp_msg: &mut MessageTypes,
         msg_stream_id: &u32,
-    ) -> Result<(), ServerError> {
+    ) -> Result<(), SessionError> {
         match rtmp_msg {
             MessageTypes::Amf0Command {
                 command_name,
@@ -146,7 +182,7 @@ where
         transaction_id: &Amf0ValueType,
         command_object: &Amf0ValueType,
         others: &mut Vec<Amf0ValueType>,
-    ) -> Result<(), ServerError> {
+    ) -> Result<(), SessionError> {
         let empty_cmd_name = &String::new();
         let cmd_name = match command_name {
             Amf0ValueType::UTF8String(str) => str,
@@ -200,7 +236,7 @@ where
         &mut self,
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
-    ) -> Result<(), ServerError> {
+    ) -> Result<(), SessionError> {
         let mut control_message = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
         control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
         control_message.write_set_peer_bandwidth(
@@ -228,7 +264,7 @@ where
         Ok(())
     }
 
-    pub fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), ServerError> {
+    pub fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         let mut netconnection = NetConnection::new(BytesWriter::new());
         netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
 
@@ -239,7 +275,7 @@ where
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
-    ) -> Result<(), ServerError> {
+    ) -> Result<(), SessionError> {
         let mut netstream = NetStream::new(BytesWriter::new());
         netstream.on_status(
             transaction_id,
@@ -255,7 +291,7 @@ where
         transaction_id: &f64,
         stream_id: &u32,
         other_values: &mut Vec<Amf0ValueType>,
-    ) -> Result<(), ServerError> {
+    ) -> Result<(), SessionError> {
         let length = other_values.len() as u8;
         let mut index: u8 = 0;
 
@@ -338,20 +374,20 @@ where
         transaction_id: &f64,
         stream_id: &u32,
         other_values: &mut Vec<Amf0ValueType>,
-    ) -> Result<(), ServerError> {
+    ) -> Result<(), SessionError> {
         let length = other_values.len();
 
         if length < 2 {
-            return Err(ServerError {
-                value: ServerErrorValue::Amf0ValueCountNotCorrect,
+            return Err(SessionError {
+                value: SessionErrorValue::Amf0ValueCountNotCorrect,
             });
         }
 
         let stream_name = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
-                return Err(ServerError {
-                    value: ServerErrorValue::Amf0ValueCountNotCorrect,
+                return Err(SessionError {
+                    value: SessionErrorValue::Amf0ValueCountNotCorrect,
                 });
             }
         };
@@ -359,8 +395,8 @@ where
         let stream_type = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
-                return Err(ServerError {
-                    value: ServerErrorValue::Amf0ValueCountNotCorrect,
+                return Err(SessionError {
+                    value: SessionErrorValue::Amf0ValueCountNotCorrect,
                 });
             }
         };
