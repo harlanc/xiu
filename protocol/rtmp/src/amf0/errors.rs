@@ -1,7 +1,7 @@
 use failure::Fail;
 use std::{io, string};
 
-use liverust_lib::netio::{
+use netio::{
     bytes_errors::{BytesReadError, BytesWriteError},
     bytes_reader::BytesReader,
     bytes_writer::BytesWriter,

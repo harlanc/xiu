@@ -3,7 +3,9 @@ use super::errors::EventMessagesError;
 use super::event_types;
 use crate::messages::define::msg_type_id;
 use byteorder::BigEndian;
-use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
+use netio::bytes_writer::AsyncBytesWriter;
+
+
 use tokio::prelude::*;
 
 pub struct EventMessages<S>

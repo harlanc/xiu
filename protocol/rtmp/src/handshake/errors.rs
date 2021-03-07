@@ -10,7 +10,7 @@ use std::io::{Cursor, Write};
 use std::{collections::HashMap, ops::BitOr};
 use tokio_util::codec::{BytesCodec, Framed};
 
-use liverust_lib::netio::{
+use netio::{
     bytes_errors::{BytesReadError, BytesWriteError},
     //bytes_reader::NetworkReader,
     bytes_reader::BytesReader,

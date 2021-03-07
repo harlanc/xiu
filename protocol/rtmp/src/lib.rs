@@ -2,7 +2,7 @@ extern crate byteorder;
 extern crate bytes;
 extern crate failure;
 extern crate hmac;
-extern crate liverust_lib;
+extern crate netio;
 extern crate rand;
 extern crate sha2;
 extern crate tokio;

@@ -3,7 +3,7 @@ use super::errors::ControlMessagesError;
 
 use crate::messages::define::msg_type_id;
 use byteorder::{BigEndian, LittleEndian};
-use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
+use netio::bytes_writer::AsyncBytesWriter;
 use tokio::prelude::*;
 
 pub struct ControlMessages<S>

@@ -1,6 +1,6 @@
 use crate::amf0::errors::Amf0WriteError;
 
-use liverust_lib::netio::bytes_errors::BytesWriteError;
+use netio::bytes_errors::BytesWriteError;
 
 pub struct EventMessagesError {
     pub value: EventMessagesErrorValue,

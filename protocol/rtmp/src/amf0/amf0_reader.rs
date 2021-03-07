@@ -8,7 +8,7 @@ use byteorder::BigEndian;
 // use super::define::UnOrderedMap;
 
 use super::errors::Amf0ReadErrorValue;
-use liverust_lib::netio::bytes_reader::BytesReader;
+use netio::bytes_reader::BytesReader;
 
 use bytes::BytesMut;
 

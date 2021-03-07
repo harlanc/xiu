@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "protocol/rtmp",
-  "library",
+  "library/netio",
+  "application",
 ]

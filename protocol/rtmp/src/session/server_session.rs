@@ -23,9 +23,9 @@ use crate::messages::errors::MessageError;
 use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
 
-use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
-use liverust_lib::netio::bytes_writer::BytesWriter;
-use liverust_lib::netio::netio::NetworkIO;
+use netio::bytes_writer::AsyncBytesWriter;
+use netio::bytes_writer::BytesWriter;
+use netio::netio::NetworkIO;
 use std::time::Duration;
 
 use crate::netconnection::commands::NetConnection;

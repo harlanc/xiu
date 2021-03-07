@@ -3,7 +3,7 @@ use crate::amf0::define::Amf0ValueType;
 use crate::amf0::{self, amf0_writer::Amf0Writer};
 use std::collections::HashMap;
 
-use liverust_lib::netio::bytes_writer::BytesWriter;
+use netio::bytes_writer::BytesWriter;
 
 use bytes::BytesMut;
 use tokio::prelude::*;

@@ -1,5 +1,5 @@
-use liverust_lib::netio::bytes_errors::BytesReadError;
-use liverust_lib::netio::bytes_errors::BytesWriteError;
+use netio::bytes_errors::BytesReadError;
+use netio::bytes_errors::BytesWriteError;
 
 pub struct ControlMessagesError {
     pub value: ControlMessagesErrorValue,

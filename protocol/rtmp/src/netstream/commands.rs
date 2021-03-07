@@ -2,7 +2,7 @@ use super::errors::NetStreamError;
 use crate::amf0::amf0_writer::Amf0Writer;
 use crate::amf0::define::Amf0ValueType;
 use bytes::BytesMut;
-use liverust_lib::netio::bytes_writer::BytesWriter;
+use netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
 use tokio::prelude::*;
 pub struct NetStream {

@@ -5,7 +5,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
 use super::errors::UnpackError;
 use super::errors::UnpackErrorValue;
-use liverust_lib::netio::bytes_reader::BytesReader;
+use netio::bytes_reader::BytesReader;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::mem;

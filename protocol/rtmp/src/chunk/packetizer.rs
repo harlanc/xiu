@@ -2,8 +2,8 @@ use byteorder::{BigEndian, LittleEndian};
 
 use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 use super::errors::PackError;
-use liverust_lib::netio::bytes_errors::BytesWriteError;
-use liverust_lib::netio::bytes_writer::AsyncBytesWriter;
+use netio::bytes_errors::BytesWriteError;
+use netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
 
 use tokio::prelude::*;

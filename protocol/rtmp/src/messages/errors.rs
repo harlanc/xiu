@@ -1,6 +1,7 @@
 use crate::amf0::errors::Amf0ReadError;
 use crate::protocol_control_messages::errors::ProtocolControlMessageReaderError;
-use liverust_lib::netio::bytes_errors::BytesReadError;
+use netio::netio::bytes_errors::BytesReadError;
+
 pub enum MessageErrorValue {
     BytesReadError(BytesReadError),
     UnknowReadState,

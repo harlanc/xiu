@@ -1,5 +1,5 @@
 [package]
-name = "liverust_lib"
+name = "netio"
 version = "0.1.23"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"

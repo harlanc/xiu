@@ -8,8 +8,9 @@ use crate::user_control_messages::errors::EventMessagesError;
 use crate::chunk::errors::PackError;
 use crate::handshake::errors::HandshakeError;
 
-use liverust_lib::netio::bytes_errors::BytesWriteError;
-use liverust_lib::netio::netio_errors::NetIOError;
+use netio::bytes_errors::BytesWriteError;
+use netio::netio_errors::NetIOError;
+
 
 use tokio::time::Elapsed;
 

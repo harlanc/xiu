@@ -3,7 +3,7 @@ use super::define::MessageTypes;
 use super::errors::MessageError;
 use super::errors::MessageErrorValue;
 use crate::chunk::{self, ChunkInfo};
-use liverust_lib::netio::bytes_reader::BytesReader;
+use netio::bytes_reader::BytesReader;
 
 use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;

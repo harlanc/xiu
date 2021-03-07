@@ -4,7 +4,7 @@ use super::Amf0ValueType;
 use super::Amf0WriteError;
 use byteorder::BigEndian;
 use bytes::BytesMut;
-use liverust_lib::netio::bytes_writer::BytesWriter;
+use netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
 use tokio::prelude::*;
 
