@@ -1,6 +1,6 @@
 use crate::amf0::errors::Amf0ReadError;
 use crate::protocol_control_messages::errors::ProtocolControlMessageReaderError;
-use netio::netio::bytes_errors::BytesReadError;
+use netio::bytes_errors::BytesReadError;
 
 pub enum MessageErrorValue {
     BytesReadError(BytesReadError),

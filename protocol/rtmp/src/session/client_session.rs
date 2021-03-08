@@ -16,7 +16,7 @@ use crate::amf0::Amf0ValueType;
 
 use netio::bytes_writer::AsyncBytesWriter;
 
-use netio::netio::bytes_writer::BytesWriter;
+use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
 use std::cell::RefCell;
 use std::rc::Rc;
