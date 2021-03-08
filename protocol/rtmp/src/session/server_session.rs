@@ -44,6 +44,10 @@ use std::rc::Rc;
 enum ServerSessionState {
     Handshake,
     ReadChunk,
+    // OnConnect,
+    // OnCreateStream,
+    // OnPlay,
+    // OnPublish,
 }
 
 pub struct ServerSession<S>
@@ -62,7 +66,7 @@ impl<S> ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    fn new(stream: S, timeout: Duration) -> Self {
+    pub fn new(stream: S, timeout: Duration) -> Self {
         let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
         let bytes_writer = AsyncBytesWriter::new(net_io.clone());
 

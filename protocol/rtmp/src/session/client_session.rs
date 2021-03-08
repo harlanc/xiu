@@ -116,10 +116,10 @@ where
                     self.send_create_stream(&(define::TRANSACTION_ID_CREATE_STREAM as f64))?;
                 }
                 ClientSessionState::Play => {
-                    self.send_play(&0.0, &stream_name, &0.0, &0.0, &false)?;
+                    self.send_play(&0.0, &self.stream_name.clone(), &0.0, &0.0, &false)?;
                 }
                 ClientSessionState::PublishingContent => {
-                    self.send_publish(&0.0, &stream_name, &"live".to_string())?;
+                    self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())?;
                 }
             }
 
