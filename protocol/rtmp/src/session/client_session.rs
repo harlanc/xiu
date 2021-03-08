@@ -16,7 +16,6 @@ use crate::amf0::Amf0ValueType;
 
 use netio::bytes_writer::AsyncBytesWriter;
 
-
 use netio::netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
 use std::cell::RefCell;
@@ -78,14 +77,14 @@ where
     publish_state: ClientSessionPublishState,
     state: ClientSessionState,
     client_type: ClientType,
-    transaction_id: f64,
+    stream_name: String,
 }
 
 impl<S> ClientSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    fn new(stream: S, timeout: Duration, client_type: ClientType) -> Self {
+    fn new(stream: S, timeout: Duration, client_type: ClientType, stream_name: String) -> Self {
         let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
         let bytes_writer = AsyncBytesWriter::new(net_io.clone());
 
@@ -100,7 +99,7 @@ where
             publish_state: ClientSessionPublishState::Handshake,
             state: ClientSessionState::Handshake,
             client_type: client_type,
-            transaction_id: 0.0,
+            stream_name: stream_name,
         }
     }
 
@@ -117,11 +116,9 @@ where
                     self.send_create_stream(&(define::TRANSACTION_ID_CREATE_STREAM as f64))?;
                 }
                 ClientSessionState::Play => {
-                    let stream_name = String::from("stream_name");
                     self.send_play(&0.0, &stream_name, &0.0, &0.0, &false)?;
                 }
                 ClientSessionState::PublishingContent => {
-                    let stream_name = String::from("stream_name");
                     self.send_publish(&0.0, &stream_name, &"live".to_string())?;
                 }
             }
