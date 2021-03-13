@@ -9,7 +9,7 @@ use super::errors::SessionErrorValue;
 use crate::handshake::handshake::SimpleHandshakeClient;
 
 use crate::messages::define::msg_type_id;
-use crate::messages::define::MessageTypes;
+use crate::messages::define::RtmpMessageData;
 use crate::messages::parser::MessageParser;
 
 use crate::amf0::Amf0ValueType;
@@ -160,9 +160,9 @@ where
         Ok(())
     }
 
-    pub fn process_messages(&mut self, msg: &mut MessageTypes) -> Result<(), SessionError> {
+    pub fn process_messages(&mut self, msg: &mut RtmpMessageData) -> Result<(), SessionError> {
         match msg {
-            MessageTypes::Amf0Command {
+            RtmpMessageData::Amf0Command {
                 command_name,
                 transaction_id,
                 command_object,
@@ -173,10 +173,10 @@ where
                 command_object,
                 others,
             )?,
-            MessageTypes::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth()?,
-            MessageTypes::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
-            MessageTypes::AudioData { data } => {}
-            MessageTypes::VideoData { data } => {}
+            RtmpMessageData::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth()?,
+            RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
+            RtmpMessageData::AudioData { data } => {}
+            RtmpMessageData::VideoData { data } => {}
 
             _ => {}
         }

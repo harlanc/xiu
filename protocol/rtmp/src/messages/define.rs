@@ -15,7 +15,7 @@ impl SetPeerBandwidthProperties {
     }
 }
 
-pub enum MessageTypes {
+pub enum RtmpMessageData {
     Amf0Command {
         command_name: Amf0ValueType,
         transaction_id: Amf0ValueType,

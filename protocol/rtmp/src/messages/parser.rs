@@ -1,5 +1,5 @@
 use super::define::msg_type_id;
-use super::define::MessageTypes;
+use super::define::RtmpMessageData;
 use super::errors::MessageError;
 use super::errors::MessageErrorValue;
 use crate::chunk::ChunkInfo;
@@ -20,7 +20,7 @@ impl MessageParser {
             chunk_info: chunk_info,
         }
     }
-    pub fn parse(&mut self) -> Result<MessageTypes, MessageError> {
+    pub fn parse(&mut self) -> Result<RtmpMessageData, MessageError> {
         let mut reader = BytesReader::new(self.chunk_info.payload.clone());
 
         match self.chunk_info.message_header.msg_type_id {
@@ -42,7 +42,7 @@ impl MessageParser {
 
                 let others = amf_reader.read_all()?;
 
-                return Ok(MessageTypes::Amf0Command {
+                return Ok(RtmpMessageData::Amf0Command {
                     command_name: command_name,
                     transaction_id: transaction_id,
                     command_object: command_obj,
@@ -51,12 +51,12 @@ impl MessageParser {
             }
             // msg_types::COMMAND_AMF3 => {}
             msg_type_id::AUDIO => {
-                return Ok(MessageTypes::AudioData {
+                return Ok(RtmpMessageData::AudioData {
                     data: self.chunk_info.payload.clone(),
                 })
             }
             msg_type_id::VIDEO => {
-                return Ok(MessageTypes::VideoData {
+                return Ok(RtmpMessageData::VideoData {
                     data: self.chunk_info.payload.clone(),
                 })
             }
@@ -65,33 +65,33 @@ impl MessageParser {
 
             msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
-                return Ok(MessageTypes::SetChunkSize {
+                return Ok(RtmpMessageData::SetChunkSize {
                     chunk_size: chunk_size,
                 });
             }
             msg_type_id::ABORT => {
                 let chunk_stream_id =
                     ProtocolControlMessageReader::new(reader).read_abort_message()?;
-                return Ok(MessageTypes::AbortMessage {
+                return Ok(RtmpMessageData::AbortMessage {
                     chunk_stream_id: chunk_stream_id,
                 });
             }
             msg_type_id::ACKNOWLEDGEMENT => {
                 let sequence_number =
                     ProtocolControlMessageReader::new(reader).read_acknowledgement()?;
-                return Ok(MessageTypes::Acknowledgement {
+                return Ok(RtmpMessageData::Acknowledgement {
                     sequence_number: sequence_number,
                 });
             }
             msg_type_id::WIN_ACKNOWLEDGEMENT_SIZE => {
                 let size =
                     ProtocolControlMessageReader::new(reader).read_window_acknowledgement_size()?;
-                return Ok(MessageTypes::WindowAcknowledgementSize { size: size });
+                return Ok(RtmpMessageData::WindowAcknowledgementSize { size: size });
             }
             msg_type_id::SET_PEER_BANDWIDTH => {
                 let properties =
                     ProtocolControlMessageReader::new(reader).read_set_peer_bandwidth()?;
-                return Ok(MessageTypes::SetPeerBandwidth {
+                return Ok(RtmpMessageData::SetPeerBandwidth {
                     properties: properties,
                 });
             }

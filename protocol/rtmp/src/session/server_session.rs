@@ -1,17 +1,17 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
-use crate::chunk::packetizer::ChunkPacketizer;
 use crate::chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo};
 use crate::handshake::handshake::SimpleHandshakeServer;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
+use crate::{channels, chunk::packetizer::ChunkPacketizer};
 use crate::{
     chunk::define::CHUNK_SIZE,
     chunk::define::{chunk_type, csid_type},
 };
 
 use crate::messages::define::msg_type_id;
-use crate::messages::define::MessageTypes;
+use crate::messages::define::RtmpMessageData;
 
 use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
@@ -31,11 +31,10 @@ use std::collections::HashMap;
 
 use tokio::prelude::*;
 
-// use std::cell::{RefCell, RefMut};
-// use std::rc::Rc;
-
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+use crate::channels::define::ChannelMsgData;
 
 enum ServerSessionState {
     Handshake,
@@ -44,17 +43,19 @@ enum ServerSessionState {
     // OnCreateStream,
     // OnPlay,
     // OnPublish,
+    Play,
 }
 
 pub struct ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    packetizer: ChunkPacketizer<S>,
-    unpacketizer: ChunkUnpacketizer,
+    io: Arc<Mutex<NetworkIO<S>>>,
     handshaker: SimpleHandshakeServer<S>,
 
-    io: Arc<Mutex<NetworkIO<S>>>,
+    packetizer: ChunkPacketizer<S>,
+    unpacketizer: ChunkUnpacketizer,
+
     state: ServerSessionState,
 }
 
@@ -101,14 +102,18 @@ where
                     match result {
                         UnpackResult::ChunkInfo(chunk_info) => {
                             let msg_stream_id = chunk_info.message_header.msg_streamd_id;
+                            let timestamp = chunk_info.message_header.timestamp;
+
                             let mut message_parser = MessageParser::new(chunk_info);
                             let mut msg = message_parser.parse()?;
 
-                            self.process_messages(&mut msg, &msg_stream_id).await?;
+                            self.process_messages(&mut msg, &msg_stream_id, &timestamp)
+                                .await?;
                         }
                         _ => {}
                     }
                 }
+                ServerSessionState::Play => {}
             }
         }
 
@@ -120,11 +125,11 @@ where
 
         Ok(())
     }
-    pub async fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_audio(&mut self, data: BytesMut, timestamp: u32) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::AUDIO,
             chunk_type::TYPE_0,
-            0,
+            timestamp,
             data.len() as u32,
             msg_type_id::AUDIO,
             0,
@@ -136,11 +141,11 @@ where
         Ok(())
     }
 
-    pub async fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_video(&mut self, data: BytesMut, timestamp: u32) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::VIDEO,
             chunk_type::TYPE_0,
-            0,
+            timestamp,
             data.len() as u32,
             msg_type_id::VIDEO,
             0,
@@ -153,11 +158,12 @@ where
     }
     pub async fn process_messages(
         &mut self,
-        rtmp_msg: &mut MessageTypes,
+        rtmp_msg: &mut RtmpMessageData,
         msg_stream_id: &u32,
+        timestamp: &u32,
     ) -> Result<(), SessionError> {
         match rtmp_msg {
-            MessageTypes::Amf0Command {
+            RtmpMessageData::Amf0Command {
                 command_name,
                 transaction_id,
                 command_object,
@@ -171,6 +177,12 @@ where
                     others,
                 )
                 .await?
+            }
+            RtmpMessageData::AudioData { data } => {
+                self.on_audio_data(data, timestamp)?;
+            }
+            RtmpMessageData::VideoData { data } => {
+                self.on_video_data(data, timestamp)?;
             }
 
             _ => {}
@@ -451,6 +463,26 @@ where
 
         self.packetizer.write_chunk(&mut chunk_info).await?;
 
+        Ok(())
+    }
+
+    pub fn on_video_data(
+        &mut self,
+        data: &mut BytesMut,
+        timestamp: &u32,
+    ) -> Result<(), SessionError> {
+        let data = ChannelMsgData::Video {
+            timestamp: timestamp.clone(),
+            data: data.clone(),
+        };
+        Ok(())
+    }
+
+    pub fn on_audio_data(
+        &mut self,
+        data: &mut BytesMut,
+        timestamp: &u32,
+    ) -> Result<(), SessionError> {
         Ok(())
     }
 }

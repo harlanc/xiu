@@ -82,7 +82,7 @@ impl Amf0Writer {
             self.write_any(value)?;
         }
 
-        self.write_object_eof();
+        self.write_object_eof()?;
         Ok(())
     }
 
