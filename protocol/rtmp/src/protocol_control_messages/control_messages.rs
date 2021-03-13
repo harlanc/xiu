@@ -1,14 +1,13 @@
 use super::errors::ControlMessagesError;
 
-
 use crate::messages::define::msg_type_id;
-use byteorder::{BigEndian, LittleEndian};
+use byteorder::BigEndian;
 use netio::bytes_writer::AsyncBytesWriter;
 use tokio::prelude::*;
 
 pub struct ControlMessages<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     writer: AsyncBytesWriter<S>,
     //amf0_writer: Amf0Writer,
@@ -16,7 +15,7 @@ where
 
 impl<S> ControlMessages<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     pub fn new(writer: AsyncBytesWriter<S>) -> Self {
         Self { writer: writer }
@@ -59,7 +58,7 @@ where
         Ok(())
     }
 
-    pub fn write_acknowledgement(
+    pub async fn write_acknowledgement(
         &mut self,
         sequence_number: u32,
     ) -> Result<(), ControlMessagesError> {

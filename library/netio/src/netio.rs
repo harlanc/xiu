@@ -1,13 +1,10 @@
-use super::bytes_reader::BytesReader;
-use super::bytes_writer::BytesWriter;
 use super::netio_errors::{NetIOError, NetIOErrorValue};
-use byteorder::{ByteOrder, ReadBytesExt};
+
 use bytes::Bytes;
 use bytes::BytesMut;
 use futures::SinkExt;
-use std::io::Cursor;
+
 use std::time::Duration;
-use std::{convert::TryInto, io};
 
 use tokio::{prelude::*, stream::StreamExt, time::timeout};
 use tokio_util::codec::BytesCodec;
@@ -15,7 +12,7 @@ use tokio_util::codec::Framed;
 
 pub struct NetworkIO<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     bytes_stream: Framed<S, BytesCodec>,
     timeout: Duration,
@@ -23,7 +20,7 @@ where
 
 impl<S> NetworkIO<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     pub fn new(stream: S, ms: Duration) -> Self {
         Self {

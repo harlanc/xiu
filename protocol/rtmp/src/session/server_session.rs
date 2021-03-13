@@ -1,25 +1,18 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
+use crate::chunk::packetizer::ChunkPacketizer;
+use crate::chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo};
+use crate::handshake::handshake::SimpleHandshakeServer;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
-use crate::{chunk::define::csid_type::VIDEO, handshake::handshake::SimpleHandshakeServer};
 use crate::{
+    chunk::define::CHUNK_SIZE,
     chunk::define::{chunk_type, csid_type},
-    chunk::{define::CHUNK_SIZE, Chunk, ChunkHeader},
-    netstream,
-};
-use crate::{chunk::packetizer::ChunkPacketizer, handshake};
-use crate::{
-    chunk::{
-        unpacketizer::{self, ChunkUnpacketizer},
-        ChunkInfo,
-    },
-    netconnection,
 };
 
 use crate::messages::define::msg_type_id;
 use crate::messages::define::MessageTypes;
-use crate::messages::errors::MessageError;
+
 use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
 
@@ -31,15 +24,18 @@ use std::time::Duration;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
 use crate::protocol_control_messages::control_messages::ControlMessages;
-use crate::user_control_messages::errors::EventMessagesError;
+
 use crate::user_control_messages::event_messages::EventMessages;
 
 use std::collections::HashMap;
 
 use tokio::prelude::*;
 
-use std::cell::{RefCell, RefMut};
-use std::rc::Rc;
+// use std::cell::{RefCell, RefMut};
+// use std::rc::Rc;
+
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 enum ServerSessionState {
     Handshake,
@@ -52,30 +48,30 @@ enum ServerSessionState {
 
 pub struct ServerSession<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     packetizer: ChunkPacketizer<S>,
     unpacketizer: ChunkUnpacketizer,
     handshaker: SimpleHandshakeServer<S>,
 
-    io: Rc<RefCell<NetworkIO<S>>>,
+    io: Arc<Mutex<NetworkIO<S>>>,
     state: ServerSessionState,
 }
 
 impl<S> ServerSession<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     pub fn new(stream: S, timeout: Duration) -> Self {
-        let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
-        let bytes_writer = AsyncBytesWriter::new(net_io.clone());
+        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
+        let bytes_writer = AsyncBytesWriter::new(Arc::clone(&net_io));
 
         Self {
             packetizer: ChunkPacketizer::new(bytes_writer),
             unpacketizer: ChunkUnpacketizer::new(),
-            handshaker: SimpleHandshakeServer::new(net_io.clone()),
+            handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
 
-            io: net_io.clone(),
+            io: Arc::clone(&net_io),
             state: ServerSessionState::Handshake,
         }
     }
@@ -84,7 +80,7 @@ where
         let duration = Duration::new(10, 10);
 
         loop {
-            let data = self.io.borrow_mut().read().await?;
+            let data = self.io.lock().await.read().await?;
 
             match self.state {
                 ServerSessionState::Handshake => {
@@ -108,7 +104,7 @@ where
                             let mut message_parser = MessageParser::new(chunk_info);
                             let mut msg = message_parser.parse()?;
 
-                            self.process_messages(&mut msg, &msg_stream_id)?;
+                            self.process_messages(&mut msg, &msg_stream_id).await?;
                         }
                         _ => {}
                     }
@@ -116,7 +112,7 @@ where
             }
         }
 
-        Ok(())
+        //Ok(())
     }
     pub fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
@@ -124,7 +120,7 @@ where
 
         Ok(())
     }
-    pub fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::AUDIO,
             chunk_type::TYPE_0,
@@ -135,12 +131,12 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
 
-    pub fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::VIDEO,
             chunk_type::TYPE_0,
@@ -151,11 +147,11 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
-    pub fn process_messages(
+    pub async fn process_messages(
         &mut self,
         rtmp_msg: &mut MessageTypes,
         msg_stream_id: &u32,
@@ -166,20 +162,23 @@ where
                 transaction_id,
                 command_object,
                 others,
-            } => self.process_amf0_command_message(
-                msg_stream_id,
-                command_name,
-                transaction_id,
-                command_object,
-                others,
-            )?,
+            } => {
+                self.process_amf0_command_message(
+                    msg_stream_id,
+                    command_name,
+                    transaction_id,
+                    command_object,
+                    others,
+                )
+                .await?
+            }
 
             _ => {}
         }
         Ok(())
     }
 
-    pub fn process_amf0_command_message(
+    pub async fn process_amf0_command_message(
         &mut self,
         stream_id: &u32,
         command_name: &Amf0ValueType,
@@ -206,7 +205,7 @@ where
 
         match cmd_name.as_str() {
             "connect" => {
-                self.on_connect(&transaction_id, &obj)?;
+                self.on_connect(&transaction_id, &obj).await?;
             }
             "createStream" => {
                 self.on_create_stream(transaction_id)?;
@@ -221,14 +220,14 @@ where
                         _ => 0.0,
                     };
 
-                    self.on_delete_stream(transaction_id, &stream_id)?;
+                    self.on_delete_stream(transaction_id, &stream_id).await?;
                 }
             }
             "play" => {
-                self.on_play(transaction_id, stream_id, others)?;
+                self.on_play(transaction_id, stream_id, others).await?;
             }
             "publish" => {
-                self.on_publish(transaction_id, stream_id, others)?;
+                self.on_publish(transaction_id, stream_id, others).await?;
             }
             _ => {}
         }
@@ -236,7 +235,7 @@ where
         Ok(())
     }
 
-    fn on_connect(
+    async fn on_connect(
         &mut self,
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
@@ -256,7 +255,7 @@ where
         };
 
         let mut netconnection = NetConnection::new(BytesWriter::new());
-        netconnection.connect_response(
+        let data = netconnection.connect_response(
             &transaction_id,
             &define::FMSVER.to_string(),
             &define::CAPABILITIES,
@@ -265,6 +264,19 @@ where
             &String::from("Connection Succeeded."),
             encoding,
         )?;
+
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::COMMAND_AMF0_AMF3,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::COMMAND_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info).await?;
+
         Ok(())
     }
 
@@ -275,22 +287,33 @@ where
         Ok(())
     }
 
-    pub fn on_delete_stream(
+    pub async fn on_delete_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
         let mut netstream = NetStream::new(BytesWriter::new());
-        netstream.on_status(
+        let data = netstream.on_status(
             transaction_id,
             &"status".to_string(),
             &"NetStream.DeleteStream.Suceess".to_string(),
             &"".to_string(),
         )?;
 
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::COMMAND_AMF0_AMF3,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::COMMAND_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
-    pub fn on_play(
+    pub async fn on_play(
         &mut self,
         transaction_id: &f64,
         stream_id: &u32,
@@ -344,7 +367,7 @@ where
         }
 
         let mut event_messages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.stream_begin(stream_id.clone())?;
+        event_messages.stream_begin(stream_id.clone()).await?;
 
         let mut netstream = NetStream::new(BytesWriter::new());
         match reset {
@@ -368,12 +391,12 @@ where
             &"".to_string(),
         )?;
 
-        event_messages.stream_is_record(stream_id.clone())?;
+        event_messages.stream_is_record(stream_id.clone()).await?;
 
         Ok(())
     }
 
-    pub fn on_publish(
+    pub async fn on_publish(
         &mut self,
         transaction_id: &f64,
         stream_id: &u32,
@@ -406,15 +429,27 @@ where
         };
 
         let mut event_messages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.stream_begin(stream_id.clone())?;
+        event_messages.stream_begin(stream_id.clone()).await?;
 
         let mut netstream = NetStream::new(BytesWriter::new());
-        netstream.on_status(
+        let data = netstream.on_status(
             transaction_id,
             &"status".to_string(),
             &"NetStream.Publish.Start".to_string(),
             &"".to_string(),
         )?;
+
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::COMMAND_AMF0_AMF3,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::COMMAND_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }

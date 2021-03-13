@@ -18,8 +18,7 @@ use netio::bytes_writer::AsyncBytesWriter;
 
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
-use std::cell::RefCell;
-use std::rc::Rc;
+
 use std::time::Duration;
 
 use crate::handshake::handshake::ClientHandshakeState;
@@ -27,16 +26,17 @@ use crate::netconnection::commands::ConnectProperties;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
 use crate::protocol_control_messages::control_messages::ControlMessages;
-use crate::user_control_messages::errors::EventMessagesError;
+
 use crate::user_control_messages::event_messages::EventMessages;
 
 use std::collections::HashMap;
 
 use super::define;
-use tokio::{prelude::*, stream::StreamExt, time::timeout};
-use tokio_util::codec::{BytesCodec, Framed};
+use tokio::prelude::*;
 
 use bytes::BytesMut;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 enum ClientSessionState {
     Handshake,
@@ -66,12 +66,12 @@ enum ClientType {
 }
 pub struct ClientSession<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     packetizer: ChunkPacketizer<S>,
     unpacketizer: ChunkUnpacketizer,
     handshaker: SimpleHandshakeClient<S>,
-    io: Rc<RefCell<NetworkIO<S>>>,
+    io: Arc<Mutex<NetworkIO<S>>>,
 
     play_state: ClientSessionPlayState,
     publish_state: ClientSessionPublishState,
@@ -82,18 +82,18 @@ where
 
 impl<S> ClientSession<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     fn new(stream: S, timeout: Duration, client_type: ClientType, stream_name: String) -> Self {
-        let net_io = Rc::new(RefCell::new(NetworkIO::new(stream, timeout)));
-        let bytes_writer = AsyncBytesWriter::new(net_io.clone());
+        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
+        let bytes_writer = AsyncBytesWriter::new(Arc::clone(&net_io));
 
         Self {
-            io: net_io.clone(),
+            io: Arc::clone(&net_io),
 
             packetizer: ChunkPacketizer::new(bytes_writer),
             unpacketizer: ChunkUnpacketizer::new(),
-            handshaker: SimpleHandshakeClient::new(net_io.clone()),
+            handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
 
             play_state: ClientSessionPlayState::Handshake,
             publish_state: ClientSessionPublishState::Handshake,
@@ -110,20 +110,24 @@ where
                     self.handshake().await?;
                 }
                 ClientSessionState::Connect => {
-                    self.send_connect(&(define::TRANSACTION_ID_CONNECT as f64))?;
+                    self.send_connect(&(define::TRANSACTION_ID_CONNECT as f64))
+                        .await?;
                 }
                 ClientSessionState::CreateStream => {
-                    self.send_create_stream(&(define::TRANSACTION_ID_CREATE_STREAM as f64))?;
+                    self.send_create_stream(&(define::TRANSACTION_ID_CREATE_STREAM as f64))
+                        .await?;
                 }
                 ClientSessionState::Play => {
-                    self.send_play(&0.0, &self.stream_name.clone(), &0.0, &0.0, &false)?;
+                    self.send_play(&0.0, &self.stream_name.clone(), &0.0, &0.0, &false)
+                        .await?;
                 }
                 ClientSessionState::PublishingContent => {
-                    self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())?;
+                    self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())
+                        .await?;
                 }
             }
 
-            let data = self.io.borrow_mut().read().await?;
+            let data = self.io.lock().await.read().await?;
             self.unpacketizer.extend_data(&data[..]);
             let result = self.unpacketizer.read_chunk()?;
 
@@ -138,7 +142,7 @@ where
             }
         }
 
-        Ok(())
+        // Ok(())
     }
 
     async fn handshake(&mut self) -> Result<(), SessionError> {
@@ -148,7 +152,7 @@ where
                 break;
             }
 
-            let data = self.io.borrow_mut().read().await?;
+            let data = self.io.lock().await.read().await?;
             self.handshaker.extend_data(&data[..]);
         }
         self.state = ClientSessionState::Connect;
@@ -232,7 +236,7 @@ where
         Ok(())
     }
 
-    pub fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
+    pub async fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         let app_name = String::from("app");
         let properties = ConnectProperties::new(app_name);
 
@@ -249,11 +253,11 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
 
-    pub fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
+    pub async fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.create_stream(transaction_id)?;
 
@@ -267,12 +271,12 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
 
-    pub fn send_delete_stream(
+    pub async fn send_delete_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
@@ -290,11 +294,11 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
 
-    pub fn send_publish(
+    pub async fn send_publish(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -313,12 +317,12 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
 
-    pub fn send_play(
+    pub async fn send_play(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -339,7 +343,7 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
@@ -359,14 +363,14 @@ where
         Ok(())
     }
 
-    pub fn send_set_buffer_length(&mut self, stream_id: u32, ms: u32) -> Result<(), SessionError> {
+    pub async fn send_set_buffer_length(&mut self, stream_id: u32, ms: u32) -> Result<(), SessionError> {
         let mut eventmessages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        eventmessages.set_buffer_length(stream_id, ms)?;
+        eventmessages.set_buffer_length(stream_id, ms).await?;
 
         Ok(())
     }
 
-    pub fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::AUDIO,
             chunk_type::TYPE_0,
@@ -377,12 +381,12 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
 
-    pub fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::VIDEO,
             chunk_type::TYPE_0,
@@ -393,7 +397,7 @@ where
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info)?;
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }

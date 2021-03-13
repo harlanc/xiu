@@ -10,8 +10,8 @@ use super::bytes_errors::BytesWriteError;
 use super::netio::NetworkIO;
 use tokio::prelude::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub struct BytesWriter {
     pub bytes: Vec<u8>,
@@ -70,17 +70,17 @@ impl BytesWriter {
 
 pub struct AsyncBytesWriter<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     pub bytes_writer: BytesWriter,
-    pub io: Rc<RefCell<NetworkIO<S>>>,
+    pub io: Arc<Mutex<NetworkIO<S>>>,
 }
 
 impl<S> AsyncBytesWriter<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
+    pub fn new(io: Arc<Mutex<NetworkIO<S>>>) -> Self {
         Self {
             bytes_writer: BytesWriter::new(),
             io: io,
@@ -114,14 +114,15 @@ where
     pub fn write_random_bytes(&mut self, length: u32) -> Result<(), BytesWriteError> {
         self.bytes_writer.write_random_bytes(length)
     }
-    
+
     pub fn extract_current_bytes(&mut self) -> BytesMut {
         self.bytes_writer.extract_current_bytes()
     }
 
     pub async fn flush(&mut self) -> Result<(), BytesWriteError> {
         self.io
-            .borrow_mut()
+            .lock()
+            .await
             .write(self.bytes_writer.bytes.clone().into())
             .await?;
         self.bytes_writer.bytes.clear();

@@ -1,17 +1,14 @@
-use byteorder::{BigEndian, ReadBytesExt};
-//use bytes::Bytes;
-use bytes::{BufMut, Bytes, BytesMut};
+use byteorder::BigEndian;
+
+use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
 use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
 use super::errors::UnpackError;
 use super::errors::UnpackErrorValue;
 use netio::bytes_reader::BytesReader;
 use std::cmp::min;
-use std::collections::HashMap;
-use std::mem;
-use std::time::Duration;
 
-use crate::netconnection;
+use std::mem;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {

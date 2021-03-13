@@ -1,13 +1,8 @@
 use super::bytes_errors::{BytesReadError, BytesReadErrorValue};
 use byteorder::{ByteOrder, ReadBytesExt};
 use bytes::BytesMut;
-use std::io;
-use std::io::Cursor;
-use std::time::Duration;
 
-use tokio::{prelude::*, stream::StreamExt, time::timeout};
-use tokio_util::codec::BytesCodec;
-use tokio_util::codec::Framed;
+use std::io::Cursor;
 
 pub struct BytesReader {
     buffer: BytesMut,
@@ -46,7 +41,10 @@ impl BytesReader {
         Ok(self.buffer.clone().split_to(bytes_num))
     }
 
-    pub fn read_bytes_cursor(&mut self, bytes_num: usize) -> Result<Cursor<BytesMut>, BytesReadError> {
+    pub fn read_bytes_cursor(
+        &mut self,
+        bytes_num: usize,
+    ) -> Result<Cursor<BytesMut>, BytesReadError> {
         let tmp_bytes = self.read_bytes(bytes_num)?;
         let tmp_cursor = Cursor::new(tmp_bytes);
         Ok(tmp_cursor)
@@ -103,4 +101,3 @@ impl BytesReader {
         Ok(val)
     }
 }
-

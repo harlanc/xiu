@@ -1,16 +1,14 @@
-use std::{collections::HashMap, ptr::read};
+use std::collections::HashMap;
 
+use super::amf0_markers;
 use super::Amf0ReadError;
 use super::Amf0ValueType;
-use super::{amf0_markers, errors::Amf0WriteErrorValue};
 use byteorder::BigEndian;
 
 // use super::define::UnOrderedMap;
 
 use super::errors::Amf0ReadErrorValue;
 use netio::bytes_reader::BytesReader;
-
-use bytes::BytesMut;
 
 pub struct Amf0Reader {
     reader: BytesReader,

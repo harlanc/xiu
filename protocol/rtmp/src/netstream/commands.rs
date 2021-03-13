@@ -4,7 +4,7 @@ use crate::amf0::define::Amf0ValueType;
 use bytes::BytesMut;
 use netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
-use tokio::prelude::*;
+
 pub struct NetStream {
     amf0_writer: Amf0Writer,
 }

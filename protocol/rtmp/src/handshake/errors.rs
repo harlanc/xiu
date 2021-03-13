@@ -1,28 +1,6 @@
+use netio::bytes_errors::{BytesReadError, BytesWriteError};
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
-use bytes::BytesMut;
-use hmac::{Hmac, Mac};
-use rand;
-use rand::Rng;
-use sha2::Sha256;
-use std::convert::TryInto;
-use std::io::{Cursor, Write};
-use std::{collections::HashMap, ops::BitOr};
-use tokio_util::codec::{BytesCodec, Framed};
-
-use netio::{
-    bytes_errors::{BytesReadError, BytesWriteError},
-    //bytes_reader::NetworkReader,
-    bytes_reader::BytesReader,
-    bytes_writer::AsyncBytesWriter,
-    netio::NetworkIO,
-};
-
-use tokio::prelude::*;
-
-use std::rc::Rc;
-use std::cell::{RefCell, RefMut};
-use std::time::{SystemTime, SystemTimeError};
+use std::time::SystemTimeError;
 
 pub enum HandshakeErrorValue {
     BytesReadError(BytesReadError),

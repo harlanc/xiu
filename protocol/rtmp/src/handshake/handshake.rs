@@ -1,17 +1,14 @@
 use super::errors::{HandshakeError, HandshakeErrorValue};
-use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
+use byteorder::{BigEndian, WriteBytesExt};
 use bytes::BytesMut;
 use hmac::{Hmac, Mac};
 use rand;
 use rand::Rng;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::io::{Cursor, Write};
-use std::{collections::HashMap, ops::BitOr};
-use tokio_util::codec::{BytesCodec, Framed};
+use std::io::Write;
 
 use netio::{
-    bytes_errors::{BytesReadError, BytesWriteError},
     //bytes_reader::NetworkReader,
     bytes_reader::BytesReader,
     bytes_writer::AsyncBytesWriter,
@@ -20,9 +17,10 @@ use netio::{
 
 use tokio::prelude::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::time::{SystemTime, SystemTimeError};
+use std::time::SystemTime;
+
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
@@ -75,7 +73,7 @@ const RTMP_HANDSHAKE_SIZE: usize = 1536;
 
 pub struct SimpleHandshakeClient<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     reader: BytesReader,
     writer: AsyncBytesWriter<S>,
@@ -112,9 +110,9 @@ fn generate_random_bytes(buffer: &mut [u8]) {
 
 impl<S> SimpleHandshakeClient<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
+    pub fn new(io: Arc<Mutex<NetworkIO<S>>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             writer: AsyncBytesWriter::new(io),
@@ -324,7 +322,7 @@ fn cook_handshake_msg(
 
 pub struct ComplexHandshakeClient<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     reader: BytesReader,
     writer: AsyncBytesWriter<S>,
@@ -341,7 +339,7 @@ where
 //digest-data: 32bytes
 impl<S> ComplexHandshakeClient<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     fn write_c0(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u8(RTMP_VERSION as u8)?;
@@ -458,7 +456,7 @@ where
 
 pub struct SimpleHandshakeServer<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     reader: BytesReader,
     writer: AsyncBytesWriter<S>,
@@ -469,9 +467,9 @@ where
 
 impl<S> SimpleHandshakeServer<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    pub fn new(io: Rc<RefCell<NetworkIO<S>>>) -> Self {
+    pub fn new(io: Arc<Mutex<NetworkIO<S>>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             writer: AsyncBytesWriter::new(io),
@@ -561,7 +559,7 @@ where
 
 pub struct ComplexHandshakeServer<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     reader: BytesReader,
     writer: AsyncBytesWriter<S>,
@@ -602,7 +600,7 @@ random-data:(764-4-offset-32)bytes
 
 impl<S> ComplexHandshakeServer<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     fn read_c0(&mut self) -> Result<(), HandshakeError> {
         self.reader.read_u8()?;

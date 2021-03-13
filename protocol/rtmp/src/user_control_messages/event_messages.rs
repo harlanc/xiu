@@ -5,12 +5,11 @@ use crate::messages::define::msg_type_id;
 use byteorder::BigEndian;
 use netio::bytes_writer::AsyncBytesWriter;
 
-
 use tokio::prelude::*;
 
 pub struct EventMessages<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     writer: AsyncBytesWriter<S>,
     // amf0_writer: Amf0Writer,
@@ -18,7 +17,7 @@ where
 
 impl<S> EventMessages<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     pub fn new(writer: AsyncBytesWriter<S>) -> Self {
         Self { writer: writer }
@@ -34,37 +33,43 @@ where
         self.writer.write_u32::<BigEndian>(len)?; //msg length
         self.writer.write_u8(msg_type_id::USER_CONTROL_EVENT)?; //msg type id
         self.writer.write_u32::<BigEndian>(0)?; //msg stream ID 0
+
         Ok(())
     }
 
-    pub fn stream_begin(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
+    pub async fn stream_begin(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_STREAM_BEGIN)?;
         self.writer.write_u32::<BigEndian>(stream_id)?;
 
+        self.writer.flush().await?;
         Ok(())
     }
 
-    fn stream_eof(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
+    pub async fn stream_eof(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_STREAM_EOF)?;
         self.writer.write_u32::<BigEndian>(stream_id)?;
 
+        self.writer.flush().await?;
+
         Ok(())
     }
 
-    fn stream_dry(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
+    pub async fn stream_dry(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_STREAM_DRY)?;
         self.writer.write_u32::<BigEndian>(stream_id)?;
 
+        self.writer.flush().await?;
+
         Ok(())
     }
 
-    pub fn set_buffer_length(
+    pub async fn set_buffer_length(
         &mut self,
         stream_id: u32,
         ms: u32,
@@ -75,32 +80,40 @@ where
         self.writer.write_u32::<BigEndian>(stream_id)?;
         self.writer.write_u32::<BigEndian>(ms)?;
 
+        self.writer.flush().await?;
+
         Ok(())
     }
 
-    pub fn stream_is_record(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
+    pub async fn stream_is_record(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_STREAM_IS_RECORD)?;
         self.writer.write_u32::<BigEndian>(stream_id)?;
 
+        self.writer.flush().await?;
+
         Ok(())
     }
 
-    fn ping_request(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
+    pub async fn ping_request(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_PING)?;
         self.writer.write_u32::<BigEndian>(timestamp)?;
 
+        self.writer.flush().await?;
+
         Ok(())
     }
 
-    fn ping_response(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
+    pub async fn ping_response(&mut self, timestamp: u32) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(event_types::RTMP_EVENT_PONG)?;
         self.writer.write_u32::<BigEndian>(timestamp)?;
+
+        self.writer.flush().await?;
 
         Ok(())
     }

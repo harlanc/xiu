@@ -1,6 +1,6 @@
+use super::netio_errors::NetIOError;
 use std::io;
 use tokio::time::Elapsed;
-use super::netio_errors::{NetIOError,NetIOErrorValue};
 
 pub enum BytesReadErrorValue {
     NotEnoughBytes,
@@ -58,4 +58,3 @@ impl From<NetIOError> for BytesWriteError {
         }
     }
 }
-

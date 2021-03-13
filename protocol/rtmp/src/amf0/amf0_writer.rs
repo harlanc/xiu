@@ -6,7 +6,6 @@ use byteorder::BigEndian;
 use bytes::BytesMut;
 use netio::bytes_writer::BytesWriter;
 use std::collections::HashMap;
-use tokio::prelude::*;
 
 pub struct Amf0Writer {
     writer: BytesWriter,
@@ -86,6 +85,10 @@ impl Amf0Writer {
         self.write_object_eof();
         Ok(())
     }
+
+    // pub async fn flush(&mut self) -> Result<(), Amf0WriteError> {
+    //     self.writer.flush()?;
+    // }
 
     pub fn extract_current_bytes(&mut self) -> BytesMut {
         self.writer.extract_current_bytes()

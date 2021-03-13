@@ -2,7 +2,6 @@ use byteorder::{BigEndian, LittleEndian};
 
 use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 use super::errors::PackError;
-use netio::bytes_errors::BytesWriteError;
 use netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
 
@@ -16,7 +15,7 @@ pub enum PackResult {
 
 pub struct ChunkPacketizer<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     csid_2_chunk_header: HashMap<u32, ChunkHeader>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
@@ -29,7 +28,7 @@ where
 
 impl<S> ChunkPacketizer<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin,
+    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     pub fn new(io_writer: AsyncBytesWriter<S>) -> Self {
         Self {
@@ -125,7 +124,7 @@ where
         Ok(())
     }
 
-    pub fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
+    pub async fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
         self.zip_chunk_header(chunk_info)?;
 
         let mut whole_payload_size = chunk_info.payload.len();
@@ -161,7 +160,7 @@ where
                 }
             }
         }
-        self.writer.flush();
+        self.writer.flush().await?;
 
         Ok(())
     }

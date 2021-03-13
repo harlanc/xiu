@@ -2,7 +2,7 @@ use super::define::msg_type_id;
 use super::define::MessageTypes;
 use super::errors::MessageError;
 use super::errors::MessageErrorValue;
-use crate::chunk::{self, ChunkInfo};
+use crate::chunk::ChunkInfo;
 use netio::bytes_reader::BytesReader;
 
 use crate::amf0::amf0_markers;
