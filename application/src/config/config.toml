@@ -1,0 +1,10 @@
+#RTMP server configurations
+[rtmp]
+enabled = true
+port = 1935
+[rtmp.pull]
+enabled = true
+address = "192.168.0.1:1935"
+[rtmp.push]
+enabled = true
+address = "192.168.0.1:1935"

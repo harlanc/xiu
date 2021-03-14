@@ -144,8 +144,8 @@ where
                 }
                 //when in play state, only transfer publisher's video/audio/metadta to player.
                 ServerSessionState::Play => {
-                    let receiver = match self.data_consumer.borrow_mut() {
-                        Some(val) => val.clone(),
+                    let receiver = match self.data_consumer.as_mut() {
+                        Some(val) => val,
                         None => {
                             return Err(SessionError {
                                 value: SessionErrorValue::NoneChannelDataReceiver,
@@ -160,6 +160,7 @@ where
                             Ok(val) =>{
                                 match val{
                                     ChannelData::Audio{timestamp,data}=>{
+                                        
                                         self.send_audio(data, timestamp).await?;
 
                                     }
