@@ -1,9 +1,12 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
-use crate::chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo};
 use crate::handshake::handshake::SimpleHandshakeServer;
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
+use crate::{
+    application,
+    chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo},
+};
 use crate::{channels, chunk::packetizer::ChunkPacketizer};
 use crate::{
     chunk::define::CHUNK_SIZE,
@@ -19,8 +22,12 @@ use bytes::BytesMut;
 use netio::bytes_writer::AsyncBytesWriter;
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
-use std::time::Duration;
+use std::{borrow::BorrowMut, time::Duration};
 
+use crate::channels::define::ChannelEvent;
+use crate::channels::define::MultiConsumerForData;
+use crate::channels::define::MultiProducerForEvent;
+use crate::channels::define::SingleProducerForData;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
 use crate::protocol_control_messages::control_messages::ControlMessages;
@@ -29,12 +36,15 @@ use crate::user_control_messages::event_messages::EventMessages;
 
 use std::collections::HashMap;
 
-use tokio::prelude::*;
+use tokio::{prelude::*, sync::broadcast};
 
 use std::sync::Arc;
+use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 
-use crate::channels::define::ChannelMsgData;
+use crate::channels::define::ChannelData;
+use crate::channels::errors::ChannelError;
+use crate::channels::errors::ChannelErrorValue;
 
 enum ServerSessionState {
     Handshake,
@@ -50,6 +60,7 @@ pub struct ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
+    app_name: String,
     io: Arc<Mutex<NetworkIO<S>>>,
     handshaker: SimpleHandshakeServer<S>,
 
@@ -57,23 +68,41 @@ where
     unpacketizer: ChunkUnpacketizer,
 
     state: ServerSessionState,
+
+    event_producer: MultiProducerForEvent,
+    //send video, audio or metadata from publish server session to player server sessions
+    data_producer: Option<SingleProducerForData>,
+    //receive video, audio or metadata from publish server session and send out
+    data_consumer: Option<MultiConsumerForData>,
 }
 
 impl<S> ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    pub fn new(stream: S, timeout: Duration) -> Self {
+    pub fn new(
+        app_name: String,
+        stream: S,
+        event_producer: MultiProducerForEvent,
+        timeout: Duration,
+    ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         let bytes_writer = AsyncBytesWriter::new(Arc::clone(&net_io));
 
         Self {
-            packetizer: ChunkPacketizer::new(bytes_writer),
-            unpacketizer: ChunkUnpacketizer::new(),
-            handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
+            app_name,
 
             io: Arc::clone(&net_io),
+            handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
+
+            packetizer: ChunkPacketizer::new(bytes_writer),
+            unpacketizer: ChunkUnpacketizer::new(),
+
             state: ServerSessionState::Handshake,
+
+            event_producer,
+            data_producer: None,
+            data_consumer: None,
         }
     }
 
@@ -113,7 +142,41 @@ where
                         _ => {}
                     }
                 }
-                ServerSessionState::Play => {}
+                //when in play state, only transfer publisher's video/audio/metadta to player.
+                ServerSessionState::Play => {
+                    let receiver = match self.data_consumer.borrow_mut() {
+                        Some(val) => val.clone(),
+                        None => {
+                            return Err(SessionError {
+                                value: SessionErrorValue::NoneChannelDataReceiver,
+                            })
+                        }
+                    };
+
+                    loop{
+                        let data =  receiver.recv().await;
+
+                        match data {
+                            Ok(val) =>{
+                                match val{
+                                    ChannelData::Audio{timestamp,data}=>{
+                                        self.send_audio(data, timestamp).await?;
+
+                                    }
+                                    ChannelData::Video{timestamp,data}=>{
+                                        self.send_video(data, timestamp).await?;
+
+                                    }
+                                    ChannelData::MetaData{
+
+                                    }
+
+                                }
+                            }
+                            Err(err) =>{}
+                        }
+                    }
+                }
             }
         }
 
@@ -405,6 +468,37 @@ where
 
         event_messages.stream_is_record(stream_id.clone()).await?;
 
+        self.subscribe_from_channels(stream_name.unwrap()).await?;
+
+        self.state = ServerSessionState::Play;
+
+        Ok(())
+    }
+
+    async fn subscribe_from_channels(&mut self, stream_name: String) -> Result<(), SessionError> {
+        let (sender, receiver) = oneshot::channel();
+        let subscribe_event = ChannelEvent::Subscribe {
+            app_name: self.app_name.clone(),
+            stream_name,
+            responder: sender,
+        };
+
+        let rv = self.event_producer.send(subscribe_event);
+        match rv {
+            Err(_) => {
+                return Err(SessionError {
+                    value: SessionErrorValue::ChannelEventSendErr,
+                })
+            }
+            _ => {}
+        }
+
+        match receiver.await {
+            Ok(consumer) => {
+                self.data_consumer = Some(consumer);
+            }
+            Err(_) => {}
+        }
         Ok(())
     }
 
@@ -463,6 +557,35 @@ where
 
         self.packetizer.write_chunk(&mut chunk_info).await?;
 
+        self.publish_to_channels(stream_name).await?;
+
+        Ok(())
+    }
+
+    async fn publish_to_channels(&mut self, stream_name: String) -> Result<(), SessionError> {
+        let (sender, receiver) = oneshot::channel();
+        let publish_event = ChannelEvent::Publish {
+            app_name: self.app_name.clone(),
+            stream_name,
+            responder: sender,
+        };
+
+        let rv = self.event_producer.send(publish_event);
+        match rv {
+            Err(_) => {
+                return Err(SessionError {
+                    value: SessionErrorValue::ChannelEventSendErr,
+                })
+            }
+            _ => {}
+        }
+
+        match receiver.await {
+            Ok(producer) => {
+                self.data_producer = Some(producer);
+            }
+            Err(_) => {}
+        }
         Ok(())
     }
 
@@ -471,10 +594,19 @@ where
         data: &mut BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
-        let data = ChannelMsgData::Video {
+        let data = ChannelData::Video {
             timestamp: timestamp.clone(),
             data: data.clone(),
         };
+        let _ = match self.data_producer.borrow_mut() {
+            Some(producer) => producer.send(data),
+            None => {
+                return Err(SessionError {
+                    value: SessionErrorValue::NoneChannelDataSender,
+                })
+            }
+        };
+
         Ok(())
     }
 
@@ -483,6 +615,19 @@ where
         data: &mut BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
+        let data = ChannelData::Audio {
+            timestamp: timestamp.clone(),
+            data: data.clone(),
+        };
+        let _ = match self.data_producer.borrow_mut() {
+            Some(producer) => producer.send(data),
+            None => {
+                return Err(SessionError {
+                    value: SessionErrorValue::NoneChannelDataSender,
+                })
+            }
+        };
+
         Ok(())
     }
 }

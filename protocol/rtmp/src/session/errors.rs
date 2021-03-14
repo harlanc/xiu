@@ -33,6 +33,9 @@ pub enum SessionErrorValue {
 
     Amf0ValueCountNotCorrect,
     Amf0ValueTypeNotCorrect,
+    ChannelEventSendErr,
+    NoneChannelDataSender,
+    NoneChannelDataReceiver,
 }
 
 impl From<Amf0WriteError> for SessionError {
