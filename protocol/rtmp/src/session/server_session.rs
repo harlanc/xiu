@@ -51,8 +51,7 @@ enum ServerSessionState {
     ReadChunk,
     // OnConnect,
     // OnCreateStream,
-    // OnPlay,
-    // OnPublish,
+    //Publish,
     Play,
 }
 
@@ -61,6 +60,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
     app_name: String,
+
     io: Arc<Mutex<NetworkIO<S>>>,
     handshaker: SimpleHandshakeServer<S>,
 
@@ -70,27 +70,26 @@ where
     state: ServerSessionState,
 
     event_producer: MultiProducerForEvent,
+
     //send video, audio or metadata from publish server session to player server sessions
-    data_producer: Option<SingleProducerForData>,
-    //receive video, audio or metadata from publish server session and send out
-    data_consumer: Option<MultiConsumerForData>,
+    data_producer: SingleProducerForData,
+    //receive video, audio or metadata from publish server session and send out to player
+    data_consumer: MultiConsumerForData,
 }
 
 impl<S> ServerSession<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    pub fn new(
-        app_name: String,
-        stream: S,
-        event_producer: MultiProducerForEvent,
-        timeout: Duration,
-    ) -> Self {
+    pub fn new(stream: S, event_producer: MultiProducerForEvent, timeout: Duration) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         let bytes_writer = AsyncBytesWriter::new(Arc::clone(&net_io));
 
+        //only used for init,since I don't found a better way to deal with this.
+        let (init_producer, init_consumer) = broadcast::channel(1);
+
         Self {
-            app_name,
+            app_name: String::from(""),
 
             io: Arc::clone(&net_io),
             handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
@@ -101,8 +100,8 @@ where
             state: ServerSessionState::Handshake,
 
             event_producer,
-            data_producer: None,
-            data_consumer: None,
+            data_producer: init_producer,
+            data_consumer: init_consumer,
         }
     }
 
@@ -142,47 +141,30 @@ where
                         _ => {}
                     }
                 }
+
                 //when in play state, only transfer publisher's video/audio/metadta to player.
-                ServerSessionState::Play => {
-                    let receiver = match self.data_consumer.as_mut() {
-                        Some(val) => val,
-                        None => {
-                            return Err(SessionError {
-                                value: SessionErrorValue::NoneChannelDataReceiver,
-                            })
-                        }
-                    };
+                ServerSessionState::Play => loop {
+                    let data = self.data_consumer.recv().await;
 
-                    loop{
-                        let data =  receiver.recv().await;
-
-                        match data {
-                            Ok(val) =>{
-                                match val{
-                                    ChannelData::Audio{timestamp,data}=>{
-                                        
-                                        self.send_audio(data, timestamp).await?;
-
-                                    }
-                                    ChannelData::Video{timestamp,data}=>{
-                                        self.send_video(data, timestamp).await?;
-
-                                    }
-                                    ChannelData::MetaData{
-
-                                    }
-
-                                }
+                    match data {
+                        Ok(val) => match val {
+                            ChannelData::Audio { timestamp, data } => {
+                                self.send_audio(data, timestamp).await?;
                             }
-                            Err(err) =>{}
-                        }
+                            ChannelData::Video { timestamp, data } => {
+                                self.send_video(data, timestamp).await?;
+                            }
+                            ChannelData::MetaData {} => {}
+                        },
+                        Err(err) => {}
                     }
-                }
+                },
             }
         }
 
         //Ok(())
     }
+
     pub fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_set_chunk_size(CHUNK_SIZE)?;
@@ -330,6 +312,16 @@ where
             _ => &define::OBJENCODING_AMF0,
         };
 
+        let app_name = command_obj.get("app");
+        self.app_name = match app_name {
+            Some(Amf0ValueType::UTF8String(app)) => app.clone(),
+            _ => {
+                return Err(SessionError {
+                    value: SessionErrorValue::NoAppName,
+                });
+            }
+        };
+
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.connect_response(
             &transaction_id,
@@ -470,7 +462,6 @@ where
         event_messages.stream_is_record(stream_id.clone()).await?;
 
         self.subscribe_from_channels(stream_name.unwrap()).await?;
-
         self.state = ServerSessionState::Play;
 
         Ok(())
@@ -496,7 +487,7 @@ where
 
         match receiver.await {
             Ok(consumer) => {
-                self.data_consumer = Some(consumer);
+                self.data_consumer = consumer;
             }
             Err(_) => {}
         }
@@ -583,7 +574,7 @@ where
 
         match receiver.await {
             Ok(producer) => {
-                self.data_producer = Some(producer);
+                self.data_producer = producer;
             }
             Err(_) => {}
         }
@@ -599,14 +590,15 @@ where
             timestamp: timestamp.clone(),
             data: data.clone(),
         };
-        let _ = match self.data_producer.borrow_mut() {
-            Some(producer) => producer.send(data),
-            None => {
+
+        match self.data_producer.send(data) {
+            Ok(size) => {}
+            Err(_) => {
                 return Err(SessionError {
-                    value: SessionErrorValue::NoneChannelDataSender,
+                    value: SessionErrorValue::SendChannelDataErr,
                 })
             }
-        };
+        }
 
         Ok(())
     }
@@ -620,14 +612,15 @@ where
             timestamp: timestamp.clone(),
             data: data.clone(),
         };
-        let _ = match self.data_producer.borrow_mut() {
-            Some(producer) => producer.send(data),
-            None => {
+
+        match self.data_producer.send(data) {
+            Ok(size) => {}
+            Err(_) => {
                 return Err(SessionError {
-                    value: SessionErrorValue::NoneChannelDataSender,
+                    value: SessionErrorValue::SendChannelDataErr,
                 })
             }
-        };
+        }
 
         Ok(())
     }

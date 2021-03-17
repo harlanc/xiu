@@ -13,10 +13,10 @@ async fn main() -> Result<()> {
     let config = config::load();
     match config {
         Ok(val) => {
-            let rtmp_server = Service::new(val);
+            let mut rtmp_server = Service::new(val);
             rtmp_server.process_rtmp().await?;
         }
-        _ => Ok(()),
+        _ => (),
     }
     Ok(())
 }
@@ -30,7 +30,7 @@ impl Service {
         Service { cfg: cfg }
     }
     async fn process_rtmp(&mut self) -> Result<()> {
-        let channel = Channels::new();
+        let mut channel = Channels::new();
 
         let rtmp = &self.cfg.rtmp;
         match rtmp {
@@ -45,7 +45,7 @@ impl Service {
                     tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
 
                     let mut session =
-                        server_session::ServerSession::new(tcp_stream, Duration::from_secs(30));
+                        server_session::ServerSession::new(tcp_stream, channel.get_event_producer(),Duration::from_secs(30));
                     tokio::spawn(async move { if let Err(err) = session.run().await {} });
                 }
             }
