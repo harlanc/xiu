@@ -3,4 +3,5 @@ members = [
   "protocol/rtmp",
   "library/netio",
   "application",
+  "codec/flv",
 ]

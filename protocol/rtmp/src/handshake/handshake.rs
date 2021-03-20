@@ -532,21 +532,18 @@ where
                     self.read_c1()?;
                     self.state = ServerHandshakeState::WriteS0S1S2;
                 }
-
                 ServerHandshakeState::WriteS0S1S2 => {
                     self.write_s0()?;
                     self.write_s1()?;
                     self.write_s2()?;
                     self.flush().await?;
-
                     self.state = ServerHandshakeState::ReadC2;
+                    break;
                 }
-
                 ServerHandshakeState::ReadC2 => {
                     self.read_c2()?;
                     self.state = ServerHandshakeState::Finish;
                 }
-
                 ServerHandshakeState::Finish => {
                     break;
                 }

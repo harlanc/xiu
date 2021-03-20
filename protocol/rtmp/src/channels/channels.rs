@@ -15,7 +15,7 @@ use tokio::sync::RwLock;
 
 pub struct Channels {
     streams: HashMap<String, HashMap<String, SingleProducerForData>>,
-    //event is consumed in Channels
+    //event is consumed in Channels, produced from other rtmp sessions
     event_consumer: SingleConsumerForEvent,
     //event is produced from other rtmp sessions
     event_producer: MultiProducerForEvent,
