@@ -2,12 +2,22 @@ use super::netio_errors::NetIOError;
 use std::io;
 use tokio::time::Elapsed;
 
+use failure::{Backtrace, Fail};
+use std::fmt;
+
+#[derive(Debug, Fail)]
 pub enum BytesReadErrorValue {
+    #[fail(display = "not enough bytes")]
     NotEnoughBytes,
+    #[fail(display = "empty stream")]
     EmptyStream,
-    IO(io::Error),
-    TimeoutError(Elapsed),
+    #[fail(display = "io error: {}", _0)]
+    IO(#[cause] io::Error),
+    #[fail(display = "elapsed: {}", _0)]
+    TimeoutError(#[cause] Elapsed),
 }
+
+#[derive(Debug)]
 pub struct BytesReadError {
     pub value: BytesReadErrorValue,
 }
@@ -34,12 +44,16 @@ impl From<Elapsed> for BytesReadError {
     }
 }
 
+#[derive(Debug)]
 pub struct BytesWriteError {
     pub value: BytesWriteErrorValue,
 }
 
+#[derive(Debug, Fail)]
 pub enum BytesWriteErrorValue {
+    #[fail(display = "io error")]
     IO(io::Error),
+    #[fail(display = "not enough bytes")]
     NetIOError(NetIOError),
 }
 
@@ -56,5 +70,37 @@ impl From<NetIOError> for BytesWriteError {
         BytesWriteError {
             value: BytesWriteErrorValue::NetIOError(error),
         }
+    }
+}
+
+impl fmt::Display for BytesReadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for BytesReadError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
+impl fmt::Display for BytesWriteError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for BytesWriteError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }

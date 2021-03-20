@@ -100,4 +100,8 @@ impl BytesReader {
 
         Ok(val)
     }
+
+    pub fn length(&mut self) -> usize {
+        return self.buffer.len();
+    }
 }

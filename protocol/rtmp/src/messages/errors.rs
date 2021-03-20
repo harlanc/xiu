@@ -2,15 +2,24 @@ use crate::amf0::errors::Amf0ReadError;
 use crate::protocol_control_messages::errors::ProtocolControlMessageReaderError;
 use netio::bytes_errors::BytesReadError;
 
+use failure::{Backtrace, Fail};
+use std::fmt;
+
+#[derive(Debug, Fail)]
 pub enum MessageErrorValue {
+    #[fail(display = "bytes read error: {}", _0)]
     BytesReadError(BytesReadError),
+    #[fail(display = "unknow read state")]
     UnknowReadState,
+    #[fail(display = "amf0 read error: {}", _0)]
     Amf0ReadError(Amf0ReadError),
+    #[fail(display = "unknown message type")]
     UnknowMessageType,
+    #[fail(display = "protocol control message read error: {}", _0)]
     ProtocolControlMessageReaderError(ProtocolControlMessageReaderError),
-    //IO(io::Error),
 }
 
+#[derive(Debug)]
 pub struct MessageError {
     pub value: MessageErrorValue,
 }
@@ -42,5 +51,21 @@ impl From<ProtocolControlMessageReaderError> for MessageError {
         MessageError {
             value: MessageErrorValue::ProtocolControlMessageReaderError(error),
         }
+    }
+}
+
+impl fmt::Display for MessageError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for MessageError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }

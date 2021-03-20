@@ -2,38 +2,25 @@ use std::{io, string};
 
 use netio::bytes_errors::{BytesReadError, BytesWriteError};
 
-//#[derive(Debug, Fail)]
+use failure::{Backtrace, Fail};
+use std::fmt;
+
+#[derive(Debug, Fail)]
 pub enum Amf0ReadErrorValue {
-    //#[fail(display = "Encountered unknown marker: {}", marker)]
+    #[fail(display = "Encountered unknown marker: {}", marker)]
     UnknownMarker { marker: u8 },
-
-    //#[fail(display = "Unexpected empty object property name")]
-    UnexpectedEmptyObjectPropertyName,
-
-    //#[fail(display = "Hit end of the byte buffer but was expecting more data")]
-    UnexpectedEof,
-
-    //#[fail(display = "Failed to read byte buffer: {}", _0)]
-    //BufferReadError(#[cause] io::Error),
-
-    //#[fail(display = "Failed to read a utf8 string from the byte buffer: {}", _0)]
-    StringParseError(string::FromUtf8Error),
-
-    //#[fail(display = "Failed to read a utf8 string from the byte buffer: {}", _0)]
+    #[fail(display = "parser string error: {}", _0)]
+    StringParseError(#[cause] string::FromUtf8Error),
+    #[fail(display = "bytes read error :{}", _0)]
     BytesReadError(BytesReadError),
+    #[fail(display = "wrong type")]
     WrongType,
 }
 
+#[derive(Debug)]
 pub struct Amf0ReadError {
     pub value: Amf0ReadErrorValue,
 }
-
-// Since an IO error can only be thrown while reading the buffer, auto-conversion should work
-// impl From<io::Error> for Amf0ReadError {
-//     fn from(error: io::Error) -> Self {
-//         Amf0ReadError::BufferReadError(error)
-//     }
-// }
 
 impl From<string::FromUtf8Error> for Amf0ReadError {
     fn from(error: string::FromUtf8Error) -> Self {
@@ -51,22 +38,17 @@ impl From<BytesReadError> for Amf0ReadError {
     }
 }
 
-// impl From<u8> for Amf0ReadError {
-//     fn from(error: u8) -> Self {
-//         Amf0ReadError {
-//             value: Amf0ReadErrorValue::UnknownMarker(error),
-//         }
-//     }
-// }
-
-/// Errors raised during to the serialization process
-
+#[derive(Debug, Fail)]
 pub enum Amf0WriteErrorValue {
+    #[fail(display = "normal string too long")]
     NormalStringTooLong,
+    #[fail(display = "io error")]
     BufferWriteError(io::Error),
+    #[fail(display = "bytes write error")]
     BytesWriteError(BytesWriteError),
 }
 
+#[derive(Debug)]
 pub struct Amf0WriteError {
     pub value: Amf0WriteErrorValue,
 }
@@ -84,5 +66,37 @@ impl From<BytesWriteError> for Amf0WriteError {
         Amf0WriteError {
             value: Amf0WriteErrorValue::BytesWriteError(error),
         }
+    }
+}
+
+impl fmt::Display for Amf0ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for Amf0ReadError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
+impl fmt::Display for Amf0WriteError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for Amf0WriteError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }

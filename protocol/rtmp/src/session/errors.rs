@@ -13,31 +13,58 @@ use netio::netio_errors::NetIOError;
 
 use tokio::time::Elapsed;
 
+use failure::{Backtrace, Fail};
+use std::fmt;
+
+#[derive(Debug)]
 pub struct SessionError {
     pub value: SessionErrorValue,
 }
 
+#[derive(Debug, Fail)]
 pub enum SessionErrorValue {
-    Amf0WriteError(Amf0WriteError),
-    BytesWriteError(BytesWriteError),
-    TimeoutError(Elapsed),
-    UnPackError(UnpackError),
-    MessageError(MessageError),
-    ControlMessagesError(ControlMessagesError),
-    NetConnectionError(NetConnectionError),
-    NetStreamError(NetStreamError),
-    EventMessagesError(EventMessagesError),
-    NetIOError(NetIOError),
-    PackError(PackError),
-    HandshakeError(HandshakeError),
+    #[fail(display = "amf0 write error: {}", _0)]
+    Amf0WriteError(#[cause] Amf0WriteError),
+    #[fail(display = "bytes write error: {}", _0)]
+    BytesWriteError(#[cause] BytesWriteError),
+    #[fail(display = "timeout error: {}", _0)]
+    TimeoutError(#[cause] Elapsed),
+    #[fail(display = "unpack error: {}", _0)]
+    UnPackError(#[cause] UnpackError),
 
+
+    #[fail(display = "message error: {}", _0)]
+    MessageError(#[cause] MessageError),
+    #[fail(display = "control message error: {}", _0)]
+    ControlMessagesError(#[cause] ControlMessagesError),
+    #[fail(display = "net connection error: {}", _0)]
+    NetConnectionError(#[cause] NetConnectionError),
+    #[fail(display = "net stream error: {}", _0)]
+    NetStreamError(#[cause] NetStreamError),
+
+    #[fail(display = "event messages error: {}", _0)]
+    EventMessagesError(#[cause] EventMessagesError),
+    #[fail(display = "net io error: {}", _0)]
+    NetIOError(#[cause] NetIOError),
+    #[fail(display = "pack error: {}", _0)]
+    PackError(#[cause] PackError),
+    #[fail(display = "handshake error: {}", _0)]
+    HandshakeError(#[cause] HandshakeError),
+
+    #[fail(display = "amf0 count not correct error")]
     Amf0ValueCountNotCorrect,
+    #[fail(display = "amf0 value type not correct error")]
     Amf0ValueTypeNotCorrect,
+    #[fail(display = "channel event send error")]
     ChannelEventSendErr,
+    #[fail(display = "none channel data sender error")]
     NoneChannelDataSender,
+    #[fail(display = "none channel data receiver error")]
     NoneChannelDataReceiver,
+    #[fail(display = "send channel data error")]
     SendChannelDataErr,
 
+    #[fail(display = "no app name error")]
     NoAppName,
 }
 
@@ -134,5 +161,21 @@ impl From<HandshakeError> for SessionError {
         SessionError {
             value: SessionErrorValue::HandshakeError(error),
         }
+    }
+}
+
+impl fmt::Display for SessionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for SessionError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }

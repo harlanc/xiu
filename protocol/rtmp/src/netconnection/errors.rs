@@ -1,12 +1,19 @@
 use crate::amf0::errors::Amf0ReadError;
 use crate::amf0::errors::Amf0WriteError;
 
+use failure::{Backtrace, Fail};
+use std::fmt;
+
+
+#[derive(Debug)]
 pub struct NetConnectionError {
     pub value: NetConnectionErrorValue,
 }
-
+#[derive(Debug, Fail)]
 pub enum NetConnectionErrorValue {
+    #[fail(display = "amf0 write error: {}", _0)]
     Amf0WriteError(Amf0WriteError),
+    #[fail(display = "amf0 read error: {}", _0)]
     Amf0ReadError(Amf0ReadError),
 }
 
@@ -25,3 +32,20 @@ impl From<Amf0ReadError> for NetConnectionError {
         }
     }
 }
+
+impl fmt::Display for NetConnectionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for NetConnectionError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
