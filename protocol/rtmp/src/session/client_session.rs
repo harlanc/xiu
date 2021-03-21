@@ -141,7 +141,7 @@ where
                     let mut message_parser = MessageParser::new(chunk_info);
                     let mut msg = message_parser.parse()?;
 
-                    self.process_messages(&mut msg)?;
+                    self.process_messages(&mut msg).await?;
                 }
                 _ => {}
             }
@@ -165,7 +165,7 @@ where
         Ok(())
     }
 
-    pub fn process_messages(&mut self, msg: &mut RtmpMessageData) -> Result<(), SessionError> {
+    pub async fn process_messages(&mut self, msg: &mut RtmpMessageData) -> Result<(), SessionError> {
         match msg {
             RtmpMessageData::Amf0Command {
                 command_name,
@@ -178,7 +178,7 @@ where
                 command_object,
                 others,
             )?,
-            RtmpMessageData::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth()?,
+            RtmpMessageData::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth().await?,
             RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
             RtmpMessageData::AudioData { data } => {}
             RtmpMessageData::VideoData { data } => {}
@@ -353,18 +353,20 @@ where
         Ok(())
     }
 
-    pub fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
+    pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        controlmessage.write_set_chunk_size(CHUNK_SIZE)?;
+        controlmessage.write_set_chunk_size(CHUNK_SIZE).await?;
         Ok(())
     }
 
-    pub fn send_window_acknowledgement_size(
+    pub async fn send_window_acknowledgement_size(
         &mut self,
         window_size: u32,
     ) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        controlmessage.write_window_acknowledgement_size(window_size)?;
+        controlmessage
+            .write_window_acknowledgement_size(window_size)
+            .await?;
         Ok(())
     }
 
@@ -434,8 +436,8 @@ where
         Ok(())
     }
 
-    pub fn on_set_peer_bandwidth(&mut self) -> Result<(), SessionError> {
-        self.send_window_acknowledgement_size(250000)?;
+    pub async fn on_set_peer_bandwidth(&mut self) -> Result<(), SessionError> {
+        self.send_window_acknowledgement_size(250000).await?;
         Ok(())
     }
     pub fn on_error(&mut self) -> Result<(), SessionError> {

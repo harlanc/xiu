@@ -1,15 +1,18 @@
 use byteorder::{BigEndian, LittleEndian};
 
-use super::chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 use super::errors::PackError;
+use super::{
+    chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
+    define::CHUNK_SIZE,
+};
 use netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
 
-use tokio::prelude::*;
 use std::sync::Arc;
+use tokio::prelude::*;
 
-use tokio::sync::Mutex;
 use netio::netio::NetworkIO;
+use tokio::sync::Mutex;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum PackResult {
@@ -38,8 +41,8 @@ where
         Self {
             csid_2_chunk_header: HashMap::new(),
             //chunk_info: ChunkInfo::new(),
-            writer:    AsyncBytesWriter::new(io),
-            max_chunk_size: 0,
+            writer: AsyncBytesWriter::new(io),
+            max_chunk_size: CHUNK_SIZE as usize,
         }
     }
     fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
@@ -105,6 +108,7 @@ where
                 self.writer.write_u24::<BigEndian>(timestamp)?;
                 self.writer
                     .write_u24::<BigEndian>(message_header.msg_length)?;
+                self.writer.write_u8(message_header.msg_type_id)?;
                 self.writer
                     .write_u32::<LittleEndian>(message_header.msg_streamd_id)?;
             }

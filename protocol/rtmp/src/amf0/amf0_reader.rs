@@ -37,6 +37,9 @@ impl Amf0Reader {
         Ok(results)
     }
     pub fn read_any(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
+        if self.reader.len() == 0 {
+            return Ok(Amf0ValueType::END);
+        }
         let markers = self.reader.read_u8()?;
 
         if markers == amf0_markers::OBJECT_END {
@@ -104,7 +107,8 @@ impl Amf0Reader {
 
     pub fn is_read_object_eof(&mut self) -> Result<bool, Amf0ReadError> {
         let marker = self.reader.advance_u24::<BigEndian>()?;
-        if marker == 0x09 {
+        if marker == amf0_markers::OBJECT_END as u32 {
+            self.reader.read_u24::<BigEndian>()?;
             return Ok(true);
         }
         Ok(false)
@@ -227,10 +231,8 @@ mod tests {
         );
         assert_eq!(command_obj_raw, Amf0ValueType::Object(properties));
 
-        let bytes = amf_reader.reader.get_remaining_bytes();
+        let others = amf_reader.read_all();
 
-        format!("{}","we");
-
-         let others = amf_reader.read_all().unwrap();
+        print!("test")
     }
 }

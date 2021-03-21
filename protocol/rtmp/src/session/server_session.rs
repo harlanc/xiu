@@ -202,9 +202,9 @@ where
         //Ok(())
     }
 
-    pub fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
+    pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
         let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        controlmessage.write_set_chunk_size(CHUNK_SIZE)?;
+        controlmessage.write_set_chunk_size(CHUNK_SIZE).await?;
 
         Ok(())
     }
@@ -336,12 +336,12 @@ where
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
         let mut control_message = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)?;
+        control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE).await?;
         control_message.write_set_peer_bandwidth(
             define::PEER_BANDWIDTH,
             define::PeerBandWidthLimitType::DYNAMIC,
-        )?;
-        control_message.write_set_chunk_size(CHUNK_SIZE)?;
+        ).await?;
+        control_message.write_set_chunk_size(CHUNK_SIZE).await?;
 
         let obj_encoding = command_obj.get("objectEncoding");
         let encoding = match obj_encoding {

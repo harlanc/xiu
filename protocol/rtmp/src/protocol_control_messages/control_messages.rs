@@ -32,29 +32,32 @@ where
         // 0x0     0x02
         self.writer.write_u8(0x0 << 6 | 0x02)?; //fmt 0 and csid 2
         self.writer.write_u24::<BigEndian>(0)?; //timestamp 3 bytes and value 0
-        self.writer.write_u32::<BigEndian>(len)?; //msg length
+        self.writer.write_u24::<BigEndian>(len)?; //msg length
         self.writer.write_u8(msg_type_id)?; //msg type id
         self.writer.write_u32::<BigEndian>(0)?; //msg stream ID 0
 
         Ok(())
     }
-    pub fn write_set_chunk_size(&mut self, chunk_size: u32) -> Result<(), ControlMessagesError> {
+    pub async fn write_set_chunk_size(
+        &mut self,
+        chunk_size: u32,
+    ) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_type_id::SET_CHUNK_SIZE, 4)?;
         self.writer
             .write_u32::<BigEndian>(chunk_size & 0x7FFFFFFF)?; //first bit must be 0
 
-        self.writer.flush();
+        self.writer.flush().await?;
         Ok(())
     }
 
-    pub fn write_abort_message(
+    pub async fn write_abort_message(
         &mut self,
         chunk_stream_id: u32,
     ) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_type_id::ABORT, 4)?;
         self.writer.write_u32::<BigEndian>(chunk_stream_id)?;
 
-        self.writer.flush();
+        self.writer.flush().await?;
         Ok(())
     }
 
@@ -65,22 +68,22 @@ where
         self.write_control_message_header(msg_type_id::ACKNOWLEDGEMENT, 4)?;
         self.writer.write_u32::<BigEndian>(sequence_number)?;
 
-        self.writer.flush();
+        self.writer.flush().await?;
         Ok(())
     }
 
-    pub fn write_window_acknowledgement_size(
+    pub async fn write_window_acknowledgement_size(
         &mut self,
         window_size: u32,
     ) -> Result<(), ControlMessagesError> {
         self.write_control_message_header(msg_type_id::WIN_ACKNOWLEDGEMENT_SIZE, 4)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
 
-        self.writer.flush();
+        self.writer.flush().await?;
         Ok(())
     }
 
-    pub fn write_set_peer_bandwidth(
+    pub async fn write_set_peer_bandwidth(
         &mut self,
         window_size: u32,
         limit_type: u8,
@@ -89,8 +92,28 @@ where
         self.writer.write_u32::<BigEndian>(window_size)?;
         self.writer.write_u8(limit_type)?;
 
-        self.writer.flush();
+        self.writer.flush().await?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::ControlMessages;
+    use bytes::BytesMut;
+    use netio::bytes_writer::AsyncBytesWriter;
+    use netio::netio::NetworkIO;
+    use std::net::TcpStream;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    #[test]
+    fn test_write_set_chunk_size() {
+
+        // let stream = TcpStream:
+        // let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, 10)));
+        // let writer = AsyncBytesWriter::new(io)
     }
 }
