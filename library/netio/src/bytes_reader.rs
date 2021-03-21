@@ -21,6 +21,7 @@ impl BytesReader {
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
         self.buffer.extend_from_slice(extend)
     }
+
     pub fn read_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, BytesReadError> {
         if self.buffer.len() < bytes_num {
             return Err(BytesReadError {
@@ -101,7 +102,75 @@ impl BytesReader {
         Ok(val)
     }
 
-    pub fn length(&mut self) -> usize {
+    pub fn len(&mut self) -> usize {
         return self.buffer.len();
+    }
+
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        return self.buffer.clone();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::BytesReader;
+    use bytes::BytesMut;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_rc_refcell() {
+        let reader = Rc::new(RefCell::new(BytesReader::new(BytesMut::new())));
+        let xs: [u8; 3] = [1, 2, 3];
+        reader.borrow_mut().extend_from_slice(&xs[..]);
+
+        let mut rv = reader.borrow_mut().read_u8().unwrap();
+        assert_eq!(rv, 1, "Incorrect value");
+
+        rv = reader.borrow_mut().read_u8().unwrap();
+        assert_eq!(rv, 2, "Incorrect value");
+
+        rv = reader.borrow_mut().read_u8().unwrap();
+        assert_eq!(rv, 3, "Incorrect value");
+    }
+
+    struct RefStruct {
+        pub reader: Rc<RefCell<BytesReader>>,
+    }
+
+    impl RefStruct {
+        pub fn new(reader: Rc<RefCell<BytesReader>>) -> Self {
+            Self { reader: reader }
+        }
+
+        pub fn read_u8(&mut self) -> u8 {
+            return self.reader.borrow_mut().read_u8().unwrap();
+        }
+
+        pub fn extend_from_slice(&mut self, data: &[u8]) {
+            self.reader.borrow_mut().extend_from_slice(data);
+        }
+    }
+
+    #[test]
+    fn test_struct_rc_refcell() {
+        let reader = Rc::new(RefCell::new(BytesReader::new(BytesMut::new())));
+
+        let mut ref_struct = RefStruct::new(reader);
+
+        let xs: [u8; 3] = [1, 2, 3];
+        ref_struct.extend_from_slice(&xs);
+
+        let mut reader = ref_struct.reader.borrow_mut();
+
+        let mut rv = reader.read_u8().unwrap();
+        assert_eq!(rv, 1, "Incorrect value");
+
+        rv = reader.read_u8().unwrap();
+        assert_eq!(rv, 2, "Incorrect value");
+
+        rv = reader.read_u8().unwrap();
+        assert_eq!(rv, 3, "Incorrect value");
     }
 }

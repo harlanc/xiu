@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 
 //5.3.1.1
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ChunkBasicHeader {
     pub format: u8,
     pub chunk_stream_id: u32,
@@ -60,7 +60,7 @@ pub struct Chunk {
     raw_data: BytesMut,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ChunkInfo {
     pub basic_header: ChunkBasicHeader,
     pub message_header: ChunkMessageHeader,

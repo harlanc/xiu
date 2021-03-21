@@ -1,5 +1,5 @@
-use std::{ collections::HashMap};
-#[derive(Clone)]
+use std::collections::HashMap;
+#[derive(PartialEq, Clone, Debug)]
 pub enum Amf0ValueType {
     Number(f64),
     Boolean(bool),

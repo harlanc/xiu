@@ -6,7 +6,7 @@ use rand;
 use rand::Rng;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::io::Write;
+use std::{io::Write, ops::Deref};
 
 use netio::{
     //bytes_reader::NetworkReader,
@@ -19,7 +19,10 @@ use tokio::prelude::*;
 
 use std::time::SystemTime;
 
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
 use std::sync::Arc;
+
 use tokio::sync::Mutex;
 
 const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
@@ -61,7 +64,7 @@ pub enum ClientHandshakeState {
     Finish,
 }
 
-enum ServerHandshakeState {
+pub enum ServerHandshakeState {
     ReadC0C1,
     WriteS0S1S2,
     ReadC2,
@@ -462,7 +465,7 @@ where
     writer: AsyncBytesWriter<S>,
     c1_bytes: BytesMut,
     c1_timestamp: u32,
-    state: ServerHandshakeState,
+    pub state: ServerHandshakeState,
 }
 
 impl<S> SimpleHandshakeServer<S>
@@ -478,15 +481,16 @@ where
             state: ServerHandshakeState::ReadC0C1,
         }
     }
+
     fn read_c0(&mut self) -> Result<(), HandshakeError> {
         self.reader.read_u8()?;
         Ok(())
     }
 
     fn read_c1(&mut self) -> Result<(), HandshakeError> {
-        self.c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
-        let buffer = self.c1_bytes.clone();
-        let mut reader = BytesReader::new(buffer);
+        let c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        self.c1_bytes = c1_bytes.clone();
+        let mut reader = BytesReader::new(c1_bytes);
         self.c1_timestamp = reader.read_u32::<BigEndian>()?;
 
         Ok(())
@@ -551,6 +555,10 @@ where
         }
 
         Ok(())
+    }
+
+    pub fn get_remaining_bytes(&mut self) ->BytesMut{
+        return self.reader.get_remaining_bytes();
     }
 }
 

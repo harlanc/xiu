@@ -2,13 +2,18 @@ use byteorder::BigEndian;
 
 use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
-use super::chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader};
 use super::errors::UnpackError;
 use super::errors::UnpackErrorValue;
+use super::{
+    chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader},
+    define::CHUNK_SIZE,
+};
 use netio::bytes_reader::BytesReader;
-use std::cmp::min;
+use std::{borrow::BorrowMut, cmp::min};
 
+use std::cell::{RefCell, RefMut};
 use std::mem;
+use std::rc::Rc;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {
@@ -17,6 +22,7 @@ pub enum UnpackResult {
     ChunkInfo(ChunkInfo),
     Success,
     NotEnoughBytes,
+    Empty,
 }
 
 // impl From<IOReadErrorValue> for UnpackError {
@@ -33,10 +39,11 @@ enum ChunkReadState {
     ReadMessageHeader,
     ReadExtendedTimestamp,
     ReadMessagePayload,
+    Finish,
 }
 
 pub struct ChunkUnpacketizer {
-    buffer: BytesMut,
+    //buffer: BytesMut,
     pub reader: BytesReader,
     //reader :
     //: HashMap<u32, ChunkInfo>,
@@ -52,15 +59,20 @@ pub struct ChunkUnpacketizer {
 impl ChunkUnpacketizer {
     pub fn new() -> Self {
         Self {
-            buffer: BytesMut::new(),
+            //buffer: BytesMut::new(),
             reader: BytesReader::new(BytesMut::new()),
             current_chunk_info: ChunkInfo::default(),
             current_read_state: ChunkReadState::Init,
-            max_chunk_size: 0,
+            max_chunk_size: CHUNK_SIZE as usize,
         }
     }
+
+    // fn reader(&mut self) -> RefMut<BytesReader> {
+    //     return self.reader.borrow_mut();
+    // }
+
     pub fn extend_data(&mut self, data: &[u8]) {
-        self.buffer.extend_from_slice(data);
+        self.reader.extend_from_slice(data);
     }
 
     pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
@@ -78,12 +90,17 @@ impl ChunkUnpacketizer {
     pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
         self.current_read_state = ChunkReadState::ReadBasicHeader;
 
+        let mut result: UnpackResult = UnpackResult::Empty;
+
         loop {
-            match self.current_read_state {
+            result = match self.current_read_state {
                 ChunkReadState::ReadBasicHeader => self.read_basic_header()?,
                 ChunkReadState::ReadMessageHeader => self.read_message_header()?,
                 ChunkReadState::ReadExtendedTimestamp => self.read_extended_timestamp()?,
                 ChunkReadState::ReadMessagePayload => self.read_message_payload()?,
+                ChunkReadState::Finish => {
+                    break;
+                }
                 _ => {
                     return Err(UnpackError {
                         value: UnpackErrorValue::UnknowReadState,
@@ -91,6 +108,7 @@ impl ChunkUnpacketizer {
                 }
             };
         }
+        return Ok(result);
 
         // Ok(UnpackResult::Success)
     }
@@ -139,7 +157,7 @@ impl ChunkUnpacketizer {
      * Chunk stream IDs with values 64-319 could be represented by both 2-
      * byte version and 3-byte version of this field.
      ***********************************************************************/
-    #[allow(dead_code)]
+
     pub fn read_basic_header(&mut self) -> Result<UnpackResult, UnpackError> {
         let byte = self.reader.read_u8()?;
 
@@ -148,14 +166,14 @@ impl ChunkUnpacketizer {
 
         match csid {
             0 => {
-                if self.buffer.len() < 1 {
+                if self.reader.len() < 1 {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
                 csid += self.reader.read_u8()? as u32;
             }
             1 => {
-                if self.buffer.len() < 1 {
+                if self.reader.len() < 1 {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
@@ -204,7 +222,6 @@ impl ChunkUnpacketizer {
         &mut self.current_chunk_info.message_header
     }
 
-    #[allow(dead_code)]
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
         match self.current_chunk_info.basic_header.format {
             /*****************************************************************/
@@ -277,7 +294,7 @@ impl ChunkUnpacketizer {
 
         Ok(UnpackResult::Success)
     }
-    #[allow(dead_code)]
+
     pub fn read_extended_timestamp(&mut self) -> Result<UnpackResult, UnpackError> {
         let mut extended_timestamp: u32 = 0;
 
@@ -341,11 +358,109 @@ impl ChunkUnpacketizer {
 
         if self.current_chunk_info.payload.len() == whole_msg_length {
             let chunkinfo = mem::replace(&mut self.current_chunk_info, ChunkInfo::default());
+            self.current_read_state = ChunkReadState::Finish;
             return Ok(UnpackResult::ChunkInfo(chunkinfo));
         }
 
         self.current_read_state = ChunkReadState::ReadBasicHeader;
 
         Ok(UnpackResult::Success)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::ChunkInfo;
+    use super::ChunkUnpacketizer;
+    use super::UnpackResult;
+    use bytes::BytesMut;
+
+    #[test]
+    fn test_set_chunk_size() {
+        let mut unpacker = ChunkUnpacketizer::new();
+
+        let data: [u8; 16] = [
+            //
+            02, //|format+csid|
+            00, 00, 00, //timestamp
+            00, 00, 04, //msg_length
+            01, //msg_type_id
+            00, 00, 00, 00, //msg_stream_id
+            00, 00, 10, 00, //body
+        ];
+
+        unpacker.extend_data(&data[..]);
+
+        let rv = unpacker.read_chunk();
+
+        let mut body = BytesMut::new();
+        body.extend_from_slice(&[00, 00, 10, 00]);
+
+        let expected = ChunkInfo::new(2, 0, 0, 4, 1, 0, body);
+
+        assert_eq!(
+            rv.unwrap(),
+            UnpackResult::ChunkInfo(expected),
+            "not correct"
+        )
+    }
+
+    #[test]
+    fn test_on_connect() {
+        // 0000   03 00 00 00 00 00 b1 14 00 00 00 00 02 00 07 63  ...............c
+        // 0010   6f 6e 6e 65 63 74 00 3f f0 00 00 00 00 00 00 03  onnect.?........
+        // 0020   00 03 61 70 70 02 00 06 68 61 72 6c 61 6e 00 04  ..app...harlan..
+        // 0030   74 79 70 65 02 00 0a 6e 6f 6e 70 72 69 76 61 74  type...nonprivat
+        // 0040   65 00 08 66 6c 61 73 68 56 65 72 02 00 1f 46 4d  e..flashVer...FM
+        // 0050   4c 45 2f 33 2e 30 20 28 63 6f 6d 70 61 74 69 62  LE/3.0 (compatib
+        // 0060   6c 65 3b 20 46 4d 53 63 2f 31 2e 30 29 00 06 73  le; FMSc/1.0)..s
+        // 0070   77 66 55 72 6c 02 00 1c 72 74 6d 70 3a 2f 2f 6c  wfUrl...rtmp://l
+        // 0080   6f 63 61 6c 68 6f 73 74 3a 31 39 33 35 2f 68 61  ocalhost:1935/ha
+        // 0090   72 6c 61 6e 00 05 74 63 55 72 6c 02 00 1c 72 74  rlan..tcUrl...rt
+        // 00a0   6d 70 3a 2f 2f 6c 6f 63 61 6c 68 6f 73 74 3a 31  mp://localhost:1
+        // 00b0   39 33 35 2f 68 61 72 6c 61 6e 00 00 09           935/harlan...
+        let data: [u8; 189] = [
+            3, //|format+csid|
+            0, 0, 0, //timestamp
+            0, 0, 177, //msg_length
+            20,  //msg_type_id 0x14
+            0, 0, 0, 0, //msg_stream_id
+            2, 0, 7, 99, 111, 110, 110, 101, 99, 116, 0, 63, 240, 0, 0, 0, 0, 0, 0, //body
+            3, 0, 3, 97, 112, 112, 2, 0, 6, 104, 97, 114, 108, 97, 110, 0, 4, 116, 121, 112, 101,
+            2, 0, 10, 110, 111, 110, 112, 114, 105, 118, 97, 116, 101, 0, 8, 102, 108, 97, 115,
+            104, 86, 101, 114, 2, 0, 31, 70, 77, 76, 69, 47, 51, 46, 48, 32, 40, 99, 111, 109, 112,
+            97, 116, 105, 98, 108, 101, 59, 32, 70, 77, 83, 99, 47, 49, 46, 48, 41, 0, 6, 115, 119,
+            102, 85, 114, 108, 2, 0, 28, 114, 116, 109, 112, 58, 47, 47, 108, 111, 99, 97, 108,
+            104, 111, 115, 116, 58, 49, 57, 51, 53, 47, 104, 97, 114, 108, 97, 110, 0, 5, 116, 99,
+            85, 114, 108, 2, 0, 28, 114, 116, 109, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104,
+            111, 115, 116, 58, 49, 57, 51, 53, 47, 104, 97, 114, 108, 97, 110, 0, 0, 9,
+        ];
+
+        let mut unpacker = ChunkUnpacketizer::new();
+        unpacker.extend_data(&data[..]);
+
+        let rv = unpacker.read_chunk();
+
+        let mut body = BytesMut::new();
+        body.extend_from_slice(&[
+            2, 0, 7, 99, 111, 110, 110, 101, 99, 116, 0, 63, 240, 0, 0, 0, 0, 0, 0, //body
+            3, 0, 3, 97, 112, 112, 2, 0, 6, 104, 97, 114, 108, 97, 110, 0, 4, 116, 121, 112, 101,
+            2, 0, 10, 110, 111, 110, 112, 114, 105, 118, 97, 116, 101, 0, 8, 102, 108, 97, 115,
+            104, 86, 101, 114, 2, 0, 31, 70, 77, 76, 69, 47, 51, 46, 48, 32, 40, 99, 111, 109, 112,
+            97, 116, 105, 98, 108, 101, 59, 32, 70, 77, 83, 99, 47, 49, 46, 48, 41, 0, 6, 115, 119,
+            102, 85, 114, 108, 2, 0, 28, 114, 116, 109, 112, 58, 47, 47, 108, 111, 99, 97, 108,
+            104, 111, 115, 116, 58, 49, 57, 51, 53, 47, 104, 97, 114, 108, 97, 110, 0, 5, 116, 99,
+            85, 114, 108, 2, 0, 28, 114, 116, 109, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104,
+            111, 115, 116, 58, 49, 57, 51, 53, 47, 104, 97, 114, 108, 97, 110, 0, 0, 9,
+        ]);
+
+        let expected = ChunkInfo::new(3, 0, 0, 177, 20, 0, body);
+
+        assert_eq!(
+            rv.unwrap(),
+            UnpackResult::ChunkInfo(expected),
+            "not correct"
+        )
     }
 }

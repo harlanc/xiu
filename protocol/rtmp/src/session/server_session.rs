@@ -19,6 +19,7 @@ use crate::messages::define::RtmpMessageData;
 use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
 
+use netio::bytes_reader::BytesReader;
 use netio::bytes_writer::AsyncBytesWriter;
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
@@ -38,6 +39,8 @@ use std::collections::HashMap;
 
 use tokio::{prelude::*, sync::broadcast};
 
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
@@ -45,6 +48,12 @@ use tokio::sync::Mutex;
 use crate::channels::define::ChannelData;
 use crate::channels::errors::ChannelError;
 use crate::channels::errors::ChannelErrorValue;
+
+use crate::handshake::handshake::ServerHandshakeState;
+
+use crate::utils;
+use log::{debug, log, log_enabled, Level};
+use std::fmt;
 
 enum ServerSessionState {
     Handshake,
@@ -83,18 +92,16 @@ where
 {
     pub fn new(stream: S, event_producer: MultiProducerForEvent, timeout: Duration) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
-        let bytes_writer = AsyncBytesWriter::new(Arc::clone(&net_io));
-
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = broadcast::channel(1);
+        // let reader = BytesReader::new(BytesMut::new());
 
         Self {
             app_name: String::from(""),
 
             io: Arc::clone(&net_io),
             handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
-
-            packetizer: ChunkPacketizer::new(bytes_writer),
+            packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
             state: ServerSessionState::Handshake,
@@ -108,26 +115,56 @@ where
     pub async fn run(&mut self) -> Result<(), SessionError> {
         let duration = Duration::new(10, 10);
 
+        let mut remaining_bytes: BytesMut = BytesMut::new();
+        let mut net_io_data: BytesMut = BytesMut::new();
+
         loop {
-            let data = self.io.lock().await.read().await?;
+            if remaining_bytes.len() <= 0 {
+                net_io_data = self.io.lock().await.read().await?;
+            }
 
             match self.state {
                 ServerSessionState::Handshake => {
-                    self.handshaker.extend_data(&data[..]);
-                    let result = self.handshaker.handshake().await;
+                    utils::print::printu8(net_io_data.clone());
+                    self.handshaker.extend_data(&net_io_data[..]);
+                    self.handshaker.handshake().await?;
 
-                    match result {
-                        Ok(v) => {
+                    match self.handshaker.state {
+                        ServerHandshakeState::Finish => {
                             self.state = ServerSessionState::ReadChunk;
+                            remaining_bytes = self.handshaker.get_remaining_bytes();
                         }
-                        Err(e) => {}
+                        _ => continue,
                     }
+
+                    // match result {
+                    //     Ok(v) => {
+                    //         self.state = ServerSessionState::ReadChunk;
+                    //     }
+                    //     Err(e) => {}
+                    // }
                 }
                 ServerSessionState::ReadChunk => {
-                    self.unpacketizer.extend_data(&data[..]);
-                    let result = self.unpacketizer.read_chunk()?;
+                    utils::print::printu8(net_io_data.clone());
 
-                    match result {
+                    if remaining_bytes.len() > 0 {
+                        self.unpacketizer.extend_data(&remaining_bytes[..]);
+                    } else {
+                        self.unpacketizer.extend_data(&net_io_data[..]);
+                    }
+
+                    let result = self.unpacketizer.read_chunk();
+
+                    let rv = match result {
+                        Ok(val) => val,
+                        Err(err) => {
+                            return Err(SessionError {
+                                value: SessionErrorValue::UnPackError(err),
+                            })
+                        }
+                    };
+
+                    match rv {
                         UnpackResult::ChunkInfo(chunk_info) => {
                             let msg_stream_id = chunk_info.message_header.msg_streamd_id;
                             let timestamp = chunk_info.message_header.timestamp;

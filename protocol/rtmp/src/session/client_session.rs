@@ -16,6 +16,7 @@ use crate::amf0::Amf0ValueType;
 
 use netio::bytes_writer::AsyncBytesWriter;
 
+use netio::bytes_reader::BytesReader;
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
 
@@ -37,6 +38,9 @@ use tokio::prelude::*;
 use bytes::BytesMut;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+use std::cell::{RefCell, RefMut};
+use std::rc::Rc;
 
 enum ClientSessionState {
     Handshake,
@@ -86,12 +90,13 @@ where
 {
     fn new(stream: S, timeout: Duration, client_type: ClientType, stream_name: String) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
-        let bytes_writer = AsyncBytesWriter::new(Arc::clone(&net_io));
+
+        // let reader = BytesReader::new(BytesMut::new());
 
         Self {
             io: Arc::clone(&net_io),
 
-            packetizer: ChunkPacketizer::new(bytes_writer),
+            packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
 
@@ -363,7 +368,11 @@ where
         Ok(())
     }
 
-    pub async fn send_set_buffer_length(&mut self, stream_id: u32, ms: u32) -> Result<(), SessionError> {
+    pub async fn send_set_buffer_length(
+        &mut self,
+        stream_id: u32,
+        ms: u32,
+    ) -> Result<(), SessionError> {
         let mut eventmessages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
         eventmessages.set_buffer_length(stream_id, ms).await?;
 

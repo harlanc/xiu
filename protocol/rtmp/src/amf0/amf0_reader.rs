@@ -47,7 +47,7 @@ impl Amf0Reader {
             amf0_markers::NUMBER => self.read_number(),
             amf0_markers::BOOLEAN => self.read_bool(),
             amf0_markers::STRING => self.read_string(),
-            amf0_markers::OBJECT_END => self.read_object(),
+            amf0_markers::OBJECT => self.read_object(),
             amf0_markers::NULL => self.read_null(),
             amf0_markers::ECMA_ARRAY => self.read_ecma_array(),
             amf0_markers::LONG_STRING => self.read_long_string(),
@@ -159,7 +159,6 @@ impl Amf0Reader {
 mod tests {
 
     #[test]
-
     fn test_byte_order() {
         use byteorder::{BigEndian, ByteOrder};
 
@@ -168,5 +167,70 @@ mod tests {
         BigEndian::write_f64(&mut buf, phi);
         assert_eq!(phi, BigEndian::read_f64(&buf));
         println!("tsetstt")
+    }
+
+    use super::amf0_markers;
+    use super::Amf0Reader;
+    use super::Amf0ValueType;
+    use bytes::BytesMut;
+    use netio::bytes_reader::BytesReader;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_amf_reader() {
+        let data: [u8; 177] = [
+            2, 0, 7, 99, 111, 110, 110, 101, 99, 116, 0, 63, 240, 0, 0, 0, 0, 0, 0, //body
+            3, 0, 3, 97, 112, 112, 2, 0, 6, 104, 97, 114, 108, 97, 110, 0, 4, 116, 121, 112, 101,
+            2, 0, 10, 110, 111, 110, 112, 114, 105, 118, 97, 116, 101, 0, 8, 102, 108, 97, 115,
+            104, 86, 101, 114, 2, 0, 31, 70, 77, 76, 69, 47, 51, 46, 48, 32, 40, 99, 111, 109, 112,
+            97, 116, 105, 98, 108, 101, 59, 32, 70, 77, 83, 99, 47, 49, 46, 48, 41, 0, 6, 115, 119,
+            102, 85, 114, 108, 2, 0, 28, 114, 116, 109, 112, 58, 47, 47, 108, 111, 99, 97, 108,
+            104, 111, 115, 116, 58, 49, 57, 51, 53, 47, 104, 97, 114, 108, 97, 110, 0, 5, 116, 99,
+            85, 114, 108, 2, 0, 28, 114, 116, 109, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104,
+            111, 115, 116, 58, 49, 57, 51, 53, 47, 104, 97, 114, 108, 97, 110, 0, 0, 9,
+        ];
+
+        let mut bytes_reader = BytesReader::new(BytesMut::new());
+        bytes_reader.extend_from_slice(&data);
+        let mut amf_reader = Amf0Reader::new(bytes_reader);
+
+        let command_name = amf_reader.read_with_type(amf0_markers::STRING).unwrap();
+        assert_eq!(
+            command_name,
+            Amf0ValueType::UTF8String(String::from("connect"))
+        );
+
+        let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER).unwrap();
+        assert_eq!(transaction_id, Amf0ValueType::Number(1.0));
+
+        let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT).unwrap();
+        let mut properties = HashMap::new();
+        properties.insert(
+            String::from("app"),
+            Amf0ValueType::UTF8String(String::from("harlan")),
+        );
+        properties.insert(
+            String::from("type"),
+            Amf0ValueType::UTF8String(String::from("nonprivate")),
+        );
+        properties.insert(
+            String::from("flashVer"),
+            Amf0ValueType::UTF8String(String::from("FMLE/3.0 (compatible; FMSc/1.0)")),
+        );
+        properties.insert(
+            String::from("swfUrl"),
+            Amf0ValueType::UTF8String(String::from("rtmp://localhost:1935/harlan")),
+        );
+        properties.insert(
+            String::from("tcUrl"),
+            Amf0ValueType::UTF8String(String::from("rtmp://localhost:1935/harlan")),
+        );
+        assert_eq!(command_obj_raw, Amf0ValueType::Object(properties));
+
+        let bytes = amf_reader.reader.get_remaining_bytes();
+
+        format!("{}","we");
+
+         let others = amf_reader.read_all().unwrap();
     }
 }

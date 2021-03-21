@@ -6,6 +6,10 @@ use netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
 
 use tokio::prelude::*;
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+use netio::netio::NetworkIO;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum PackResult {
@@ -30,11 +34,11 @@ impl<S> ChunkPacketizer<S>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
 {
-    pub fn new(io_writer: AsyncBytesWriter<S>) -> Self {
+    pub fn new(io: Arc<Mutex<NetworkIO<S>>>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
             //chunk_info: ChunkInfo::new(),
-            writer: io_writer,
+            writer:    AsyncBytesWriter::new(io),
             max_chunk_size: 0,
         }
     }
