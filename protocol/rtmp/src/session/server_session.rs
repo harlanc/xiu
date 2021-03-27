@@ -136,44 +136,41 @@ where
                         }
                         _ => continue,
                     }
-
-                    // match result {
-                    //     Ok(v) => {
-                    //         self.state = ServerSessionState::ReadChunk;
-                    //     }
-                    //     Err(e) => {}
-                    // }
                 }
                 ServerSessionState::ReadChunk => {
                     utils::print::printu8(net_io_data.clone());
 
                     if remaining_bytes.len() > 0 {
-                        self.unpacketizer.extend_data(&remaining_bytes[..]);
+                        let bytes = std::mem::replace(&mut remaining_bytes, BytesMut::new());
+                        self.unpacketizer.extend_data(&bytes[..]);
                     } else {
                         self.unpacketizer.extend_data(&net_io_data[..]);
                     }
 
-                    let result = self.unpacketizer.read_chunk();
+                    let result = self.unpacketizer.read_chunks();
 
                     let rv = match result {
                         Ok(val) => val,
                         Err(err) => {
-                            return Err(SessionError {
-                                value: SessionErrorValue::UnPackError(err),
-                            })
+                            // return Err(SessionError {
+                            //     value: SessionErrorValue::UnPackError(err),
+                            // })
+                            continue;
                         }
                     };
 
                     match rv {
-                        UnpackResult::ChunkInfo(chunk_info) => {
-                            let msg_stream_id = chunk_info.message_header.msg_streamd_id;
-                            let timestamp = chunk_info.message_header.timestamp;
+                        UnpackResult::Chunks(chunks) => {
+                            for chunk_info in chunks.iter() {
+                                let msg_stream_id = chunk_info.message_header.msg_streamd_id;
+                                let timestamp = chunk_info.message_header.timestamp;
 
-                            let mut message_parser = MessageParser::new(chunk_info);
-                            let mut msg = message_parser.parse()?;
+                                let mut message_parser = MessageParser::new(chunk_info.clone());
+                                let mut msg = message_parser.parse()?;
 
-                            self.process_messages(&mut msg, &msg_stream_id, &timestamp)
-                                .await?;
+                                self.process_messages(&mut msg, &msg_stream_id, &timestamp)
+                                    .await?;
+                            }
                         }
                         _ => {}
                     }
@@ -336,11 +333,15 @@ where
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
         let mut control_message = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        control_message.write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE).await?;
-        control_message.write_set_peer_bandwidth(
-            define::PEER_BANDWIDTH,
-            define::PeerBandWidthLimitType::DYNAMIC,
-        ).await?;
+        control_message
+            .write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)
+            .await?;
+        control_message
+            .write_set_peer_bandwidth(
+                define::PEER_BANDWIDTH,
+                define::PeerBandWidthLimitType::DYNAMIC,
+            )
+            .await?;
         control_message.write_set_chunk_size(CHUNK_SIZE).await?;
 
         let obj_encoding = command_obj.get("objectEncoding");

@@ -9,6 +9,8 @@ pub enum UnpackErrorValue {
     BytesReadError(BytesReadError),
     #[fail(display = "unknow read state")]
     UnknowReadState,
+    #[fail(display = "empty chunks")]
+    EmptyChunks,
     //IO(io::Error),
 }
 
@@ -75,7 +77,6 @@ impl Fail for PackError {
         self.value.backtrace()
     }
 }
-
 
 impl fmt::Display for UnpackError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

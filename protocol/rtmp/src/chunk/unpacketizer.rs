@@ -15,11 +15,14 @@ use std::cell::{RefCell, RefMut};
 use std::mem;
 use std::rc::Rc;
 
+use std::vec::Vec;
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {
     ChunkBasicHeaderResult(ChunkBasicHeader),
     ChunkMessageHeaderResult(ChunkMessageHeader),
     ChunkInfo(ChunkInfo),
+    Chunks(Vec<ChunkInfo>),
     Success,
     NotEnoughBytes,
     Empty,
@@ -77,6 +80,28 @@ impl ChunkUnpacketizer {
 
     pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
         self.max_chunk_size = chunk_size;
+    }
+
+    pub fn read_chunks(&mut self) -> Result<UnpackResult, UnpackError> {
+        let mut chunks: Vec<ChunkInfo> = Vec::new();
+
+        loop {
+            match self.read_chunk() {
+                Ok(chunk) => match chunk {
+                    UnpackResult::ChunkInfo(chunk_info) => chunks.push(chunk_info),
+                    _ => continue,
+                },
+                Err(_) => break,
+            }
+        }
+
+        if chunks.len() > 0 {
+            return Ok(UnpackResult::Chunks(chunks));
+        } else {
+            return Err(UnpackError {
+                value: UnpackErrorValue::EmptyChunks,
+            });
+        }
     }
 
     /******************************************************************************
