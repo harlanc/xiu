@@ -1,5 +1,6 @@
 use super::bytes_errors::{BytesReadError, BytesReadErrorValue};
 use byteorder::{ByteOrder, ReadBytesExt};
+use bytes::BufMut;
 use bytes::BytesMut;
 
 use std::io::Cursor;
@@ -19,6 +20,14 @@ impl BytesReader {
     // }
 
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
+        let remaining_mut = self.buffer.remaining_mut();
+        let extend_length = extend.len();
+
+        if extend_length > remaining_mut {
+            let additional = extend_length - remaining_mut;
+            self.buffer.reserve(additional);
+        }
+
         self.buffer.extend_from_slice(extend)
     }
 

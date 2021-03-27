@@ -88,7 +88,7 @@ where
         window_size: u32,
         limit_type: u8,
     ) -> Result<(), ControlMessagesError> {
-        self.write_control_message_header(msg_type_id::SET_PEER_BANDWIDTH, 4)?;
+        self.write_control_message_header(msg_type_id::SET_PEER_BANDWIDTH, 5)?;
         self.writer.write_u32::<BigEndian>(window_size)?;
         self.writer.write_u8(limit_type)?;
 

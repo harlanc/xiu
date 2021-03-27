@@ -1,5 +1,5 @@
-pub const WINDOW_ACKNOWLEDGEMENT_SIZE: u32 = 200000;
-pub const PEER_BANDWIDTH: u32 = 200000;
+pub const WINDOW_ACKNOWLEDGEMENT_SIZE: u32 = 4096;
+pub const PEER_BANDWIDTH: u32 = 4096;
 
 pub mod PeerBandWidthLimitType {
     pub const HARD: u8 = 0;
