@@ -15,6 +15,7 @@ use std::cell::{RefCell, RefMut};
 use std::mem;
 use std::rc::Rc;
 
+use chrono::prelude::*;
 use std::vec::Vec;
 
 #[derive(Eq, PartialEq, Debug)]
@@ -28,51 +29,50 @@ pub enum UnpackResult {
     Empty,
 }
 
-// impl From<IOReadErrorValue> for UnpackError {
-//     fn from(error: IOReadErrorValue) -> Self {
-//         UnpackError {
-//             value: UnpackErrorValue::IOReadErrorValue(error),
-//         }
-//     }
-// }
-
+#[derive(Copy, Clone)]
 enum ChunkReadState {
-    Init,
-    ReadBasicHeader,
-    ReadMessageHeader,
-    ReadExtendedTimestamp,
-    ReadMessagePayload,
-    Finish,
+    ReadBasicHeader = 1,
+    ReadMessageHeader = 2,
+    ReadExtendedTimestamp = 3,
+    ReadMessagePayload = 4,
+    Finish = 5,
+}
+
+#[derive(Copy, Clone)]
+enum MessageHeaderReadState {
+    ReadTimeStamp = 1,
+    ReadMsgLength = 2,
+    ReadMsgTypeID = 3,
+    ReadMsgStreamID = 4,
+}
+
+fn f(chunk: &ChunkReadState) -> u8 {
+    *chunk as u8
 }
 
 pub struct ChunkUnpacketizer {
-    //buffer: BytesMut,
     pub reader: BytesReader,
-    //reader :
-    //: HashMap<u32, ChunkInfo>,
+
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
     pub current_chunk_info: ChunkInfo,
-    current_read_state: ChunkReadState,
+    chunk_read_state: ChunkReadState,
+    msg_header_read_state: MessageHeaderReadState,
     max_chunk_size: usize,
-    // test: HashMap<u32, u32>,
-    // pub testval : & 'a mut u32,
+    chunk_index: u32,
 }
 
 impl ChunkUnpacketizer {
     pub fn new() -> Self {
         Self {
-            //buffer: BytesMut::new(),
             reader: BytesReader::new(BytesMut::new()),
             current_chunk_info: ChunkInfo::default(),
-            current_read_state: ChunkReadState::Init,
+            chunk_read_state: ChunkReadState::ReadBasicHeader,
+            msg_header_read_state: MessageHeaderReadState::ReadTimeStamp,
             max_chunk_size: CHUNK_SIZE as usize,
+            chunk_index: 0,
         }
     }
-
-    // fn reader(&mut self) -> RefMut<BytesReader> {
-    //     return self.reader.borrow_mut();
-    // }
 
     pub fn extend_data(&mut self, data: &[u8]) {
         self.reader.extend_from_slice(data);
@@ -83,6 +83,16 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_chunks(&mut self) -> Result<UnpackResult, UnpackError> {
+        print!("\n");
+        print!("\n");
+
+        let dt = Local::now();
+        print!(
+            "read_chunks begin=====+++++++++++++++++++++++++{} {}\n",
+            dt.timestamp_nanos(),
+            f(&self.chunk_read_state)
+        );
+
         let mut chunks: Vec<ChunkInfo> = Vec::new();
 
         loop {
@@ -94,6 +104,14 @@ impl ChunkUnpacketizer {
                 Err(_) => break,
             }
         }
+
+        let dt = Local::now();
+        print!(
+            "read_chunks end=====+++++++++++++++++++++++++{} {} {}\n",
+            dt.timestamp_nanos(),
+            f(&self.chunk_read_state),
+            chunks.len()
+        );
 
         if chunks.len() > 0 {
             return Ok(UnpackResult::Chunks(chunks));
@@ -113,17 +131,28 @@ impl ChunkUnpacketizer {
      * |<------------------- Chunk Header ----------------->|
      ******************************************************************************/
     pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
-        self.current_read_state = ChunkReadState::ReadBasicHeader;
-
         let mut result: UnpackResult = UnpackResult::Empty;
 
+        print!("\n");
+        print!("\n");
+
+        let dt = Local::now();
+        print!(
+            "read_chunk begin=====+++++++++++++++++++++++++{} {} {}\n",
+            dt.timestamp_nanos(),
+            f(&self.chunk_read_state),
+            self.chunk_index
+        );
+        self.chunk_index = self.chunk_index + 1;
+
         loop {
-            result = match self.current_read_state {
+            result = match self.chunk_read_state {
                 ChunkReadState::ReadBasicHeader => self.read_basic_header()?,
                 ChunkReadState::ReadMessageHeader => self.read_message_header()?,
                 ChunkReadState::ReadExtendedTimestamp => self.read_extended_timestamp()?,
                 ChunkReadState::ReadMessagePayload => self.read_message_payload()?,
                 ChunkReadState::Finish => {
+                    self.chunk_read_state = ChunkReadState::ReadBasicHeader;
                     break;
                 }
                 _ => {
@@ -133,6 +162,10 @@ impl ChunkUnpacketizer {
                 }
             };
         }
+        print!(
+            "read_chunk end  =====+++++++++++++++++++++++++{}\n",
+            dt.timestamp_nanos()
+        );
         return Ok(result);
 
         // Ok(UnpackResult::Success)
@@ -208,35 +241,10 @@ impl ChunkUnpacketizer {
             _ => {}
         }
 
-        let csid2 = 32 as u32;
-
-        // test: HashMap<u32, u32>,
-        // pub testval : & 'a mut u32,
-
-        // match self.test.get_mut(&csid2) {
-        //     Some(val) => {
-
-        //         self.testval = val;
-        //     }
-        //     None => {
-        //         self.test.insert(csid2, 0);
-        //     }
-        // }
-
-        // match self.csid_2_chunk_info.get_mut(&csid2) {
-        //     Some(chunk_info) => {
-        //         let aa = chunk_info;
-        //         self.current_chunk_info = aa;
-        //     }
-        //     None => {
-        //         self.csid_2_chunk_info.insert(csid, ChunkInfo::new());
-        //     }
-        // }
-
         self.current_chunk_info.basic_header.chunk_stream_id = csid;
         self.current_chunk_info.basic_header.format = format_id;
 
-        self.current_read_state = ChunkReadState::ReadMessageHeader;
+        self.chunk_read_state = ChunkReadState::ReadMessageHeader;
 
         Ok(UnpackResult::ChunkBasicHeaderResult(ChunkBasicHeader::new(
             format_id, csid,
@@ -248,6 +256,10 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
+        print!(
+            "read_message_header len======{}=======\n",
+            self.reader.len()
+        );
         match self.current_chunk_info.basic_header.format {
             /*****************************************************************/
             /*      5.3.1.2.1. Type 0                                        */
@@ -263,12 +275,38 @@ impl ChunkUnpacketizer {
             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             *****************************************************************/
             0 => {
-                // let mut val = self.read_bytes(11);
-                self.current_message_header().timestamp = self.reader.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_length = self.reader.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_type_id = self.reader.read_u8()?;
-                self.current_message_header().msg_streamd_id =
-                    self.reader.read_u32::<BigEndian>()?;
+                loop {
+                    match self.msg_header_read_state {
+                        MessageHeaderReadState::ReadTimeStamp => {
+                            self.current_message_header().timestamp =
+                                self.reader.read_u24::<BigEndian>()?;
+                            self.msg_header_read_state = MessageHeaderReadState::ReadMsgLength;
+                        }
+                        MessageHeaderReadState::ReadMsgLength => {
+                            self.current_message_header().msg_length =
+                                self.reader.read_u24::<BigEndian>()?;
+                            print!(
+                                "msg_length format 0:======{}=======\n",
+                                self.current_message_header().msg_length
+                            );
+                            self.msg_header_read_state = MessageHeaderReadState::ReadMsgTypeID;
+                        }
+                        MessageHeaderReadState::ReadMsgTypeID => {
+                            self.current_message_header().msg_type_id = self.reader.read_u8()?;
+                            print!(
+                                "msg_type_id format 0:======{}=======\n",
+                                self.current_message_header().msg_type_id
+                            );
+                            self.msg_header_read_state = MessageHeaderReadState::ReadMsgStreamID;
+                        }
+                        MessageHeaderReadState::ReadMsgStreamID => {
+                            self.current_message_header().msg_streamd_id =
+                                self.reader.read_u32::<BigEndian>()?;
+                            self.msg_header_read_state = MessageHeaderReadState::ReadTimeStamp;
+                            break;
+                        }
+                    }
+                }
 
                 if self.current_message_header().timestamp >= 0xFFFFFF {
                     self.current_message_header().is_extended_timestamp = true;
@@ -286,10 +324,37 @@ impl ChunkUnpacketizer {
             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             *****************************************************************/
             1 => {
-                self.current_message_header().timestamp_delta =
-                    self.reader.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_length = self.reader.read_u24::<BigEndian>()?;
-                self.current_message_header().msg_type_id = self.reader.read_u8()?;
+                loop {
+                    match self.msg_header_read_state {
+                        MessageHeaderReadState::ReadTimeStamp => {
+                            self.current_message_header().timestamp_delta =
+                                self.reader.read_u24::<BigEndian>()?;
+                            self.msg_header_read_state = MessageHeaderReadState::ReadMsgLength;
+                        }
+                        MessageHeaderReadState::ReadMsgLength => {
+                            self.current_message_header().msg_length =
+                                self.reader.read_u24::<BigEndian>()?;
+                            print!(
+                                "msg_length format 1:======{}=======\n",
+                                self.current_message_header().msg_length
+                            );
+                            self.msg_header_read_state = MessageHeaderReadState::ReadMsgTypeID;
+                        }
+                        MessageHeaderReadState::ReadMsgTypeID => {
+                            self.current_message_header().msg_type_id = self.reader.read_u8()?;
+                            print!(
+                                "msg_type_id format 1:======{}=======\n",
+                                self.current_message_header().msg_type_id
+                            );
+                            self.msg_header_read_state = MessageHeaderReadState::ReadTimeStamp;
+                            break;
+                        }
+                        _ => {
+                            print!("error happend when read chunk message header\n");
+                            break;
+                        }
+                    }
+                }
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
                     self.current_message_header().is_extended_timestamp = true;
@@ -305,6 +370,10 @@ impl ChunkUnpacketizer {
             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             ***************************************************/
             2 => {
+                print!(
+                    "msg_type_id format 2:======{}=======\n",
+                    self.current_message_header().msg_type_id
+                );
                 self.current_message_header().timestamp_delta =
                     self.reader.read_u24::<BigEndian>()?;
 
@@ -312,10 +381,11 @@ impl ChunkUnpacketizer {
                     self.current_message_header().is_extended_timestamp = true;
                 }
             }
+
             _ => {}
         }
 
-        self.current_read_state = ChunkReadState::ReadExtendedTimestamp;
+        self.chunk_read_state = ChunkReadState::ReadExtendedTimestamp;
 
         Ok(UnpackResult::Success)
     }
@@ -343,8 +413,6 @@ impl ChunkUnpacketizer {
                 }
             }
             2 => {
-                //self.current_message_header().timestamp_delta = self.read_u24::<BigEndian>()?;
-
                 if self.current_message_header().is_extended_timestamp {
                     self.current_message_header().timestamp =
                         self.current_message_header().timestamp - 0xFFFFFF + extended_timestamp;
@@ -356,14 +424,18 @@ impl ChunkUnpacketizer {
             _ => {}
         }
 
-        self.current_read_state = ChunkReadState::ReadMessagePayload;
+        self.chunk_read_state = ChunkReadState::ReadMessagePayload;
 
         Ok(UnpackResult::Success)
     }
 
     pub fn read_message_payload(&mut self) -> Result<UnpackResult, UnpackError> {
-        let mut whole_msg_length = self.current_message_header().msg_length as usize;
+        let whole_msg_length = self.current_message_header().msg_length as usize;
         let remaining_bytes = whole_msg_length - self.current_chunk_info.payload.len();
+        print!(
+            "whole:{} == remaining:{} \n",
+            whole_msg_length, remaining_bytes
+        );
 
         let mut need_read_length = remaining_bytes;
         if whole_msg_length > self.max_chunk_size {
@@ -376,18 +448,26 @@ impl ChunkUnpacketizer {
             self.current_chunk_info.payload.reserve(additional);
         }
 
+        print!("buffer len:{}\n", self.reader.len());
+
         let payload_data = self.reader.read_bytes(need_read_length)?;
         self.current_chunk_info
             .payload
             .extend_from_slice(&payload_data[..]);
 
+        print!(
+            "current msg payload len:{}\n",
+            self.current_chunk_info.payload.len()
+        );
+
         if self.current_chunk_info.payload.len() == whole_msg_length {
-            let chunkinfo = mem::replace(&mut self.current_chunk_info, ChunkInfo::default());
-            self.current_read_state = ChunkReadState::Finish;
-            return Ok(UnpackResult::ChunkInfo(chunkinfo));
+            self.chunk_read_state = ChunkReadState::Finish;
+            let chunk_info = self.current_chunk_info.clone();
+            self.current_chunk_info.payload.clear();
+            return Ok(UnpackResult::ChunkInfo(chunk_info));
         }
 
-        self.current_read_state = ChunkReadState::ReadBasicHeader;
+        self.chunk_read_state = ChunkReadState::ReadBasicHeader;
 
         Ok(UnpackResult::Success)
     }
