@@ -8,9 +8,9 @@ use std::io::Write;
 use super::bytes_errors::BytesWriteError;
 
 use super::netio::NetworkIO;
-use tokio::prelude::*;
 
 use std::sync::Arc;
+
 use tokio::sync::Mutex;
 
 pub struct BytesWriter {
@@ -68,19 +68,13 @@ impl BytesWriter {
     }
 }
 
-pub struct AsyncBytesWriter<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
+pub struct AsyncBytesWriter {
     pub bytes_writer: BytesWriter,
-    pub io: Arc<Mutex<NetworkIO<S>>>,
+    pub io: Arc<Mutex<NetworkIO>>,
 }
 
-impl<S> AsyncBytesWriter<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    pub fn new(io: Arc<Mutex<NetworkIO<S>>>) -> Self {
+impl AsyncBytesWriter {
+    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
         Self {
             bytes_writer: BytesWriter::new(),
             io: io,

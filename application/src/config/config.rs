@@ -1,6 +1,7 @@
 use super::errors::ConfigError;
 use serde_derive::Deserialize;
 use std::fs;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub rtmp: Option<RtmpConfig>,
@@ -13,7 +14,7 @@ pub struct RtmpConfig {
     pub pull: Option<RtmpPullConfig>,
     pub push: Option<RtmpPushConfig>,
 }
-#[derive(Debug, Deserialize,Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct RtmpPullConfig {
     pub enabled: bool,
     pub address: String,

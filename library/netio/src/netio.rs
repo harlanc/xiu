@@ -2,54 +2,82 @@ use super::netio_errors::{NetIOError, NetIOErrorValue};
 
 use bytes::Bytes;
 use bytes::BytesMut;
-use futures::SinkExt;
 
-use std::time::Duration;
+use std::{borrow::BorrowMut, time::Duration};
 
-use tokio::{prelude::*, stream::StreamExt, time::timeout};
-use tokio_util::codec::BytesCodec;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::net::tcp::{ReadHalf, WriteHalf};
+use tokio::net::TcpStream;
+use tokio::time::timeout;
+use tokio_stream::StreamExt;
+
+use futures::{future, Sink, SinkExt, Stream};
 use tokio_util::codec::Framed;
+use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
 
-pub struct NetworkIO<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    bytes_stream: Framed<S, BytesCodec>,
+pub struct NetworkIO {
+    stream: Framed<TcpStream, BytesCodec>,
+
     timeout: Duration,
 }
 
-impl<S> NetworkIO<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    pub fn new(stream: S, ms: Duration) -> Self {
+impl NetworkIO {
+    pub fn new(stream: TcpStream, ms: Duration) -> Self {
         Self {
-            bytes_stream: Framed::new(stream, BytesCodec::new()),
+            stream: Framed::new(stream, BytesCodec::new()),
             timeout: ms,
         }
     }
 
     pub async fn write(&mut self, bytes: Bytes) -> Result<(), NetIOError> {
-        self.bytes_stream.send(bytes).await?;
+        self.stream.send(bytes).await?;
         Ok(())
     }
 
     pub async fn read(&mut self) -> Result<BytesMut, NetIOError> {
-        let val = self.bytes_stream.try_next();
-        match timeout(self.timeout, val).await? {
-            Ok(Some(data)) => {
-                return Ok(data);
-            }
-            Ok(None) => {
+        let message = self.stream.next().await;
+
+        match message {
+            Some(data) => match data {
+                Ok(bytes) => {
+                    for k in bytes.clone(){
+                        print!("{:02X} ",k);
+                    }
+                    print!("\n");
+                    print!("\n");
+                    return Ok(bytes);
+                }
+                Err(err) => {
+                    return Err(NetIOError {
+                        value: NetIOErrorValue::IOError(err),
+                    })
+                }
+            },
+            None => {
                 return Err(NetIOError {
                     value: NetIOErrorValue::NoneReturn,
                 })
             }
-            Err(err) => {
-                return Err(NetIOError {
-                    value: NetIOErrorValue::IOError(err),
-                })
-            }
         }
+
+        // let data = self.framed_read.next().await;
+
+        // match data {
+        //     Some(result) => match result {
+        //         Ok(bytes) => {
+        //             return Ok(bytes);
+        //         }
+        //         Err(err) => {
+        //             return Err(NetIOError {
+        //                 value: NetIOErrorValue::IOError(err),
+        //             })
+        //         }
+        //     },
+        //     None => {
+        //         return Err(NetIOError {
+        //             value: NetIOErrorValue::NoneReturn,
+        //         })
+        //     }
+        // }
     }
 }

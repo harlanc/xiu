@@ -33,7 +33,7 @@ use crate::user_control_messages::event_messages::EventMessages;
 use std::collections::HashMap;
 
 use super::define;
-use tokio::prelude::*;
+use tokio::net::TcpStream;
 
 use bytes::BytesMut;
 use std::sync::Arc;
@@ -68,14 +68,11 @@ enum ClientType {
     Play,
     Publish,
 }
-pub struct ClientSession<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    packetizer: ChunkPacketizer<S>,
+pub struct ClientSession {
+    packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
-    handshaker: SimpleHandshakeClient<S>,
-    io: Arc<Mutex<NetworkIO<S>>>,
+    handshaker: SimpleHandshakeClient,
+    io: Arc<Mutex<NetworkIO>>,
 
     play_state: ClientSessionPlayState,
     publish_state: ClientSessionPublishState,
@@ -84,11 +81,13 @@ where
     stream_name: String,
 }
 
-impl<S> ClientSession<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    fn new(stream: S, timeout: Duration, client_type: ClientType, stream_name: String) -> Self {
+impl ClientSession {
+    fn new(
+        stream: TcpStream,
+        timeout: Duration,
+        client_type: ClientType,
+        stream_name: String,
+    ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
 
         // let reader = BytesReader::new(BytesMut::new());
@@ -165,7 +164,10 @@ where
         Ok(())
     }
 
-    pub async fn process_messages(&mut self, msg: &mut RtmpMessageData) -> Result<(), SessionError> {
+    pub async fn process_messages(
+        &mut self,
+        msg: &mut RtmpMessageData,
+    ) -> Result<(), SessionError> {
         match msg {
             RtmpMessageData::Amf0Command {
                 command_name,
@@ -178,7 +180,9 @@ where
                 command_object,
                 others,
             )?,
-            RtmpMessageData::SetPeerBandwidth { properties } => self.on_set_peer_bandwidth().await?,
+            RtmpMessageData::SetPeerBandwidth { properties } => {
+                self.on_set_peer_bandwidth().await?
+            }
             RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
             RtmpMessageData::AudioData { data } => {}
             RtmpMessageData::VideoData { data } => {}

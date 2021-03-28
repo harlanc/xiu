@@ -1,7 +1,7 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
-use crate::handshake::handshake::SimpleHandshakeServer;
+use crate::handshake::handshake::{SimpleHandshakeServer,ComplexHandshakeServer};
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
 use crate::{
     application,
@@ -37,7 +37,8 @@ use crate::user_control_messages::event_messages::EventMessages;
 
 use std::collections::HashMap;
 
-use tokio::{prelude::*, sync::broadcast};
+use tokio::sync::broadcast;
+use tokio::{io::ReadHalf, net::TcpStream};
 
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
@@ -64,16 +65,14 @@ enum ServerSessionState {
     Play,
 }
 
-pub struct ServerSession<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
+pub struct ServerSession {
     app_name: String,
 
-    io: Arc<Mutex<NetworkIO<S>>>,
-    handshaker: SimpleHandshakeServer<S>,
+    io: Arc<Mutex<NetworkIO>>,
+    simple_handshaker: SimpleHandshakeServer,
+    complex_handshaker: ComplexHandshakeServer,
 
-    packetizer: ChunkPacketizer<S>,
+    packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
 
     state: ServerSessionState,
@@ -84,13 +83,17 @@ where
     data_producer: SingleProducerForData,
     //receive video, audio or metadata from publish server session and send out to player
     data_consumer: MultiConsumerForData,
+
+    session_id: u8,
 }
 
-impl<S> ServerSession<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    pub fn new(stream: S, event_producer: MultiProducerForEvent, timeout: Duration) -> Self {
+impl ServerSession {
+    pub fn new(
+        stream: TcpStream,
+        event_producer: MultiProducerForEvent,
+        timeout: Duration,
+        session_id: u8,
+    ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = broadcast::channel(1);
@@ -100,7 +103,8 @@ where
             app_name: String::from(""),
 
             io: Arc::clone(&net_io),
-            handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
+            simple_handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
+            complex_handshaker: ComplexHandshakeServer::new(Arc::clone(&net_io)),
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
@@ -109,6 +113,7 @@ where
             event_producer,
             data_producer: init_producer,
             data_consumer: init_consumer,
+            session_id: session_id,
         }
     }
 
@@ -116,29 +121,36 @@ where
         let duration = Duration::new(10, 10);
 
         let mut remaining_bytes: BytesMut = BytesMut::new();
-        let mut net_io_data: BytesMut = BytesMut::new();
 
         loop {
+            let mut net_io_data: BytesMut = BytesMut::new();
             if remaining_bytes.len() <= 0 {
                 net_io_data = self.io.lock().await.read().await?;
+
+                utils::print::print(net_io_data.clone());
             }
 
             match self.state {
                 ServerSessionState::Handshake => {
-                    utils::print::printu8(net_io_data.clone());
-                    self.handshaker.extend_data(&net_io_data[..]);
-                    self.handshaker.handshake().await?;
+                    if self.session_id > 0 {
+                        // utils::print::printu8(net_io_data.clone());
+                    }
 
-                    match self.handshaker.state {
+                    self.simple_handshaker.extend_data(&net_io_data[..]);
+                    self.simple_handshaker.handshake().await?;
+
+                    match self.simple_handshaker.state {
                         ServerHandshakeState::Finish => {
                             self.state = ServerSessionState::ReadChunk;
-                            remaining_bytes = self.handshaker.get_remaining_bytes();
+                            remaining_bytes = self.simple_handshaker.get_remaining_bytes();
                         }
                         _ => continue,
                     }
                 }
                 ServerSessionState::ReadChunk => {
-                    utils::print::printu8(net_io_data.clone());
+                    if self.session_id > 0 {
+                        // utils::print::printu8(net_io_data.clone());
+                    }
 
                     if remaining_bytes.len() > 0 {
                         let bytes = std::mem::replace(&mut remaining_bytes, BytesMut::new());
@@ -297,10 +309,11 @@ where
 
         match cmd_name.as_str() {
             "connect" => {
+                print!("connect .......");
                 self.on_connect(&transaction_id, &obj).await?;
             }
             "createStream" => {
-                self.on_create_stream(transaction_id)?;
+                self.on_create_stream(transaction_id).await?;
             }
             "deleteStream" => {
                 if others.len() > 1 {
@@ -386,9 +399,21 @@ where
         Ok(())
     }
 
-    pub fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
+    pub async fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         let mut netconnection = NetConnection::new(BytesWriter::new());
-        netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
+        let data = netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
+
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::COMMAND_AMF0_AMF3,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::COMMAND_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info).await?;
 
         Ok(())
     }
@@ -587,7 +612,7 @@ where
 
         self.packetizer.write_chunk(&mut chunk_info).await?;
 
-        self.publish_to_channels(stream_name).await?;
+        //self.publish_to_channels(stream_name).await?;
 
         Ok(())
     }
@@ -624,19 +649,19 @@ where
         data: &mut BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
-        let data = ChannelData::Video {
-            timestamp: timestamp.clone(),
-            data: data.clone(),
-        };
+        // let data = ChannelData::Video {
+        //     timestamp: timestamp.clone(),
+        //     data: data.clone(),
+        // };
 
-        match self.data_producer.send(data) {
-            Ok(size) => {}
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                })
-            }
-        }
+        // match self.data_producer.send(data) {
+        //     Ok(size) => {}
+        //     Err(_) => {
+        //         return Err(SessionError {
+        //             value: SessionErrorValue::SendChannelDataErr,
+        //         })
+        //     }
+        // }
 
         Ok(())
     }
@@ -646,19 +671,19 @@ where
         data: &mut BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
-        let data = ChannelData::Audio {
-            timestamp: timestamp.clone(),
-            data: data.clone(),
-        };
+        // let data = ChannelData::Audio {
+        //     timestamp: timestamp.clone(),
+        //     data: data.clone(),
+        // };
 
-        match self.data_producer.send(data) {
-            Ok(size) => {}
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                })
-            }
-        }
+        // match self.data_producer.send(data) {
+        //     Ok(size) => {}
+        //     Err(_) => {
+        //         return Err(SessionError {
+        //             value: SessionErrorValue::SendChannelDataErr,
+        //         })
+        //     }
+        // }
 
         Ok(())
     }

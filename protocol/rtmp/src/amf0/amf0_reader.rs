@@ -4,6 +4,7 @@ use super::amf0_markers;
 use super::Amf0ReadError;
 use super::Amf0ValueType;
 use byteorder::BigEndian;
+use bytes::BytesMut;
 
 // use super::define::UnOrderedMap;
 
@@ -91,6 +92,18 @@ impl Amf0Reader {
         // let mut buffer: Vec<u8> = vec![0_u8; l as usize];
         let bytes = self.reader.read_bytes(l as usize)?;
 
+        // let mut vec_bytes = bytes.to_vec();
+        // let length_before = vec_bytes.len();
+        // vec_bytes.retain(|&x| x <= 127);
+        // let length_after = vec_bytes.len();
+
+        // let num = length_before - length_after;
+        // if num > 0 {
+        //     let mut bytes2 = self.reader.read_bytes(num)?;
+
+        //     vec_bytes.append(&mut bytes2.to_vec());
+        // }
+
         let val = String::from_utf8(bytes.to_vec())?;
 
         Ok(val)
@@ -156,6 +169,10 @@ impl Amf0Reader {
 
         let val = String::from_utf8(buff.to_vec())?;
         Ok(Amf0ValueType::LongUTF8String(val))
+    }
+
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        return self.reader.get_remaining_bytes();
     }
 }
 
@@ -234,5 +251,72 @@ mod tests {
         let others = amf_reader.read_all();
 
         print!("test")
+    }
+
+    #[test]
+    fn test_player_connect_reader() {
+        // chunk header
+        // 0000   03 00 00 00 00 00 aa 14 00 00 00 00
+        //amf0 data
+        //                                            02 00 07 63  ...............c
+        // 0010   6f 6e 6e 65 63 74 00 3f f0 00 00 00 00 00 00 03  onnect.?........
+        // 0020   00 03 61 70 70 02 00 04 6c 69 76 65 00 05 74 63  ..app...live..tc
+        // 0030   55 72 6c 02 00 1a 72 74 6d 70 3a 2f 2f 6c 6f 63  Url...rtmp://loc
+        // 0040   61 6c 68 6f 73 74 3a 31 39 33 35 2f 6c 69 76 65  alhost:1935/live
+        // 0050   00 04 66 70 61 64 01 00 00 0c 63 61 70 61 62 69  ..fpad....capabi
+        // 0060   6c 69 74 69 65 73 00 40 2e 00 00 00 00 00 00 00  lities.@........
+        // 0070   0b 61 75 64 69 6f 43 6f 64 65 63 73 00 40 a8 ee  .audioCodecs.@..
+        // 0080   00 00 00 00 00 00 0b 76 69 64 65 6f 43 6f 64 65  .......videoCode 118 105
+        // 0090   63 73 00 40 6f 80 00 00 00 00 00 00 0d 76 69 64  cs.@o........vid
+        // 00a0   65 6f 46 75 6e 63 74 69 6f 6e 00 3f f0 00 00 00  eoFunction.?....
+        // 0b00   00 00 00 00 00 09                                ......
+
+        let data: [u8; 171] = [
+            2, 0, 7, 99, 111, 110, 110, 101, 99, 116, 0, 63, 240, 0, 0, 0, 0, 0, 0, 3, 0, 3, 97,
+            112, 112, 2, 0, 4, 108, 105, 118, 101, 0, 5, 116, 99, 85, 114, 108, 2, 0, 26, 114, 116,
+            109, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 58, 49, 57, 51, 53,
+            47, 108, 105, 118, 101, 0, 4, 102, 112, 97, 100, 1, 0, 0, 12, 99, 97, 112, 97, 98, 105,
+            108, 105, 116, 105, 101, 115, 0, 64, 46, 0, 0, 0, 0, 0, 0, 0, 11, 97, 117, 100, 105,
+            111, 67, 111, 100, 101, 99, 115, 0, 64, 168, 238, 0, 0, 0, 0, 0, 0, 11, 118, 105, 100,
+            101, 111, 195, 67, 111, 100, 101, 99, 115, 0, 64, 111, 128, 0, 0, 0, 0, 0, 0, 13, 118,
+            105, 100, 101, 111, 70, 117, 110, 99, 116, 105, 111, 110, 0, 63, 240, 0, 0, 0, 0, 0, 0,
+            0, 0, 9,
+        ];
+
+        //76 69 64 65 6f 43 6f 64 65 63 73
+        // 118 105 100 101  111 67 111 100 101 99 115
+
+        let mut bytes_reader = BytesReader::new(BytesMut::new());
+        bytes_reader.extend_from_slice(&data);
+        let mut amf_reader = Amf0Reader::new(bytes_reader);
+
+        let command_name = amf_reader.read_with_type(amf0_markers::STRING).unwrap();
+        assert_eq!(
+            command_name,
+            Amf0ValueType::UTF8String(String::from("connect"))
+        );
+
+        let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER).unwrap();
+        assert_eq!(transaction_id, Amf0ValueType::Number(1.0));
+
+        let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
+        let mut properties = HashMap::new();
+        properties.insert(
+            String::from("app"),
+            Amf0ValueType::UTF8String(String::from("live")),
+        );
+        properties.insert(
+            String::from("tcUrl"),
+            Amf0ValueType::UTF8String(String::from("rtmp://localhost:1935/live")),
+        );
+        properties.insert(String::from("fpad"), Amf0ValueType::Boolean(false));
+        properties.insert(String::from("capabilities"), Amf0ValueType::Number(15.0));
+        properties.insert(String::from("audioCodecs"), Amf0ValueType::Number(3191.0));
+
+        properties.insert(String::from("videoCodecs"), Amf0ValueType::Number(252.0));
+
+        properties.insert(String::from("videoFunction"), Amf0ValueType::Number(1.0));
+
+        assert_eq!(command_obj_raw.unwrap(), Amf0ValueType::Object(properties));
     }
 }

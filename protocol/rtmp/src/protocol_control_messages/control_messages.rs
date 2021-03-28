@@ -3,21 +3,14 @@ use super::errors::ControlMessagesError;
 use crate::messages::define::msg_type_id;
 use byteorder::BigEndian;
 use netio::bytes_writer::AsyncBytesWriter;
-use tokio::prelude::*;
 
-pub struct ControlMessages<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    writer: AsyncBytesWriter<S>,
+pub struct ControlMessages {
+    writer: AsyncBytesWriter,
     //amf0_writer: Amf0Writer,
 }
 
-impl<S> ControlMessages<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    pub fn new(writer: AsyncBytesWriter<S>) -> Self {
+impl ControlMessages {
+    pub fn new(writer: AsyncBytesWriter) -> Self {
         Self { writer: writer }
     }
     pub fn write_control_message_header(

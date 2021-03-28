@@ -8,7 +8,9 @@ use netio::bytes_reader::BytesReader;
 use crate::amf0::amf0_markers;
 use crate::amf0::amf0_reader::Amf0Reader;
 
+use crate::config;
 use crate::protocol_control_messages::reader::ProtocolControlMessageReader;
+use crate::utils;
 
 pub struct MessageParser {
     chunk_info: ChunkInfo,
@@ -25,15 +27,23 @@ impl MessageParser {
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
-                print!("11111111111");
+                print!(
+                    "amf command:msg_length{}\n",
+                    self.chunk_info.message_header.msg_length
+                );
+
                 if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF3 {
-                    print!("111111111113");
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
 
+                utils::print::print(amf_reader.get_remaining_bytes());
+
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
+
+                print!("2222222222222 command name  transction id \n");
+                utils::print::print(amf_reader.get_remaining_bytes());
 
                 //The third value can be an object or NULL object
                 let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
@@ -44,6 +54,8 @@ impl MessageParser {
 
                 let others = amf_reader.read_all()?;
 
+                print!("333333333333\n",);
+
                 return Ok(RtmpMessageData::Amf0Command {
                     command_name: command_name,
                     transaction_id: transaction_id,
@@ -51,22 +63,34 @@ impl MessageParser {
                     others,
                 });
             }
-            // msg_types::COMMAND_AMF3 => {}
+
             msg_type_id::AUDIO => {
+                if config::DEBUG {
+                    print!(
+                        "audio:msg_length{}\n",
+                        self.chunk_info.message_header.msg_length
+                    );
+                }
+
                 return Ok(RtmpMessageData::AudioData {
                     data: self.chunk_info.payload.clone(),
-                })
+                });
             }
             msg_type_id::VIDEO => {
+                if config::DEBUG {
+                    print!(
+                        "video:msg_length{}\n",
+                        self.chunk_info.message_header.msg_length
+                    );
+                }
                 return Ok(RtmpMessageData::VideoData {
                     data: self.chunk_info.payload.clone(),
-                })
+                });
             }
 
             msg_type_id::USER_CONTROL_EVENT => {}
 
             msg_type_id::SET_CHUNK_SIZE => {
-                print!("111111111112");
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
                 return Ok(RtmpMessageData::SetChunkSize {
                     chunk_size: chunk_size,
@@ -99,7 +123,9 @@ impl MessageParser {
                 });
             }
 
-            msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {}
+            msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
+                return Ok(RtmpMessageData::SetChunkSize { chunk_size: 4096 });
+            }
 
             msg_type_id::SHARED_OBJ_AMF3 | msg_type_id::SHARED_OBJ_AMF0 => {}
 

@@ -5,21 +5,13 @@ use crate::messages::define::msg_type_id;
 use byteorder::BigEndian;
 use netio::bytes_writer::AsyncBytesWriter;
 
-use tokio::prelude::*;
-
-pub struct EventMessages<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    writer: AsyncBytesWriter<S>,
+pub struct EventMessages {
+    writer: AsyncBytesWriter,
     // amf0_writer: Amf0Writer,
 }
 
-impl<S> EventMessages<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    pub fn new(writer: AsyncBytesWriter<S>) -> Self {
+impl EventMessages {
+    pub fn new(writer: AsyncBytesWriter) -> Self {
         Self { writer: writer }
     }
     fn write_control_message_header(&mut self, len: u32) -> Result<(), EventMessagesError> {

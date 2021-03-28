@@ -11,7 +11,7 @@ use crate::user_control_messages::errors::EventMessagesError;
 use netio::bytes_errors::BytesWriteError;
 use netio::netio_errors::NetIOError;
 
-use tokio::time::Elapsed;
+// use tokio::time::Elapsed;
 
 use failure::{Backtrace, Fail};
 use std::fmt;
@@ -27,8 +27,8 @@ pub enum SessionErrorValue {
     Amf0WriteError(#[cause] Amf0WriteError),
     #[fail(display = "bytes write error: {}", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    #[fail(display = "timeout error: {}", _0)]
-    TimeoutError(#[cause] Elapsed),
+    // #[fail(display = "timeout error: {}", _0)]
+    // TimeoutError(#[cause] Elapsed),
     #[fail(display = "unpack error: {}", _0)]
     UnPackError(#[cause] UnpackError),
 
@@ -84,13 +84,13 @@ impl From<BytesWriteError> for SessionError {
     }
 }
 
-impl From<Elapsed> for SessionError {
-    fn from(error: Elapsed) -> Self {
-        SessionError {
-            value: SessionErrorValue::TimeoutError(error),
-        }
-    }
-}
+// impl From<Elapsed> for SessionError {
+//     fn from(error: Elapsed) -> Self {
+//         SessionError {
+//             value: SessionErrorValue::TimeoutError(error),
+//         }
+//     }
+// }
 
 impl From<UnpackError> for SessionError {
     fn from(error: UnpackError) -> Self {

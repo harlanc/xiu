@@ -9,7 +9,6 @@ use netio::bytes_writer::AsyncBytesWriter;
 use std::collections::HashMap;
 
 use std::sync::Arc;
-use tokio::prelude::*;
 
 use netio::netio::NetworkIO;
 use tokio::sync::Mutex;
@@ -20,24 +19,18 @@ pub enum PackResult {
     NotEnoughBytes,
 }
 
-pub struct ChunkPacketizer<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
+pub struct ChunkPacketizer {
     csid_2_chunk_header: HashMap<u32, ChunkHeader>,
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
     //chunk_info: ChunkInfo,
     max_chunk_size: usize,
     //bytes: Cursor<Vec<u8>>,
-    writer: AsyncBytesWriter<S>,
+    writer: AsyncBytesWriter,
 }
 
-impl<S> ChunkPacketizer<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin + Send + Sync,
-{
-    pub fn new(io: Arc<Mutex<NetworkIO<S>>>) -> Self {
+impl ChunkPacketizer {
+    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
             //chunk_info: ChunkInfo::new(),

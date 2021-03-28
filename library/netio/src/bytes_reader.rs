@@ -13,12 +13,6 @@ impl BytesReader {
         Self { buffer: input }
     }
 
-    // pub fn new_with_extend(input: BytesMut, extend: &[u8]) -> BytesReader {
-    //     let mut reader = BytesReader { buffer: input };
-    //     reader.extend_from_slice(extend);
-    //     reader
-    // }
-
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
         let remaining_mut = self.buffer.remaining_mut();
         let extend_length = extend.len();

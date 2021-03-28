@@ -20,7 +20,13 @@ anyhow = "^1.0"
 default = ["std"]
 std = [ "serde" ]
 
+# [dependencies.tokio]
+# version = "0.2.21"
+# default-features = false
+# features = ["rt-core", "stream", "sync", "time", "tcp","rt-threaded", "macros"]
+
 [dependencies.tokio]
-version = "0.2.21"
+version = "1.4.0"
 default-features = false
-features = ["rt-core", "stream", "sync", "time", "tcp","rt-threaded", "macros"]
+#features = ["rt-core", "rt-threaded", "macros", "time","sync"]
+features = ["full"]
