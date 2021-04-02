@@ -14,3 +14,4 @@ pub mod chunk_type {
 }
 
 pub const CHUNK_SIZE: u32 = 4096;
+pub const INIT_CHUNK_SIZE: u32 = 128;

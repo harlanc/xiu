@@ -6,11 +6,12 @@ use super::errors::UnpackError;
 use super::errors::UnpackErrorValue;
 use super::{
     chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader},
-    define::CHUNK_SIZE,
+    define,
 };
 use netio::bytes_reader::BytesReader;
 use std::{borrow::BorrowMut, cmp::min};
 
+use crate::messages::define::msg_type_id;
 use std::cell::{RefCell, RefMut};
 use std::mem;
 use std::rc::Rc;
@@ -71,7 +72,7 @@ impl ChunkUnpacketizer {
             current_chunk_info: ChunkInfo::default(),
             chunk_read_state: ChunkReadState::ReadBasicHeader,
             msg_header_read_state: MessageHeaderReadState::ReadTimeStamp,
-            max_chunk_size: CHUNK_SIZE as usize,
+            max_chunk_size: define::INIT_CHUNK_SIZE as usize,
             chunk_index: 0,
         }
     }
@@ -102,7 +103,15 @@ impl ChunkUnpacketizer {
         loop {
             match self.read_chunk() {
                 Ok(chunk) => match chunk {
-                    UnpackResult::ChunkInfo(chunk_info) => chunks.push(chunk_info),
+                    UnpackResult::ChunkInfo(chunk_info) => {
+                        let msg_type_id = chunk_info.message_header.msg_type_id.clone();
+                        chunks.push(chunk_info);
+
+                        //if the chunk_size is changed, then break and update chunk_size
+                        if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
+                            break;
+                        }
+                    }
                     _ => continue,
                 },
                 Err(_) => break,
@@ -267,7 +276,7 @@ impl ChunkUnpacketizer {
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
         if config::DEBUG {
             print!(
-                "read_message_header len======{}=======\n",
+                "read_message_header left bytes length ======{}=======\n",
                 self.reader.len()
             );
         }

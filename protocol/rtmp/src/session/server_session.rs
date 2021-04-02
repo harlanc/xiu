@@ -1,7 +1,7 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
-use crate::handshake::handshake::{SimpleHandshakeServer,ComplexHandshakeServer};
+use crate::handshake::handshake::{ComplexHandshakeServer, SimpleHandshakeServer};
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
 use crate::{
     application,
@@ -159,32 +159,30 @@ impl ServerSession {
                         self.unpacketizer.extend_data(&net_io_data[..]);
                     }
 
-                    let result = self.unpacketizer.read_chunks();
-
-                    let rv = match result {
-                        Ok(val) => val,
-                        Err(err) => {
-                            // return Err(SessionError {
-                            //     value: SessionErrorValue::UnPackError(err),
-                            // })
-                            continue;
-                        }
-                    };
-
-                    match rv {
-                        UnpackResult::Chunks(chunks) => {
-                            for chunk_info in chunks.iter() {
-                                let msg_stream_id = chunk_info.message_header.msg_streamd_id;
-                                let timestamp = chunk_info.message_header.timestamp;
-
-                                let mut message_parser = MessageParser::new(chunk_info.clone());
-                                let mut msg = message_parser.parse()?;
-
-                                self.process_messages(&mut msg, &msg_stream_id, &timestamp)
-                                    .await?;
+                    loop {
+                        let result = self.unpacketizer.read_chunks();
+                        let rv = match result {
+                            Ok(val) => val,
+                            Err(_) => {
+                                break;
                             }
+                        };
+
+                        match rv {
+                            UnpackResult::Chunks(chunks) => {
+                                for chunk_info in chunks.iter() {
+                                    let msg_stream_id = chunk_info.message_header.msg_streamd_id;
+                                    let timestamp = chunk_info.message_header.timestamp;
+
+                                    let mut message_parser = MessageParser::new(chunk_info.clone());
+                                    let mut msg = message_parser.parse()?;
+
+                                    self.process_messages(&mut msg, &msg_stream_id, &timestamp)
+                                        .await?;
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
 
@@ -270,6 +268,9 @@ impl ServerSession {
                 )
                 .await?
             }
+            RtmpMessageData::SetChunkSize { chunk_size } => {
+                self.on_set_chunk_size(chunk_size.clone() as usize)?;
+            }
             RtmpMessageData::AudioData { data } => {
                 self.on_audio_data(data, timestamp)?;
             }
@@ -337,6 +338,11 @@ impl ServerSession {
             _ => {}
         }
 
+        Ok(())
+    }
+
+    fn on_set_chunk_size(&mut self, chunk_size: usize) -> Result<(), SessionError> {
+        self.unpacketizer.update_max_chunk_size(chunk_size);
         Ok(())
     }
 
@@ -612,7 +618,7 @@ impl ServerSession {
 
         self.packetizer.write_chunk(&mut chunk_info).await?;
 
-        //self.publish_to_channels(stream_name).await?;
+        self.publish_to_channels(stream_name).await?;
 
         Ok(())
     }

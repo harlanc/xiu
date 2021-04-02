@@ -2,8 +2,8 @@ use application::config::config;
 use application::config::config::Config;
 use rtmp::channels::channels::Channels;
 use rtmp::session::server_session;
+use std::net::SocketAddr;
 use std::time::Duration;
-use std::{borrow::BorrowMut, net::SocketAddr};
 use tokio::net::TcpListener;
 //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
 use anyhow::Result;
@@ -46,7 +46,7 @@ impl Service {
                 let mut idx: u8 = 0;
 
                 loop {
-                    let (tcp_stream, addr) = listener.accept().await?;
+                    let (tcp_stream, _) = listener.accept().await?;
                     //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
 
                     let mut session = server_session::ServerSession::new(
