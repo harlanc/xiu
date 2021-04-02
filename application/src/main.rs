@@ -55,7 +55,7 @@ impl Service {
                         Duration::from_secs(30),
                         idx,
                     );
-                    tokio::spawn(async move { if let Err(err) = session.run().await {} });
+                    tokio::spawn(async move { if let Err(_) = session.run().await {} });
 
                     idx = idx + 1;
                 }

@@ -301,8 +301,6 @@ fn find_digest(
     })
 }
 
-
-
 fn cook_handshake_msg(
     handshake: &[u8; RTMP_HANDSHAKE_SIZE],
     digest_offset: u32,
@@ -537,6 +535,109 @@ impl SimpleHandshakeServer {
         }
 
         Ok(())
+    }
+
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        return self.reader.get_remaining_bytes();
+    }
+}
+
+use netio::bytes_writer::BytesWriter;
+use std::net::TcpStream;
+// use std::cell::{RefCell, RefMut};
+// use std::rc::Rc;
+
+pub struct SimpleHandshakeServerSync {
+    reader: BytesReader,
+    // stream:  Rc<RefCell<TcpStream>>,
+    c1_bytes: BytesMut,
+    c1_timestamp: u32,
+    writer: BytesWriter,
+    pub state: ServerHandshakeState,
+}
+
+impl SimpleHandshakeServerSync {
+    pub fn new() -> Self {
+        Self {
+            reader: BytesReader::new(BytesMut::new()),
+            writer: BytesWriter::new(),
+            c1_bytes: BytesMut::new(),
+            c1_timestamp: 0,
+            state: ServerHandshakeState::ReadC0C1,
+        }
+    }
+
+    fn read_c0(&mut self) -> Result<(), HandshakeError> {
+        self.reader.read_u8()?;
+        Ok(())
+    }
+
+    fn read_c1(&mut self) -> Result<(), HandshakeError> {
+        let c1_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        self.c1_bytes = c1_bytes.clone();
+        let mut reader = BytesReader::new(c1_bytes);
+        self.c1_timestamp = reader.read_u32::<BigEndian>()?;
+
+        Ok(())
+    }
+
+    fn read_c2(&mut self) -> Result<(), HandshakeError> {
+        self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        Ok(())
+    }
+
+    fn write_s0(&mut self) -> Result<(), HandshakeError> {
+        let version: [u8; 1] = [RTMP_VERSION as u8];
+        self.writer.write(&version);
+        Ok(())
+    }
+
+    fn write_s1(&mut self) -> Result<(), HandshakeError> {
+        self.writer.write_u32::<BigEndian>(current_time())?;
+        self.writer.write_u32::<BigEndian>(self.c1_timestamp)?;
+        self.writer
+            .write_random_bytes(RTMP_HANDSHAKE_SIZE as u32 - 8)?;
+
+        Ok(())
+    }
+
+    fn write_s2(&mut self) -> Result<(), HandshakeError> {
+        self.writer.write(&self.c1_bytes)?;
+
+        Ok(())
+    }
+
+    pub fn extend_data(&mut self, data: &[u8]) {
+        self.reader.extend_from_slice(data);
+    }
+
+    pub fn handshake(&mut self) -> Result<BytesMut, HandshakeError> {
+        loop {
+            match self.state {
+                ServerHandshakeState::ReadC0C1 => {
+                    self.read_c0()?;
+                    self.read_c1()?;
+                    self.state = ServerHandshakeState::WriteS0S1S2;
+                }
+                ServerHandshakeState::WriteS0S1S2 => {
+                    self.write_s0()?;
+                    self.write_s1()?;
+                    self.write_s2()?;
+
+                    self.state = ServerHandshakeState::ReadC2;
+                    break;
+                }
+                ServerHandshakeState::ReadC2 => {
+                    self.read_c2()?;
+                    self.state = ServerHandshakeState::Finish;
+                }
+                ServerHandshakeState::Finish => {
+                    break;
+                }
+            }
+        }
+
+        Ok(self.writer.extract_current_bytes())
     }
 
     pub fn get_remaining_bytes(&mut self) -> BytesMut {

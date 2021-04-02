@@ -1,7 +1,7 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
-use crate::handshake::handshake::{SimpleHandshakeServer,ComplexHandshakeServer};
+use crate::handshake::handshake::{ComplexHandshakeServer, SimpleHandshakeServer};
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
 use crate::{
     application,
@@ -686,5 +686,200 @@ impl ServerSession {
         // }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::io::Read;
+    use std::io::Write;
+    use std::net::{TcpListener, TcpStream};
+    use std::thread;
+
+    use crate::chunk::unpacketizer::ChunkUnpacketizer;
+    use crate::handshake::handshake::SimpleHandshakeServerSync;
+
+    use crate::handshake::handshake::ServerHandshakeState;
+    use crate::session::errors::SessionError;
+
+    use super::ServerSessionState;
+    use crate::chunk::unpacketizer::UnpackResult;
+    use bytes::BytesMut;
+
+    use crate::utils::print;
+    use std::cell::{RefCell, RefMut};
+    use std::rc::Rc;
+    pub struct RtmpProcessor {
+        simple_handshaker: SimpleHandshakeServerSync,
+
+        unpacketizer: ChunkUnpacketizer,
+
+        stream: TcpStream,
+
+        state: ServerSessionState,
+    }
+
+    impl RtmpProcessor {
+        fn new(stream: TcpStream) -> Self {
+            Self {
+                simple_handshaker: SimpleHandshakeServerSync::new(),
+                unpacketizer: ChunkUnpacketizer::new(),
+                state: ServerSessionState::Handshake,
+                stream: stream,
+            }
+        }
+        fn handle_rtmp(&mut self, data: &[u8]) -> Result<(), SessionError> {
+            let mut remaining_bytes: BytesMut = BytesMut::new();
+
+            match self.state {
+                ServerSessionState::Handshake => {
+                    self.simple_handshaker.extend_data(data);
+                    let data = self.simple_handshaker.handshake()?;
+
+                    match self.simple_handshaker.state {
+                        ServerHandshakeState::Finish => {
+                            self.state = ServerSessionState::ReadChunk;
+                            remaining_bytes = self.simple_handshaker.get_remaining_bytes();
+                        }
+                        _ => return Ok(()),
+                    }
+                }
+                ServerSessionState::ReadChunk => {
+                    if remaining_bytes.len() > 0 {
+                        let bytes = std::mem::replace(&mut remaining_bytes, BytesMut::new());
+                        self.unpacketizer.extend_data(&bytes[..]);
+                    } else {
+                        self.unpacketizer.extend_data(data);
+                    }
+
+                    let result = self.unpacketizer.read_chunks();
+
+                    let rv = match result {
+                        Ok(val) => val,
+                        Err(err) => {
+                            // return Err(SessionError {
+                            //     value: SessionErrorValue::UnPackError(err),
+                            // })
+                            return Ok(());
+                        }
+                    };
+
+                    match rv {
+                        UnpackResult::Chunks(chunks) => {
+                            for chunk_info in chunks.iter() {
+                                let msg_stream_id = chunk_info.message_header.msg_streamd_id;
+                                let timestamp = chunk_info.message_header.timestamp;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                _ => {}
+            }
+
+            Ok(())
+        }
+
+        fn handle_client(&mut self) {
+            // read 20 bytes at a time from stream echoing back to stream
+
+            let mut remaining_bytes: BytesMut = BytesMut::new();
+            loop {
+                let mut read = [0; 10280];
+                match self.stream.read(&mut read) {
+                    Ok(n) => {
+                        if n == 0 {
+                            // connection was closed
+                            break;
+                        }
+
+                        print::print_slice(&read[0..n]);
+
+                        match self.state {
+                            ServerSessionState::Handshake => {
+                                self.simple_handshaker.extend_data(&read[0..n]);
+                                let data = self.simple_handshaker.handshake();
+
+                                match self.simple_handshaker.state {
+                                    ServerHandshakeState::Finish => {
+                                        self.state = ServerSessionState::ReadChunk;
+                                        remaining_bytes =
+                                            self.simple_handshaker.get_remaining_bytes();
+                                    }
+                                    _ => match data {
+                                        Ok(b) => {
+                                            self.stream.write(&b[..]);
+                                            continue
+                                        }
+
+                                        _ => {}
+                                    },
+                                }
+                            }
+                            ServerSessionState::ReadChunk => {
+                                if remaining_bytes.len() > 0 {
+                                    let bytes =
+                                        std::mem::replace(&mut remaining_bytes, BytesMut::new());
+                                    self.unpacketizer.extend_data(&bytes[..]);
+                                } else {
+                                    self.unpacketizer.extend_data(&read[0..n]);
+                                }
+
+                                let result = self.unpacketizer.read_chunks();
+
+                                let rv = match result {
+                                    Ok(val) => val,
+                                    Err(err) => {
+                                        // return Err(SessionError {
+                                        //     value: SessionErrorValue::UnPackError(err),
+                                        // })
+                                        continue;
+                                    }
+                                };
+
+                                match rv {
+                                    UnpackResult::Chunks(chunks) => {
+                                        for chunk_info in chunks.iter() {
+                                            let msg_stream_id =
+                                                chunk_info.message_header.msg_streamd_id;
+                                            let timestamp = chunk_info.message_header.timestamp;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+
+                            _ => {}
+                        }
+                    }
+                    Err(err) => {
+                        panic!(err);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_server_session() {
+        let listener = TcpListener::bind("127.0.0.1:1935").unwrap();
+
+        for stream in listener.incoming() {
+            match stream {
+                Ok(stream) => {
+                    thread::spawn(move || {
+                        // let stream = Rc::new(RefCell::new(stream));
+                        let mut processor = RtmpProcessor::new(stream);
+
+                        processor.handle_client();
+                    });
+                }
+                Err(_) => {
+                    println!("Error");
+                }
+            }
+        }
     }
 }

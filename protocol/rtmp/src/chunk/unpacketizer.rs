@@ -71,7 +71,7 @@ impl ChunkUnpacketizer {
             current_chunk_info: ChunkInfo::default(),
             chunk_read_state: ChunkReadState::ReadBasicHeader,
             msg_header_read_state: MessageHeaderReadState::ReadTimeStamp,
-            max_chunk_size: CHUNK_SIZE as usize,
+            max_chunk_size: 128,
             chunk_index: 0,
         }
     }
