@@ -1,5 +1,5 @@
 use byteorder::BigEndian;
-
+use byteorder::LittleEndian;
 use bytes::{BufMut, BytesMut};
 // use chunk::ChunkUnpackError;
 use super::errors::UnpackError;
@@ -327,7 +327,7 @@ impl ChunkUnpacketizer {
                         }
                         MessageHeaderReadState::ReadMsgStreamID => {
                             self.current_message_header().msg_streamd_id =
-                                self.reader.read_u32::<BigEndian>()?;
+                                self.reader.read_u32::<LittleEndian>()?;
                             self.msg_header_read_state = MessageHeaderReadState::ReadTimeStamp;
                             break;
                         }

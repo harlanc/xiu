@@ -90,23 +90,3 @@ impl ProtocolControlMessagesWriter {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    use super::ProtocolControlMessagesWriter;
-    use bytes::BytesMut;
-    use netio::bytes_writer::AsyncBytesWriter;
-    use netio::netio::NetworkIO;
-    use std::net::TcpStream;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
-
-    #[test]
-    fn test_write_set_chunk_size() {
-
-        // let stream = TcpStream:
-        // let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, 10)));
-        // let writer = AsyncBytesWriter::new(io)
-    }
-}

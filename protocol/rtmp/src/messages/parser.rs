@@ -86,12 +86,10 @@ impl MessageParser {
                     data: self.chunk_info.payload.clone(),
                 });
             }
-
             msg_type_id::USER_CONTROL_EVENT => {
                 let data = EventMessagesReader::new(reader).parse_event()?;
-                return Ok(data)
+                return Ok(data);
             }
-
             msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
                 return Ok(RtmpMessageData::SetChunkSize {
@@ -124,9 +122,12 @@ impl MessageParser {
                     properties: properties,
                 });
             }
-
             msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
-                return Ok(RtmpMessageData::SetChunkSize { chunk_size: 4096 });
+                let values = Amf0Reader::new(reader).read_all()?;
+                return Ok(RtmpMessageData::AmfData {
+                    raw_data: self.chunk_info.payload.clone(),
+                    values: values,
+                });
             }
 
             msg_type_id::SHARED_OBJ_AMF3 | msg_type_id::SHARED_OBJ_AMF0 => {}

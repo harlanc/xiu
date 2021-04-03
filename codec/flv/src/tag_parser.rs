@@ -103,7 +103,7 @@ impl Tag {
     }
 }
 
-struct TagParser {
+pub struct TagParser {
     tag_type: TagType,
     bytes_reader: BytesReader,
     tag: Tag,

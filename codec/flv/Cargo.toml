@@ -1,12 +1,12 @@
 [package]
 name = "flv"
-description = "a powerful live server by Rust ."
+description = "flv parser."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
 readme = "README.md"
-categories = ["multimedia", "multimedia::video", 'multimedia::audio']
+categories = ["flv"]
 keywords = ["rtmp", "video", "streaming"]
 edition = "2018"
 

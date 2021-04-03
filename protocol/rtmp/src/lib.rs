@@ -21,3 +21,4 @@ pub mod protocol_control_messages;
 pub mod session;
 pub mod user_control_messages;
 pub mod utils;
+pub mod cache;

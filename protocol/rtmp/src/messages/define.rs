@@ -22,6 +22,10 @@ pub enum RtmpMessageData {
         command_object: Amf0ValueType,
         others: Vec<Amf0ValueType>,
     },
+    AmfData{
+        raw_data: BytesMut,
+        values: Vec<Amf0ValueType>,
+    },
     SetChunkSize {
         chunk_size: u32,
     },
@@ -43,7 +47,6 @@ pub enum RtmpMessageData {
     VideoData {
         data: BytesMut,
     },
-
     SetBufferLength {
         stream_id: u32,
         buffer_length: u32,

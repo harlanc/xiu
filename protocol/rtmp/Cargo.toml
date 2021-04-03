@@ -18,6 +18,8 @@ failure = "0.1.1"
 hmac = "0.6.2"
 sha2 = "0.7.1"
 netio = {path = "../../library/netio/"}
+flv = {path = "../../codec/flv/"}
+
 tokio-util = { version = "0.6.5", features = ["codec"] }
 log = "0.4"
 chrono = "0.4"

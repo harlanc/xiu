@@ -1,12 +1,9 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
+use crate::chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo};
 use crate::handshake::handshake::{ComplexHandshakeServer, SimpleHandshakeServer};
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
-use crate::{
-    application,
-    chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo},
-};
 use crate::{channels, chunk::packetizer::ChunkPacketizer};
 use crate::{
     chunk::define::CHUNK_SIZE,
@@ -19,7 +16,6 @@ use crate::messages::define::RtmpMessageData;
 use crate::messages::parser::MessageParser;
 use bytes::BytesMut;
 
-use netio::bytes_reader::BytesReader;
 use netio::bytes_writer::AsyncBytesWriter;
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
@@ -37,20 +33,18 @@ use crate::user_control_messages::writer::EventMessagesWriter;
 
 use std::collections::HashMap;
 
+use tokio::net::TcpStream;
 use tokio::sync::broadcast;
-use tokio::{io::ReadHalf, net::TcpStream};
 
-use std::cell::{RefCell, RefMut};
-use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 
 use crate::channels::define::ChannelData;
-use crate::channels::errors::ChannelError;
-use crate::channels::errors::ChannelErrorValue;
 
 use crate::handshake::handshake::ServerHandshakeState;
+
+use crate::cache::metadata;
 
 use crate::utils;
 use log::{debug, log, log_enabled, Level};
@@ -280,6 +274,9 @@ impl ServerSession {
             RtmpMessageData::VideoData { data } => {
                 self.on_video_data(data, timestamp)?;
             }
+            RtmpMessageData::AmfData { raw_data, values } => {
+                self.on_amf_data(raw_data, values)?;
+            }
 
             _ => {}
         }
@@ -502,28 +499,39 @@ impl ServerSession {
         event_messages.write_stream_begin(stream_id.clone()).await?;
 
         let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
-        match reset {
-            Some(val) => {
-                if val {
-                    netstream
-                        .on_status(
-                            transaction_id,
-                            &"status".to_string(),
-                            &"NetStream.Play.Reset".to_string(),
-                            &"".to_string(),
-                        )
-                        .await?;
-                }
-            }
-            _ => {}
-        }
+        netstream
+            .on_status(
+                transaction_id,
+                &"status".to_string(),
+                &"NetStream.Play.Reset".to_string(),
+                &"reset".to_string(),
+            )
+            .await?;
 
         netstream
             .on_status(
                 transaction_id,
                 &"status".to_string(),
                 &"NetStream.Play.Start".to_string(),
-                &"".to_string(),
+                &"play start".to_string(),
+            )
+            .await?;
+
+        netstream
+            .on_status(
+                transaction_id,
+                &"status".to_string(),
+                &"NetStream.Data.Start".to_string(),
+                &"data start.".to_string(),
+            )
+            .await?;
+
+        netstream
+            .on_status(
+                transaction_id,
+                &"status".to_string(),
+                &"NetStream.Play.PublishNotify".to_string(),
+                &"play publish notify.".to_string(),
             )
             .await?;
 
@@ -674,19 +682,31 @@ impl ServerSession {
         data: &mut BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
-        // let data = ChannelData::Audio {
-        //     timestamp: timestamp.clone(),
-        //     data: data.clone(),
-        // };
+        let data = ChannelData::Audio {
+            timestamp: timestamp.clone(),
+            data: data.clone(),
+        };
 
-        // match self.data_producer.send(data) {
-        //     Ok(size) => {}
-        //     Err(_) => {
-        //         return Err(SessionError {
-        //             value: SessionErrorValue::SendChannelDataErr,
-        //         })
-        //     }
-        // }
+        match self.data_producer.send(data) {
+            Ok(size) => {}
+            Err(_) => {
+                return Err(SessionError {
+                    value: SessionErrorValue::SendChannelDataErr,
+                })
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn on_amf_data(
+        &mut self,
+        body: &mut BytesMut,
+        values: &mut Vec<Amf0ValueType>,
+    ) -> Result<(), SessionError> {
+        let mut metadata_handler = metadata::MetaData::default();
+
+        metadata_handler.save(body, values);
 
         Ok(())
     }
