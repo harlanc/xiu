@@ -25,7 +25,7 @@ use std::time::Duration;
 use crate::handshake::handshake::ClientHandshakeState;
 use crate::netconnection::commands::ConnectProperties;
 use crate::netconnection::commands::NetConnection;
-use crate::netstream::commands::NetStream;
+use crate::netstream::writer::NetStreamWriter;
 use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
 
 use crate::user_control_messages::writer::EventMessagesWriter;
@@ -290,20 +290,9 @@ impl ClientSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStream::new(BytesWriter::new());
-        let data = netstream.delete_stream(transaction_id, stream_id)?;
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        netstream.delete_stream(transaction_id, stream_id).await?;
 
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
 
@@ -313,20 +302,10 @@ impl ClientSession {
         stream_name: &String,
         stream_type: &String,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStream::new(BytesWriter::new());
-        let data = netstream.publish(transaction_id, stream_name, stream_type)?;
-
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        netstream
+            .publish(transaction_id, stream_name, stream_type)
+            .await?;
 
         Ok(())
     }
@@ -339,26 +318,17 @@ impl ClientSession {
         duration: &f64,
         reset: &bool,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStream::new(BytesWriter::new());
-        let data = netstream.play(transaction_id, stream_name, start, duration, reset)?;
-
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        netstream
+            .play(transaction_id, stream_name, start, duration, reset)
+            .await?;
 
         Ok(())
     }
 
     pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
-        let mut controlmessage = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut controlmessage =
+            ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_set_chunk_size(CHUNK_SIZE).await?;
         Ok(())
     }
@@ -367,7 +337,8 @@ impl ClientSession {
         &mut self,
         window_size: u32,
     ) -> Result<(), SessionError> {
-        let mut controlmessage = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut controlmessage =
+            ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage
             .write_window_acknowledgement_size(window_size)
             .await?;

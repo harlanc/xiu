@@ -30,7 +30,7 @@ use crate::channels::define::MultiConsumerForData;
 use crate::channels::define::MultiProducerForEvent;
 use crate::channels::define::SingleProducerForData;
 use crate::netconnection::commands::NetConnection;
-use crate::netstream::commands::NetStream;
+use crate::netstream::writer::NetStreamWriter;
 use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
 
 use crate::user_control_messages::writer::EventMessagesWriter;
@@ -212,7 +212,8 @@ impl ServerSession {
     }
 
     pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
-        let mut controlmessage = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut controlmessage =
+            ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_set_chunk_size(CHUNK_SIZE).await?;
 
         Ok(())
@@ -353,7 +354,8 @@ impl ServerSession {
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
-        let mut control_message = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut control_message =
+            ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         control_message
             .write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)
             .await?;
@@ -431,25 +433,16 @@ impl ServerSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStream::new(BytesWriter::new());
-        let data = netstream.on_status(
-            transaction_id,
-            &"status".to_string(),
-            &"NetStream.DeleteStream.Suceess".to_string(),
-            &"".to_string(),
-        )?;
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        netstream
+            .on_status(
+                transaction_id,
+                &"status".to_string(),
+                &"NetStream.DeleteStream.Suceess".to_string(),
+                &"".to_string(),
+            )
+            .await?;
 
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
     pub async fn on_play(
@@ -508,29 +501,35 @@ impl ServerSession {
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
 
-        let mut netstream = NetStream::new(BytesWriter::new());
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
         match reset {
             Some(val) => {
                 if val {
-                    netstream.on_status(
-                        transaction_id,
-                        &"status".to_string(),
-                        &"NetStream.Play.Reset".to_string(),
-                        &"".to_string(),
-                    )?;
+                    netstream
+                        .on_status(
+                            transaction_id,
+                            &"status".to_string(),
+                            &"NetStream.Play.Reset".to_string(),
+                            &"".to_string(),
+                        )
+                        .await?;
                 }
             }
             _ => {}
         }
 
-        netstream.on_status(
-            transaction_id,
-            &"status".to_string(),
-            &"NetStream.Play.Start".to_string(),
-            &"".to_string(),
-        )?;
+        netstream
+            .on_status(
+                transaction_id,
+                &"status".to_string(),
+                &"NetStream.Play.Start".to_string(),
+                &"".to_string(),
+            )
+            .await?;
 
-        event_messages.write_stream_is_record(stream_id.clone()).await?;
+        event_messages
+            .write_stream_is_record(stream_id.clone())
+            .await?;
 
         self.subscribe_from_channels(stream_name.unwrap()).await?;
         self.state = ServerSessionState::Play;
@@ -600,25 +599,15 @@ impl ServerSession {
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
 
-        let mut netstream = NetStream::new(BytesWriter::new());
-        let data = netstream.on_status(
-            transaction_id,
-            &"status".to_string(),
-            &"NetStream.Publish.Start".to_string(),
-            &"".to_string(),
-        )?;
-
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        netstream
+            .on_status(
+                transaction_id,
+                &"status".to_string(),
+                &"NetStream.Publish.Start".to_string(),
+                &"".to_string(),
+            )
+            .await?;
 
         print!("before publish_to_channels\n");
         self.publish_to_channels(stream_name).await?;
@@ -670,10 +659,10 @@ impl ServerSession {
         match self.data_producer.send(data) {
             Ok(size) => {}
             Err(err) => {
-               format!("receive video err {}",err);
+                format!("receive video err {}", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,
-                })
+                });
             }
         }
 

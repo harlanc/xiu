@@ -1,5 +1,6 @@
 use crate::amf0::errors::Amf0WriteError;
 
+use crate::chunk::errors::PackError;
 use failure::{Backtrace, Fail};
 use std::fmt;
 
@@ -14,12 +15,22 @@ pub enum NetStreamErrorValue {
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "invalid max chunk size")]
     InvalidMaxChunkSize { chunk_size: usize },
+    #[fail(display = "pack error")]
+    PackError(PackError),
 }
 
 impl From<Amf0WriteError> for NetStreamError {
     fn from(error: Amf0WriteError) -> Self {
         NetStreamError {
             value: NetStreamErrorValue::Amf0WriteError(error),
+        }
+    }
+}
+
+impl From<PackError> for NetStreamError {
+    fn from(error: PackError) -> Self {
+        NetStreamError {
+            value: NetStreamErrorValue::PackError(error),
         }
     }
 }

@@ -1,2 +1,2 @@
-pub mod commands;
+pub mod writer;
 pub mod errors;
