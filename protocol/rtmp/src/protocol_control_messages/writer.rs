@@ -4,12 +4,12 @@ use crate::messages::define::msg_type_id;
 use byteorder::BigEndian;
 use netio::bytes_writer::AsyncBytesWriter;
 
-pub struct ControlMessages {
+pub struct ProtocolControlMessagesWriter {
     writer: AsyncBytesWriter,
     //amf0_writer: Amf0Writer,
 }
 
-impl ControlMessages {
+impl ProtocolControlMessagesWriter {
     pub fn new(writer: AsyncBytesWriter) -> Self {
         Self { writer: writer }
     }
@@ -94,7 +94,7 @@ impl ControlMessages {
 #[cfg(test)]
 mod tests {
 
-    use super::ControlMessages;
+    use super::ProtocolControlMessagesWriter;
     use bytes::BytesMut;
     use netio::bytes_writer::AsyncBytesWriter;
     use netio::netio::NetworkIO;

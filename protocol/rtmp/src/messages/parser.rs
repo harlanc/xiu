@@ -10,6 +10,7 @@ use crate::amf0::amf0_reader::Amf0Reader;
 
 use crate::config;
 use crate::protocol_control_messages::reader::ProtocolControlMessageReader;
+use crate::user_control_messages::reader::EventMessagesReader;
 use crate::utils;
 
 pub struct MessageParser {
@@ -27,23 +28,23 @@ impl MessageParser {
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
-                print!(
-                    "amf command:msg_length{}\n",
-                    self.chunk_info.message_header.msg_length
-                );
+                // print!(
+                //     "amf command:msg_length{}\n",
+                //     self.chunk_info.message_header.msg_length
+                // );
 
                 if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF3 {
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
 
-                utils::print::print(amf_reader.get_remaining_bytes());
+                // utils::print::print(amf_reader.get_remaining_bytes());
 
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
 
-                print!("2222222222222 command name  transction id \n");
-                utils::print::print(amf_reader.get_remaining_bytes());
+                // print!("2222222222222 command name  transction id \n");
+                // utils::print::print(amf_reader.get_remaining_bytes());
 
                 //The third value can be an object or NULL object
                 let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
@@ -53,8 +54,6 @@ impl MessageParser {
                 };
 
                 let others = amf_reader.read_all()?;
-
-                print!("333333333333\n",);
 
                 return Ok(RtmpMessageData::Amf0Command {
                     command_name: command_name,
@@ -88,7 +87,10 @@ impl MessageParser {
                 });
             }
 
-            msg_type_id::USER_CONTROL_EVENT => {}
+            msg_type_id::USER_CONTROL_EVENT => {
+                let data = EventMessagesReader::new(reader).parse_event()?;
+                return Ok(data)
+            }
 
             msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;

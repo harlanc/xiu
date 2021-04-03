@@ -7,7 +7,7 @@ use rand::Rng;
 use sha2::Sha256;
 use std::convert::TryInto;
 use std::{io::Write, ops::Deref};
-
+//TODO
 use netio::{
     //bytes_reader::NetworkReader,
     bytes_reader::BytesReader,

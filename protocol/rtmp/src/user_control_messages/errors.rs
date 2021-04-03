@@ -1,8 +1,8 @@
 use crate::amf0::errors::Amf0WriteError;
 
-use netio::bytes_errors::BytesWriteError;
-
 use failure::{Backtrace, Fail};
+use netio::bytes_errors::BytesReadError;
+use netio::bytes_errors::BytesWriteError;
 use std::fmt;
 
 #[derive(Debug)]
@@ -16,6 +16,10 @@ pub enum EventMessagesErrorValue {
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "bytes write error: {}", _0)]
     BytesWriteError(BytesWriteError),
+    #[fail(display = "bytes read error: {}", _0)]
+    BytesReadError(BytesReadError),
+    #[fail(display = "unknow event message type")]
+    UnknowEventMessageType,
 }
 
 impl From<Amf0WriteError> for EventMessagesError {
@@ -30,6 +34,14 @@ impl From<BytesWriteError> for EventMessagesError {
     fn from(error: BytesWriteError) -> Self {
         EventMessagesError {
             value: EventMessagesErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl From<BytesReadError> for EventMessagesError {
+    fn from(error: BytesReadError) -> Self {
+        EventMessagesError {
+            value: EventMessagesErrorValue::BytesReadError(error),
         }
     }
 }

@@ -26,9 +26,9 @@ use crate::handshake::handshake::ClientHandshakeState;
 use crate::netconnection::commands::ConnectProperties;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
-use crate::protocol_control_messages::control_messages::ControlMessages;
+use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
 
-use crate::user_control_messages::event_messages::EventMessages;
+use crate::user_control_messages::writer::EventMessagesWriter;
 
 use std::collections::HashMap;
 
@@ -358,7 +358,7 @@ impl ClientSession {
     }
 
     pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
-        let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut controlmessage = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_set_chunk_size(CHUNK_SIZE).await?;
         Ok(())
     }
@@ -367,7 +367,7 @@ impl ClientSession {
         &mut self,
         window_size: u32,
     ) -> Result<(), SessionError> {
-        let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut controlmessage = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage
             .write_window_acknowledgement_size(window_size)
             .await?;
@@ -379,8 +379,8 @@ impl ClientSession {
         stream_id: u32,
         ms: u32,
     ) -> Result<(), SessionError> {
-        let mut eventmessages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        eventmessages.set_buffer_length(stream_id, ms).await?;
+        let mut eventmessages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        eventmessages.write_set_buffer_length(stream_id, ms).await?;
 
         Ok(())
     }

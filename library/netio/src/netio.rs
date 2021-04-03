@@ -40,11 +40,11 @@ impl NetworkIO {
         match message {
             Some(data) => match data {
                 Ok(bytes) => {
-                    for k in bytes.clone(){
-                        print!("{:02X} ",k);
-                    }
-                    print!("\n");
-                    print!("\n");
+                    // for k in bytes.clone(){
+                    //     print!("{:02X} ",k);
+                    // }
+                    // print!("\n");
+                    // print!("\n");
                     return Ok(bytes);
                 }
                 Err(err) => {

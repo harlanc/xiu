@@ -43,6 +43,13 @@ pub enum RtmpMessageData {
     VideoData {
         data: BytesMut,
     },
+
+    SetBufferLength {
+        stream_id: u32,
+        buffer_length: u32,
+    },
+
+    Unknow,
 }
 
 pub mod msg_type_id {

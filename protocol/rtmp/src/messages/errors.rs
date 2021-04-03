@@ -1,5 +1,6 @@
 use crate::amf0::errors::Amf0ReadError;
 use crate::protocol_control_messages::errors::ProtocolControlMessageReaderError;
+use crate::user_control_messages::errors::EventMessagesError;
 use netio::bytes_errors::BytesReadError;
 
 use failure::{Backtrace, Fail};
@@ -17,6 +18,8 @@ pub enum MessageErrorValue {
     UnknowMessageType,
     #[fail(display = "protocol control message read error: {}", _0)]
     ProtocolControlMessageReaderError(ProtocolControlMessageReaderError),
+    #[fail(display = "user control message read error: {}", _0)]
+    EventMessagesError(EventMessagesError),
 }
 
 #[derive(Debug)]
@@ -50,6 +53,14 @@ impl From<ProtocolControlMessageReaderError> for MessageError {
     fn from(error: ProtocolControlMessageReaderError) -> Self {
         MessageError {
             value: MessageErrorValue::ProtocolControlMessageReaderError(error),
+        }
+    }
+}
+
+impl From<EventMessagesError> for MessageError {
+    fn from(error: EventMessagesError) -> Self {
+        MessageError {
+            value: MessageErrorValue::EventMessagesError(error),
         }
     }
 }

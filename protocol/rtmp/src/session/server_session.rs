@@ -31,9 +31,9 @@ use crate::channels::define::MultiProducerForEvent;
 use crate::channels::define::SingleProducerForData;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::commands::NetStream;
-use crate::protocol_control_messages::control_messages::ControlMessages;
+use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
 
-use crate::user_control_messages::event_messages::EventMessages;
+use crate::user_control_messages::writer::EventMessagesWriter;
 
 use std::collections::HashMap;
 
@@ -127,7 +127,7 @@ impl ServerSession {
             if remaining_bytes.len() <= 0 {
                 net_io_data = self.io.lock().await.read().await?;
 
-                utils::print::print(net_io_data.clone());
+                //utils::print::print(net_io_data.clone());
             }
 
             match self.state {
@@ -193,9 +193,11 @@ impl ServerSession {
                     match data {
                         Ok(val) => match val {
                             ChannelData::Audio { timestamp, data } => {
+                                print!("send audio data\n");
                                 self.send_audio(data, timestamp).await?;
                             }
                             ChannelData::Video { timestamp, data } => {
+                                print!("send video data\n");
                                 self.send_video(data, timestamp).await?;
                             }
                             ChannelData::MetaData {} => {}
@@ -210,7 +212,7 @@ impl ServerSession {
     }
 
     pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
-        let mut controlmessage = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut controlmessage = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_set_chunk_size(CHUNK_SIZE).await?;
 
         Ok(())
@@ -351,7 +353,7 @@ impl ServerSession {
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
-        let mut control_message = ControlMessages::new(AsyncBytesWriter::new(self.io.clone()));
+        let mut control_message = ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         control_message
             .write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)
             .await?;
@@ -503,8 +505,8 @@ impl ServerSession {
             break;
         }
 
-        let mut event_messages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.stream_begin(stream_id.clone()).await?;
+        let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        event_messages.write_stream_begin(stream_id.clone()).await?;
 
         let mut netstream = NetStream::new(BytesWriter::new());
         match reset {
@@ -528,7 +530,7 @@ impl ServerSession {
             &"".to_string(),
         )?;
 
-        event_messages.stream_is_record(stream_id.clone()).await?;
+        event_messages.write_stream_is_record(stream_id.clone()).await?;
 
         self.subscribe_from_channels(stream_name.unwrap()).await?;
         self.state = ServerSessionState::Play;
@@ -595,8 +597,8 @@ impl ServerSession {
             }
         };
 
-        let mut event_messages = EventMessages::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.stream_begin(stream_id.clone()).await?;
+        let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        event_messages.write_stream_begin(stream_id.clone()).await?;
 
         let mut netstream = NetStream::new(BytesWriter::new());
         let data = netstream.on_status(
@@ -618,7 +620,9 @@ impl ServerSession {
 
         self.packetizer.write_chunk(&mut chunk_info).await?;
 
+        print!("before publish_to_channels\n");
         self.publish_to_channels(stream_name).await?;
+        print!("after publish_to_channels\n");
 
         Ok(())
     }
@@ -643,7 +647,9 @@ impl ServerSession {
 
         match receiver.await {
             Ok(producer) => {
+                print!("set producer before\n");
                 self.data_producer = producer;
+                print!("set producer after\n");
             }
             Err(_) => {}
         }
@@ -655,19 +661,21 @@ impl ServerSession {
         data: &mut BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
-        // let data = ChannelData::Video {
-        //     timestamp: timestamp.clone(),
-        //     data: data.clone(),
-        // };
+        let data = ChannelData::Video {
+            timestamp: timestamp.clone(),
+            data: data.clone(),
+        };
 
-        // match self.data_producer.send(data) {
-        //     Ok(size) => {}
-        //     Err(_) => {
-        //         return Err(SessionError {
-        //             value: SessionErrorValue::SendChannelDataErr,
-        //         })
-        //     }
-        // }
+        print!("receive video data\n");
+        match self.data_producer.send(data) {
+            Ok(size) => {}
+            Err(err) => {
+               format!("receive video err {}",err);
+                return Err(SessionError {
+                    value: SessionErrorValue::SendChannelDataErr,
+                })
+            }
+        }
 
         Ok(())
     }
