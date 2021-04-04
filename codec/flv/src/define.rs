@@ -7,6 +7,17 @@ pub mod sound_format {
     pub const AAC: u8 = 10;
 }
 
+pub mod aac_packet_type {
+    pub const AAC_SEQHDR: u8 = 0;
+    pub const AAC_RAW: u8 = 1;
+}
+
+pub mod avc_packet_type {
+    pub const AVC_SEQHDR: u8 = 0;
+    pub const AVC_NALU: u8 = 1;
+    pub const AVC_EOS: u8 = 2;
+}
+
 pub mod frame_type {
     /*
         1: keyframe (for AVC, a seekable frame)

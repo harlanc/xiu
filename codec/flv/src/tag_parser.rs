@@ -26,7 +26,7 @@ pub struct Tag {
         AAC is supported in Flash Player 9,0,115,0 and higher.
         Speex is supported in Flash Player 10 and higher.
     */
-    sound_format: u8,
+    pub sound_format: u8,
     /*
         SoundRate: UB[2]
         Sampling rate
@@ -35,7 +35,7 @@ pub struct Tag {
         2 = 22-kHz
         3 = 44-kHz
     */
-    sound_rate: u8,
+    pub sound_rate: u8,
     /*
         SoundSize: UB[1]
         0 = snd8Bit
@@ -44,7 +44,7 @@ pub struct Tag {
         This parameter only pertains to uncompressed formats.
         Compressed formats always decode to 16 bits internally
     */
-    sound_size: u8,
+    pub sound_size: u8,
     /*
         SoundType: UB[1]
         0 = sndMono
@@ -52,7 +52,7 @@ pub struct Tag {
         Mono or stereo sound For Nellymoser: always 0
         For AAC: always 1
     */
-    sound_type: u8,
+    pub sound_type: u8,
 
     /*
         0: AAC sequence header
@@ -67,7 +67,7 @@ pub struct Tag {
         4: generated keyframe (reserved for server use only)
         5: video info/command frame
     */
-    frame_type: u8,
+    pub frame_type: u8,
     /*
         1: JPEG (currently unused)
         2: Sorenson H.263
@@ -77,14 +77,14 @@ pub struct Tag {
         6: Screen video version 2
         7: AVC
     */
-    codec_id: u8,
+    pub codec_id: u8,
     /*
         0: AVC sequence header
         1: AVC NALU
         2: AVC end of sequence (lower level NALU sequence ender is not required or supported)
     */
-    avc_packet_type: u8,
-    composition_time: u32,
+    pub avc_packet_type: u8,
+    pub composition_time: u32,
 }
 
 impl Tag {
