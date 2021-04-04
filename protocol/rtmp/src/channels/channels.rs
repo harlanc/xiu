@@ -1,37 +1,100 @@
 use crate::{chunk, messages};
 
+use super::define::ChannelDataConsumer;
+use super::define::ChannelDataPublisher;
 use super::define::ChannelEvent;
-use super::define::MultiConsumerForData;
-use super::define::MultiProducerForEvent;
-use super::define::SingleConsumerForEvent;
-use super::define::SingleProducerForData;
+use super::define::ChannelEventConsumer;
+use super::define::ChannelEventPublisher;
+use super::define::PlayerConsumer;
+use super::define::{ChannelData, PlayerPublisher};
+
 use super::errors::ChannelError;
 use super::errors::ChannelErrorValue;
 use std::sync::Arc;
-use std::{borrow::BorrowMut, collections::HashMap};
+use std::{borrow::Borrow, borrow::BorrowMut, collections::HashMap};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tokio::sync::RwLock;
+use std::cell::RefCell;
 
-pub struct Channels {
-    streams: HashMap<String, HashMap<String, SingleProducerForData>>,
+/************************************************************************************
+* For a publisher, we new a broadcast::channel .
+* For a player, we also new a oneshot::channel which subscribe the puslisher's broadcast channel,
+* because we not only need to send av data from the publisher,but also some cache data(metadata
+* and seq headers), so establishing a middle channel is needed.
+************************************************************************************
+*
+*          stream_producer                      player_producers
+*
+*                                         sender(oneshot::channel) player
+*                                    ----------------------------------
+*                                   /     sender(oneshot::channel) player
+*                                  /   --------------------------------
+*           (broadcast::channel)  /   /   sender(oneshot::channel) player
+* publisher --------------------->--------------------------------------
+*                                 \   \   sender(oneshot::channel) player
+*                                  \   --------------------------------
+*                                   \     sender(oneshot::channel) player
+*                                     ---------------------------------
+*
+*************************************************************************************/
+
+pub struct Channel {
+    stream_producer: ChannelDataPublisher, //used for publisher to produce AV data
+    player_producers: RefCell<Vec<PlayerPublisher>>, // consumers who subscribe this channel.
+}
+
+impl Channel {
+    fn new(producer: ChannelDataPublisher) -> Self {
+        Self {
+            stream_producer: producer,
+            player_producers: RefCell::new(Vec::new()),
+        }
+    }
+
+    fn add_subscriber(&mut self, producer: PlayerPublisher) {
+        self.player_producers.borrow_mut().push(producer);
+    }
+
+    async fn run(&mut self) {
+        let mut sub = self.stream_producer.subscribe();
+        loop {
+            let data = sub.recv().await;
+            match data {
+                Ok(d) => {
+                    let producers = self.player_producers.borrow_mut();
+                    for i in 0..producers.len(){
+
+                        producers[i].send(d);
+
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+    }
+}
+pub struct ChannelsManager {
+    //app_name to stream_name to producer
+    channels: HashMap<String, HashMap<String, Channel>>,
     //event is consumed in Channels, produced from other rtmp sessions
-    event_consumer: SingleConsumerForEvent,
+    event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
-    event_producer: MultiProducerForEvent,
+    event_producer: ChannelEventPublisher,
     //rtmp data is consumed by other rtmp sessions
     //data_consumer: MultiConsumerForData,
     // //rtmp data is produced by a rtmp session
     // data_producer: SingleProducerForData,
 }
 
-impl Channels {
+impl ChannelsManager {
     pub fn new() -> Self {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
         //let (data_producer, data_consumer) = broadcast::channel(100);
 
         Self {
-            streams: HashMap::new(),
+            channels: HashMap::new(),
             event_consumer,
             event_producer,
             //data_consumer,
@@ -42,7 +105,7 @@ impl Channels {
         self.event_loop().await;
     }
 
-    pub fn get_event_producer(&mut self) -> MultiProducerForEvent {
+    pub fn get_event_producer(&mut self) -> ChannelEventPublisher {
         return self.event_producer.clone();
     }
 
@@ -90,10 +153,15 @@ impl Channels {
         &mut self,
         app_name: &String,
         stream_name: &String,
-    ) -> Result<MultiConsumerForData, ChannelError> {
-        match self.streams.get(app_name) {
-            Some(val) => match val.get(stream_name) {
-                Some(producer) => return Ok(producer.subscribe()),
+    ) -> Result<oneshot::Receiver<ChannelData>, ChannelError> {
+        match self.channels.get_mut(app_name) {
+            Some(val) => match val.get_mut(stream_name) {
+                Some(mut producer) => {
+                    let (sender, receiver) = oneshot::channel();
+
+                    producer.add_subscriber(sender);
+                    return Ok(receiver);
+                }
                 None => {
                     return Err(ChannelError {
                         value: ChannelErrorValue::NoStreamName,
@@ -113,8 +181,8 @@ impl Channels {
         &mut self,
         app_name: &String,
         stream_name: &String,
-    ) -> Result<SingleProducerForData, ChannelError> {
-        match self.streams.get_mut(app_name) {
+    ) -> Result<ChannelDataPublisher, ChannelError> {
+        match self.channels.get_mut(app_name) {
             Some(val) => match val.get(stream_name) {
                 Some(_) => {
                     return Err(ChannelError {
@@ -123,22 +191,24 @@ impl Channels {
                 }
                 None => {
                     let (sender, _) = broadcast::channel(100);
-                    val.insert(stream_name.clone(), sender.clone());
+                    let channel = Channel::new(sender.clone());
+                    val.insert(stream_name.clone(), channel);
                     return Ok(sender);
                 }
             },
             None => {
                 let mut app = HashMap::new();
                 let (sender, _) = broadcast::channel(100);
-                app.insert(stream_name.clone(), sender.clone());
-                self.streams.insert(app_name.clone(), app);
+                let channel = Channel::new(sender.clone());
+                app.insert(stream_name.clone(), channel);
+                self.channels.insert(app_name.clone(), app);
                 return Ok(sender);
             }
         }
     }
 
     fn unpublish(&mut self, app_name: &String, stream_name: &String) {
-        let rv = match self.streams.get_mut(app_name) {
+        let rv = match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
                 Some(_) => val.remove(stream_name),
                 None => return,

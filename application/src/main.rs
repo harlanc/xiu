@@ -1,6 +1,6 @@
 use application::config::config;
 use application::config::config::Config;
-use rtmp::channels::channels::Channels;
+use rtmp::channels::channels::ChannelsManager;
 use rtmp::session::server_session;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -30,7 +30,7 @@ impl Service {
         Service { cfg: cfg }
     }
     async fn process_rtmp(&mut self) -> Result<()> {
-        let mut channel = Channels::new();
+        let mut channel = ChannelsManager::new();
 
         let producer = channel.get_event_producer();
         tokio::spawn(async move { channel.run().await });

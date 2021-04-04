@@ -21,10 +21,11 @@ use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
 use std::{borrow::BorrowMut, time::Duration};
 
+use crate::channels::define::ChannelDataConsumer;
+use crate::channels::define::ChannelDataPublisher;
 use crate::channels::define::ChannelEvent;
-use crate::channels::define::MultiConsumerForData;
-use crate::channels::define::MultiProducerForEvent;
-use crate::channels::define::SingleProducerForData;
+use crate::channels::define::ChannelEventPublisher;
+use crate::channels::define::PlayerConsumer;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::writer::NetStreamWriter;
 use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
@@ -71,12 +72,12 @@ pub struct ServerSession {
 
     state: ServerSessionState,
 
-    event_producer: MultiProducerForEvent,
+    event_producer: ChannelEventPublisher,
 
     //send video, audio or metadata from publish server session to player server sessions
-    data_producer: SingleProducerForData,
+    data_producer: ChannelDataPublisher,
     //receive video, audio or metadata from publish server session and send out to player
-    data_consumer: MultiConsumerForData,
+    data_consumer: PlayerConsumer,
 
     session_id: u8,
 }
@@ -84,13 +85,14 @@ pub struct ServerSession {
 impl ServerSession {
     pub fn new(
         stream: TcpStream,
-        event_producer: MultiProducerForEvent,
+        event_producer: ChannelEventPublisher,
         timeout: Duration,
         session_id: u8,
     ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         //only used for init,since I don't found a better way to deal with this.
-        let (init_producer, init_consumer) = broadcast::channel(1);
+        let (init_producer, _) = broadcast::channel(1);
+        let (_, init_consumer) = oneshot::channel();
         // let reader = BytesReader::new(BytesMut::new());
 
         Self {
@@ -182,7 +184,7 @@ impl ServerSession {
 
                 //when in play state, only transfer publisher's video/audio/metadta to player.
                 ServerSessionState::Play => loop {
-                    let data = self.data_consumer.recv().await;
+                    let data = self.data_consumer.borrow_mut().await;
 
                     match data {
                         Ok(val) => match val {
