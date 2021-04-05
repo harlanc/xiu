@@ -1,9 +1,8 @@
-use crate::amf0::amf0_reader::Amf0Reader;
-use crate::amf0::Amf0ValueType;
-use bytes::BytesMut;
-use netio::bytes_reader::BytesReader;
-
-
+use {
+    crate::{amf0::amf0_reader::Amf0Reader, amf0::Amf0ValueType},
+    bytes::BytesMut,
+    netio::bytes_reader::BytesReader,
+};
 pub struct MetaData {
     chunk_body: BytesMut,
     values: Vec<Amf0ValueType>,

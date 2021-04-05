@@ -1,26 +1,15 @@
-use super::errors::{HandshakeError, HandshakeErrorValue};
-use byteorder::{BigEndian, WriteBytesExt};
-use bytes::BytesMut;
-use hmac::{Hmac, Mac};
-use rand;
-use rand::Rng;
-use sha2::Sha256;
-use std::convert::TryInto;
-use std::{io::Write};
-//TODO
-use netio::{
-    //bytes_reader::NetworkReader,
-    bytes_reader::BytesReader,
-    bytes_writer::AsyncBytesWriter,
-    netio::NetworkIO,
+use {
+    super::errors::{HandshakeError, HandshakeErrorValue},
+    byteorder::{BigEndian, WriteBytesExt},
+    bytes::BytesMut,
+    hmac::{Hmac, Mac},
+    netio::{bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, netio::NetworkIO},
+    rand,
+    rand::Rng,
+    sha2::Sha256,
+    std::{convert::TryInto, io::Write, sync::Arc, time::SystemTime},
+    tokio::sync::Mutex,
 };
-
-use std::time::SystemTime;
-
-
-use std::sync::Arc;
-
-use tokio::sync::Mutex;
 
 const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];

@@ -1,10 +1,13 @@
-use crate::amf0::errors::Amf0ReadError;
-use crate::protocol_control_messages::errors::ProtocolControlMessageReaderError;
-use crate::user_control_messages::errors::EventMessagesError;
-use netio::bytes_errors::BytesReadError;
-
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    crate::{
+        amf0::errors::Amf0ReadError,
+        protocol_control_messages::errors::ProtocolControlMessageReaderError,
+        user_control_messages::errors::EventMessagesError,
+    },
+    failure::{Backtrace, Fail},
+    netio::bytes_errors::BytesReadError,
+    std::fmt,
+};
 
 #[derive(Debug, Fail)]
 pub enum MessageErrorValue {

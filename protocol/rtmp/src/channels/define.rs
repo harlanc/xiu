@@ -1,8 +1,7 @@
-use bytes::BytesMut;
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
-
+use {
+    bytes::BytesMut,
+    tokio::sync::{broadcast, mpsc, oneshot},
+};
 #[derive(Clone)]
 pub enum ChannelData {
     Video { timestamp: u32, data: BytesMut },
@@ -45,10 +44,8 @@ pub enum ChannelEvent {
     },
 }
 
-pub enum TransmitEvent{
+pub enum TransmitEvent {
     Subscribe {
-    
         responder: ChannelResponder<ChannelDataConsumer>,
     },
-
 }

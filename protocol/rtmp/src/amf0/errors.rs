@@ -1,9 +1,10 @@
-use std::{io, string};
-
-use netio::bytes_errors::{BytesReadError, BytesWriteError};
-
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    failure::{Backtrace, Fail},
+    netio::bytes_errors::{BytesReadError, BytesWriteError},
+    std::{
+        fmt, {io, string},
+    },
+};
 
 #[derive(Debug, Fail)]
 pub enum Amf0ReadErrorValue {

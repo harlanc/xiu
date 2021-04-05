@@ -1,9 +1,8 @@
-use netio::bytes_errors::{BytesReadError, BytesWriteError};
-
-use std::time::SystemTimeError;
-
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    failure::{Backtrace, Fail},
+    netio::bytes_errors::{BytesReadError, BytesWriteError},
+    std::{fmt, time::SystemTimeError},
+};
 
 #[derive(Debug, Fail)]
 pub enum HandshakeErrorValue {

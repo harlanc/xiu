@@ -1,8 +1,4 @@
-use failure::Fail;
-
-use flv::errors::TagParseError;
-
-use crate::chunk::errors::PackError;
+use {crate::chunk::errors::PackError, failure::Fail, flv::errors::TagParseError};
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
@@ -43,4 +39,3 @@ pub enum MetadataErrorValue {
 pub struct MetadataError {
     pub value: CacheErrorValue,
 }
-

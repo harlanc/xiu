@@ -1,7 +1,8 @@
-use netio::bytes_errors::{BytesReadError, BytesWriteError};
-
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    failure::{Backtrace, Fail},
+    netio::bytes_errors::{BytesReadError, BytesWriteError},
+    std::fmt,
+};
 
 #[derive(Debug, Fail)]
 pub enum UnpackErrorValue {

@@ -1,22 +1,16 @@
-use byteorder::BigEndian;
-use byteorder::LittleEndian;
-use bytes::{BufMut, BytesMut};
-// use chunk::ChunkUnpackError;
-use super::errors::UnpackError;
-use super::errors::UnpackErrorValue;
-use super::{
-    chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader},
-    define,
+use {
+    super::{
+        chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader},
+        define,
+        errors::{UnpackError, UnpackErrorValue},
+    },
+    crate::{config, messages::define::msg_type_id},
+    byteorder::{BigEndian, LittleEndian},
+    bytes::{BufMut, BytesMut},
+    chrono::prelude::*,
+    netio::bytes_reader::BytesReader,
+    std::{cmp::min, vec::Vec},
 };
-use netio::bytes_reader::BytesReader;
-use std::cmp::min;
-
-use crate::messages::define::msg_type_id;
-
-use chrono::prelude::*;
-use std::vec::Vec;
-
-use crate::config;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {

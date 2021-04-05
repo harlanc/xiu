@@ -1,24 +1,21 @@
-use crate::cache::cache::Cache;
-
-use super::define::ChannelDataConsumer;
-use super::define::ChannelDataPublisher;
-use super::define::ChannelEvent;
-use super::define::ChannelEventConsumer;
-use super::define::ChannelEventPublisher;
-use super::define::TransmitEvent;
-use super::define::TransmitEventConsumer;
-use super::define::TransmitEventPublisher;
-// use super::define::PlayerConsumer;
-use super::define::ChannelData;
-
-use super::errors::ChannelError;
-use super::errors::ChannelErrorValue;
-use std::cell::RefCell;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::{borrow::BorrowMut, collections::HashMap};
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
+use {
+    super::{
+        define::{
+            ChannelData, ChannelDataConsumer, ChannelDataPublisher, ChannelEvent,
+            ChannelEventConsumer, ChannelEventPublisher, TransmitEvent, TransmitEventConsumer,
+            TransmitEventPublisher,
+        },
+        errors::{ChannelError, ChannelErrorValue},
+    },
+    crate::cache::cache::Cache,
+    std::{
+        borrow::BorrowMut,
+        cell::RefCell,
+        collections::HashMap,
+        sync::{Arc, Mutex},
+    },
+    tokio::sync::{broadcast, mpsc},
+};
 
 /************************************************************************************
 * For a publisher, we new a broadcast::channel .
@@ -75,6 +72,9 @@ impl Transmiter {
             self.write_loop().await;
         });
 
+        tokio::spawn(async move {
+            self.subscriber_loop().await;
+        });
         // val = self.stream_consumer.recv() => {
         //     match val{
         //         Ok(data)=>{
@@ -86,24 +86,32 @@ impl Transmiter {
         // val = self.event_consumer.recv() => {
     }
 
-    pub async fn add_subscriber(&mut self, producer: ChannelDataPublisher) {
+    pub async fn subscriber_loop(&mut self) {
         loop {
             let data = self.event_consumer.recv().await;
             match data {
-                TransmitEvent::Subscribe { responder } => {}
-                _ => {}
+                Some(val) => match val {
+                    TransmitEvent::Subscribe { responder } => {
+                        let (sender, receiver) = broadcast::channel(100);
+
+                        responder.send(receiver);
+
+                        let meta_body = self.cache.lock().unwrap().get_metadata();
+                        let audio_seq = self.cache.lock().unwrap().get_audio_seq();
+                        let video_seq = self.cache.lock().unwrap().get_video_seq();
+
+                        sender.send(meta_body);
+                        sender.send(audio_seq);
+                        sender.send(video_seq);
+
+                        let mut pro = self.player_producers.lock().unwrap();
+                        pro.push(sender);
+                    }
+                },
+
+                None => {}
             }
         }
-        let meta_body = self.cache.lock().unwrap().get_metadata();
-        let audio_seq = self.cache.lock().unwrap().get_audio_seq();
-        let video_seq = self.cache.lock().unwrap().get_video_seq();
-
-        producer.send(meta_body);
-        producer.send(audio_seq);
-        producer.send(video_seq);
-
-        let mut pro = self.player_producers.lock().unwrap();
-        pro.push(producer);
     }
 
     pub async fn write_loop(&mut self) {
@@ -269,9 +277,9 @@ impl ChannelsManager {
                         Channel::new(player_sender.clone(), chanmanager_sender.clone());
                     val.insert(stream_name.clone(), channel);
 
-                    tokio::spawn(async move {
-                        channel.write_loop().await;
-                    });
+                    // tokio::spawn(async move {
+                    //     channel.write_loop().await;
+                    // });
 
                     return Ok(sender);
                 }

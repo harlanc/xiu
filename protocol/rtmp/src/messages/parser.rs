@@ -1,17 +1,17 @@
-use super::define::msg_type_id;
-use super::define::RtmpMessageData;
-use super::errors::MessageError;
-use super::errors::MessageErrorValue;
-use crate::chunk::ChunkInfo;
-use netio::bytes_reader::BytesReader;
-
-use crate::amf0::amf0_markers;
-use crate::amf0::amf0_reader::Amf0Reader;
-
-use crate::config;
-use crate::protocol_control_messages::reader::ProtocolControlMessageReader;
-use crate::user_control_messages::reader::EventMessagesReader;
-
+use {
+    super::{
+        define::{msg_type_id, RtmpMessageData},
+        errors::{MessageError, MessageErrorValue},
+    },
+    crate::{
+        amf0::{amf0_markers, amf0_reader::Amf0Reader},
+        chunk::ChunkInfo,
+        config,
+        protocol_control_messages::reader::ProtocolControlMessageReader,
+        user_control_messages::reader::EventMessagesReader,
+    },
+    netio::bytes_reader::BytesReader,
+};
 
 pub struct MessageParser {
     chunk_info: ChunkInfo,
@@ -151,7 +151,7 @@ mod tests {
     use super::MessageParser;
     use crate::chunk::unpacketizer::ChunkUnpacketizer;
     use crate::chunk::unpacketizer::UnpackResult;
-  
+
     #[test]
     fn test_message_parse() {
         let mut unpacker = ChunkUnpacketizer::new();

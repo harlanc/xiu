@@ -1,11 +1,10 @@
-use super::amf0_markers;
-use super::errors::Amf0WriteErrorValue;
-use super::Amf0ValueType;
-use super::Amf0WriteError;
-use byteorder::BigEndian;
-use bytes::BytesMut;
-use netio::bytes_writer::BytesWriter;
-use std::collections::HashMap;
+use {
+    super::{amf0_markers, errors::Amf0WriteErrorValue, Amf0ValueType, Amf0WriteError},
+    byteorder::BigEndian,
+    bytes::BytesMut,
+    netio::bytes_writer::BytesWriter,
+    std::collections::HashMap,
+};
 
 pub struct Amf0Writer {
     writer: BytesWriter,

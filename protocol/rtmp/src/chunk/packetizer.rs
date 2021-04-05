@@ -1,17 +1,14 @@
-use byteorder::{BigEndian, LittleEndian};
-
-use super::errors::PackError;
-use super::{
-    chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
-    define::CHUNK_SIZE,
+use {
+    super::{
+        chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
+        define::CHUNK_SIZE,
+        errors::PackError,
+    },
+    byteorder::{BigEndian, LittleEndian},
+    netio::{bytes_writer::AsyncBytesWriter, netio::NetworkIO},
+    std::{collections::HashMap, sync::Arc},
+    tokio::sync::Mutex,
 };
-use netio::bytes_writer::AsyncBytesWriter;
-use std::collections::HashMap;
-
-use std::sync::Arc;
-
-use netio::netio::NetworkIO;
-use tokio::sync::Mutex;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum PackResult {

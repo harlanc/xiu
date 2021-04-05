@@ -1,5 +1,4 @@
-use crate::amf0::define::Amf0ValueType;
-use bytes::BytesMut;
+use {crate::amf0::define::Amf0ValueType, bytes::BytesMut};
 
 pub struct SetPeerBandwidthProperties {
     window_size: u32,

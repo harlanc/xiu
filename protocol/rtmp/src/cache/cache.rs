@@ -1,11 +1,9 @@
-use bytes::BytesMut;
-
-use flv::{define, tag_parser};
-
-use crate::channels::define::ChannelData;
-
-use super::errors::CacheError;
-use super::metadata;
+use {
+    super::{errors::CacheError, metadata},
+    crate::channels::define::ChannelData,
+    bytes::BytesMut,
+    flv::{define, tag_parser},
+};
 
 pub struct Cache {
     metadata: metadata::MetaData,
