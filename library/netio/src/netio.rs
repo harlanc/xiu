@@ -3,29 +3,27 @@ use super::netio_errors::{NetIOError, NetIOErrorValue};
 use bytes::Bytes;
 use bytes::BytesMut;
 
-use std::{borrow::BorrowMut, time::Duration};
+use std::time::Duration;
 
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
-use tokio::time::timeout;
+
 use tokio_stream::StreamExt;
 
-use futures::{future, Sink, SinkExt, Stream};
+use futures::SinkExt;
+use tokio_util::codec::BytesCodec;
 use tokio_util::codec::Framed;
-use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
 
 pub struct NetworkIO {
     stream: Framed<TcpStream, BytesCodec>,
 
-    timeout: Duration,
+    //timeout: Duration,
 }
 
 impl NetworkIO {
     pub fn new(stream: TcpStream, ms: Duration) -> Self {
         Self {
             stream: Framed::new(stream, BytesCodec::new()),
-            timeout: ms,
+           // timeout: ms,
         }
     }
 

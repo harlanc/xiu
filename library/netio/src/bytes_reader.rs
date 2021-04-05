@@ -147,9 +147,9 @@ mod tests {
             Self { reader: reader }
         }
 
-        pub fn read_u8(&mut self) -> u8 {
-            return self.reader.borrow_mut().read_u8().unwrap();
-        }
+        // pub fn read_u8(&mut self) -> u8 {
+        //     return self.reader.borrow_mut().read_u8().unwrap();
+        // }
 
         pub fn extend_from_slice(&mut self, data: &[u8]) {
             self.reader.borrow_mut().extend_from_slice(data);

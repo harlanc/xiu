@@ -1,7 +1,8 @@
+use crate::amf0::amf0_reader::Amf0Reader;
 use crate::amf0::Amf0ValueType;
 use bytes::BytesMut;
 use netio::bytes_reader::BytesReader;
-use netio::bytes_writer::BytesWriter;
+
 
 pub struct MetaData {
     chunk_body: BytesMut,
@@ -15,14 +16,26 @@ impl MetaData {
             values: Vec::new(),
         }
     }
-    pub fn save(&mut self, body: &mut BytesMut, values: &mut Vec<Amf0ValueType>) {
-        if self.is_metadata(body, values) {
-            self.chunk_body = body.clone();
-            self.values = values.clone();
+    //, values: Vec<Amf0ValueType>
+    pub fn save(&mut self, body: BytesMut) {
+        if self.is_metadata(body.clone()) {
+            self.chunk_body = body;
         }
     }
 
-    pub fn is_metadata(&mut self, body: &mut BytesMut, values: &mut Vec<Amf0ValueType>) -> bool {
+    pub fn is_metadata(&mut self, body: BytesMut) -> bool {
+        let reader = BytesReader::new(body);
+        let result = Amf0Reader::new(reader).read_all();
+
+        let mut values: Vec<Amf0ValueType> = Vec::new();
+
+        match result {
+            Ok(v) => {
+                values.extend_from_slice(&v[..]);
+            }
+            Err(_) => return false,
+        }
+
         loop {
             if values.len() < 2 {
                 return false;

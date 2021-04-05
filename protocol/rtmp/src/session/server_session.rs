@@ -1,10 +1,10 @@
 use super::define;
 use super::errors::SessionError;
 use super::errors::SessionErrorValue;
+use crate::chunk::packetizer::ChunkPacketizer;
 use crate::chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo};
 use crate::handshake::handshake::{ComplexHandshakeServer, SimpleHandshakeServer};
 use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
-use crate::{channels, chunk::packetizer::ChunkPacketizer};
 use crate::{
     chunk::define::CHUNK_SIZE,
     chunk::define::{chunk_type, csid_type},
@@ -19,13 +19,13 @@ use bytes::BytesMut;
 use netio::bytes_writer::AsyncBytesWriter;
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
-use std::{borrow::BorrowMut, time::Duration};
+use std::{ time::Duration};
 
 use crate::channels::define::ChannelDataConsumer;
 use crate::channels::define::ChannelDataPublisher;
 use crate::channels::define::ChannelEvent;
 use crate::channels::define::ChannelEventPublisher;
-use crate::channels::define::PlayerConsumer;
+// use crate::channels::define::PlayerConsumer;
 use crate::netconnection::commands::NetConnection;
 use crate::netstream::writer::NetStreamWriter;
 use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
@@ -44,12 +44,6 @@ use tokio::sync::Mutex;
 use crate::channels::define::ChannelData;
 
 use crate::handshake::handshake::ServerHandshakeState;
-
-use crate::cache::metadata;
-
-use crate::utils;
-use log::{debug, log, log_enabled, Level};
-use std::fmt;
 
 enum ServerSessionState {
     Handshake,
@@ -77,7 +71,7 @@ pub struct ServerSession {
     //send video, audio or metadata from publish server session to player server sessions
     data_producer: ChannelDataPublisher,
     //receive video, audio or metadata from publish server session and send out to player
-    data_consumer: PlayerConsumer,
+    data_consumer: ChannelDataConsumer,
 
     session_id: u8,
 }
@@ -91,8 +85,8 @@ impl ServerSession {
     ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         //only used for init,since I don't found a better way to deal with this.
-        let (init_producer, _) = broadcast::channel(1);
-        let (_, init_consumer) = oneshot::channel();
+        let (init_producer, init_consumer) = broadcast::channel(1);
+
         // let reader = BytesReader::new(BytesMut::new());
 
         Self {
@@ -184,7 +178,7 @@ impl ServerSession {
 
                 //when in play state, only transfer publisher's video/audio/metadta to player.
                 ServerSessionState::Play => loop {
-                    let data = self.data_consumer.borrow_mut().await;
+                    let data = self.data_consumer.recv().await;
 
                     match data {
                         Ok(val) => match val {
@@ -196,7 +190,10 @@ impl ServerSession {
                                 print!("send video data\n");
                                 self.send_video(data, timestamp).await?;
                             }
-                            ChannelData::MetaData {} => {}
+                            ChannelData::MetaData { body } => {
+                                print!("send meta data\n");
+                                self.send_metadata(body).await?;
+                            }
                         },
                         Err(err) => {}
                     }
@@ -245,6 +242,21 @@ impl ServerSession {
 
         Ok(())
     }
+
+    async fn send_metadata(&mut self, data: BytesMut) -> Result<(), SessionError> {
+        let mut chunk_info = ChunkInfo::new(
+            csid_type::DATA_AMF0_AMF3,
+            chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            msg_type_id::DATA_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info).await?;
+        Ok(())
+    }
     pub async fn process_messages(
         &mut self,
         rtmp_msg: &mut RtmpMessageData,
@@ -276,8 +288,8 @@ impl ServerSession {
             RtmpMessageData::VideoData { data } => {
                 self.on_video_data(data, timestamp)?;
             }
-            RtmpMessageData::AmfData { raw_data, values } => {
-                self.on_amf_data(raw_data, values)?;
+            RtmpMessageData::AmfData { raw_data } => {
+                self.on_amf_data(raw_data)?;
             }
 
             _ => {}
@@ -701,14 +713,20 @@ impl ServerSession {
         Ok(())
     }
 
-    pub fn on_amf_data(
-        &mut self,
-        body: &mut BytesMut,
-        values: &mut Vec<Amf0ValueType>,
-    ) -> Result<(), SessionError> {
-        let mut metadata_handler = metadata::MetaData::default();
+    pub fn on_amf_data(&mut self, body: &mut BytesMut) -> Result<(), SessionError> {
+        let data = ChannelData::MetaData { body: body.clone() };
 
-        metadata_handler.save(body, values);
+        match self.data_producer.send(data) {
+            Ok(size) => {}
+            Err(_) => {
+                return Err(SessionError {
+                    value: SessionErrorValue::SendChannelDataErr,
+                })
+            }
+        }
+        // let mut metadata_handler = metadata::MetaData::default();
+
+        // metadata_handler.save(body, values);
 
         Ok(())
     }

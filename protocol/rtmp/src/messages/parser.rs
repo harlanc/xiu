@@ -11,7 +11,7 @@ use crate::amf0::amf0_reader::Amf0Reader;
 use crate::config;
 use crate::protocol_control_messages::reader::ProtocolControlMessageReader;
 use crate::user_control_messages::reader::EventMessagesReader;
-use crate::utils;
+
 
 pub struct MessageParser {
     chunk_info: ChunkInfo,
@@ -123,10 +123,9 @@ impl MessageParser {
                 });
             }
             msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
-                let values = Amf0Reader::new(reader).read_all()?;
+                //let values = Amf0Reader::new(reader).read_all()?;
                 return Ok(RtmpMessageData::AmfData {
                     raw_data: self.chunk_info.payload.clone(),
-                    values: values,
                 });
             }
 
@@ -152,10 +151,7 @@ mod tests {
     use super::MessageParser;
     use crate::chunk::unpacketizer::ChunkUnpacketizer;
     use crate::chunk::unpacketizer::UnpackResult;
-    use crate::messages::errors::MessageError;
-    use bytes::BytesMut;
-    use std::fmt;
-
+  
     #[test]
     fn test_message_parse() {
         let mut unpacker = ChunkUnpacketizer::new();

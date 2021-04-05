@@ -41,7 +41,7 @@ impl Service {
                 let listen_port = rtmp_cfg.port;
                 let address = format!("0.0.0.0:{port}", port = listen_port);
                 let socket_addr: &SocketAddr = &address.parse().unwrap();
-                let mut listener = TcpListener::bind(socket_addr).await?;
+                let listener = TcpListener::bind(socket_addr).await?;
 
                 let mut idx: u8 = 0;
 

@@ -3,30 +3,24 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 
-#[derive(Clone,Copy)]
+#[derive(Clone)]
 pub enum ChannelData {
     Video { timestamp: u32, data: BytesMut },
     Audio { timestamp: u32, data: BytesMut },
-    MetaData {},
+    MetaData { body: BytesMut },
 }
-
-// impl Copy for ChannelData{
-//     fn Copy(&self) -> ChannelData {
-//         match self {
-//             &ChannelData::Video{timestamp,data} => &ChannelData::Video{timestamp,data.clone()}
-           
-//         }
-//     }
-// }
 
 pub type ChannelDataPublisher = broadcast::Sender<ChannelData>;
 pub type ChannelDataConsumer = broadcast::Receiver<ChannelData>;
 
-pub type PlayerPublisher = oneshot::Sender<ChannelData>;
-pub type PlayerConsumer = oneshot::Receiver<ChannelData>;
+pub type ChanPublisher = broadcast::Sender<ChannelDataPublisher>;
+pub type ChanConsumer = broadcast::Receiver<ChannelDataConsumer>;
 
 pub type ChannelEventPublisher = mpsc::UnboundedSender<ChannelEvent>;
 pub type ChannelEventConsumer = mpsc::UnboundedReceiver<ChannelEvent>;
+
+pub type TransmitEventPublisher = mpsc::UnboundedSender<TransmitEvent>;
+pub type TransmitEventConsumer = mpsc::UnboundedReceiver<TransmitEvent>;
 
 type ChannelResponder<T> = oneshot::Sender<T>;
 
@@ -34,7 +28,7 @@ pub enum ChannelEvent {
     Subscribe {
         app_name: String,
         stream_name: String,
-        responder: ChannelResponder<oneshot::Receiver<ChannelData>>,
+        responder: ChannelResponder<ChannelDataConsumer>,
     },
     UnSubscribe {
         app_name: String,
@@ -49,4 +43,12 @@ pub enum ChannelEvent {
         app_name: String,
         stream_name: String,
     },
+}
+
+pub enum TransmitEvent{
+    Subscribe {
+    
+        responder: ChannelResponder<ChannelDataConsumer>,
+    },
+
 }

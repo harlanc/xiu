@@ -14,7 +14,6 @@ impl SetPeerBandwidthProperties {
         }
     }
 }
-
 pub enum RtmpMessageData {
     Amf0Command {
         command_name: Amf0ValueType,
@@ -22,9 +21,9 @@ pub enum RtmpMessageData {
         command_object: Amf0ValueType,
         others: Vec<Amf0ValueType>,
     },
-    AmfData{
+    AmfData {
         raw_data: BytesMut,
-        values: Vec<Amf0ValueType>,
+        // values: Vec<Amf0ValueType>,
     },
     SetChunkSize {
         chunk_size: u32,

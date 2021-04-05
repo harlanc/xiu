@@ -6,7 +6,7 @@ use rand;
 use rand::Rng;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::{io::Write, ops::Deref};
+use std::{io::Write};
 //TODO
 use netio::{
     //bytes_reader::NetworkReader,
@@ -17,8 +17,7 @@ use netio::{
 
 use std::time::SystemTime;
 
-use std::cell::{RefCell, RefMut};
-use std::rc::Rc;
+
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
@@ -300,8 +299,6 @@ fn find_digest(
         value: HandshakeErrorValue::DigestNotFound,
     })
 }
-
-
 
 fn cook_handshake_msg(
     handshake: &[u8; RTMP_HANDSHAKE_SIZE],
@@ -730,7 +727,6 @@ impl ComplexHandshakeServer {
 mod tests {
 
     use super::find_digest;
-    use bytes::BytesMut;
 
     #[test]
     fn test_find_digest() {

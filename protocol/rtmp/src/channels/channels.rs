@@ -1,22 +1,24 @@
-use crate::{chunk, messages};
+use crate::cache::cache::Cache;
 
 use super::define::ChannelDataConsumer;
 use super::define::ChannelDataPublisher;
 use super::define::ChannelEvent;
 use super::define::ChannelEventConsumer;
 use super::define::ChannelEventPublisher;
-use super::define::PlayerConsumer;
-use super::define::{ChannelData, PlayerPublisher};
+use super::define::TransmitEvent;
+use super::define::TransmitEventConsumer;
+use super::define::TransmitEventPublisher;
+// use super::define::PlayerConsumer;
+use super::define::ChannelData;
 
 use super::errors::ChannelError;
 use super::errors::ChannelErrorValue;
+use std::cell::RefCell;
 use std::sync::Arc;
-use std::{borrow::Borrow, borrow::BorrowMut, collections::HashMap};
+use std::sync::Mutex;
+use std::{borrow::BorrowMut, collections::HashMap};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
-use tokio::sync::oneshot;
-use tokio::sync::RwLock;
-use std::cell::RefCell;
 
 /************************************************************************************
 * For a publisher, we new a broadcast::channel .
@@ -40,41 +42,120 @@ use std::cell::RefCell;
 *
 *************************************************************************************/
 
-pub struct Channel {
-    stream_producer: ChannelDataPublisher, //used for publisher to produce AV data
-    player_producers: RefCell<Vec<PlayerPublisher>>, // consumers who subscribe this channel.
+//receive data from ChannelsManager and send to players
+pub struct Transmiter {
+    stream_consumer: ChannelDataConsumer, //used for publisher to produce AV data
+
+    event_consumer: TransmitEventConsumer,
+    event_producer: TransmitEventPublisher,
+
+    player_producers: Arc<Mutex<Vec<ChannelDataPublisher>>>,
+    cache: Arc<Mutex<Cache>>,
 }
 
-impl Channel {
-    fn new(producer: ChannelDataPublisher) -> Self {
+impl Transmiter {
+    fn new(stream_consumer: ChannelDataConsumer) -> Self {
+        let (event_producer, event_consumer) = mpsc::unbounded_channel();
         Self {
-            stream_producer: producer,
-            player_producers: RefCell::new(Vec::new()),
+            stream_consumer: stream_consumer,
+            event_producer: event_producer,
+            event_consumer: event_consumer,
+            player_producers: Arc::new(Mutex::new(Vec::new())),
+
+            cache: Arc::new(Mutex::new(Cache::new())),
         }
     }
 
-    fn add_subscriber(&mut self, producer: PlayerPublisher) {
-        self.player_producers.borrow_mut().push(producer);
+    pub fn get_event_producer(&mut self) -> TransmitEventPublisher {
+        return self.event_producer.clone();
     }
 
-    async fn run(&mut self) {
-        let mut sub = self.stream_producer.subscribe();
+    pub async fn run(&mut self) {
+        tokio::spawn(async move {
+            self.write_loop().await;
+        });
+
+        // val = self.stream_consumer.recv() => {
+        //     match val{
+        //         Ok(data)=>{
+
+        //         }
+        //         _ =>{}
+        //     }
+        // }
+        // val = self.event_consumer.recv() => {
+    }
+
+    pub async fn add_subscriber(&mut self, producer: ChannelDataPublisher) {
         loop {
-            let data = sub.recv().await;
+            let data = self.event_consumer.recv().await;
             match data {
-                Ok(d) => {
-                    let producers = self.player_producers.borrow_mut();
-                    for i in 0..producers.len(){
+                TransmitEvent::Subscribe { responder } => {}
+                _ => {}
+            }
+        }
+        let meta_body = self.cache.lock().unwrap().get_metadata();
+        let audio_seq = self.cache.lock().unwrap().get_audio_seq();
+        let video_seq = self.cache.lock().unwrap().get_video_seq();
 
-                        producers[i].send(d);
+        producer.send(meta_body);
+        producer.send(audio_seq);
+        producer.send(video_seq);
 
+        let mut pro = self.player_producers.lock().unwrap();
+        pro.push(producer);
+    }
+
+    pub async fn write_loop(&mut self) {
+        loop {
+            let data = self.stream_consumer.recv().await;
+            match data {
+                Ok(channel_data) => match channel_data {
+                    ChannelData::MetaData { body } => {
+                        self.cache.lock().unwrap().save_metadata(body);
                     }
+                    ChannelData::Audio { timestamp, data } => {
+                        let data = ChannelData::Audio {
+                            timestamp: timestamp,
+                            data: data.clone(),
+                        };
+
+                        for i in self.player_producers.lock().unwrap().iter() {
+                            i.send(data.clone());
+                        }
+                    }
+                    ChannelData::Video { timestamp, data } => {
+                        let data = ChannelData::Video {
+                            timestamp: timestamp,
+                            data: data.clone(),
+                        };
+                        for i in self.player_producers.lock().unwrap().iter() {
+                            i.send(data.clone());
+                        }
+                    }
+                },
+                Err(_) => {
+                    return;
                 }
-                Err(_) => {}
             }
         }
     }
 }
+
+pub struct Channel {
+    stream_producer: ChannelDataPublisher, //produce data from player to ChannelManager
+    transmit_producer: ChannelDataPublisher, //transfer data from ChannelManager to Transmitter.
+}
+
+impl Channel {
+    fn new(stream_producer: ChannelDataPublisher, transmit_producer: ChannelDataPublisher) -> Self {
+        Self {
+            stream_producer,
+            transmit_producer,
+        }
+    }
+}
+
 pub struct ChannelsManager {
     //app_name to stream_name to producer
     channels: HashMap<String, HashMap<String, Channel>>,
@@ -82,23 +163,16 @@ pub struct ChannelsManager {
     event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
     event_producer: ChannelEventPublisher,
-    //rtmp data is consumed by other rtmp sessions
-    //data_consumer: MultiConsumerForData,
-    // //rtmp data is produced by a rtmp session
-    // data_producer: SingleProducerForData,
 }
 
 impl ChannelsManager {
     pub fn new() -> Self {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
-        //let (data_producer, data_consumer) = broadcast::channel(100);
 
         Self {
             channels: HashMap::new(),
             event_consumer,
             event_producer,
-            //data_consumer,
-            // data_producer,
         }
     }
     pub async fn run(&mut self) {
@@ -153,12 +227,11 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-    ) -> Result<oneshot::Receiver<ChannelData>, ChannelError> {
+    ) -> Result<broadcast::Receiver<ChannelData>, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
-                Some(mut producer) => {
-                    let (sender, receiver) = oneshot::channel();
-
+                Some(producer) => {
+                    let (sender, receiver) = broadcast::channel(1);
                     producer.add_subscriber(sender);
                     return Ok(receiver);
                 }
@@ -190,16 +263,26 @@ impl ChannelsManager {
                     })
                 }
                 None => {
-                    let (sender, _) = broadcast::channel(100);
-                    let channel = Channel::new(sender.clone());
+                    let (player_sender, _) = broadcast::channel(100);
+                    let (chanmanager_sender, _) = broadcast::channel(100);
+                    let mut channel =
+                        Channel::new(player_sender.clone(), chanmanager_sender.clone());
                     val.insert(stream_name.clone(), channel);
+
+                    tokio::spawn(async move {
+                        channel.write_loop().await;
+                    });
+
                     return Ok(sender);
                 }
             },
             None => {
                 let mut app = HashMap::new();
                 let (sender, _) = broadcast::channel(100);
-                let channel = Channel::new(sender.clone());
+                let mut channel = Channel::new(sender.clone());
+                tokio::spawn(async move {
+                    channel.write_loop().await;
+                });
                 app.insert(stream_name.clone(), channel);
                 self.channels.insert(app_name.clone(), app);
                 return Ok(sender);
@@ -219,4 +302,26 @@ impl ChannelsManager {
 
     //server broadcast data to player
     pub fn broadcast() {}
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::cell::RefCell;
+    use std::sync::Arc;
+    pub struct TestFunc {}
+
+    impl TestFunc {
+        fn new() -> Self {
+            Self {}
+        }
+        pub fn aaa(&mut self) {}
+    }
+
+    //https://juejin.cn/post/6844904105698148360
+    #[test]
+    fn test_lock() {
+        let channel = Arc::new(RefCell::new(TestFunc::new()));
+        channel.borrow_mut().aaa();
+    }
 }

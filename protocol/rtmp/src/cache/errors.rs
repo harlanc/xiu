@@ -31,3 +31,16 @@ impl From<PackError> for CacheError {
         }
     }
 }
+
+#[derive(Debug, Fail)]
+pub enum MetadataErrorValue {
+    #[fail(display = "tag parse error")]
+    TagParseError(TagParseError),
+    #[fail(display = "pack error")]
+    PackError(PackError),
+}
+
+pub struct MetadataError {
+    pub value: CacheErrorValue,
+}
+
