@@ -1,11 +1,10 @@
-use super::errors::NetConnectionError;
-use crate::amf0::amf0_writer::Amf0Writer;
-use crate::amf0::define::Amf0ValueType;
-use std::collections::HashMap;
-
-use netio::bytes_writer::BytesWriter;
-
-use bytes::BytesMut;
+use {
+    super::errors::NetConnectionError,
+    crate::amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
+    bytes::BytesMut,
+    netio::bytes_writer::BytesWriter,
+    std::collections::HashMap,
+};
 
 pub struct ConnectProperties {
     app: String,         // Server application name, e.g.: testapp

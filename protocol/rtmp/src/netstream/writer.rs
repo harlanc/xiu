@@ -1,19 +1,15 @@
-use super::errors::NetStreamError;
-use crate::amf0::amf0_writer::Amf0Writer;
-use crate::amf0::define::Amf0ValueType;
-use bytes::BytesMut;
-use netio::bytes_writer::BytesWriter;
-use std::collections::HashMap;
-
-use crate::chunk::chunk::ChunkInfo;
-use crate::chunk::define as chunk_define;
-use crate::chunk::packetizer::ChunkPacketizer;
-
-use crate::messages::define as messages_define;
-
-use netio::netio::NetworkIO;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use {
+    super::errors::NetStreamError,
+    crate::{
+        amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
+        chunk::{chunk::ChunkInfo, define as chunk_define, packetizer::ChunkPacketizer},
+        messages::define as messages_define,
+    },
+    bytes::BytesMut,
+    netio::{bytes_writer::BytesWriter, netio::NetworkIO},
+    std::{collections::HashMap, sync::Arc},
+    tokio::sync::Mutex,
+};
 
 pub struct NetStreamWriter {
     amf0_writer: Amf0Writer,

@@ -1,8 +1,8 @@
-use crate::amf0::errors::Amf0WriteError;
-
-use crate::chunk::errors::PackError;
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
+    failure::{Backtrace, Fail},
+    std::fmt,
+};
 
 #[derive(Debug)]
 pub struct NetStreamError {

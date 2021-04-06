@@ -1,44 +1,34 @@
-use super::errors::SessionError;
-
-use crate::chunk::define::{chunk_type, csid_type, CHUNK_SIZE};
-use crate::chunk::unpacketizer::ChunkUnpacketizer;
-use crate::chunk::unpacketizer::UnpackResult;
-use crate::chunk::{packetizer::ChunkPacketizer, ChunkInfo};
-
-use super::errors::SessionErrorValue;
-use crate::handshake::handshake::SimpleHandshakeClient;
-
-use crate::messages::define::msg_type_id;
-use crate::messages::define::RtmpMessageData;
-use crate::messages::parser::MessageParser;
-
-use crate::amf0::Amf0ValueType;
-
-use netio::bytes_writer::AsyncBytesWriter;
-
-
-use netio::bytes_writer::BytesWriter;
-use netio::netio::NetworkIO;
-
-use std::time::Duration;
-
-use crate::handshake::handshake::ClientHandshakeState;
-use crate::netconnection::commands::ConnectProperties;
-use crate::netconnection::commands::NetConnection;
-use crate::netstream::writer::NetStreamWriter;
-use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
-
-use crate::user_control_messages::writer::EventMessagesWriter;
-
-use std::collections::HashMap;
-
-use super::define;
-use tokio::net::TcpStream;
-
-use bytes::BytesMut;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-
+use {
+    super::{
+        define,
+        errors::{SessionError, SessionErrorValue},
+    },
+    crate::{
+        amf0::Amf0ValueType,
+        chunk::{
+            define::{chunk_type, csid_type, CHUNK_SIZE},
+            packetizer::ChunkPacketizer,
+            unpacketizer::{ChunkUnpacketizer, UnpackResult},
+            ChunkInfo,
+        },
+        handshake::handshake::{ClientHandshakeState, SimpleHandshakeClient},
+        messages::{
+            define::{msg_type_id, RtmpMessageData},
+            parser::MessageParser,
+        },
+        netconnection::commands::{ConnectProperties, NetConnection},
+        netstream::writer::NetStreamWriter,
+        protocol_control_messages::writer::ProtocolControlMessagesWriter,
+        user_control_messages::writer::EventMessagesWriter,
+    },
+    bytes::BytesMut,
+    netio::{
+        bytes_writer::{AsyncBytesWriter, BytesWriter},
+        netio::NetworkIO,
+    },
+    std::{collections::HashMap, sync::Arc, time::Duration},
+    tokio::{net::TcpStream, sync::Mutex},
+};
 
 enum ClientSessionState {
     Handshake,

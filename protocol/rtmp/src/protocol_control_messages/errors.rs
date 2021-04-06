@@ -1,8 +1,8 @@
-use netio::bytes_errors::BytesReadError;
-use netio::bytes_errors::BytesWriteError;
-
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    failure::{Backtrace, Fail},
+    netio::bytes_errors::{BytesReadError, BytesWriteError},
+    std::fmt,
+};
 
 #[derive(Debug)]
 pub struct ControlMessagesError {

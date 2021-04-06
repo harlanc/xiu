@@ -1,8 +1,7 @@
-use super::errors::ControlMessagesError;
-
-use crate::messages::define::msg_type_id;
-use byteorder::BigEndian;
-use netio::bytes_writer::AsyncBytesWriter;
+use {
+    super::errors::ControlMessagesError, crate::messages::define::msg_type_id,
+    byteorder::BigEndian, netio::bytes_writer::AsyncBytesWriter,
+};
 
 pub struct ProtocolControlMessagesWriter {
     writer: AsyncBytesWriter,

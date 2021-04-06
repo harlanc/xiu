@@ -1,9 +1,8 @@
-use crate::amf0::errors::Amf0ReadError;
-use crate::amf0::errors::Amf0WriteError;
-
-use failure::{Backtrace, Fail};
-use std::fmt;
-
+use {
+    crate::amf0::errors::{Amf0ReadError, Amf0WriteError},
+    failure::{Backtrace, Fail},
+    std::fmt,
+};
 
 #[derive(Debug)]
 pub struct NetConnectionError {
@@ -48,4 +47,3 @@ impl Fail for NetConnectionError {
         self.value.backtrace()
     }
 }
-
