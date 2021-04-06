@@ -67,24 +67,24 @@ impl Transmiter {
         return self.event_producer.clone();
     }
 
-    pub async fn run(&mut self) {
-        tokio::spawn(async move {
-            self.write_loop().await;
-        });
+    // pub async fn run(&mut self) {
+    //     tokio::spawn(async move {
+    //         self.write_loop().await;
+    //     });
 
-        tokio::spawn(async move {
-            self.subscriber_loop().await;
-        });
-        // val = self.stream_consumer.recv() => {
-        //     match val{
-        //         Ok(data)=>{
+    //     tokio::spawn(async move {
+    //         self.subscriber_loop().await;
+    //     });
+    // val = self.stream_consumer.recv() => {
+    //     match val{
+    //         Ok(data)=>{
 
-        //         }
-        //         _ =>{}
-        //     }
-        // }
-        // val = self.event_consumer.recv() => {
-    }
+    //         }
+    //         _ =>{}
+    //     }
+    // }
+    // val = self.event_consumer.recv() => {
+    //}
 
     pub async fn subscriber_loop(&mut self) {
         loop {
@@ -166,7 +166,7 @@ impl Channel {
 
 pub struct ChannelsManager {
     //app_name to stream_name to producer
-    channels: HashMap<String, HashMap<String, Channel>>,
+    channels: HashMap<String, HashMap<String, TransmitEventPublisher>>,
     //event is consumed in Channels, produced from other rtmp sessions
     event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
@@ -272,14 +272,10 @@ impl ChannelsManager {
                 }
                 None => {
                     let (player_sender, _) = broadcast::channel(100);
-                    let (chanmanager_sender, _) = broadcast::channel(100);
-                    let mut channel =
-                        Channel::new(player_sender.clone(), chanmanager_sender.clone());
-                    val.insert(stream_name.clone(), channel);
-
-                    // tokio::spawn(async move {
-                    //     channel.write_loop().await;
-                    // });
+                    let (event_sender, _) = mpsc::unbounded_channel();
+                    // let mut channel =
+                    //     Channel::new(player_sender.clone(), chanmanager_sender.clone());
+                    val.insert(stream_name.clone(), event_sender);
 
                     return Ok(sender);
                 }
