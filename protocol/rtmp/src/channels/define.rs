@@ -9,8 +9,8 @@ pub enum ChannelData {
     MetaData { body: BytesMut },
 }
 
-pub type ChannelDataPublisher = broadcast::Sender<ChannelData>;
-pub type ChannelDataConsumer = broadcast::Receiver<ChannelData>;
+pub type ChannelDataPublisher = oneshot::Sender<ChannelData>;
+pub type ChannelDataConsumer = oneshot::Receiver<ChannelData>;
 
 pub type ChanPublisher = broadcast::Sender<ChannelDataPublisher>;
 pub type ChanConsumer = broadcast::Receiver<ChannelDataConsumer>;
@@ -18,8 +18,8 @@ pub type ChanConsumer = broadcast::Receiver<ChannelDataConsumer>;
 pub type ChannelEventPublisher = mpsc::UnboundedSender<ChannelEvent>;
 pub type ChannelEventConsumer = mpsc::UnboundedReceiver<ChannelEvent>;
 
-pub type TransmitEventPublisher = mpsc::UnboundedSender<TransmitEvent>;
-pub type TransmitEventConsumer = mpsc::UnboundedReceiver<TransmitEvent>;
+pub type TransmitEventPublisher = oneshot::Sender<TransmitEvent>;
+pub type TransmitEventConsumer = oneshot::Receiver<TransmitEvent>;
 
 type ChannelResponder<T> = oneshot::Sender<T>;
 
@@ -43,7 +43,7 @@ pub enum ChannelEvent {
         stream_name: String,
     },
 }
-
+#[derive(Clone)]
 pub enum TransmitEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,

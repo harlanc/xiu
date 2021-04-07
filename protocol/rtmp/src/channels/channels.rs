@@ -1,3 +1,5 @@
+use tokio::sync::oneshot;
+
 use {
     super::{
         define::{
@@ -42,29 +44,35 @@ use {
 //receive data from ChannelsManager and send to players
 pub struct Transmiter {
     stream_consumer: ChannelDataConsumer, //used for publisher to produce AV data
-
     event_consumer: TransmitEventConsumer,
-    event_producer: TransmitEventPublisher,
 
     player_producers: Arc<Mutex<Vec<ChannelDataPublisher>>>,
     cache: Arc<Mutex<Cache>>,
 }
 
 impl Transmiter {
-    fn new(stream_consumer: ChannelDataConsumer) -> Self {
-        let (event_producer, event_consumer) = mpsc::unbounded_channel();
+    fn new() -> Self {
+        let (_, init_consumer) = oneshot::channel();
+
+        let (_, init_consumer_2) = oneshot::channel();
         Self {
-            stream_consumer: stream_consumer,
-            event_producer: event_producer,
-            event_consumer: event_consumer,
+            stream_consumer: init_consumer,
+
+            event_consumer: init_consumer_2,
             player_producers: Arc::new(Mutex::new(Vec::new())),
 
             cache: Arc::new(Mutex::new(Cache::new())),
         }
     }
 
-    pub fn get_event_producer(&mut self) -> TransmitEventPublisher {
-        return self.event_producer.clone();
+    pub fn get_publishers(&mut self) -> (TransmitEventPublisher, ChannelDataPublisher) {
+        let (event_publisher, event_consumer) = oneshot::channel();
+        let (data_publisher, data_consumer) = oneshot::channel();
+
+        self.stream_consumer = data_consumer;
+        self.event_consumer = event_consumer;
+
+        (event_publisher, data_publisher)
     }
 
     // pub async fn run(&mut self) {
@@ -87,30 +95,33 @@ impl Transmiter {
     //}
 
     pub async fn subscriber_loop(&mut self) {
-        loop {
-            let data = self.event_consumer.recv().await;
-            match data {
-                Some(val) => match val {
-                    TransmitEvent::Subscribe { responder } => {
-                        let (sender, receiver) = broadcast::channel(100);
+        //let data = self.event_consumer.recv().await;
+        // loop {
+        //  tokio::select! {
 
-                        responder.send(receiver);
+        let data = self.event_consumer.await;
+        match data {
+            Ok(val) => match val {
+                TransmitEvent::Subscribe { responder } => {
+                    let (&mut sender, receiver) = oneshot::channel();
 
-                        let meta_body = self.cache.lock().unwrap().get_metadata();
-                        let audio_seq = self.cache.lock().unwrap().get_audio_seq();
-                        let video_seq = self.cache.lock().unwrap().get_video_seq();
+                    responder.send(receiver);
 
-                        sender.send(meta_body);
-                        sender.send(audio_seq);
-                        sender.send(video_seq);
+                    let meta_body = self.cache.lock().unwrap().get_metadata();
+                    let audio_seq = self.cache.lock().unwrap().get_audio_seq();
+                    let video_seq = self.cache.lock().unwrap().get_video_seq();
 
-                        let mut pro = self.player_producers.lock().unwrap();
-                        pro.push(sender);
-                    }
-                },
+                    sender.send(meta_body);
+                    sender.send(audio_seq);
+                    sender.send(video_seq);
 
-                None => {}
-            }
+                    // let mut pro = self.player_producers.lock().unwrap();
+                    // pro.push(sender);
+                }
+            },
+            _ => {} // }
+
+                    //}
         }
     }
 
@@ -271,25 +282,33 @@ impl ChannelsManager {
                     })
                 }
                 None => {
-                    let (player_sender, _) = broadcast::channel(100);
-                    let (event_sender, _) = mpsc::unbounded_channel();
+                    // let (player_sender, _) = broadcast::channel(100);
+                    // let (event_sender, _) = mpsc::unbounded_channel();
                     // let mut channel =
                     //     Channel::new(player_sender.clone(), chanmanager_sender.clone());
+
+                    let transmiter = Transmiter::new();
+
+                    let (event_sender, data_sender) = (&transmiter).get_publishers();
                     val.insert(stream_name.clone(), event_sender);
 
-                    return Ok(sender);
+                    return Ok(data_sender);
                 }
             },
             None => {
                 let mut app = HashMap::new();
-                let (sender, _) = broadcast::channel(100);
-                let mut channel = Channel::new(sender.clone());
-                tokio::spawn(async move {
-                    channel.write_loop().await;
-                });
-                app.insert(stream_name.clone(), channel);
+
+                let transmiter = Transmiter::new();
+
+                let (event_sender, data_sender) = (&transmiter).get_publishers();
+                // let (sender, _) = broadcast::channel(100);
+                // let mut channel = Channel::new(sender.clone());
+                // tokio::spawn(async move {
+                //     channel.write_loop().await;
+                // });
+                app.insert(stream_name.clone(), event_sender);
                 self.channels.insert(app_name.clone(), app);
-                return Ok(sender);
+                return Ok(data_sender);
             }
         }
     }
