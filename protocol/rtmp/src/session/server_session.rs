@@ -19,7 +19,7 @@ use bytes::BytesMut;
 use netio::bytes_writer::AsyncBytesWriter;
 use netio::bytes_writer::BytesWriter;
 use netio::netio::NetworkIO;
-use std::{ time::Duration};
+use std::time::Duration;
 
 use crate::channels::define::ChannelDataConsumer;
 use crate::channels::define::ChannelDataPublisher;
@@ -35,7 +35,8 @@ use crate::user_control_messages::writer::EventMessagesWriter;
 use std::collections::HashMap;
 
 use tokio::net::TcpStream;
-use tokio::sync::broadcast;
+
+use tokio::sync::{broadcast, mpsc};
 
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -85,7 +86,7 @@ impl ServerSession {
     ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         //only used for init,since I don't found a better way to deal with this.
-        let (init_producer, init_consumer) = broadcast::channel(1);
+        let (init_producer, init_consumer) = mpsc::unbounded_channel();
 
         // let reader = BytesReader::new(BytesMut::new());
 
@@ -178,10 +179,8 @@ impl ServerSession {
 
                 //when in play state, only transfer publisher's video/audio/metadta to player.
                 ServerSessionState::Play => loop {
-                    let data = self.data_consumer.recv().await;
-
-                    match data {
-                        Ok(val) => match val {
+                    if let Some(data) = self.data_consumer.recv().await {
+                        match data {
                             ChannelData::Audio { timestamp, data } => {
                                 print!("send audio data\n");
                                 self.send_audio(data, timestamp).await?;
@@ -194,8 +193,9 @@ impl ServerSession {
                                 print!("send meta data\n");
                                 self.send_metadata(body).await?;
                             }
-                        },
-                        Err(err) => {}
+                        }
+                    }else{
+
                     }
                 },
             }
@@ -677,7 +677,7 @@ impl ServerSession {
             data: data.clone(),
         };
 
-        print!("receive video data\n");
+        //print!("receive video data\n");
         match self.data_producer.send(data) {
             Ok(size) => {}
             Err(err) => {
