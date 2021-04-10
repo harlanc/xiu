@@ -1,9 +1,9 @@
-use crate::amf0::errors::Amf0WriteError;
-
-use failure::{Backtrace, Fail};
-use netio::bytes_errors::BytesReadError;
-use netio::bytes_errors::BytesWriteError;
-use std::fmt;
+use {
+    crate::amf0::errors::Amf0WriteError,
+    failure::{Backtrace, Fail},
+    netio::bytes_errors::{BytesReadError, BytesWriteError},
+    std::fmt,
+};
 
 #[derive(Debug)]
 pub struct EventMessagesError {

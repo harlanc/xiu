@@ -1,8 +1,9 @@
-use super::define;
-use super::errors;
-use crate::messages::define as message_define;
-use byteorder::BigEndian;
-use netio::bytes_reader::BytesReader;
+use {
+    super::{define, errors},
+    crate::messages::define as message_define,
+    byteorder::BigEndian,
+    netio::bytes_reader::BytesReader,
+};
 
 pub struct EventMessagesReader {
     pub reader: BytesReader,

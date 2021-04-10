@@ -1,9 +1,9 @@
-use super::errors::EventMessagesError;
-
-use super::define;
-use crate::messages::define::msg_type_id;
-use byteorder::BigEndian;
-use netio::bytes_writer::AsyncBytesWriter;
+use {
+    super::{define, errors::EventMessagesError},
+    byteorder::BigEndian,
+    netio::bytes_writer::AsyncBytesWriter,
+    crate::messages::define::msg_type_id,
+};
 
 pub struct EventMessagesWriter {
     writer: AsyncBytesWriter,
@@ -77,7 +77,10 @@ impl EventMessagesWriter {
         Ok(())
     }
 
-    pub async fn write_stream_is_record(&mut self, stream_id: u32) -> Result<(), EventMessagesError> {
+    pub async fn write_stream_is_record(
+        &mut self,
+        stream_id: u32,
+    ) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
             .write_u16::<BigEndian>(define::RTMP_EVENT_STREAM_IS_RECORD)?;

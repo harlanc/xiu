@@ -1,20 +1,18 @@
-use crate::amf0::errors::Amf0WriteError;
-use crate::chunk::errors::PackError;
-use crate::chunk::errors::UnpackError;
-use crate::handshake::errors::HandshakeError;
-use crate::messages::errors::MessageError;
-use crate::netconnection::errors::NetConnectionError;
-use crate::netstream::errors::NetStreamError;
-use crate::protocol_control_messages::errors::ControlMessagesError;
-use crate::user_control_messages::errors::EventMessagesError;
-
-use netio::bytes_errors::BytesWriteError;
-use netio::netio_errors::NetIOError;
-
-// use tokio::time::Elapsed;
-
-use failure::{Backtrace, Fail};
-use std::fmt;
+use {
+    crate::{
+        amf0::errors::Amf0WriteError,
+        chunk::errors::{PackError, UnpackError},
+        handshake::errors::HandshakeError,
+        messages::errors::MessageError,
+        netconnection::errors::NetConnectionError,
+        netstream::errors::NetStreamError,
+        protocol_control_messages::errors::ControlMessagesError,
+        user_control_messages::errors::EventMessagesError,
+    },
+    failure::{Backtrace, Fail},
+    netio::{bytes_errors::BytesWriteError, netio_errors::NetIOError},
+    std::fmt,
+};
 
 #[derive(Debug)]
 pub struct SessionError {
@@ -31,7 +29,6 @@ pub enum SessionErrorValue {
     // TimeoutError(#[cause] Elapsed),
     #[fail(display = "unpack error: {}", _0)]
     UnPackError(#[cause] UnpackError),
-
 
     #[fail(display = "message error: {}", _0)]
     MessageError(#[cause] MessageError),

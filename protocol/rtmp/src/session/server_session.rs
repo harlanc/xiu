@@ -1,50 +1,43 @@
-use super::define;
-use super::errors::SessionError;
-use super::errors::SessionErrorValue;
-use crate::chunk::packetizer::ChunkPacketizer;
-use crate::chunk::{unpacketizer::ChunkUnpacketizer, ChunkInfo};
-use crate::handshake::handshake::{ComplexHandshakeServer, SimpleHandshakeServer};
-use crate::{amf0::Amf0ValueType, chunk::unpacketizer::UnpackResult};
-use crate::{
-    chunk::define::CHUNK_SIZE,
-    chunk::define::{chunk_type, csid_type},
+use {
+    super::{
+        define,
+        errors::{SessionError, SessionErrorValue},
+    },
+    crate::{
+        amf0::Amf0ValueType,
+        channels::define::{
+            ChannelData, ChannelDataConsumer, ChannelDataPublisher, ChannelEvent,
+            ChannelEventPublisher,
+        },
+        chunk::{
+            define::{chunk_type, csid_type, CHUNK_SIZE},
+            packetizer::ChunkPacketizer,
+            unpacketizer::{ChunkUnpacketizer, UnpackResult},
+            ChunkInfo,
+        },
+        handshake::handshake::{
+            ComplexHandshakeServer, ServerHandshakeState, SimpleHandshakeServer,
+        },
+        messages::{
+            define::{msg_type_id, RtmpMessageData},
+            parser::MessageParser,
+        },
+        netconnection::commands::NetConnection,
+        netstream::writer::NetStreamWriter,
+        protocol_control_messages::writer::ProtocolControlMessagesWriter,
+        user_control_messages::writer::EventMessagesWriter,
+    },
+    bytes::BytesMut,
+    netio::{
+        bytes_writer::{AsyncBytesWriter, BytesWriter},
+        netio::NetworkIO,
+    },
+    std::{collections::HashMap, sync::Arc, time::Duration},
+    tokio::{
+        net::TcpStream,
+        sync::{mpsc, oneshot, Mutex},
+    },
 };
-
-use crate::messages::define::msg_type_id;
-use crate::messages::define::RtmpMessageData;
-
-use crate::messages::parser::MessageParser;
-use bytes::BytesMut;
-
-use netio::bytes_writer::AsyncBytesWriter;
-use netio::bytes_writer::BytesWriter;
-use netio::netio::NetworkIO;
-use std::time::Duration;
-
-use crate::channels::define::ChannelDataConsumer;
-use crate::channels::define::ChannelDataPublisher;
-use crate::channels::define::ChannelEvent;
-use crate::channels::define::ChannelEventPublisher;
-// use crate::channels::define::PlayerConsumer;
-use crate::netconnection::commands::NetConnection;
-use crate::netstream::writer::NetStreamWriter;
-use crate::protocol_control_messages::writer::ProtocolControlMessagesWriter;
-
-use crate::user_control_messages::writer::EventMessagesWriter;
-
-use std::collections::HashMap;
-
-use tokio::net::TcpStream;
-
-use tokio::sync::{broadcast, mpsc};
-
-use std::sync::Arc;
-use tokio::sync::oneshot;
-use tokio::sync::Mutex;
-
-use crate::channels::define::ChannelData;
-
-use crate::handshake::handshake::ServerHandshakeState;
 
 enum ServerSessionState {
     Handshake,
@@ -194,8 +187,7 @@ impl ServerSession {
                                 self.send_metadata(body).await?;
                             }
                         }
-                    }else{
-
+                    } else {
                     }
                 },
             }
