@@ -4,23 +4,26 @@ use {
         errors::{MessageError, MessageErrorValue},
     },
     crate::{
-        amf0::{amf0_markers, amf0_reader::Amf0Reader},
+        amf0::{amf0_markers, amf0_reader::Amf0Reader,Amf0ValueType,},
         chunk::ChunkInfo,
         config,
         protocol_control_messages::reader::ProtocolControlMessageReader,
         user_control_messages::reader::EventMessagesReader,
+        utils,
     },
     netio::bytes_reader::BytesReader,
 };
 
 pub struct MessageParser {
     chunk_info: ChunkInfo,
+    session_type: u8,
 }
 
 impl MessageParser {
-    pub fn new(chunk_info: ChunkInfo) -> Self {
+    pub fn new(chunk_info: ChunkInfo, session_type: u8) -> Self {
         Self {
             chunk_info: chunk_info,
+            session_type: session_type,
         }
     }
     pub fn parse(&mut self) -> Result<RtmpMessageData, MessageError> {
@@ -28,19 +31,29 @@ impl MessageParser {
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
-                // print!(
-                //     "amf command:msg_length{}\n",
-                //     self.chunk_info.message_header.msg_length
-                // );
+                print!(
+                    "amf command:msg_length{}\n",
+                    self.chunk_info.message_header.msg_length
+                );
 
                 if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF3 {
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
 
-                // utils::print::print(amf_reader.get_remaining_bytes());
+                utils::print::print(amf_reader.get_remaining_bytes());
 
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
+                match command_name.clone(){
+                    Amf0ValueType::UTF8String(val) =>{
+                        print!("command name : {}\n",val);
+
+                        if val == "deleteStream"{
+                            let aa = 4;
+                        }
+                    }
+                    _ =>{}
+                }
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
 
                 // print!("2222222222222 command name  transction id \n");
@@ -64,7 +77,7 @@ impl MessageParser {
             }
 
             msg_type_id::AUDIO => {
-                if config::DEBUG {
+                if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
                     print!(
                         "audio:msg_length{}\n",
                         self.chunk_info.message_header.msg_length
@@ -76,7 +89,7 @@ impl MessageParser {
                 });
             }
             msg_type_id::VIDEO => {
-                if config::DEBUG {
+                if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
                     print!(
                         "video:msg_length{}\n",
                         self.chunk_info.message_header.msg_length
@@ -87,6 +100,10 @@ impl MessageParser {
                 });
             }
             msg_type_id::USER_CONTROL_EVENT => {
+                print!(
+                    "user control event:msg_length{}\n",
+                    self.chunk_info.message_header.msg_length
+                );
                 let data = EventMessagesReader::new(reader).parse_event()?;
                 return Ok(data);
             }
@@ -193,7 +210,7 @@ mod tests {
                     let msg_stream_id = chunk_info.message_header.msg_streamd_id;
                     let timestamp = chunk_info.message_header.timestamp;
 
-                    let mut message_parser = MessageParser::new(chunk_info);
+                    let mut message_parser = MessageParser::new(chunk_info, 15);
                     let mut msg = message_parser.parse();
                 }
                 _ => {}

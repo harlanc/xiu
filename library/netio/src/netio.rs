@@ -6,6 +6,7 @@ use bytes::BytesMut;
 use std::time::Duration;
 
 use tokio::net::TcpStream;
+use tokio::time::timeout;
 
 use tokio_stream::StreamExt;
 
@@ -15,7 +16,6 @@ use tokio_util::codec::Framed;
 
 pub struct NetworkIO {
     stream: Framed<TcpStream, BytesCodec>,
-
     //timeout: Duration,
 }
 
@@ -23,13 +23,43 @@ impl NetworkIO {
     pub fn new(stream: TcpStream, ms: Duration) -> Self {
         Self {
             stream: Framed::new(stream, BytesCodec::new()),
-           // timeout: ms,
+            // timeout: ms,
         }
     }
 
     pub async fn write(&mut self, bytes: Bytes) -> Result<(), NetIOError> {
         self.stream.send(bytes).await?;
         Ok(())
+    }
+
+    pub async fn read_timeout(&mut self, duration: Duration) -> Result<BytesMut, NetIOError> {
+        let message = timeout(duration, self.stream.next()).await;
+
+        match message {
+            Ok(bytes) => {
+                if let Some(data) = bytes {
+                    match data {
+                        Ok(bytes) => {
+                            return Ok(bytes);
+                        }
+                        Err(err) => {
+                            return Err(NetIOError {
+                                value: NetIOErrorValue::IOError(err),
+                            })
+                        }
+                    }
+                } else {
+                    return Err(NetIOError {
+                        value: NetIOErrorValue::NoneReturn,
+                    });
+                }
+            }
+            Err(err) => {
+                return Err(NetIOError {
+                    value: NetIOErrorValue::TimeoutError,
+                })
+            }
+        }
     }
 
     pub async fn read(&mut self) -> Result<BytesMut, NetIOError> {

@@ -15,6 +15,7 @@ use {
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
             ChunkInfo,
         },
+        config,
         handshake::handshake::{
             ComplexHandshakeServer, ServerHandshakeState, SimpleHandshakeServer,
         },
@@ -26,16 +27,19 @@ use {
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
+        utils,
     },
     bytes::BytesMut,
     netio::{
+        bytes_errors::BytesWriteErrorValue,
         bytes_writer::{AsyncBytesWriter, BytesWriter},
         netio::NetworkIO,
     },
-    std::{collections::HashMap, sync::Arc, time::Duration},
+    std::{collections::HashMap, rc::Rc, sync::Arc, time::Duration},
     tokio::{
         net::TcpStream,
         sync::{mpsc, oneshot, Mutex},
+        time::sleep,
     },
 };
 
@@ -50,6 +54,7 @@ enum ServerSessionState {
 
 pub struct ServerSession {
     app_name: String,
+    stream_name: String,
 
     io: Arc<Mutex<NetworkIO>>,
     simple_handshaker: SimpleHandshakeServer,
@@ -67,7 +72,12 @@ pub struct ServerSession {
     //receive video, audio or metadata from publish server session and send out to player
     data_consumer: ChannelDataConsumer,
 
+    netio_data: BytesMut,
+
+    need_process: bool,
+
     session_id: u8,
+    session_type: u8,
 }
 
 impl ServerSession {
@@ -81,10 +91,9 @@ impl ServerSession {
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = mpsc::unbounded_channel();
 
-        // let reader = BytesReader::new(BytesMut::new());
-
         Self {
             app_name: String::from(""),
+            stream_name: String::from(""),
 
             io: Arc::clone(&net_io),
             simple_handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
@@ -98,102 +107,151 @@ impl ServerSession {
             data_producer: init_producer,
             data_consumer: init_consumer,
             session_id: session_id,
+            netio_data: BytesMut::new(),
+            need_process: false,
+            session_type: 0,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), SessionError> {
-        let duration = Duration::new(10, 10);
-
-        let mut remaining_bytes: BytesMut = BytesMut::new();
-
         loop {
-            let mut net_io_data: BytesMut = BytesMut::new();
-            if remaining_bytes.len() <= 0 {
-                net_io_data = self.io.lock().await.read().await?;
-
-                //utils::print::print(net_io_data.clone());
-            }
-
             match self.state {
                 ServerSessionState::Handshake => {
-                    if self.session_id > 0 {
-                        // utils::print::printu8(net_io_data.clone());
-                    }
-
-                    self.simple_handshaker.extend_data(&net_io_data[..]);
-                    self.simple_handshaker.handshake().await?;
-
-                    match self.simple_handshaker.state {
-                        ServerHandshakeState::Finish => {
-                            self.state = ServerSessionState::ReadChunk;
-                            remaining_bytes = self.simple_handshaker.get_remaining_bytes();
-                        }
-                        _ => continue,
-                    }
+                    self.handshake().await?;
                 }
                 ServerSessionState::ReadChunk => {
-                    if self.session_id > 0 {
-                        // utils::print::printu8(net_io_data.clone());
-                    }
-
-                    if remaining_bytes.len() > 0 {
-                        let bytes = std::mem::replace(&mut remaining_bytes, BytesMut::new());
-                        self.unpacketizer.extend_data(&bytes[..]);
-                    } else {
-                        self.unpacketizer.extend_data(&net_io_data[..]);
-                    }
-
-                    loop {
-                        let result = self.unpacketizer.read_chunks();
-                        let rv = match result {
-                            Ok(val) => val,
-                            Err(_) => {
-                                break;
-                            }
-                        };
-
-                        match rv {
-                            UnpackResult::Chunks(chunks) => {
-                                for chunk_info in chunks.iter() {
-                                    let msg_stream_id = chunk_info.message_header.msg_streamd_id;
-                                    let timestamp = chunk_info.message_header.timestamp;
-
-                                    let mut message_parser = MessageParser::new(chunk_info.clone());
-                                    let mut msg = message_parser.parse()?;
-
-                                    self.process_messages(&mut msg, &msg_stream_id, &timestamp)
-                                        .await?;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
+                    self.read_parse_chunks().await?;
                 }
-
-                //when in play state, only transfer publisher's video/audio/metadta to player.
-                ServerSessionState::Play => loop {
-                    if let Some(data) = self.data_consumer.recv().await {
-                        match data {
-                            ChannelData::Audio { timestamp, data } => {
-                                print!("send audio data\n");
-                                self.send_audio(data, timestamp).await?;
-                            }
-                            ChannelData::Video { timestamp, data } => {
-                                print!("send video data\n");
-                                self.send_video(data, timestamp).await?;
-                            }
-                            ChannelData::MetaData { body } => {
-                                print!("send meta data\n");
-                                self.send_metadata(body).await?;
-                            }
-                        }
-                    } else {
-                    }
-                },
+                ServerSessionState::Play => {
+                    self.play().await?;
+                }
             }
         }
 
-        //Ok(())
+        Ok(())
+    }
+
+    async fn handshake(&mut self) -> Result<(), SessionError> {
+        self.netio_data = self.io.lock().await.read().await?;
+        self.simple_handshaker.extend_data(&self.netio_data[..]);
+        self.simple_handshaker.handshake().await?;
+
+        match self.simple_handshaker.state {
+            ServerHandshakeState::Finish => {
+                self.state = ServerSessionState::ReadChunk;
+
+                let left_bytes = self.simple_handshaker.get_remaining_bytes();
+                if left_bytes.len() > 0 {
+                    self.unpacketizer.extend_data(&left_bytes[..]);
+                    self.need_process = true;
+                }
+
+                return Ok(());
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    async fn read_parse_chunks(&mut self) -> Result<(), SessionError> {
+        if !self.need_process {
+            self.netio_data = self.io.lock().await.read().await?;
+            self.unpacketizer.extend_data(&self.netio_data[..]);
+        }
+
+        self.need_process = false;
+
+        loop {
+            let result = self.unpacketizer.read_chunks();
+
+            if let Ok(rv) = result {
+                match rv {
+                    UnpackResult::Chunks(chunks) => {
+                        for chunk_info in chunks.iter() {
+                            let mut msg = MessageParser::new(chunk_info.clone(), self.session_type)
+                                .parse()?;
+
+                            let msg_stream_id = chunk_info.message_header.msg_streamd_id;
+                            let timestamp = chunk_info.message_header.timestamp;
+                            self.process_messages(&mut msg, &msg_stream_id, &timestamp)
+                                .await?;
+                        }
+                    }
+                    _ => {}
+                }
+            } else {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    async fn play(&mut self) -> Result<(), SessionError> {
+        // let (sender, mut receiver) = mpsc::unbounded_channel();
+        // let local_io = Arc::clone(&self.io);
+        // tokio::spawn(async move {
+        //     let duration = Duration::from_millis(5);
+        //     loop {
+        //         if let Ok(netio_data) = local_io.lock().await.read_timeout(duration).await {
+        //             print!("receive netio data\n");
+        //             sender.send(netio_data);
+        //         } else {
+        //             print!("timeout and no data\n");
+        //             sleep(Duration::from_secs(2)).await;
+        //         }
+        //     }
+        // });
+
+        // match err.value {
+        //     SessionErrorValue::BytesWriteError(value) => {
+        //         match value.value{
+        //             BytesWriteErrorValue::Timeout =>{
+
+        //             }
+        //         }
+        //     }
+        //     _ => {}
+        // }
+
+        match self.send_media_data().await {
+            Ok(_) => {}
+            Err(_) => {
+                let len = self.unpacketizer.reader.get_remaining_bytes().len();
+                print!("send meidi data err len:{}", len);
+
+                utils::print::print(self.unpacketizer.reader.get_remaining_bytes());
+
+                if len > 0 {
+                    self.need_process = true;
+                }
+
+                self.state = ServerSessionState::ReadChunk;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn send_media_data(&mut self) -> Result<(), SessionError> {
+        loop {
+            if let Some(data) = self.data_consumer.recv().await {
+                match data {
+                    ChannelData::Audio { timestamp, data } => {
+                        print!("send audio data\n");
+                        self.send_audio(data, timestamp).await?;
+                    }
+                    ChannelData::Video { timestamp, data } => {
+                        print!("send video data\n");
+                        self.send_video(data, timestamp).await?;
+                    }
+                    ChannelData::MetaData { body } => {
+                        print!("send meta data\n");
+                        self.send_metadata(body).await?;
+                    }
+                }
+            }
+        }
     }
 
     pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
@@ -262,7 +320,7 @@ impl ServerSession {
                 command_object,
                 others,
             } => {
-                self.process_amf0_command_message(
+                self.on_amf0_command_message(
                     msg_stream_id,
                     command_name,
                     transaction_id,
@@ -289,7 +347,7 @@ impl ServerSession {
         Ok(())
     }
 
-    pub async fn process_amf0_command_message(
+    pub async fn on_amf0_command_message(
         &mut self,
         stream_id: &u32,
         command_name: &Amf0ValueType,
@@ -323,7 +381,8 @@ impl ServerSession {
                 self.on_create_stream(transaction_id).await?;
             }
             "deleteStream" => {
-                if others.len() > 1 {
+                print!("deletestream....\n");
+                if others.len() > 0 {
                     let stream_id = match others.pop() {
                         Some(val) => match val {
                             Amf0ValueType::Number(streamid) => streamid,
@@ -332,13 +391,19 @@ impl ServerSession {
                         _ => 0.0,
                     };
 
+                    print!("deletestream....{}\n", stream_id);
+
                     self.on_delete_stream(transaction_id, &stream_id).await?;
                 }
             }
             "play" => {
+                self.session_type = config::SERVER_PULL;
+                self.unpacketizer.session_type = config::SERVER_PULL;
                 self.on_play(transaction_id, stream_id, others).await?;
             }
             "publish" => {
+                self.session_type = config::SERVER_PUSH;
+                self.unpacketizer.session_type = config::SERVER_PUSH;
                 self.on_publish(transaction_id, stream_id, others).await?;
             }
             _ => {}
@@ -446,6 +511,8 @@ impl ServerSession {
             )
             .await?;
 
+        self.unsubscribe_from_channels().await?;
+
         Ok(())
     }
     pub async fn on_play(
@@ -551,7 +618,20 @@ impl ServerSession {
         Ok(())
     }
 
+    async fn unsubscribe_from_channels(&mut self) -> Result<(), SessionError> {
+        let subscribe_event = ChannelEvent::UnSubscribe {
+            app_name: self.app_name.clone(),
+            stream_name: self.stream_name.clone(),
+        };
+
+        let rv = self.event_producer.send(subscribe_event);
+
+        Ok(())
+    }
+
     async fn subscribe_from_channels(&mut self, stream_name: String) -> Result<(), SessionError> {
+        self.stream_name = stream_name.clone();
+
         let (sender, receiver) = oneshot::channel();
         let subscribe_event = ChannelEvent::Subscribe {
             app_name: self.app_name.clone(),
@@ -716,9 +796,6 @@ impl ServerSession {
                 })
             }
         }
-        // let mut metadata_handler = metadata::MetaData::default();
-
-        // metadata_handler.save(body, values);
 
         Ok(())
     }

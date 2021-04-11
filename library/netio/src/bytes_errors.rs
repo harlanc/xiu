@@ -55,6 +55,8 @@ pub enum BytesWriteErrorValue {
     IO(io::Error),
     #[fail(display = "not enough bytes")]
     NetIOError(NetIOError),
+    #[fail(display = "write time out")]
+    Timeout,
 }
 
 impl From<io::Error> for BytesWriteError {

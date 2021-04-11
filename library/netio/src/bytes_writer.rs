@@ -7,11 +7,17 @@ use std::io::Write;
 
 use super::bytes_errors::BytesWriteError;
 
+use super::bytes_errors::BytesWriteErrorValue;
+
 use super::netio::NetworkIO;
 
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
+
+use std::time::Duration;
+
+use tokio::time::timeout;
 
 pub struct BytesWriter {
     pub bytes: Vec<u8>,
@@ -120,6 +126,30 @@ impl AsyncBytesWriter {
             .write(self.bytes_writer.bytes.clone().into())
             .await?;
         self.bytes_writer.bytes.clear();
+        Ok(())
+    }
+
+    pub async fn flush_timeout(&mut self, duration: Duration) -> Result<(), BytesWriteError> {
+        let message = timeout(
+            duration,
+            self.io
+                .lock()
+                .await
+                .write(self.bytes_writer.bytes.clone().into()),
+        )
+        .await;
+
+        match message {
+            Ok(_) => {
+                self.bytes_writer.bytes.clear();
+            }
+            Err(_) => {
+                return Err(BytesWriteError {
+                    value: BytesWriteErrorValue::Timeout,
+                })
+            }
+        }
+
         Ok(())
     }
 }

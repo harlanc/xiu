@@ -1,8 +1,7 @@
 use failure::{Backtrace, Fail};
 use std::fmt;
 use std::io;
-
-//use tokio::time::Elapsed;
+// use tokio::time::Elapsed;
 
 #[derive(Debug, Fail)]
 pub enum NetIOErrorValue {
@@ -12,8 +11,8 @@ pub enum NetIOErrorValue {
     EmptyStream,
     #[fail(display = "io error")]
     IOError(io::Error),
-    // #[fail(display = "time out error")]
-    // TimeoutError(Elapsed),
+    #[fail(display = "time out error")]
+    TimeoutError,
     #[fail(display = "none return")]
     NoneReturn,
 }

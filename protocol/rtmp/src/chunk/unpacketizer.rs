@@ -1,15 +1,17 @@
+use super::Chunk;
+
 use {
     super::{
-        chunk::{ChunkBasicHeader, ChunkInfo, ChunkMessageHeader},
+        chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
         define,
         errors::{UnpackError, UnpackErrorValue},
     },
-    crate::{config, messages::define::msg_type_id},
+    crate::{config, messages::define::msg_type_id, utils},
     byteorder::{BigEndian, LittleEndian},
     bytes::{BufMut, BytesMut},
     chrono::prelude::*,
     netio::bytes_reader::BytesReader,
-    std::{cmp::min, vec::Vec},
+    std::{cmp::min, collections::HashMap, vec::Vec},
 };
 
 #[derive(Eq, PartialEq, Debug)]
@@ -50,10 +52,12 @@ pub struct ChunkUnpacketizer {
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
     pub current_chunk_info: ChunkInfo,
+    chunk_headers: HashMap<u32, ChunkHeader>,
     chunk_read_state: ChunkReadState,
     msg_header_read_state: MessageHeaderReadState,
     max_chunk_size: usize,
     chunk_index: u32,
+    pub session_type: u8,
 }
 
 impl ChunkUnpacketizer {
@@ -61,10 +65,12 @@ impl ChunkUnpacketizer {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             current_chunk_info: ChunkInfo::default(),
+            chunk_headers: HashMap::new(),
             chunk_read_state: ChunkReadState::ReadBasicHeader,
             msg_header_read_state: MessageHeaderReadState::ReadTimeStamp,
             max_chunk_size: define::INIT_CHUNK_SIZE as usize,
             chunk_index: 0,
+            session_type: 0,
         }
     }
 
@@ -77,7 +83,7 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_chunks(&mut self) -> Result<UnpackResult, UnpackError> {
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!("\n");
             print!("\n");
 
@@ -87,6 +93,12 @@ impl ChunkUnpacketizer {
                 dt.timestamp_nanos(),
                 f(&self.chunk_read_state)
             );
+        }
+
+        if (config::SERVER_PUSH & self.session_type) == 0 {
+            print!("begin trunks data========\n");
+            utils::print::print(self.reader.get_remaining_bytes());
+            print!("end trunks data========\n");
         }
 
         let mut chunks: Vec<ChunkInfo> = Vec::new();
@@ -109,7 +121,7 @@ impl ChunkUnpacketizer {
             }
         }
 
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             let dt = Local::now();
             print!(
                 "read_chunks end=====+++++++++++++++++++++++++{} {} {}\n",
@@ -140,7 +152,7 @@ impl ChunkUnpacketizer {
         let mut result: UnpackResult = UnpackResult::Empty;
 
         let mut dt: DateTime<Local> = Local::now();
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!("\n");
             print!("\n");
             print!(
@@ -169,7 +181,7 @@ impl ChunkUnpacketizer {
                 }
             };
         }
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!(
                 "read_chunk end  =====+++++++++++++++++++++++++{}\n",
                 dt.timestamp_nanos()
@@ -250,6 +262,14 @@ impl ChunkUnpacketizer {
             _ => {}
         }
 
+        //todo
+        if csid != self.current_chunk_info.basic_header.chunk_stream_id {
+            if let Some(header) = self.chunk_headers.get_mut(&csid) {
+                self.current_chunk_info.basic_header = header.basic_header.clone();
+                self.current_chunk_info.message_header = header.message_header.clone();
+            }
+        }
+
         self.current_chunk_info.basic_header.chunk_stream_id = csid;
         self.current_chunk_info.basic_header.format = format_id;
 
@@ -265,7 +285,7 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!(
                 "read_message_header left bytes length ======{}=======\n",
                 self.reader.len()
@@ -297,7 +317,8 @@ impl ChunkUnpacketizer {
                             self.current_message_header().msg_length =
                                 self.reader.read_u24::<BigEndian>()?;
 
-                            if config::DEBUG {
+                            if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0)
+                            {
                                 print!(
                                     "msg_length format 0:======{}=======\n",
                                     self.current_message_header().msg_length
@@ -308,7 +329,8 @@ impl ChunkUnpacketizer {
                         MessageHeaderReadState::ReadMsgTypeID => {
                             self.current_message_header().msg_type_id = self.reader.read_u8()?;
 
-                            if config::DEBUG {
+                            if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0)
+                            {
                                 print!(
                                     "msg_type_id format 0:======{}=======\n",
                                     self.current_message_header().msg_type_id
@@ -352,7 +374,8 @@ impl ChunkUnpacketizer {
                             self.current_message_header().msg_length =
                                 self.reader.read_u24::<BigEndian>()?;
 
-                            if config::DEBUG {
+                            if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0)
+                            {
                                 print!(
                                     "msg_length format 1:======{}=======\n",
                                     self.current_message_header().msg_length
@@ -363,7 +386,8 @@ impl ChunkUnpacketizer {
                         MessageHeaderReadState::ReadMsgTypeID => {
                             self.current_message_header().msg_type_id = self.reader.read_u8()?;
 
-                            if config::DEBUG {
+                            if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0)
+                            {
                                 print!(
                                     "msg_type_id format 1:======{}=======\n",
                                     self.current_message_header().msg_type_id
@@ -393,7 +417,7 @@ impl ChunkUnpacketizer {
             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             ***************************************************/
             2 => {
-                if config::DEBUG {
+                if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
                     print!(
                         "msg_type_id format 2:======{}=======\n",
                         self.current_message_header().msg_type_id
@@ -458,7 +482,7 @@ impl ChunkUnpacketizer {
         let whole_msg_length = self.current_message_header().msg_length as usize;
         let remaining_bytes = whole_msg_length - self.current_chunk_info.payload.len();
 
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!(
                 "whole:{} == remaining:{} \n",
                 whole_msg_length, remaining_bytes
@@ -475,7 +499,7 @@ impl ChunkUnpacketizer {
             let additional = need_read_length - remaining_mut;
             self.current_chunk_info.payload.reserve(additional);
         }
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!("buffer len:{}\n", self.reader.len());
         }
 
@@ -484,7 +508,7 @@ impl ChunkUnpacketizer {
             .payload
             .extend_from_slice(&payload_data[..]);
 
-        if config::DEBUG {
+        if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!(
                 "current msg payload len:{}\n",
                 self.current_chunk_info.payload.len()
@@ -495,6 +519,25 @@ impl ChunkUnpacketizer {
             self.chunk_read_state = ChunkReadState::Finish;
             let chunk_info = self.current_chunk_info.clone();
             self.current_chunk_info.payload.clear();
+
+            let csid = self.current_chunk_info.basic_header.chunk_stream_id;
+
+            //todo
+            if let Some(header) = self.chunk_headers.get_mut(&csid) {
+                header.basic_header = self.current_chunk_info.basic_header.clone();
+                header.message_header = self.current_chunk_info.message_header.clone();
+            } else {
+                let chunk_header = ChunkHeader {
+                    basic_header: self.current_chunk_info.basic_header.clone(),
+                    message_header: self.current_chunk_info.message_header.clone(),
+                };
+                self.chunk_headers.insert(csid, chunk_header);
+            }
+
+            // self.chunk_headers
+            //     .entry(self.current_chunk_info.basic_header.chunk_stream_id)
+            //     .or_insert(chunk_header);
+
             return Ok(UnpackResult::ChunkInfo(chunk_info));
         }
 

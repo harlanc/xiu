@@ -1,8 +1,3 @@
-use tokio::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    oneshot,
-};
-
 use {
     super::{
         define::{
@@ -19,7 +14,10 @@ use {
         collections::HashMap,
         sync::{Arc, Mutex},
     },
-    tokio::sync::{broadcast, mpsc},
+    tokio::sync::{
+        mpsc::{UnboundedReceiver, UnboundedSender},
+        oneshot, {broadcast, mpsc},
+    },
 };
 
 /************************************************************************************
@@ -282,6 +280,13 @@ impl ChannelsManager {
             }
         }
     }
+
+    // pub fn unsubscribe(
+    //     &mut self,
+    //     app_name: &String,
+    //     stream_name: &String,
+    // ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
+    // }
 
     //publish a stream
     pub fn publish(
