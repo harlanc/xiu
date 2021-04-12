@@ -26,5 +26,5 @@ XIU is a live server written by RUST.
 - Update README.
 
 [2021-04-08]
-- Fix: use mpsc channel to replace onshot,may be improved.
+- Fix: replace oneshot by mpsc channel,may be improved.
 
