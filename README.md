@@ -20,11 +20,14 @@ XIU is a live server written by RUST.
 - Impl: add unsubscribe and unpublish logic in server\_session and channels models.
 
 [2021-04-10]
+
 - Improve: change use libraries format.
 
 [2021-04-09]
+
 - Update README.
 
 [2021-04-08]
+
 - Fix: replace oneshot by mpsc channel,may be improved.
 
