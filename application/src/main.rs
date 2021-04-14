@@ -43,7 +43,7 @@ impl Service {
                 let socket_addr: &SocketAddr = &address.parse().unwrap();
                 let listener = TcpListener::bind(socket_addr).await?;
 
-                let mut idx: u8 = 0;
+                let mut idx: u64 = 0;
 
                 loop {
                     let (tcp_stream, _) = listener.accept().await?;
@@ -55,7 +55,14 @@ impl Service {
                         Duration::from_secs(30),
                         idx,
                     );
-                    tokio::spawn(async move { if let Err(err) = session.run().await {} });
+                    tokio::spawn(async move {
+                        if let Err(err) = session.run().await {
+                            print!(
+                                "session type: {}, id {}, session error {}\n",
+                                session.session_type, session.session_id, err
+                            );
+                        }
+                    });
 
                     idx = idx + 1;
                 }

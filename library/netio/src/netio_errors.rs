@@ -9,9 +9,9 @@ pub enum NetIOErrorValue {
     NotEnoughBytes,
     #[fail(display = "empty stream")]
     EmptyStream,
-    #[fail(display = "io error")]
+    #[fail(display = "io error\n")]
     IOError(io::Error),
-    #[fail(display = "time out error")]
+    #[fail(display = "time out error\n")]
     TimeoutError,
     #[fail(display = "none return")]
     NoneReturn,

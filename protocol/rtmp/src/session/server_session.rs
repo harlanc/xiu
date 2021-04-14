@@ -73,11 +73,10 @@ pub struct ServerSession {
     data_consumer: ChannelDataConsumer,
 
     netio_data: BytesMut,
-
     need_process: bool,
 
-    session_id: u8,
-    session_type: u8,
+    pub session_id: u64,
+    pub session_type: u8,
 }
 
 impl ServerSession {
@@ -85,7 +84,7 @@ impl ServerSession {
         stream: TcpStream,
         event_producer: ChannelEventPublisher,
         timeout: Duration,
-        session_id: u8,
+        session_id: u64,
     ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
         //only used for init,since I don't found a better way to deal with this.
@@ -188,45 +187,21 @@ impl ServerSession {
     }
 
     async fn play(&mut self) -> Result<(), SessionError> {
-        // let (sender, mut receiver) = mpsc::unbounded_channel();
-        // let local_io = Arc::clone(&self.io);
-        // tokio::spawn(async move {
-        //     let duration = Duration::from_millis(5);
-        //     loop {
-        //         if let Ok(netio_data) = local_io.lock().await.read_timeout(duration).await {
-        //             print!("receive netio data\n");
-        //             sender.send(netio_data);
-        //         } else {
-        //             print!("timeout and no data\n");
-        //             sleep(Duration::from_secs(2)).await;
-        //         }
-        //     }
-        // });
-
-        // match err.value {
-        //     SessionErrorValue::BytesWriteError(value) => {
-        //         match value.value{
-        //             BytesWriteErrorValue::Timeout =>{
-
-        //             }
-        //         }
-        //     }
-        //     _ => {}
-        // }
-
         match self.send_media_data().await {
             Ok(_) => {}
-            Err(_) => {
-                let len = self.unpacketizer.reader.get_remaining_bytes().len();
-                print!("send meidi data err len:{}", len);
+            Err(err) => {
+                // let len = self.unpacketizer.reader.get_remaining_bytes().len();
+                // print!("send meidi data err len:{}\n", len);
 
-                utils::print::print(self.unpacketizer.reader.get_remaining_bytes());
+                // utils::print::print(self.unpacketizer.reader.get_remaining_bytes());
 
-                if len > 0 {
-                    self.need_process = true;
-                }
+                // if len > 0 {
+                //     self.need_process = true;
+                // }
 
-                self.state = ServerSessionState::ReadChunk;
+                // self.state = ServerSessionState::ReadChunk;
+
+                return Err(err);
             }
         }
 
@@ -238,11 +213,11 @@ impl ServerSession {
             if let Some(data) = self.data_consumer.recv().await {
                 match data {
                     ChannelData::Audio { timestamp, data } => {
-                        print!("send audio data\n");
+                        //print!("send audio data\n");
                         self.send_audio(data, timestamp).await?;
                     }
                     ChannelData::Video { timestamp, data } => {
-                        print!("send video data\n");
+                        //print!("send video data\n");
                         self.send_video(data, timestamp).await?;
                     }
                     ChannelData::MetaData { body } => {
@@ -511,7 +486,7 @@ impl ServerSession {
             )
             .await?;
 
-        self.unsubscribe_from_channels().await?;
+        //self.unsubscribe_from_channels().await?;
 
         Ok(())
     }
@@ -622,6 +597,7 @@ impl ServerSession {
         let subscribe_event = ChannelEvent::UnSubscribe {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
+            session_id: self.session_id,
         };
 
         let rv = self.event_producer.send(subscribe_event);
@@ -632,10 +608,18 @@ impl ServerSession {
     async fn subscribe_from_channels(&mut self, stream_name: String) -> Result<(), SessionError> {
         self.stream_name = stream_name.clone();
 
+        print!(
+            "subscribe info............{} {} {}\n",
+            self.app_name,
+            stream_name.clone(),
+            self.session_id
+        );
+
         let (sender, receiver) = oneshot::channel();
         let subscribe_event = ChannelEvent::Subscribe {
             app_name: self.app_name.clone(),
             stream_name,
+            session_id: self.session_id,
             responder: sender,
         };
 
@@ -753,7 +737,7 @@ impl ServerSession {
         match self.data_producer.send(data) {
             Ok(size) => {}
             Err(err) => {
-                format!("receive video err {}", err);
+                print!("send video err {}\n", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,
                 });
@@ -775,7 +759,8 @@ impl ServerSession {
 
         match self.data_producer.send(data) {
             Ok(size) => {}
-            Err(_) => {
+            Err(err) => {
+                print!("receive audio err {}\n", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,
                 })

@@ -21,48 +21,51 @@ pub struct SessionError {
 
 #[derive(Debug, Fail)]
 pub enum SessionErrorValue {
-    #[fail(display = "amf0 write error: {}", _0)]
+    #[fail(display = "amf0 write error: {}\n", _0)]
     Amf0WriteError(#[cause] Amf0WriteError),
-    #[fail(display = "bytes write error: {}", _0)]
+    #[fail(display = "bytes write error: {}\n", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    // #[fail(display = "timeout error: {}", _0)]
+    // #[fail(display = "timeout error: {}\n", _0)]
     // TimeoutError(#[cause] Elapsed),
-    #[fail(display = "unpack error: {}", _0)]
+    #[fail(display = "unpack error: {}\n", _0)]
     UnPackError(#[cause] UnpackError),
 
-    #[fail(display = "message error: {}", _0)]
+    #[fail(display = "message error: {}\n", _0)]
     MessageError(#[cause] MessageError),
-    #[fail(display = "control message error: {}", _0)]
+    #[fail(display = "control message error: {}\n", _0)]
     ControlMessagesError(#[cause] ControlMessagesError),
-    #[fail(display = "net connection error: {}", _0)]
+    #[fail(display = "net connection error: {}\n", _0)]
     NetConnectionError(#[cause] NetConnectionError),
-    #[fail(display = "net stream error: {}", _0)]
+    #[fail(display = "net stream error: {}\n", _0)]
     NetStreamError(#[cause] NetStreamError),
 
-    #[fail(display = "event messages error: {}", _0)]
+    #[fail(display = "event messages error: {}\n", _0)]
     EventMessagesError(#[cause] EventMessagesError),
-    #[fail(display = "net io error: {}", _0)]
+    #[fail(display = "net io error: {}\n", _0)]
     NetIOError(#[cause] NetIOError),
-    #[fail(display = "pack error: {}", _0)]
+    #[fail(display = "pack error: {}\n", _0)]
     PackError(#[cause] PackError),
-    #[fail(display = "handshake error: {}", _0)]
+    #[fail(display = "handshake error: {}\n", _0)]
     HandshakeError(#[cause] HandshakeError),
 
-    #[fail(display = "amf0 count not correct error")]
+    #[fail(display = "amf0 count not correct error\n")]
     Amf0ValueCountNotCorrect,
-    #[fail(display = "amf0 value type not correct error")]
+    #[fail(display = "amf0 value type not correct error\n")]
     Amf0ValueTypeNotCorrect,
-    #[fail(display = "channel event send error")]
+    #[fail(display = "channel event send error\n")]
     ChannelEventSendErr,
-    #[fail(display = "none channel data sender error")]
+    #[fail(display = "none channel data sender error\n")]
     NoneChannelDataSender,
-    #[fail(display = "none channel data receiver error")]
+    #[fail(display = "none channel data receiver error\n")]
     NoneChannelDataReceiver,
-    #[fail(display = "send channel data error")]
+    #[fail(display = "send channel data error\n")]
     SendChannelDataErr,
 
-    #[fail(display = "no app name error")]
+    #[fail(display = "no app name error\n")]
     NoAppName,
+
+    #[fail(display = "session is finished.")]
+    Finish,
 }
 
 impl From<Amf0WriteError> for SessionError {

@@ -5,9 +5,9 @@ use netio::bytes_errors::BytesReadError;
 
 #[derive(Debug, Fail)]
 pub enum TagParseErrorValue {
-    #[fail(display = "bytes read error")]
+    #[fail(display = "bytes read error\n")]
     BytesReadError(BytesReadError),
-    #[fail(display = "tag data length error")]
+    #[fail(display = "tag data length error\n")]
     TagDataLength,
 }
 #[derive(Debug)]

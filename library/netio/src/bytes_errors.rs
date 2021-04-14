@@ -7,13 +7,13 @@ use std::fmt;
 
 #[derive(Debug, Fail)]
 pub enum BytesReadErrorValue {
-    #[fail(display = "not enough bytes")]
+    #[fail(display = "not enough bytes to read")]
     NotEnoughBytes,
     #[fail(display = "empty stream")]
     EmptyStream,
-    #[fail(display = "io error: {}", _0)]
+    #[fail(display = "io error: {}\n", _0)]
     IO(#[cause] io::Error),
-    // #[fail(display = "elapsed: {}", _0)]
+    // #[fail(display = "elapsed: {}\n", _0)]
     // TimeoutError(#[cause] Elapsed),
 }
 
@@ -51,9 +51,9 @@ pub struct BytesWriteError {
 
 #[derive(Debug, Fail)]
 pub enum BytesWriteErrorValue {
-    #[fail(display = "io error")]
+    #[fail(display = "io error\n")]
     IO(io::Error),
-    #[fail(display = "not enough bytes")]
+    #[fail(display = "not enough bytes to write: {}\n", _0)]
     NetIOError(NetIOError),
     #[fail(display = "write time out")]
     Timeout,

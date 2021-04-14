@@ -47,7 +47,7 @@ pub struct Transmiter {
     data_consumer: ChannelDataConsumer, //used for publisher to produce AV data
     event_consumer: TransmitEventConsumer,
 
-    player_producers: Arc<Mutex<Vec<ChannelDataPublisher>>>,
+    player_producers: Arc<Mutex<HashMap<u64, ChannelDataPublisher>>>,
     cache: Arc<Mutex<Cache>>,
 }
 
@@ -59,7 +59,7 @@ impl Transmiter {
         Self {
             data_consumer: data_consumer,
             event_consumer: event_consumer,
-            player_producers: Arc::new(Mutex::new(Vec::new())),
+            player_producers: Arc::new(Mutex::new(HashMap::new())),
             cache: Arc::new(Mutex::new(Cache::new())),
         }
     }
@@ -90,7 +90,7 @@ impl Transmiter {
                     if let Some(val) = data{
                         print!("receive player event\n");
                         match val{
-                            TransmitEvent::Subscribe { responder } => {
+                            TransmitEvent::Subscribe { responder,session_id } => {
                                 let ( sender, receiver) = mpsc::unbounded_channel();
 
                                 responder.send(receiver).map_err(|_| ChannelError {
@@ -112,8 +112,19 @@ impl Transmiter {
                                 })?;
 
                                 let mut pro = self.player_producers.lock().unwrap();
-                                pro.push(sender);
+                                pro.insert(session_id,sender);
+
                             },
+                            TransmitEvent::UnSubscribe{session_id} =>{
+
+                                let mut pro = self.player_producers.lock().unwrap();
+                                pro.remove(&session_id);
+
+                            },
+                            TransmitEvent::UnPublish{} => {
+                                return Ok(());
+                            },
+
                             _ => {}
                         }
 
@@ -138,8 +149,8 @@ impl Transmiter {
                                 };
 
 
-                                for i in self.player_producers.lock().unwrap().iter() {
-                                    i.send(data.clone()).map_err(|_| ChannelError {
+                                for (k,v) in self.player_producers.lock().unwrap().iter() {
+                                    v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendError,
                                     })?;
                                 }
@@ -152,8 +163,8 @@ impl Transmiter {
                                     timestamp: timestamp,
                                     data: data.clone(),
                                 };
-                                for i in self.player_producers.lock().unwrap().iter() {
-                                    i.send(data.clone()).map_err(|_| ChannelError {
+                                for (k,v) in self.player_producers.lock().unwrap().iter() {
+                                    v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendError,
                                     })?;
                                 }
@@ -218,22 +229,28 @@ impl ChannelsManager {
                 ChannelEvent::UnPublish {
                     app_name,
                     stream_name,
-                } => self.unpublish(&app_name, &stream_name),
+                } => {
+                    let _ = self.unpublish(&app_name, &stream_name);
+                }
                 ChannelEvent::Subscribe {
                     app_name,
                     stream_name,
+                    session_id,
                     responder,
                 } => {
-                    let rv = self.subscribe(&app_name, &stream_name).await;
+                    let rv = self.subscribe(&app_name, &stream_name, session_id).await;
                     match rv {
                         Ok(consumer) => if let Err(_) = responder.send(consumer) {},
-                        Err(err) => continue,
+                        Err(_) => continue,
                     }
                 }
                 ChannelEvent::UnSubscribe {
                     app_name,
                     stream_name,
-                } => {}
+                    session_id,
+                } => {
+                    let _ = self.unsubscribe(&app_name, &stream_name, session_id);
+                }
             }
         }
     }
@@ -245,13 +262,17 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
+        session_id: u64,
     ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
                 Some(producer) => {
                     let (sender, receiver) = oneshot::channel();
 
-                    let event = TransmitEvent::Subscribe { responder: sender };
+                    let event = TransmitEvent::Subscribe {
+                        responder: sender,
+                        session_id,
+                    };
                     producer.send(event).map_err(|_| ChannelError {
                         value: ChannelErrorValue::SendError,
                     })?;
@@ -281,12 +302,35 @@ impl ChannelsManager {
         }
     }
 
-    // pub fn unsubscribe(
-    //     &mut self,
-    //     app_name: &String,
-    //     stream_name: &String,
-    // ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
-    // }
+    pub fn unsubscribe(
+        &mut self,
+        app_name: &String,
+        stream_name: &String,
+        session_id: u64,
+    ) -> Result<(), ChannelError> {
+        match self.channels.get_mut(app_name) {
+            Some(val) => match val.get_mut(stream_name) {
+                Some(producer) => {
+                    let event = TransmitEvent::UnSubscribe { session_id };
+                    producer.send(event).map_err(|_| ChannelError {
+                        value: ChannelErrorValue::SendError,
+                    })?;
+                }
+                None => {
+                    return Err(ChannelError {
+                        value: ChannelErrorValue::NoStreamName,
+                    })
+                }
+            },
+            None => {
+                return Err(ChannelError {
+                    value: ChannelErrorValue::NoAppName,
+                })
+            }
+        }
+
+        Ok(())
+    }
 
     //publish a stream
     pub fn publish(
@@ -328,14 +372,30 @@ impl ChannelsManager {
         }
     }
 
-    fn unpublish(&mut self, app_name: &String, stream_name: &String) {
-        let rv = match self.channels.get_mut(app_name) {
+    fn unpublish(&mut self, app_name: &String, stream_name: &String) -> Result<(), ChannelError> {
+        match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
-                Some(_) => val.remove(stream_name),
-                None => return,
+                Some(producer) => {
+                    let event = TransmitEvent::UnPublish {};
+                    producer.send(event).map_err(|_| ChannelError {
+                        value: ChannelErrorValue::SendError,
+                    })?;
+                    val.remove(stream_name);
+                }
+                None => {
+                    return Err(ChannelError {
+                        value: ChannelErrorValue::NoStreamName,
+                    })
+                }
             },
-            None => return,
-        };
+            None => {
+                return Err(ChannelError {
+                    value: ChannelErrorValue::NoAppName,
+                })
+            }
+        }
+
+        Ok(())
     }
 
     //server broadcast data to player

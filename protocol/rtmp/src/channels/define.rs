@@ -27,11 +27,13 @@ pub enum ChannelEvent {
     Subscribe {
         app_name: String,
         stream_name: String,
+        session_id: u64,
         responder: ChannelResponder<ChannelDataConsumer>,
     },
     UnSubscribe {
         app_name: String,
         stream_name: String,
+        session_id: u64,
     },
     Publish {
         app_name: String,
@@ -47,5 +49,12 @@ pub enum ChannelEvent {
 pub enum TransmitEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,
+        session_id: u64,
     },
+
+    UnSubscribe {
+        session_id: u64,
+    },
+
+    UnPublish {},
 }

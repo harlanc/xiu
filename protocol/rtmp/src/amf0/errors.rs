@@ -8,11 +8,11 @@ use {
 
 #[derive(Debug, Fail)]
 pub enum Amf0ReadErrorValue {
-    #[fail(display = "Encountered unknown marker: {}", marker)]
+    #[fail(display = "Encountered unknown marker: {}\n", marker)]
     UnknownMarker { marker: u8 },
-    #[fail(display = "parser string error: {}", _0)]
+    #[fail(display = "parser string error: {}\n", _0)]
     StringParseError(#[cause] string::FromUtf8Error),
-    #[fail(display = "bytes read error :{}", _0)]
+    #[fail(display = "bytes read error :{}\n", _0)]
     BytesReadError(BytesReadError),
     #[fail(display = "wrong type")]
     WrongType,
@@ -43,9 +43,9 @@ impl From<BytesReadError> for Amf0ReadError {
 pub enum Amf0WriteErrorValue {
     #[fail(display = "normal string too long")]
     NormalStringTooLong,
-    #[fail(display = "io error")]
+    #[fail(display = "io error\n")]
     BufferWriteError(io::Error),
-    #[fail(display = "bytes write error")]
+    #[fail(display = "bytes write error\n")]
     BytesWriteError(BytesWriteError),
 }
 

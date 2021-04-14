@@ -6,15 +6,15 @@ use {
 
 #[derive(Debug, Fail)]
 pub enum HandshakeErrorValue {
-    #[fail(display = "bytes read error: {}", _0)]
+    #[fail(display = "bytes read error: {}\n", _0)]
     BytesReadError(BytesReadError),
-    #[fail(display = "bytes write error: {}", _0)]
+    #[fail(display = "bytes write error: {}\n", _0)]
     BytesWriteError(BytesWriteError),
-    #[fail(display = "system time error: {}", _0)]
+    #[fail(display = "system time error: {}\n", _0)]
     SysTimeError(SystemTimeError),
-    #[fail(display = "Digest not found error")]
+    #[fail(display = "Digest not found error\n")]
     DigestNotFound,
-    #[fail(display = "s0 version not correct error")]
+    #[fail(display = "s0 version not correct error\n")]
     S0VersionNotCorrect,
 }
 

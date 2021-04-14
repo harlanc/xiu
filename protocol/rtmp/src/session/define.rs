@@ -22,4 +22,4 @@ pub const TRANSACTION_ID_CREATE_STREAM: u8 = 2;
 //pub mod
 pub const RTMP_LEVEL_WARNING: &'static str = "warning";
 pub const RTMP_LEVEL_STATUS: &'static str = "status";
-pub const RTMP_LEVEL_ERROR: &'static str = "error";
+pub const RTMP_LEVEL_ERROR: &'static str = "error\n";

@@ -334,7 +334,7 @@ impl ComplexHandshakeClient {
         let c1_array: [u8; RTMP_HANDSHAKE_SIZE] =
             c1_bytes.clone().try_into().unwrap_or_else(|v: Vec<u8>| {
                 panic!(
-                    "Expected a Vec of length {} but it was {}",
+                    "Expected a Vec of length {} but it was {}\n",
                     RTMP_HANDSHAKE_SIZE,
                     v.len()
                 )
@@ -621,7 +621,7 @@ impl ComplexHandshakeServer {
         let s1_array: [u8; RTMP_HANDSHAKE_SIZE] =
             s1_bytes.clone().try_into().unwrap_or_else(|v: Vec<u8>| {
                 panic!(
-                    "Expected a Vec of length {} but it was {}",
+                    "Expected a Vec of length {} but it was {}\n",
                     RTMP_HANDSHAKE_SIZE,
                     v.len()
                 )

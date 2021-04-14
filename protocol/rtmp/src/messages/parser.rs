@@ -31,29 +31,29 @@ impl MessageParser {
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
-                print!(
-                    "amf command:msg_length{}\n",
-                    self.chunk_info.message_header.msg_length
-                );
+                // print!(
+                //     "amf command:msg_length{}\n",
+                //     self.chunk_info.message_header.msg_length
+                // );
 
                 if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF3 {
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
 
-                utils::print::print(amf_reader.get_remaining_bytes());
+               // utils::print::print(amf_reader.get_remaining_bytes());
 
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
-                match command_name.clone(){
-                    Amf0ValueType::UTF8String(val) =>{
-                        print!("command name : {}\n",val);
+                // match command_name.clone(){
+                //     Amf0ValueType::UTF8String(val) =>{
+                //         print!("command name : {}\n",val);
 
-                        if val == "deleteStream"{
-                            let aa = 4;
-                        }
-                    }
-                    _ =>{}
-                }
+                //         if val == "deleteStream"{
+                //             let aa = 4;
+                //         }
+                //     }
+                //     _ =>{}
+                // }
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
 
                 // print!("2222222222222 command name  transction id \n");

@@ -10,9 +10,9 @@ pub struct NetConnectionError {
 }
 #[derive(Debug, Fail)]
 pub enum NetConnectionErrorValue {
-    #[fail(display = "amf0 write error: {}", _0)]
+    #[fail(display = "amf0 write error: {}\n", _0)]
     Amf0WriteError(Amf0WriteError),
-    #[fail(display = "amf0 read error: {}", _0)]
+    #[fail(display = "amf0 read error: {}\n", _0)]
     Amf0ReadError(Amf0ReadError),
 }
 

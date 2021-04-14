@@ -12,11 +12,11 @@ pub struct EventMessagesError {
 
 #[derive(Debug, Fail)]
 pub enum EventMessagesErrorValue {
-    #[fail(display = "amf0 write error: {}", _0)]
+    #[fail(display = "amf0 write error: {}\n", _0)]
     Amf0WriteError(Amf0WriteError),
-    #[fail(display = "bytes write error: {}", _0)]
+    #[fail(display = "bytes write error: {}\n", _0)]
     BytesWriteError(BytesWriteError),
-    #[fail(display = "bytes read error: {}", _0)]
+    #[fail(display = "bytes read error: {}\n", _0)]
     BytesReadError(BytesReadError),
     #[fail(display = "unknow event message type")]
     UnknowEventMessageType,
