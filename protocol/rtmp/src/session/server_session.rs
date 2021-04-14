@@ -201,6 +201,8 @@ impl ServerSession {
 
                 // self.state = ServerSessionState::ReadChunk;
 
+                self.unsubscribe_from_channels().await?;
+
                 return Err(err);
             }
         }

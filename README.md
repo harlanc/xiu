@@ -14,6 +14,11 @@ XIU is a live server written by RUST.
 
 [2021-04-11]
 
+- Fix bug: when shutdown ffplayer ,the OBS publisher will be reconnected automatically.
+
+
+[2021-04-11]
+
 - Impl: add flush\_timeout and read\_timeout functinos.
 - Impl: add some log print configuratinos.
 - Fix bug: Chunk header with the save csid is not saved.
