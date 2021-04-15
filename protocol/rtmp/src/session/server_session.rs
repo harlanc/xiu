@@ -16,9 +16,7 @@ use {
             ChunkInfo,
         },
         config,
-        handshake::handshake::{
-            ComplexHandshakeServer, ServerHandshakeState, SimpleHandshakeServer,
-        },
+        handshake::handshake::{ServerHandshakeState, SimpleHandshakeServer},
         messages::{
             define::{msg_type_id, RtmpMessageData},
             parser::MessageParser,
@@ -27,19 +25,16 @@ use {
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
-        utils,
     },
     bytes::BytesMut,
     netio::{
-        bytes_errors::BytesWriteErrorValue,
         bytes_writer::{AsyncBytesWriter, BytesWriter},
         netio::NetworkIO,
     },
-    std::{collections::HashMap, rc::Rc, sync::Arc, time::Duration},
+    std::{collections::HashMap, sync::Arc},
     tokio::{
         net::TcpStream,
         sync::{mpsc, oneshot, Mutex},
-        time::sleep,
     },
 };
 
@@ -58,8 +53,7 @@ pub struct ServerSession {
 
     io: Arc<Mutex<NetworkIO>>,
     simple_handshaker: SimpleHandshakeServer,
-    complex_handshaker: ComplexHandshakeServer,
-
+    //complex_handshaker: ComplexHandshakeServer,
     packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
 
@@ -80,13 +74,8 @@ pub struct ServerSession {
 }
 
 impl ServerSession {
-    pub fn new(
-        stream: TcpStream,
-        event_producer: ChannelEventPublisher,
-        timeout: Duration,
-        session_id: u64,
-    ) -> Self {
-        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
+    pub fn new(stream: TcpStream, event_producer: ChannelEventPublisher, session_id: u64) -> Self {
+        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = mpsc::unbounded_channel();
 
@@ -96,7 +85,7 @@ impl ServerSession {
 
             io: Arc::clone(&net_io),
             simple_handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
-            complex_handshaker: ComplexHandshakeServer::new(Arc::clone(&net_io)),
+            //complex_handshaker: ComplexHandshakeServer::new(Arc::clone(&net_io)),
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
@@ -127,7 +116,7 @@ impl ServerSession {
             }
         }
 
-        Ok(())
+        //Ok(())
     }
 
     async fn handshake(&mut self) -> Result<(), SessionError> {
@@ -407,7 +396,7 @@ impl ServerSession {
         control_message
             .write_set_peer_bandwidth(
                 define::PEER_BANDWIDTH,
-                define::PeerBandWidthLimitType::DYNAMIC,
+                define::peer_bandwidth_limit_type::DYNAMIC,
             )
             .await?;
         control_message.write_set_chunk_size(CHUNK_SIZE).await?;
@@ -488,6 +477,8 @@ impl ServerSession {
             )
             .await?;
 
+        print!("stream id{}", stream_id);
+
         //self.unsubscribe_from_channels().await?;
 
         Ok(())
@@ -537,13 +528,16 @@ impl ServerSession {
             if index >= length {
                 break;
             }
-            index = index + 1;
+            //index = index + 1;
             reset = match other_values.remove(0) {
                 Amf0ValueType::Boolean(val) => Some(val),
                 _ => None,
             };
             break;
         }
+        print!("start {}", start.is_some());
+        print!("druation {}", duration.is_some());
+        print!("reset {}", reset.is_some());
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
@@ -602,7 +596,7 @@ impl ServerSession {
             session_id: self.session_id,
         };
 
-        let rv = self.event_producer.send(subscribe_event);
+        let _ = self.event_producer.send(subscribe_event);
 
         Ok(())
     }
@@ -667,7 +661,7 @@ impl ServerSession {
             }
         };
 
-        let stream_type = match other_values.remove(0) {
+        let _ = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
                 return Err(SessionError {
@@ -737,7 +731,7 @@ impl ServerSession {
 
         //print!("receive video data\n");
         match self.data_producer.send(data) {
-            Ok(size) => {}
+            Ok(_) => {}
             Err(err) => {
                 print!("send video err {}\n", err);
                 return Err(SessionError {
@@ -760,12 +754,12 @@ impl ServerSession {
         };
 
         match self.data_producer.send(data) {
-            Ok(size) => {}
+            Ok(_) => {}
             Err(err) => {
                 print!("receive audio err {}\n", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,
-                })
+                });
             }
         }
 
@@ -776,7 +770,7 @@ impl ServerSession {
         let data = ChannelData::MetaData { body: body.clone() };
 
         match self.data_producer.send(data) {
-            Ok(size) => {}
+            Ok(_) => {}
             Err(_) => {
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,

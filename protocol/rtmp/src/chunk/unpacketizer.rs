@@ -1,5 +1,3 @@
-use super::Chunk;
-
 use {
     super::{
         chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
@@ -151,7 +149,7 @@ impl ChunkUnpacketizer {
     pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
         let mut result: UnpackResult = UnpackResult::Empty;
 
-        let mut dt: DateTime<Local> = Local::now();
+        let dt: DateTime<Local> = Local::now();
         if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
             print!("\n");
             print!("\n");
@@ -173,11 +171,6 @@ impl ChunkUnpacketizer {
                 ChunkReadState::Finish => {
                     self.chunk_read_state = ChunkReadState::ReadBasicHeader;
                     break;
-                }
-                _ => {
-                    return Err(UnpackError {
-                        value: UnpackErrorValue::UnknowReadState,
-                    });
                 }
             };
         }

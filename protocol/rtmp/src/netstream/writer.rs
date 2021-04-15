@@ -91,7 +91,7 @@ impl NetStreamWriter {
 
         return Ok(());
     }
-
+    #[allow(dead_code)]
     async fn receive_audio(
         &mut self,
         transaction_id: &f64,
@@ -108,7 +108,7 @@ impl NetStreamWriter {
 
         return Ok(());
     }
-
+    #[allow(dead_code)]
     async fn receive_video(
         &mut self,
         transaction_id: &f64,
@@ -142,6 +142,7 @@ impl NetStreamWriter {
 
         return Ok(());
     }
+    #[allow(dead_code)]
     async fn seek(&mut self, transaction_id: &f64, ms: &f64) -> Result<(), NetStreamError> {
         self.amf0_writer.write_string(&String::from("seek"))?;
         self.amf0_writer.write_number(transaction_id)?;
@@ -153,7 +154,7 @@ impl NetStreamWriter {
 
         return Ok(());
     }
-
+    #[allow(dead_code)]
     async fn pause(
         &mut self,
         transaction_id: &f64,
@@ -171,7 +172,7 @@ impl NetStreamWriter {
 
         return Ok(());
     }
-
+    #[allow(dead_code)]
     async fn on_bw_done(
         &mut self,
         transaction_id: &f64,

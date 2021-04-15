@@ -1,7 +1,7 @@
 pub const WINDOW_ACKNOWLEDGEMENT_SIZE: u32 = 4096;
 pub const PEER_BANDWIDTH: u32 = 4096;
 
-pub mod PeerBandWidthLimitType {
+pub mod peer_bandwidth_limit_type {
     pub const HARD: u8 = 0;
     pub const SOFT: u8 = 1;
     pub const DYNAMIC: u8 = 2;

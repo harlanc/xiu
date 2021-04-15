@@ -5,14 +5,14 @@ use {
 };
 pub struct MetaData {
     chunk_body: BytesMut,
-    values: Vec<Amf0ValueType>,
+   // values: Vec<Amf0ValueType>,
 }
 
 impl MetaData {
     pub fn default() -> Self {
         Self {
             chunk_body: BytesMut::new(),
-            values: Vec::new(),
+            //values: Vec::new(),
         }
     }
     //, values: Vec<Amf0ValueType>

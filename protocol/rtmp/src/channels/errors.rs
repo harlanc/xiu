@@ -1,4 +1,4 @@
-use crate::cache::errors::{CacheError, CacheErrorValue};
+use crate::cache::errors::CacheError;
 
 pub enum ChannelErrorValue {
     NoAppName,

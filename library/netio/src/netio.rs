@@ -20,7 +20,7 @@ pub struct NetworkIO {
 }
 
 impl NetworkIO {
-    pub fn new(stream: TcpStream, ms: Duration) -> Self {
+    pub fn new(stream: TcpStream) -> Self {
         Self {
             stream: Framed::new(stream, BytesCodec::new()),
             // timeout: ms,
@@ -54,7 +54,7 @@ impl NetworkIO {
                     });
                 }
             }
-            Err(err) => {
+            Err(_) => {
                 return Err(NetIOError {
                     value: NetIOErrorValue::TimeoutError,
                 })

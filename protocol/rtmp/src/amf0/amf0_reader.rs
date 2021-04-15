@@ -243,7 +243,7 @@ mod tests {
         );
         assert_eq!(command_obj_raw, Amf0ValueType::Object(properties));
 
-        let others = amf_reader.read_all();
+        let _ = amf_reader.read_all();
 
         print!("test")
     }

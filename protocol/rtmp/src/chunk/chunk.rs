@@ -54,11 +54,11 @@ impl ChunkHeader {
     }
 }
 
-pub struct Chunk {
-    basic_header: ChunkBasicHeader,
-    message_header: ChunkMessageHeader,
-    raw_data: BytesMut,
-}
+// pub struct Chunk {
+//     basic_header: ChunkBasicHeader,
+//     message_header: ChunkMessageHeader,
+//     raw_data: BytesMut,
+// }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ChunkInfo {

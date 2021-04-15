@@ -1,7 +1,8 @@
 use {crate::amf0::define::Amf0ValueType, bytes::BytesMut};
 
+#[allow(dead_code)]
 pub struct SetPeerBandwidthProperties {
-    window_size: u32,
+    pub window_size: u32,
     limit_type: u8,
 }
 

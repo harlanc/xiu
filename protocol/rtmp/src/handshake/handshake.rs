@@ -15,12 +15,12 @@ const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
 
 // 32
-const RTMP_KEY_SECOND_HALF: [u8; 32] = [
-    0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1, 0x02, 0x9E, 0x7E, 0x57,
-    0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB, 0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
-];
-//30
-const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
+// const RTMP_KEY_SECOND_HALF: [u8; 32] = [
+//     0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1, 0x02, 0x9E, 0x7E, 0x57,
+//     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB, 0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
+// ];
+// //30
+// const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
 //36
 const RTMP_CLIENT_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Player 001";
 const RTMP_DIGEST_LENGTH: usize = 32;
@@ -132,7 +132,7 @@ impl SimpleHandshakeClient {
         Ok(())
     }
     fn read_s2(&mut self) -> Result<(), HandshakeError> {
-        let s2_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        let _ = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
         Ok(())
     }
 
@@ -203,6 +203,7 @@ digest-data:32bytes
 random-data:(764-4-offset-32)bytes
 ****************************************/
 
+#[allow(dead_code)]
 enum SchemaVersion {
     Schema0,
     Schema1,
@@ -250,7 +251,7 @@ fn find_digest_offset(data: &[u8; RTMP_HANDSHAKE_SIZE], version: &SchemaVersion)
         SchemaVersion::Unknown => 0,
     }
 }
-
+#[allow(dead_code)]
 struct DigestResult {
     digest_content: [u8; RTMP_DIGEST_LENGTH],
     version: SchemaVersion,
@@ -326,8 +327,8 @@ impl ComplexHandshakeClient {
         //let mut c1_bytes : vec<u8> vec[u8;RTMP_HANDSHAKE_SIZE];
 
         let mut c1_bytes = vec![];
-        c1_bytes.write_u32::<BigEndian>(current_time());
-        c1_bytes.write(&RTMP_CLIENT_VERSION);
+        c1_bytes.write_u32::<BigEndian>(current_time())?;
+        c1_bytes.write(&RTMP_CLIENT_VERSION)?;
 
         generate_random_bytes(&mut c1_bytes[8..RTMP_HANDSHAKE_SIZE]);
 
@@ -358,8 +359,8 @@ impl ComplexHandshakeClient {
         //let time = self.s1_bytes.split_to(4);
 
         let mut c2_bytes = vec![];
-        c2_bytes.write_u32::<BigEndian>(current_time());
-        c2_bytes.write_u32::<BigEndian>(self.s1_timestamp);
+        c2_bytes.write_u32::<BigEndian>(current_time())?;
+        c2_bytes.write_u32::<BigEndian>(self.s1_timestamp)?;
         generate_random_bytes(&mut c2_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
 
         let s1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.s1_bytes[..]
@@ -400,7 +401,7 @@ impl ComplexHandshakeClient {
         Ok(())
     }
     fn read_s2(&mut self) -> Result<(), HandshakeError> {
-        let s2_bytes = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
+        let _ = self.reader.read_bytes(RTMP_HANDSHAKE_SIZE)?;
         Ok(())
     }
 
@@ -614,8 +615,8 @@ impl ComplexHandshakeServer {
 
     fn write_s1(&mut self) -> Result<(), HandshakeError> {
         let mut s1_bytes = vec![];
-        s1_bytes.write_u32::<BigEndian>(current_time());
-        s1_bytes.write(&RTMP_SERVER_VERSION);
+        s1_bytes.write_u32::<BigEndian>(current_time())?;
+        s1_bytes.write(&RTMP_SERVER_VERSION)?;
         generate_random_bytes(&mut s1_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
 
         let s1_array: [u8; RTMP_HANDSHAKE_SIZE] =
@@ -646,9 +647,9 @@ impl ComplexHandshakeServer {
 
     fn write_s2(&mut self) -> Result<(), HandshakeError> {
         let mut s2_bytes = vec![];
-        s2_bytes.write_u32::<BigEndian>(current_time());
+        s2_bytes.write_u32::<BigEndian>(current_time())?;
 
-        s2_bytes.write_u32::<BigEndian>(self.c1_timestamp);
+        s2_bytes.write_u32::<BigEndian>(self.c1_timestamp)?;
         generate_random_bytes(&mut s2_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
 
         let c1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.c1_bytes[..]
@@ -803,7 +804,7 @@ mod tests {
             76, 9, 56, 96, 237, 141, 234, 126, 179, 3, 12, 89,
         ];
 
-        let result = find_digest(&data, super::RTMP_CLIENT_KEY_FIRST_HALF.as_bytes()).unwrap();
+        let _ = find_digest(&data, super::RTMP_CLIENT_KEY_FIRST_HALF.as_bytes()).unwrap();
     }
 
     #[test]

@@ -4,12 +4,11 @@ use {
         errors::{MessageError, MessageErrorValue},
     },
     crate::{
-        amf0::{amf0_markers, amf0_reader::Amf0Reader,Amf0ValueType,},
+        amf0::{amf0_markers, amf0_reader::Amf0Reader},
         chunk::ChunkInfo,
         config,
         protocol_control_messages::reader::ProtocolControlMessageReader,
         user_control_messages::reader::EventMessagesReader,
-        utils,
     },
     netio::bytes_reader::BytesReader,
 };
@@ -41,7 +40,7 @@ impl MessageParser {
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
 
-               // utils::print::print(amf_reader.get_remaining_bytes());
+                // utils::print::print(amf_reader.get_remaining_bytes());
 
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 // match command_name.clone(){
@@ -207,11 +206,11 @@ mod tests {
 
             match rv {
                 UnpackResult::ChunkInfo(chunk_info) => {
-                    let msg_stream_id = chunk_info.message_header.msg_streamd_id;
-                    let timestamp = chunk_info.message_header.timestamp;
+                    let _ = chunk_info.message_header.msg_streamd_id;
+                    let _ = chunk_info.message_header.timestamp;
 
                     let mut message_parser = MessageParser::new(chunk_info, 15);
-                    let mut msg = message_parser.parse();
+                    let _ = message_parser.parse();
                 }
                 _ => {}
             }

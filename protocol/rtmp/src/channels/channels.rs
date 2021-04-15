@@ -9,15 +9,12 @@ use {
     },
     crate::cache::cache::Cache,
     std::{
-        borrow::BorrowMut,
-        cell::RefCell,
+        //borrow::BorrowMut,
+        //cell::RefCell,
         collections::HashMap,
         sync::{Arc, Mutex},
     },
-    tokio::sync::{
-        mpsc::{UnboundedReceiver, UnboundedSender},
-        oneshot, {broadcast, mpsc},
-    },
+    tokio::sync::{mpsc, mpsc::UnboundedReceiver, oneshot},
 };
 
 /************************************************************************************
@@ -125,7 +122,7 @@ impl Transmiter {
                                 return Ok(());
                             },
 
-                            _ => {}
+
                         }
 
                     }
@@ -149,7 +146,7 @@ impl Transmiter {
                                 };
 
 
-                                for (k,v) in self.player_producers.lock().unwrap().iter() {
+                                for (_,v) in self.player_producers.lock().unwrap().iter() {
                                     v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendError,
                                     })?;
@@ -163,7 +160,7 @@ impl Transmiter {
                                     timestamp: timestamp,
                                     data: data.clone(),
                                 };
-                                for (k,v) in self.player_producers.lock().unwrap().iter() {
+                                for (_,v) in self.player_producers.lock().unwrap().iter() {
                                     v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendError,
                                     })?;
@@ -180,7 +177,7 @@ impl Transmiter {
             }
         }
 
-        Ok(())
+        //Ok(())
     }
 }
 
@@ -222,7 +219,7 @@ impl ChannelsManager {
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
                         Ok(producer) => if let Err(_) = responder.send(producer) {},
-                        Err(err) => continue,
+                        Err(_) => continue,
                     }
                 }
 
@@ -359,7 +356,7 @@ impl ChannelsManager {
 
             let mut transmiter = Transmiter::new(data_consumer, event_consumer);
             tokio::spawn(async move {
-                let result = transmiter.run().await;
+                let _ = transmiter.run().await;
             });
 
             stream_map.insert(stream_name.clone(), event_publisher);

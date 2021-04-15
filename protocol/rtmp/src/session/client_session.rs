@@ -26,10 +26,11 @@ use {
         bytes_writer::{AsyncBytesWriter, BytesWriter},
         netio::NetworkIO,
     },
-    std::{collections::HashMap, sync::Arc, time::Duration},
+    std::{collections::HashMap, sync::Arc},
     tokio::{net::TcpStream, sync::Mutex},
 };
 
+#[allow(dead_code)]
 enum ClientSessionState {
     Handshake,
     Connect,
@@ -38,6 +39,7 @@ enum ClientSessionState {
     PublishingContent,
 }
 
+#[allow(dead_code)]
 enum ClientSessionPlayState {
     Handshake,
     Connect,
@@ -45,13 +47,14 @@ enum ClientSessionPlayState {
     Play,
 }
 
+#[allow(dead_code)]
 enum ClientSessionPublishState {
     Handshake,
     Connect,
     CreateStream,
     PublishingContent,
 }
-
+#[allow(dead_code)]
 enum ClientType {
     Play,
     Publish,
@@ -62,8 +65,6 @@ pub struct ClientSession {
     handshaker: SimpleHandshakeClient,
     io: Arc<Mutex<NetworkIO>>,
 
-    play_state: ClientSessionPlayState,
-    publish_state: ClientSessionPublishState,
     state: ClientSessionState,
     client_type: ClientType,
     stream_name: String,
@@ -71,13 +72,9 @@ pub struct ClientSession {
 }
 
 impl ClientSession {
-    fn new(
-        stream: TcpStream,
-        timeout: Duration,
-        client_type: ClientType,
-        stream_name: String,
-    ) -> Self {
-        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream, timeout)));
+    #[allow(dead_code)]
+    fn new(stream: TcpStream, client_type: ClientType, stream_name: String) -> Self {
+        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
 
         // let reader = BytesReader::new(BytesMut::new());
 
@@ -88,8 +85,6 @@ impl ClientSession {
             unpacketizer: ChunkUnpacketizer::new(),
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
 
-            play_state: ClientSessionPlayState::Handshake,
-            publish_state: ClientSessionPublishState::Handshake,
             state: ClientSessionState::Handshake,
             client_type: client_type,
             stream_name: stream_name,
@@ -171,11 +166,16 @@ impl ClientSession {
                 others,
             )?,
             RtmpMessageData::SetPeerBandwidth { properties } => {
+                print!("{}", properties.window_size);
                 self.on_set_peer_bandwidth().await?
             }
             RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
-            RtmpMessageData::AudioData { data } => {}
-            RtmpMessageData::VideoData { data } => {}
+            RtmpMessageData::AudioData { data } => {
+                let _ = data.len();
+            }
+            RtmpMessageData::VideoData { data } => {
+                let _ = data.len();
+            }
 
             _ => {}
         }
@@ -201,7 +201,7 @@ impl ClientSession {
         };
 
         let empty_cmd_obj: HashMap<String, Amf0ValueType> = HashMap::new();
-        let obj = match command_object {
+        let _ = match command_object {
             Amf0ValueType::Object(obj) => obj,
             // Amf0ValueType::Null =>
             _ => &empty_cmd_obj,
@@ -222,10 +222,12 @@ impl ClientSession {
             }
             "onStatus" => {
                 match others.remove(0) {
-                    Amf0ValueType::Object(obj) => self.on_status(&obj),
-                    _ => Err(SessionError {
-                        value: SessionErrorValue::Amf0ValueCountNotCorrect,
-                    }),
+                    Amf0ValueType::Object(obj) => self.on_status(&obj)?,
+                    _ => {
+                        return Err(SessionError {
+                            value: SessionErrorValue::Amf0ValueCountNotCorrect,
+                        })
+                    }
                 };
             }
 
@@ -410,6 +412,7 @@ impl ClientSession {
     }
 
     pub fn on_status(&mut self, obj: &HashMap<String, Amf0ValueType>) -> Result<(), SessionError> {
+        println!("{}", obj.len());
         Ok(())
     }
 }

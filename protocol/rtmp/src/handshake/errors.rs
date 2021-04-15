@@ -1,7 +1,7 @@
 use {
     failure::{Backtrace, Fail},
     netio::bytes_errors::{BytesReadError, BytesWriteError},
-    std::{fmt, time::SystemTimeError},
+    std::{fmt, io::Error, time::SystemTimeError},
 };
 
 #[derive(Debug, Fail)]
@@ -16,6 +16,16 @@ pub enum HandshakeErrorValue {
     DigestNotFound,
     #[fail(display = "s0 version not correct error\n")]
     S0VersionNotCorrect,
+    #[fail(display = "io error\n")]
+    IOError(Error),
+}
+
+impl From<Error> for HandshakeError {
+    fn from(error: Error) -> Self {
+        HandshakeError {
+            value: HandshakeErrorValue::IOError(error),
+        }
+    }
 }
 
 #[derive(Debug)]

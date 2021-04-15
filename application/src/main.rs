@@ -3,7 +3,7 @@ use application::config::config::Config;
 use rtmp::channels::channels::ChannelsManager;
 use rtmp::session::server_session;
 use std::net::SocketAddr;
-use std::time::Duration;
+
 use tokio::net::TcpListener;
 //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
 use anyhow::Result;
@@ -49,12 +49,8 @@ impl Service {
                     let (tcp_stream, _) = listener.accept().await?;
                     //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
 
-                    let mut session = server_session::ServerSession::new(
-                        tcp_stream,
-                        producer.clone(),
-                        Duration::from_secs(30),
-                        idx,
-                    );
+                    let mut session =
+                        server_session::ServerSession::new(tcp_stream, producer.clone(), idx);
                     tokio::spawn(async move {
                         if let Err(err) = session.run().await {
                             print!(
