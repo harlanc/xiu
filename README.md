@@ -13,11 +13,11 @@ Xiu is a live server written by RUST.
 
 My dev environment is on MacOS.
 
-### Install Rust and Cargo
+#### Install Rust and Cargo
 
 [Document](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
-### Clone Xiu
+#### Clone Xiu
 
     git clone https://github.com/harlanc/xiu.git
     
