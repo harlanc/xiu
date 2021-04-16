@@ -1,4 +1,4 @@
-use {crate::chunk::errors::PackError, failure::Fail, flv::errors::TagParseError};
+use {crate::chunk::errors::PackError, failure::Fail, flv::errors::TagParseError, std::fmt};
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
@@ -8,6 +8,12 @@ pub enum CacheErrorValue {
     PackError(PackError),
 }
 
+impl fmt::Display for CacheError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+#[derive(Debug)]
 pub struct CacheError {
     pub value: CacheErrorValue,
 }
@@ -35,7 +41,7 @@ pub enum MetadataErrorValue {
     #[fail(display = "pack error\n")]
     PackError(PackError),
 }
-
+#[derive(Debug)]
 pub struct MetadataError {
     pub value: CacheErrorValue,
 }

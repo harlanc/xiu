@@ -218,8 +218,15 @@ impl ChannelsManager {
                 } => {
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
-                        Ok(producer) => if let Err(_) = responder.send(producer) {},
-                        Err(_) => continue,
+                        Ok(producer) => {
+                            if let Err(_) = responder.send(producer) {
+                                print!("event_loop responder send err\n");
+                            }
+                        }
+                        Err(err) => {
+                            print!("event_loop Publish err: {}\n", err);
+                            continue;
+                        }
                     }
                 }
 
@@ -227,7 +234,9 @@ impl ChannelsManager {
                     app_name,
                     stream_name,
                 } => {
-                    let _ = self.unpublish(&app_name, &stream_name);
+                    if let Err(err) = self.unpublish(&app_name, &stream_name) {
+                        println!("unpublish err: {}", err);
+                    }
                 }
                 ChannelEvent::Subscribe {
                     app_name,
@@ -370,6 +379,7 @@ impl ChannelsManager {
     }
 
     fn unpublish(&mut self, app_name: &String, stream_name: &String) -> Result<(), ChannelError> {
+        println!("unpublish begin...{} {}", app_name, stream_name);
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
                 Some(producer) => {
@@ -378,6 +388,7 @@ impl ChannelsManager {
                         value: ChannelErrorValue::SendError,
                     })?;
                     val.remove(stream_name);
+                    print!("remove stream name{}\n", stream_name);
                 }
                 None => {
                     return Err(ChannelError {

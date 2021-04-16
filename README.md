@@ -46,6 +46,10 @@ I use ffplay to play rtmp live stream:
 
 ## Change Logs
 
+[2021-04-16]
+
+- Fix:  obs publish-> unpublish->publish ,,  ffplay cannot play successfully
+
 [2021-04-15]
 
 - Improve: remove build warnings.

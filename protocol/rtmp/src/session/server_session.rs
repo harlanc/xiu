@@ -467,6 +467,8 @@ impl ServerSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
+        self.unpublish_to_channels().await?;
+
         let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
         netstream
             .on_status(
@@ -661,6 +663,8 @@ impl ServerSession {
             }
         };
 
+        self.stream_name = stream_name;
+
         let _ = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
@@ -684,17 +688,38 @@ impl ServerSession {
             .await?;
 
         print!("before publish_to_channels\n");
-        self.publish_to_channels(stream_name).await?;
+        self.publish_to_channels().await?;
         print!("after publish_to_channels\n");
 
         Ok(())
     }
 
-    async fn publish_to_channels(&mut self, stream_name: String) -> Result<(), SessionError> {
+    async fn unpublish_to_channels(&mut self) -> Result<(), SessionError> {
+        let unpublish_event = ChannelEvent::UnPublish {
+            app_name: self.app_name.clone(),
+            stream_name: self.stream_name.clone(),
+        };
+
+        let rv = self.event_producer.send(unpublish_event);
+        match rv {
+            Err(_) => {
+                println!("unpublish_to_channels error.");
+                return Err(SessionError {
+                    value: SessionErrorValue::ChannelEventSendErr,
+                });
+            }
+            _ => {
+                println!("unpublish_to_channels successfully.")
+            }
+        }
+        Ok(())
+    }
+
+    async fn publish_to_channels(&mut self) -> Result<(), SessionError> {
         let (sender, receiver) = oneshot::channel();
         let publish_event = ChannelEvent::Publish {
             app_name: self.app_name.clone(),
-            stream_name,
+            stream_name: self.stream_name.clone(),
             responder: sender,
         };
 
@@ -714,7 +739,9 @@ impl ServerSession {
                 self.data_producer = producer;
                 print!("set producer after\n");
             }
-            Err(_) => {}
+            Err(err) => {
+                print!("publish_to_channels err{}\n", err)
+            }
         }
         Ok(())
     }
