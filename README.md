@@ -11,7 +11,10 @@ Xiu is a live server written by RUST.
 
 ## Dev Environment Establish
 
-My dev environment is on MacOS.
+#### OS Support
+
+-  CentOS 7
+-  MaxOS
 
 #### Install Rust and Cargo
 
