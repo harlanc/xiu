@@ -1,5 +1,5 @@
-# XIU
-XIU is a live server written by RUST.
+# Xiu
+Xiu is a live server written by RUST.
 
 
 ## Functionalities
@@ -9,6 +9,40 @@ XIU is a live server written by RUST.
 - [ ] HLS
 - ...
 
+## Dev Environment Establish
+
+My dev environment is on MacOS.
+
+### Install Rust and Cargo
+
+[Document](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+
+### Clone Xiu
+
+    git clone https://github.com/harlanc/xiu.git
+    
+#### Build
+
+    cd ./xiu/application
+    
+    cargo build
+    
+#### Run
+
+    cd ./xiu/target/debug
+    
+    ./application
+    
+#### Push
+
+I use OBS to push a live rtmp stream.
+
+
+#### Play
+
+I use ffplay to play rtmp live stream:
+
+    ffplay -i rtmp://localhost:1935/live/test
 
 ## Change Logs
 

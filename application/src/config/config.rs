@@ -26,7 +26,7 @@ pub struct RtmpPushConfig {
 }
 
 pub fn load() -> Result<Config, ConfigError> {
-    let content = fs::read_to_string("/Users/zexu/github/xiu/application/src/config/config.toml")?;
+    let content = fs::read_to_string("../../application/src/config/config.toml")?;
     let decoded_config = toml::from_str(&content[..]).unwrap();
     Ok(decoded_config)
 }
