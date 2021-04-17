@@ -9,7 +9,7 @@ use super::bytes_errors::BytesWriteError;
 
 use super::bytes_errors::BytesWriteErrorValue;
 
-use super::netio::NetworkIO;
+use super::networkio::NetworkIO;
 
 use std::sync::Arc;
 

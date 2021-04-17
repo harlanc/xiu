@@ -5,7 +5,7 @@ use {
         user_control_messages::errors::EventMessagesError,
     },
     failure::{Backtrace, Fail},
-    netio::bytes_errors::BytesReadError,
+    networkio::bytes_errors::BytesReadError,
     std::fmt,
 };
 

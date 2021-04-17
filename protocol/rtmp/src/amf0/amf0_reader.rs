@@ -2,7 +2,7 @@ use {
     super::{amf0_markers, errors::Amf0ReadErrorValue, Amf0ReadError, Amf0ValueType},
     byteorder::BigEndian,
     bytes::BytesMut,
-    netio::bytes_reader::BytesReader,
+    networkio::bytes_reader::BytesReader,
     std::collections::HashMap,
 };
 
@@ -189,7 +189,7 @@ mod tests {
     use super::Amf0Reader;
     use super::Amf0ValueType;
     use bytes::BytesMut;
-    use netio::bytes_reader::BytesReader;
+    use networkio::bytes_reader::BytesReader;
     use std::collections::HashMap;
 
     #[test]

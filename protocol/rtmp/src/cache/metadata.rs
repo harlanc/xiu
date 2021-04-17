@@ -1,7 +1,7 @@
 use {
     crate::{amf0::amf0_reader::Amf0Reader, amf0::Amf0ValueType},
     bytes::BytesMut,
-    netio::bytes_reader::BytesReader,
+    networkio::bytes_reader::BytesReader,
 };
 pub struct MetaData {
     chunk_body: BytesMut,

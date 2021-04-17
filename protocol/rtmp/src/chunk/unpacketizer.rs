@@ -8,7 +8,7 @@ use {
     byteorder::{BigEndian, LittleEndian},
     bytes::{BufMut, BytesMut},
     chrono::prelude::*,
-    netio::bytes_reader::BytesReader,
+    networkio::bytes_reader::BytesReader,
     std::{cmp::min, collections::HashMap, vec::Vec},
 };
 

@@ -1,9 +1,9 @@
 [package]
-name = "netio"
+name = "networkio"
 version = "0.1.23"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"
-description = "a network io library."
+description = "a network io library using tokio."
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

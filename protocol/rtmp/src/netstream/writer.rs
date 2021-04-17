@@ -6,7 +6,7 @@ use {
         messages::define as messages_define,
     },
     bytes::BytesMut,
-    netio::{bytes_writer::BytesWriter, netio::NetworkIO},
+    networkio::{bytes_writer::BytesWriter, networkio::NetworkIO},
     std::{collections::HashMap, sync::Arc},
     tokio::sync::Mutex,
 };

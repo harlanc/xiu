@@ -1,4 +1,4 @@
-use super::netio_errors::{NetIOError, NetIOErrorValue};
+use super::networkio_errors::{NetIOError, NetIOErrorValue};
 
 use bytes::Bytes;
 use bytes::BytesMut;

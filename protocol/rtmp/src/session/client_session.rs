@@ -22,9 +22,9 @@ use {
         user_control_messages::writer::EventMessagesWriter,
     },
     bytes::BytesMut,
-    netio::{
+    networkio::{
         bytes_writer::{AsyncBytesWriter, BytesWriter},
-        netio::NetworkIO,
+        networkio::NetworkIO,
     },
     std::{collections::HashMap, sync::Arc},
     tokio::{net::TcpStream, sync::Mutex},

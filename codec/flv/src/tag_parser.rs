@@ -3,7 +3,7 @@ use super::define::TagType;
 use super::errors::TagParseError;
 use byteorder::BigEndian;
 use bytes::BytesMut;
-use netio::bytes_reader::BytesReader;
+use networkio::bytes_reader::BytesReader;
 
 #[derive(Clone)]
 pub struct Tag {

@@ -10,7 +10,7 @@ use {
         user_control_messages::errors::EventMessagesError,
     },
     failure::{Backtrace, Fail},
-    netio::{bytes_errors::BytesWriteError, netio_errors::NetIOError},
+    networkio::{bytes_errors::BytesWriteError, networkio_errors::NetIOError},
     std::fmt,
 };
 

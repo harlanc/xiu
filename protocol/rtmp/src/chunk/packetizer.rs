@@ -5,7 +5,7 @@ use {
         errors::PackError,
     },
     byteorder::{BigEndian, LittleEndian},
-    netio::{bytes_writer::AsyncBytesWriter, netio::NetworkIO},
+    networkio::{bytes_writer::AsyncBytesWriter, networkio::NetworkIO},
     std::{collections::HashMap, sync::Arc},
     tokio::sync::Mutex,
 };

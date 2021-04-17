@@ -3,7 +3,7 @@ extern crate bytes;
 extern crate chrono;
 extern crate failure;
 extern crate hmac;
-extern crate netio;
+extern crate networkio;
 extern crate rand;
 extern crate sha2;
 extern crate tokio;

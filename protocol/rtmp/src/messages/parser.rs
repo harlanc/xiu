@@ -10,7 +10,7 @@ use {
         protocol_control_messages::reader::ProtocolControlMessageReader,
         user_control_messages::reader::EventMessagesReader,
     },
-    netio::bytes_reader::BytesReader,
+    networkio::bytes_reader::BytesReader,
 };
 
 pub struct MessageParser {

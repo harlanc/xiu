@@ -1,6 +1,6 @@
 use {
     failure::{Backtrace, Fail},
-    netio::bytes_errors::{BytesReadError, BytesWriteError},
+    networkio::bytes_errors::{BytesReadError, BytesWriteError},
     std::{
         fmt, {io, string},
     },

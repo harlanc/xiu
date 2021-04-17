@@ -3,7 +3,7 @@ use {
     byteorder::{BigEndian, WriteBytesExt},
     bytes::BytesMut,
     hmac::{Hmac, Mac},
-    netio::{bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, netio::NetworkIO},
+    networkio::{bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, networkio::NetworkIO},
     rand,
     rand::Rng,
     sha2::Sha256,
