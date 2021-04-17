@@ -1,5 +1,5 @@
 [package]
-name = "flv"
+name = "flvparser"
 description = "flv parser."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]
