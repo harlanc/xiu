@@ -1,6 +1,7 @@
 use super::errors::ConfigError;
 use serde_derive::Deserialize;
 use std::fs;
+use std::vec::Vec;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -12,17 +13,19 @@ pub struct RtmpConfig {
     pub enabled: bool,
     pub port: u32,
     pub pull: Option<RtmpPullConfig>,
-    pub push: Option<RtmpPushConfig>,
+    pub push: Option<Vec<RtmpPushConfig>>,
 }
 #[derive(Debug, Deserialize, Clone)]
 pub struct RtmpPullConfig {
     pub enabled: bool,
     pub address: String,
+    pub port: u16,
 }
 #[derive(Debug, Deserialize, Clone)]
 pub struct RtmpPushConfig {
     pub enabled: bool,
     pub address: String,
+    pub port: u16,
 }
 
 pub fn load() -> Result<Config, ConfigError> {

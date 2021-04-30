@@ -1,2 +1,3 @@
-pub mod client_pull;
-pub mod client_push;
+pub mod pull_client;
+pub mod push_client;
+pub mod errors;

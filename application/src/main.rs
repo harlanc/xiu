@@ -1,13 +1,13 @@
-use application::config::config;
-use application::config::config::Config;
-use rtmp::channels::channels::ChannelsManager;
-use rtmp::session::server_session;
-use std::net::SocketAddr;
+use {
+    //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
+    anyhow::Result,
+    application::config::{config, config::Config},
+    rtmp::{channels::channels::ChannelsManager, session::server_session, session::client_session},
+    std::net::SocketAddr,
+    tokio,
+    tokio::net::{TcpListener, TcpStream},
+};
 
-use tokio::net::TcpListener;
-//https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
-use anyhow::Result;
-use tokio;
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = config::load();
@@ -32,12 +32,22 @@ impl Service {
     async fn process_rtmp(&mut self) -> Result<()> {
         let mut channel = ChannelsManager::new();
 
-        let producer = channel.get_event_producer();
+        let producer = channel.get_session_event_producer();
         tokio::spawn(async move { channel.run().await });
 
         let rtmp = &self.cfg.rtmp;
         match rtmp {
             Some(rtmp_cfg) => {
+                // match rtmp_cfg.clone().push {
+                //     Some(push_cfg) => {
+                //         let address =
+                //             format!("{ip}:{port}", ip = push_cfg.address, port = push_cfg.port);
+                //         let mut stream = TcpStream::connect(address).await?;
+
+                //         client_session::ClientSession::new(stream, client_type, stream_name)
+                //     }
+                //     _ => {}
+                // }
                 let listen_port = rtmp_cfg.port;
                 let address = format!("0.0.0.0:{port}", port = listen_port);
                 let socket_addr: &SocketAddr = &address.parse().unwrap();

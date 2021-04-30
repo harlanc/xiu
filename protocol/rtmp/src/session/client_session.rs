@@ -55,7 +55,7 @@ enum ClientSessionPublishState {
     PublishingContent,
 }
 #[allow(dead_code)]
-enum ClientType {
+pub enum ClientType {
     Play,
     Publish,
 }
@@ -67,13 +67,19 @@ pub struct ClientSession {
 
     state: ClientSessionState,
     client_type: ClientType,
+    app_name: String,
     stream_name: String,
     session_type: u8,
 }
 
 impl ClientSession {
     #[allow(dead_code)]
-    fn new(stream: TcpStream, client_type: ClientType, stream_name: String) -> Self {
+    pub fn new(
+        stream: TcpStream,
+        client_type: ClientType,
+        app_name: String,
+        stream_name: String,
+    ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
 
         // let reader = BytesReader::new(BytesMut::new());
@@ -88,6 +94,7 @@ impl ClientSession {
             state: ClientSessionState::Handshake,
             client_type: client_type,
             stream_name: stream_name,
+            app_name: app_name,
             session_type: 0,
         }
     }
@@ -238,8 +245,7 @@ impl ClientSession {
     }
 
     pub async fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
-        let app_name = String::from("app");
-        let properties = ConnectProperties::new(app_name);
+        let properties = ConnectProperties::new(self.app_name.clone());
 
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.connect(transaction_id, &properties)?;

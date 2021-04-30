@@ -84,20 +84,10 @@ impl Amf0Reader {
 
     pub fn read_raw_string(&mut self) -> Result<String, Amf0ReadError> {
         let l = self.reader.read_u16::<BigEndian>()?;
-        // let mut buffer: Vec<u8> = vec![0_u8; l as usize];
+
         let bytes = self.reader.read_bytes(l as usize)?;
 
-        // let mut vec_bytes = bytes.to_vec();
-        // let length_before = vec_bytes.len();
-        // vec_bytes.retain(|&x| x <= 127);
-        // let length_after = vec_bytes.len();
 
-        // let num = length_before - length_after;
-        // if num > 0 {
-        //     let mut bytes2 = self.reader.read_bytes(num)?;
-
-        //     vec_bytes.append(&mut bytes2.to_vec());
-        // }
 
         let val = String::from_utf8(bytes.to_vec())?;
 

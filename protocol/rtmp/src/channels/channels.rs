@@ -1,9 +1,11 @@
+use tokio::sync::broadcast;
+
 use {
     super::{
         define::{
-            ChannelData, ChannelDataConsumer, ChannelDataPublisher, ChannelEvent,
-            ChannelEventConsumer, ChannelEventPublisher, TransmitEvent, TransmitEventConsumer,
-            TransmitEventPublisher,
+            ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
+            ChannelEventConsumer, ChannelEventProducer, ClientEvent, ClientEventConsumer,
+            ClientEventProducer, TransmitEvent, TransmitEventConsumer, TransmitEventPublisher,
         },
         errors::{ChannelError, ChannelErrorValue},
     },
@@ -44,7 +46,7 @@ pub struct Transmiter {
     data_consumer: ChannelDataConsumer, //used for publisher to produce AV data
     event_consumer: TransmitEventConsumer,
 
-    player_producers: Arc<Mutex<HashMap<u64, ChannelDataPublisher>>>,
+    player_producers: Arc<Mutex<HashMap<u64, ChannelDataProducer>>>,
     cache: Arc<Mutex<Cache>>,
 }
 
@@ -60,25 +62,6 @@ impl Transmiter {
             cache: Arc::new(Mutex::new(Cache::new())),
         }
     }
-
-    // pub async fn run(&mut self) {
-    //     tokio::spawn(async move {
-    //         self.write_loop().await;
-    //     });
-
-    //     tokio::spawn(async move {
-    //         self.subscriber_loop().await;
-    //     });
-    // val = self.stream_consumer.recv() => {
-    //     match val{
-    //         Ok(data)=>{
-
-    //         }
-    //         _ =>{}
-    //     }
-    // }
-    // val = self.event_consumer.recv() => {
-    //}
 
     pub async fn run(&mut self) -> Result<(), ChannelError> {
         loop {
@@ -185,31 +168,39 @@ pub struct ChannelsManager {
     //app_name to stream_name to producer
     channels: HashMap<String, HashMap<String, TransmitEventPublisher>>,
     //event is consumed in Channels, produced from other rtmp sessions
-    event_consumer: ChannelEventConsumer,
+    channel_event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
-    event_producer: ChannelEventPublisher,
+    channel_event_producer: ChannelEventProducer,
+    //client_event_producer: client_event_producer
+    client_event_producer: ClientEventProducer,
 }
 
 impl ChannelsManager {
     pub fn new() -> Self {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
+        let (client_producer, _) = broadcast::channel(100);
 
         Self {
             channels: HashMap::new(),
-            event_consumer,
-            event_producer,
+            channel_event_consumer: event_consumer,
+            channel_event_producer: event_producer,
+            client_event_producer: client_producer,
         }
     }
     pub async fn run(&mut self) {
         self.event_loop().await;
     }
 
-    pub fn get_event_producer(&mut self) -> ChannelEventPublisher {
-        return self.event_producer.clone();
+    pub fn get_session_event_producer(&mut self) -> ChannelEventProducer {
+        return self.channel_event_producer.clone();
+    }
+
+    pub fn get_channel_event_consumer(&mut self) -> ClientEventConsumer {
+        return self.client_event_producer.subscribe();
     }
 
     pub async fn event_loop(&mut self) {
-        while let Some(message) = self.event_consumer.recv().await {
+        while let Some(message) = self.channel_event_consumer.recv().await {
             match message {
                 ChannelEvent::Publish {
                     app_name,
@@ -343,7 +334,7 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-    ) -> Result<ChannelDataPublisher, ChannelError> {
+    ) -> Result<ChannelDataProducer, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get(stream_name) {
                 Some(_) => {
@@ -369,6 +360,18 @@ impl ChannelsManager {
             });
 
             stream_map.insert(stream_name.clone(), event_publisher);
+
+            let client_event = ClientEvent::Publish {
+                app_name: app_name.clone(),
+                stream_name: stream_name.clone(),
+            };
+
+            //send publish info to push clients
+            self.client_event_producer
+                .send(client_event)
+                .map_err(|_| ChannelError {
+                    value: ChannelErrorValue::SendError,
+                })?;
 
             return Ok(data_publisher);
         } else {

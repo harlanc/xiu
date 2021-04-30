@@ -6,8 +6,8 @@ use {
     crate::{
         amf0::Amf0ValueType,
         channels::define::{
-            ChannelData, ChannelDataConsumer, ChannelDataPublisher, ChannelEvent,
-            ChannelEventPublisher,
+            ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
+            ChannelEventProducer,
         },
         chunk::{
             define::{chunk_type, csid_type, CHUNK_SIZE},
@@ -59,10 +59,10 @@ pub struct ServerSession {
 
     state: ServerSessionState,
 
-    event_producer: ChannelEventPublisher,
+    event_producer: ChannelEventProducer,
 
     //send video, audio or metadata from publish server session to player server sessions
-    data_producer: ChannelDataPublisher,
+    data_producer: ChannelDataProducer,
     //receive video, audio or metadata from publish server session and send out to player
     data_consumer: ChannelDataConsumer,
 
@@ -74,7 +74,7 @@ pub struct ServerSession {
 }
 
 impl ServerSession {
-    pub fn new(stream: TcpStream, event_producer: ChannelEventPublisher, session_id: u64) -> Self {
+    pub fn new(stream: TcpStream, event_producer: ChannelEventProducer, session_id: u64) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = mpsc::unbounded_channel();
@@ -178,20 +178,9 @@ impl ServerSession {
     async fn play(&mut self) -> Result<(), SessionError> {
         match self.send_media_data().await {
             Ok(_) => {}
+
             Err(err) => {
-                // let len = self.unpacketizer.reader.get_remaining_bytes().len();
-                // print!("send meidi data err len:{}\n", len);
-
-                // utils::print::print(self.unpacketizer.reader.get_remaining_bytes());
-
-                // if len > 0 {
-                //     self.need_process = true;
-                // }
-
-                // self.state = ServerSessionState::ReadChunk;
-
                 self.unsubscribe_from_channels().await?;
-
                 return Err(err);
             }
         }

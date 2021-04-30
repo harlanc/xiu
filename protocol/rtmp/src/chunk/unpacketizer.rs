@@ -463,6 +463,7 @@ impl ChunkUnpacketizer {
                         self.current_message_header().timestamp_delta;
                 }
             }
+            //todo: 3 should also be processed
             _ => {}
         }
 
