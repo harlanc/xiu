@@ -2,7 +2,10 @@ use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
     application::config::{config, config::Config},
-    rtmp::{channels::channels::ChannelsManager, session::server_session, session::client_session},
+    rtmp::{
+        application::push_client::PushClient, channels::channels::ChannelsManager,
+        session::client_session, session::server_session,
+    },
     std::net::SocketAddr,
     tokio,
     tokio::net::{TcpListener, TcpStream},
@@ -33,6 +36,7 @@ impl Service {
         let mut channel = ChannelsManager::new();
 
         let producer = channel.get_session_event_producer();
+        let consumer = channel.get_channel_event_consumer();
         tokio::spawn(async move { channel.run().await });
 
         let rtmp = &self.cfg.rtmp;
@@ -40,11 +44,18 @@ impl Service {
             Some(rtmp_cfg) => {
                 // match rtmp_cfg.clone().push {
                 //     Some(push_cfg) => {
-                //         let address =
-                //             format!("{ip}:{port}", ip = push_cfg.address, port = push_cfg.port);
-                //         let mut stream = TcpStream::connect(address).await?;
+                //         let address = format!(
+                //             "{ip}:{port}",
+                //             ip = push_cfg[0].address,
+                //             port = push_cfg[0].port
+                //         );
 
-                //         client_session::ClientSession::new(stream, client_type, stream_name)
+                //         let mut push_client = PushClient::new(address, consumer, producer.clone());
+                //         tokio::spawn(async move {
+                //             if let Err(err) = push_client.run().await {
+                //                 print!("push client error {}\n", err);
+                //             }
+                //         });
                 //     }
                 //     _ => {}
                 // }

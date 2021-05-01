@@ -1,5 +1,6 @@
 use {
     super::{
+        common::Common,
         define,
         errors::{SessionError, SessionErrorValue},
     },
@@ -59,12 +60,7 @@ pub struct ServerSession {
 
     state: ServerSessionState,
 
-    event_producer: ChannelEventProducer,
-
-    //send video, audio or metadata from publish server session to player server sessions
-    data_producer: ChannelDataProducer,
-    //receive video, audio or metadata from publish server session and send out to player
-    data_consumer: ChannelDataConsumer,
+    common: Common,
 
     netio_data: BytesMut,
     need_process: bool,
@@ -76,8 +72,6 @@ pub struct ServerSession {
 impl ServerSession {
     pub fn new(stream: TcpStream, event_producer: ChannelEventProducer, session_id: u64) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
-        //only used for init,since I don't found a better way to deal with this.
-        let (init_producer, init_consumer) = mpsc::unbounded_channel();
 
         Self {
             app_name: String::from(""),
@@ -91,9 +85,8 @@ impl ServerSession {
 
             state: ServerSessionState::Handshake,
 
-            event_producer,
-            data_producer: init_producer,
-            data_consumer: init_consumer,
+            common: Common::new(Arc::clone(&net_io), event_producer),
+
             session_id: session_id,
             netio_data: BytesMut::new(),
             need_process: false,
@@ -176,37 +169,22 @@ impl ServerSession {
     }
 
     async fn play(&mut self) -> Result<(), SessionError> {
-        match self.send_media_data().await {
+        match self.common.send_channel_data().await {
             Ok(_) => {}
 
             Err(err) => {
-                self.unsubscribe_from_channels().await?;
+                self.common
+                    .unsubscribe_from_channels(
+                        self.app_name.clone(),
+                        self.stream_name.clone(),
+                        self.session_id,
+                    )
+                    .await?;
                 return Err(err);
             }
         }
 
         Ok(())
-    }
-
-    async fn send_media_data(&mut self) -> Result<(), SessionError> {
-        loop {
-            if let Some(data) = self.data_consumer.recv().await {
-                match data {
-                    ChannelData::Audio { timestamp, data } => {
-                        //print!("send audio data\n");
-                        self.send_audio(data, timestamp).await?;
-                    }
-                    ChannelData::Video { timestamp, data } => {
-                        //print!("send video data\n");
-                        self.send_video(data, timestamp).await?;
-                    }
-                    ChannelData::MetaData { body } => {
-                        print!("send meta data\n");
-                        self.send_metadata(body).await?;
-                    }
-                }
-            }
-        }
     }
 
     pub async fn send_set_chunk_size(&mut self) -> Result<(), SessionError> {
@@ -216,52 +194,7 @@ impl ServerSession {
 
         Ok(())
     }
-    pub async fn send_audio(&mut self, data: BytesMut, timestamp: u32) -> Result<(), SessionError> {
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::AUDIO,
-            chunk_type::TYPE_0,
-            timestamp,
-            data.len() as u32,
-            msg_type_id::AUDIO,
-            0,
-            data,
-        );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
-
-        Ok(())
-    }
-
-    pub async fn send_video(&mut self, data: BytesMut, timestamp: u32) -> Result<(), SessionError> {
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::VIDEO,
-            chunk_type::TYPE_0,
-            timestamp,
-            data.len() as u32,
-            msg_type_id::VIDEO,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
-
-        Ok(())
-    }
-
-    async fn send_metadata(&mut self, data: BytesMut) -> Result<(), SessionError> {
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::DATA_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::DATA_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
-        Ok(())
-    }
     pub async fn process_messages(
         &mut self,
         rtmp_msg: &mut RtmpMessageData,
@@ -288,13 +221,13 @@ impl ServerSession {
                 self.on_set_chunk_size(chunk_size.clone() as usize)?;
             }
             RtmpMessageData::AudioData { data } => {
-                self.on_audio_data(data, timestamp)?;
+                self.common.on_audio_data(data, timestamp)?;
             }
             RtmpMessageData::VideoData { data } => {
-                self.on_video_data(data, timestamp)?;
+                self.common.on_video_data(data, timestamp)?;
             }
             RtmpMessageData::AmfData { raw_data } => {
-                self.on_amf_data(raw_data)?;
+                self.common.on_amf_data(raw_data)?;
             }
 
             _ => {}
@@ -456,7 +389,9 @@ impl ServerSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
-        self.unpublish_to_channels().await?;
+        self.common
+            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .await?;
 
         let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
         netstream
@@ -574,58 +509,11 @@ impl ServerSession {
             .write_stream_is_record(stream_id.clone())
             .await?;
 
-        self.subscribe_from_channels(stream_name.unwrap()).await?;
+        self.common
+            .subscribe_from_channels(self.app_name.clone(), stream_name.unwrap(), self.session_id)
+            .await?;
         self.state = ServerSessionState::Play;
 
-        Ok(())
-    }
-
-    async fn unsubscribe_from_channels(&mut self) -> Result<(), SessionError> {
-        let subscribe_event = ChannelEvent::UnSubscribe {
-            app_name: self.app_name.clone(),
-            stream_name: self.stream_name.clone(),
-            session_id: self.session_id,
-        };
-
-        let _ = self.event_producer.send(subscribe_event);
-
-        Ok(())
-    }
-
-    async fn subscribe_from_channels(&mut self, stream_name: String) -> Result<(), SessionError> {
-        self.stream_name = stream_name.clone();
-
-        print!(
-            "subscribe info............{} {} {}\n",
-            self.app_name,
-            stream_name.clone(),
-            self.session_id
-        );
-
-        let (sender, receiver) = oneshot::channel();
-        let subscribe_event = ChannelEvent::Subscribe {
-            app_name: self.app_name.clone(),
-            stream_name,
-            session_id: self.session_id,
-            responder: sender,
-        };
-
-        let rv = self.event_producer.send(subscribe_event);
-        match rv {
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::ChannelEventSendErr,
-                })
-            }
-            _ => {}
-        }
-
-        match receiver.await {
-            Ok(consumer) => {
-                self.data_consumer = consumer;
-            }
-            Err(_) => {}
-        }
         Ok(())
     }
 
@@ -677,122 +565,10 @@ impl ServerSession {
             .await?;
 
         print!("before publish_to_channels\n");
-        self.publish_to_channels().await?;
+        self.common
+            .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .await?;
         print!("after publish_to_channels\n");
-
-        Ok(())
-    }
-
-    async fn unpublish_to_channels(&mut self) -> Result<(), SessionError> {
-        let unpublish_event = ChannelEvent::UnPublish {
-            app_name: self.app_name.clone(),
-            stream_name: self.stream_name.clone(),
-        };
-
-        let rv = self.event_producer.send(unpublish_event);
-        match rv {
-            Err(_) => {
-                println!("unpublish_to_channels error.");
-                return Err(SessionError {
-                    value: SessionErrorValue::ChannelEventSendErr,
-                });
-            }
-            _ => {
-                println!("unpublish_to_channels successfully.")
-            }
-        }
-        Ok(())
-    }
-
-    async fn publish_to_channels(&mut self) -> Result<(), SessionError> {
-        let (sender, receiver) = oneshot::channel();
-        let publish_event = ChannelEvent::Publish {
-            app_name: self.app_name.clone(),
-            stream_name: self.stream_name.clone(),
-            responder: sender,
-        };
-
-        let rv = self.event_producer.send(publish_event);
-        match rv {
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::ChannelEventSendErr,
-                })
-            }
-            _ => {}
-        }
-
-        match receiver.await {
-            Ok(producer) => {
-                print!("set producer before\n");
-                self.data_producer = producer;
-                print!("set producer after\n");
-            }
-            Err(err) => {
-                print!("publish_to_channels err{}\n", err)
-            }
-        }
-        Ok(())
-    }
-
-    pub fn on_video_data(
-        &mut self,
-        data: &mut BytesMut,
-        timestamp: &u32,
-    ) -> Result<(), SessionError> {
-        let data = ChannelData::Video {
-            timestamp: timestamp.clone(),
-            data: data.clone(),
-        };
-
-        //print!("receive video data\n");
-        match self.data_producer.send(data) {
-            Ok(_) => {}
-            Err(err) => {
-                print!("send video err {}\n", err);
-                return Err(SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn on_audio_data(
-        &mut self,
-        data: &mut BytesMut,
-        timestamp: &u32,
-    ) -> Result<(), SessionError> {
-        let data = ChannelData::Audio {
-            timestamp: timestamp.clone(),
-            data: data.clone(),
-        };
-
-        match self.data_producer.send(data) {
-            Ok(_) => {}
-            Err(err) => {
-                print!("receive audio err {}\n", err);
-                return Err(SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                });
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn on_amf_data(&mut self, body: &mut BytesMut) -> Result<(), SessionError> {
-        let data = ChannelData::MetaData { body: body.clone() };
-
-        match self.data_producer.send(data) {
-            Ok(_) => {}
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                })
-            }
-        }
 
         Ok(())
     }

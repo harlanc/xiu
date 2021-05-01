@@ -1,10 +1,12 @@
 use {
     super::{
+        common::Common,
         define,
         errors::{SessionError, SessionErrorValue},
     },
     crate::{
         amf0::Amf0ValueType,
+        channels::define::ChannelEventProducer,
         chunk::{
             define::{chunk_type, csid_type, CHUNK_SIZE},
             packetizer::ChunkPacketizer,
@@ -37,6 +39,7 @@ enum ClientSessionState {
     CreateStream,
     Play,
     PublishingContent,
+    StartPublish,
 }
 
 #[allow(dead_code)]
@@ -60,16 +63,21 @@ pub enum ClientType {
     Publish,
 }
 pub struct ClientSession {
+    io: Arc<Mutex<NetworkIO>>,
+    common: Common,
+
+    handshaker: SimpleHandshakeClient,
+
     packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
-    handshaker: SimpleHandshakeClient,
-    io: Arc<Mutex<NetworkIO>>,
 
-    state: ClientSessionState,
-    client_type: ClientType,
     app_name: String,
     stream_name: String,
     session_type: u8,
+    session_id: u64,
+
+    state: ClientSessionState,
+    client_type: ClientType,
 }
 
 impl ClientSession {
@@ -79,23 +87,27 @@ impl ClientSession {
         client_type: ClientType,
         app_name: String,
         stream_name: String,
+        event_producer: ChannelEventProducer,
+        session_id: u64,
     ) -> Self {
         let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
 
-        // let reader = BytesReader::new(BytesMut::new());
-
         Self {
             io: Arc::clone(&net_io),
+            common: Common::new(Arc::clone(&net_io), event_producer),
+
+            handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
 
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
-            handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
+
+            app_name: app_name,
+            stream_name: stream_name,
+            client_type: client_type,
 
             state: ClientSessionState::Handshake,
-            client_type: client_type,
-            stream_name: stream_name,
-            app_name: app_name,
             session_type: 0,
+            session_id: session_id,
         }
     }
 
@@ -120,6 +132,9 @@ impl ClientSession {
                 ClientSessionState::PublishingContent => {
                     self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())
                         .await?;
+                }
+                ClientSessionState::StartPublish => {
+                    self.common.send_channel_data().await?;
                 }
             }
 
@@ -166,12 +181,15 @@ impl ClientSession {
                 transaction_id,
                 command_object,
                 others,
-            } => self.process_amf0_command_message(
-                command_name,
-                transaction_id,
-                command_object,
-                others,
-            )?,
+            } => {
+                self.process_amf0_command_message(
+                    command_name,
+                    transaction_id,
+                    command_object,
+                    others,
+                )
+                .await?
+            }
             RtmpMessageData::SetPeerBandwidth { properties } => {
                 print!("{}", properties.window_size);
                 self.on_set_peer_bandwidth().await?
@@ -189,7 +207,7 @@ impl ClientSession {
         Ok(())
     }
 
-    pub fn process_amf0_command_message(
+    pub async fn process_amf0_command_message(
         &mut self,
         command_name: &Amf0ValueType,
         transaction_id: &Amf0ValueType,
@@ -217,7 +235,7 @@ impl ClientSession {
         match cmd_name.as_str() {
             "_reslut" => match transaction_id {
                 define::TRANSACTION_ID_CONNECT => {
-                    self.on_result_connect()?;
+                    self.on_result_connect().await?;
                 }
                 define::TRANSACTION_ID_CREATE_STREAM => {
                     self.on_result_create_stream()?;
@@ -229,7 +247,7 @@ impl ClientSession {
             }
             "onStatus" => {
                 match others.remove(0) {
-                    Amf0ValueType::Object(obj) => self.on_status(&obj)?,
+                    Amf0ValueType::Object(obj) => self.on_status(&obj).await?,
                     _ => {
                         return Err(SessionError {
                             value: SessionErrorValue::Amf0ValueCountNotCorrect,
@@ -245,8 +263,9 @@ impl ClientSession {
     }
 
     pub async fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
-        let properties = ConnectProperties::new(self.app_name.clone());
+        self.send_set_chunk_size().await?;
 
+        let properties = ConnectProperties::new(self.app_name.clone());
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.connect(transaction_id, &properties)?;
 
@@ -354,40 +373,53 @@ impl ClientSession {
         Ok(())
     }
 
-    pub async fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::AUDIO,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::AUDIO,
-            0,
-            data,
-        );
+    // pub async fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    //     let mut chunk_info = ChunkInfo::new(
+    //         csid_type::AUDIO,
+    //         chunk_type::TYPE_0,
+    //         0,
+    //         data.len() as u32,
+    //         msg_type_id::AUDIO,
+    //         0,
+    //         data,
+    //     );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+    //     self.packetizer.write_chunk(&mut chunk_info).await?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub async fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::VIDEO,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::VIDEO,
-            0,
-            data,
-        );
+    // pub async fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    //     let mut chunk_info = ChunkInfo::new(
+    //         csid_type::VIDEO,
+    //         chunk_type::TYPE_0,
+    //         0,
+    //         data.len() as u32,
+    //         msg_type_id::VIDEO,
+    //         0,
+    //         data,
+    //     );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+    //     self.packetizer.write_chunk(&mut chunk_info).await?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    pub fn on_result_connect(&mut self) -> Result<(), SessionError> {
+    pub async fn on_result_connect(&mut self) -> Result<(), SessionError> {
+        let mut controlmessage =
+            ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        controlmessage.write_acknowledgement(3107).await?;
+
+        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        netstream
+            .release_stream(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
+            .await?;
+        netstream
+            .fcpublish(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
+            .await?;
+
         self.state = ClientSessionState::CreateStream;
+
         Ok(())
     }
 
@@ -413,11 +445,30 @@ impl ClientSession {
         self.send_window_acknowledgement_size(250000).await?;
         Ok(())
     }
+
     pub fn on_error(&mut self) -> Result<(), SessionError> {
         Ok(())
     }
 
-    pub fn on_status(&mut self, obj: &HashMap<String, Amf0ValueType>) -> Result<(), SessionError> {
+    pub async fn on_status(
+        &mut self,
+        obj: &HashMap<String, Amf0ValueType>,
+    ) -> Result<(), SessionError> {
+        if let Some(Amf0ValueType::UTF8String(code_info)) = obj.get("code") {
+            match &code_info[..] == "NetStream.Publish.Start" {
+                true => {
+                    self.state = ClientSessionState::StartPublish;
+                    self.common
+                        .subscribe_from_channels(
+                            self.app_name.clone(),
+                            self.stream_name.clone(),
+                            self.session_id,
+                        )
+                        .await?;
+                }
+                false => {}
+            }
+        }
         println!("{}", obj.len());
         Ok(())
     }

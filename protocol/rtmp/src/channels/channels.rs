@@ -361,17 +361,17 @@ impl ChannelsManager {
 
             stream_map.insert(stream_name.clone(), event_publisher);
 
-            let client_event = ClientEvent::Publish {
-                app_name: app_name.clone(),
-                stream_name: stream_name.clone(),
-            };
+            // let client_event = ClientEvent::Publish {
+            //     app_name: app_name.clone(),
+            //     stream_name: stream_name.clone(),
+            // };
 
-            //send publish info to push clients
-            self.client_event_producer
-                .send(client_event)
-                .map_err(|_| ChannelError {
-                    value: ChannelErrorValue::SendError,
-                })?;
+            // //send publish info to push clients
+            // self.client_event_producer
+            //     .send(client_event)
+            //     .map_err(|_| ChannelError {
+            //         value: ChannelErrorValue::SendError,
+            //     })?;
 
             return Ok(data_publisher);
         } else {

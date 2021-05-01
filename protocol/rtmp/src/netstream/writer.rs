@@ -91,6 +91,40 @@ impl NetStreamWriter {
 
         return Ok(());
     }
+
+    pub async fn release_stream(
+        &mut self,
+        transaction_id: &f64,
+        stream_name: &String,
+    ) -> Result<(), NetStreamError> {
+        self.amf0_writer
+            .write_string(&String::from("releaseStream"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+        self.amf0_writer.write_null()?;
+        self.amf0_writer.write_string(stream_name)?;
+
+        let data = self.amf0_writer.extract_current_bytes();
+        self.write_chunk(data).await?;
+
+        return Ok(());
+    }
+
+    pub async fn fcpublish(
+        &mut self,
+        transaction_id: &f64,
+        stream_name: &String,
+    ) -> Result<(), NetStreamError> {
+        self.amf0_writer.write_string(&String::from("FCPublish"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+        self.amf0_writer.write_null()?;
+        self.amf0_writer.write_string(stream_name)?;
+
+        let data = self.amf0_writer.extract_current_bytes();
+        self.write_chunk(data).await?;
+
+        return Ok(());
+    }
+
     #[allow(dead_code)]
     async fn receive_audio(
         &mut self,
@@ -172,6 +206,7 @@ impl NetStreamWriter {
 
         return Ok(());
     }
+
     #[allow(dead_code)]
     async fn on_bw_done(
         &mut self,
