@@ -243,6 +243,7 @@ impl Common {
             session_id,
         };
 
+        println!("unsubscribe_from_channels");
         let _ = self.event_producer.send(subscribe_event);
 
         Ok(())

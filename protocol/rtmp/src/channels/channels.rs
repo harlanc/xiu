@@ -131,7 +131,7 @@ impl Transmiter {
 
                                 for (_,v) in self.player_producers.lock().unwrap().iter() {
                                     v.send(data.clone()).map_err(|_| ChannelError {
-                                        value: ChannelErrorValue::SendError,
+                                            value: ChannelErrorValue::SendAudioError,
                                     })?;
                                 }
                             }
@@ -145,7 +145,7 @@ impl Transmiter {
                                 };
                                 for (_,v) in self.player_producers.lock().unwrap().iter() {
                                     v.send(data.clone()).map_err(|_| ChannelError {
-                                        value: ChannelErrorValue::SendError,
+                                        value: ChannelErrorValue::SendVideoError,
                                     })?;
                                 }
                             }
@@ -356,7 +356,9 @@ impl ChannelsManager {
 
             let mut transmiter = Transmiter::new(data_consumer, event_consumer);
             tokio::spawn(async move {
-                let _ = transmiter.run().await;
+                if let Err(err) = transmiter.run().await {
+                    print!("transmiter error {}\n", err);
+                }
             });
 
             stream_map.insert(stream_name.clone(), event_publisher);
