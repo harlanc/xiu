@@ -509,9 +509,11 @@ impl ServerSession {
             .write_stream_is_record(stream_id.clone())
             .await?;
 
+        self.stream_name = stream_name.clone().unwrap();
         self.common
             .subscribe_from_channels(self.app_name.clone(), stream_name.unwrap(), self.session_id)
             .await?;
+
         self.state = ServerSessionState::Play;
 
         Ok(())

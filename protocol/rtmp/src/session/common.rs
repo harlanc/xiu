@@ -242,9 +242,9 @@ impl Common {
             stream_name,
             session_id,
         };
-
-        println!("unsubscribe_from_channels");
-        let _ = self.event_producer.send(subscribe_event);
+        if let Err(err) = self.event_producer.send(subscribe_event) {
+            print!("unsubscribe_from_channels err {}\n", err)
+        }
 
         Ok(())
     }
