@@ -5,6 +5,9 @@ Xiu is a live server written by RUST.
 ## Functionalities
 
 - [x] RTMP 
+  - [x] RTMP publish and play
+  - [ ] RTMP static push
+  - [ ] RTMP pull
 - [ ] HTTPFLV
 - [ ] HLS
 - ...
@@ -23,6 +26,8 @@ Xiu is a live server written by RUST.
 #### Clone Xiu
 
     git clone https://github.com/harlanc/xiu.git
+    
+use master branch
     
 #### Build
 
@@ -48,6 +53,11 @@ I use ffplay to play rtmp live stream:
     ffplay -i rtmp://localhost:1935/live/test
 
 ## Change Logs
+
+[2021-05-02]
+
+- Impl : Coding for static push is finished.
+
 
 [2021-04-16]
 
