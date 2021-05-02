@@ -28,8 +28,8 @@ pub struct RtmpPushConfig {
     pub port: u16,
 }
 
-pub fn load() -> Result<Config, ConfigError> {
-    let content = fs::read_to_string("../../application/src/config/config.toml")?;
+pub fn load(cfg_path : &String) -> Result<Config, ConfigError> {
+    let content = fs::read_to_string(cfg_path)?;
     let decoded_config = toml::from_str(&content[..]).unwrap();
     Ok(decoded_config)
 }

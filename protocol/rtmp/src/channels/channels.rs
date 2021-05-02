@@ -9,6 +9,7 @@ use {
         },
         errors::{ChannelError, ChannelErrorValue},
     },
+    crate::amf0::define::Amf0ValueType,
     crate::cache::cache::Cache,
     std::{
         //borrow::BorrowMut,
@@ -195,7 +196,7 @@ impl ChannelsManager {
         return self.channel_event_producer.clone();
     }
 
-    pub fn get_channel_event_consumer(&mut self) -> ClientEventConsumer {
+    pub fn get_client_event_consumer(&mut self) -> ClientEventConsumer {
         return self.client_event_producer.subscribe();
     }
 
@@ -206,8 +207,9 @@ impl ChannelsManager {
                     app_name,
                     stream_name,
                     responder,
+                    connect_command_object: command_object,
                 } => {
-                    let rv = self.publish(&app_name, &stream_name);
+                    let rv = self.publish(&app_name, &stream_name, &command_object);
                     match rv {
                         Ok(producer) => {
                             if let Err(_) = responder.send(producer) {
@@ -334,6 +336,7 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
+        command_object: &HashMap<String, Amf0ValueType>,
     ) -> Result<ChannelDataProducer, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get(stream_name) {
@@ -363,17 +366,19 @@ impl ChannelsManager {
 
             stream_map.insert(stream_name.clone(), event_publisher);
 
-            // let client_event = ClientEvent::Publish {
-            //     app_name: app_name.clone(),
-            //     stream_name: stream_name.clone(),
-            // };
+            let client_event = ClientEvent::Publish {
+                app_name: app_name.clone(),
+                stream_name: stream_name.clone(),
+                connect_command_object: command_object.clone(),
+            };
 
-            // //send publish info to push clients
-            // self.client_event_producer
-            //     .send(client_event)
-            //     .map_err(|_| ChannelError {
-            //         value: ChannelErrorValue::SendError,
-            //     })?;
+            //send publish info to push clients
+
+            self.client_event_producer
+                .send(client_event)
+                .map_err(|_| ChannelError {
+                    value: ChannelErrorValue::SendError,
+                })?;
 
             return Ok(data_publisher);
         } else {

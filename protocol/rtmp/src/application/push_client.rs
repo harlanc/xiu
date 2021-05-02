@@ -16,8 +16,6 @@ pub struct PushClient {
     address: String,
     client_event_consumer: ClientEventConsumer,
     channel_event_producer: ChannelEventProducer,
-
-    data_consumer: ChannelDataConsumer,
 }
 
 impl PushClient {
@@ -26,24 +24,31 @@ impl PushClient {
         consumer: ClientEventConsumer,
         producer: ChannelEventProducer,
     ) -> Self {
-        let (_, init_consumer) = mpsc::unbounded_channel();
-
         Self {
+            address: address,
+
             client_event_consumer: consumer,
             channel_event_producer: producer,
-            data_consumer: init_consumer,
-            address: address,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), PushClientError> {
+        println!("push client run...");
         let mut session_id = std::u64::MAX;
         loop {
-            match self.client_event_consumer.recv().await? {
+            let val = self.client_event_consumer.recv().await?;
+            match val {
                 ClientEvent::Publish {
                     app_name,
                     stream_name,
+                    connect_command_object,
                 } => {
+                    println!(
+                        "publish app_name: {} stream_name: {} address: {}",
+                        app_name.clone(),
+                        stream_name.clone(),
+                        self.address.clone()
+                    );
                     let stream = TcpStream::connect(self.address.clone()).await?;
 
                     let mut client_session = ClientSession::new(
@@ -55,6 +60,8 @@ impl PushClient {
                         session_id,
                     );
 
+                    client_session.set_connect_command_object(connect_command_object);
+
                     tokio::spawn(async move {
                         if let Err(err) = client_session.run().await {
                             print!(" session error {}\n", err);
@@ -64,7 +71,9 @@ impl PushClient {
                     session_id = session_id - 1;
                 }
 
-                _ => {}
+                _ => {
+                    println!("other infos...");
+                }
             }
         }
     }

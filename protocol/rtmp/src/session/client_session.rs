@@ -4,6 +4,7 @@ use {
         define,
         errors::{SessionError, SessionErrorValue},
     },
+    crate::utils::print::print,
     crate::{
         amf0::Amf0ValueType,
         channels::define::ChannelEventProducer,
@@ -40,6 +41,7 @@ enum ClientSessionState {
     Play,
     PublishingContent,
     StartPublish,
+    WaitStateChange,
 }
 
 #[allow(dead_code)]
@@ -78,6 +80,7 @@ pub struct ClientSession {
 
     state: ClientSessionState,
     client_type: ClientType,
+    connect_command_object: Option<HashMap<String, Amf0ValueType>>,
 }
 
 impl ClientSession {
@@ -108,34 +111,48 @@ impl ClientSession {
             state: ClientSessionState::Handshake,
             session_type: 0,
             session_id: session_id,
+            connect_command_object: None,
         }
+    }
+
+    pub fn set_connect_command_object(&mut self, object: HashMap<String, Amf0ValueType>) {
+        self.connect_command_object = Some(object);
     }
 
     pub async fn run(&mut self) -> Result<(), SessionError> {
         loop {
             match self.state {
                 ClientSessionState::Handshake => {
+                    println!("handshake");
                     self.handshake().await?;
+                    continue;
                 }
                 ClientSessionState::Connect => {
+                    println!("connect");
                     self.send_connect(&(define::TRANSACTION_ID_CONNECT as f64))
                         .await?;
+                    self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::CreateStream => {
+                    println!("CreateStream");
                     self.send_create_stream(&(define::TRANSACTION_ID_CREATE_STREAM as f64))
                         .await?;
+                    self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::Play => {
                     self.send_play(&0.0, &self.stream_name.clone(), &0.0, &0.0, &false)
                         .await?;
+                    self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::PublishingContent => {
                     self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())
                         .await?;
+                    self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::StartPublish => {
                     self.common.send_channel_data().await?;
                 }
+                ClientSessionState::WaitStateChange => {}
             }
 
             let data = self.io.lock().await.read().await?;
@@ -160,12 +177,15 @@ impl ClientSession {
         loop {
             self.handshaker.handshake().await?;
             if self.handshaker.state == ClientHandshakeState::Finish {
+                println!("handshake finish");
                 break;
             }
 
             let data = self.io.lock().await.read().await?;
+            print(data.clone());
             self.handshaker.extend_data(&data[..]);
         }
+
         self.state = ClientSessionState::Connect;
 
         Ok(())
@@ -265,9 +285,10 @@ impl ClientSession {
     pub async fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         self.send_set_chunk_size().await?;
 
-        let properties = ConnectProperties::new(self.app_name.clone());
+        // let properties = ConnectProperties::new(self.app_name.clone());
         let mut netconnection = NetConnection::new(BytesWriter::new());
-        let data = netconnection.connect(transaction_id, &properties)?;
+        let data = netconnection
+            .connect_with_value(transaction_id, self.connect_command_object.clone().unwrap())?;
 
         let mut chunk_info = ChunkInfo::new(
             csid_type::COMMAND_AMF0_AMF3,

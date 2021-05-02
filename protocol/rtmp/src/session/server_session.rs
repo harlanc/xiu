@@ -67,6 +67,8 @@ pub struct ServerSession {
 
     pub session_id: u64,
     pub session_type: u8,
+
+    connect_command_object: Option<HashMap<String, Amf0ValueType>>,
 }
 
 impl ServerSession {
@@ -91,6 +93,7 @@ impl ServerSession {
             netio_data: BytesMut::new(),
             need_process: false,
             session_type: 0,
+            connect_command_object: None,
         }
     }
 
@@ -310,6 +313,7 @@ impl ServerSession {
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
+        self.connect_command_object = Some(command_obj.clone());
         let mut control_message =
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         control_message
@@ -566,11 +570,15 @@ impl ServerSession {
             )
             .await?;
 
-        print!("before publish_to_channels\n");
+        //print!("before publish_to_channels\n");
         self.common
-            .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .publish_to_channels(
+                self.app_name.clone(),
+                self.stream_name.clone(),
+                self.connect_command_object.clone().unwrap(),
+            )
             .await?;
-        print!("after publish_to_channels\n");
+        //print!("after publish_to_channels\n");
 
         Ok(())
     }

@@ -253,12 +253,14 @@ impl Common {
         &mut self,
         app_name: String,
         stream_name: String,
+        connect_command_object: HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
         let (sender, receiver) = oneshot::channel();
         let publish_event = ChannelEvent::Publish {
             app_name,
             stream_name,
             responder: sender,
+            connect_command_object,
         };
 
         let rv = self.event_producer.send(publish_event);
@@ -273,9 +275,9 @@ impl Common {
 
         match receiver.await {
             Ok(producer) => {
-                print!("set producer before\n");
+                //print!("set producer before\n");
                 self.data_producer = producer;
-                print!("set producer after\n");
+                //print!("set producer after\n");
             }
             Err(err) => {
                 print!("publish_to_channels err{}\n", err)

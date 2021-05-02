@@ -8,9 +8,9 @@ address = "192.168.0.1"
 port = 1935
 [[rtmp.push]]
 enabled = true
-address = "192.168.0.2"
-port = 1935
-[[rtmp.push]]
-enabled = true
-address = "192.168.0.3"
-port = 1935
+address = "localhost"
+port = 1936
+# [[rtmp.push]]
+# enabled = true
+# address = "192.168.0.3"
+# port = 1935

@@ -6,14 +6,18 @@ use {
         application::push_client::PushClient, channels::channels::ChannelsManager,
         session::client_session, session::server_session,
     },
-    std::net::SocketAddr,
+    std::{env, net::SocketAddr},
     tokio,
     tokio::net::{TcpListener, TcpStream},
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = config::load();
+    let args: Vec<String> = env::args().collect();
+
+    let cfg_path = &args[1];
+    let config = config::load(cfg_path);
+
     match config {
         Ok(val) => {
             let mut rtmp_server = Service::new(val);
@@ -36,29 +40,29 @@ impl Service {
         let mut channel = ChannelsManager::new();
 
         let producer = channel.get_session_event_producer();
-        let consumer = channel.get_channel_event_consumer();
+        let consumer = channel.get_client_event_consumer();
         tokio::spawn(async move { channel.run().await });
 
         let rtmp = &self.cfg.rtmp;
         match rtmp {
             Some(rtmp_cfg) => {
-                // match rtmp_cfg.clone().push {
-                //     Some(push_cfg) => {
-                //         let address = format!(
-                //             "{ip}:{port}",
-                //             ip = push_cfg[0].address,
-                //             port = push_cfg[0].port
-                //         );
+                match rtmp_cfg.clone().push {
+                    Some(push_cfg) => {
+                        let address = format!(
+                            "{ip}:{port}",
+                            ip = push_cfg[0].address,
+                            port = push_cfg[0].port
+                        );
 
-                //         let mut push_client = PushClient::new(address, consumer, producer.clone());
-                //         tokio::spawn(async move {
-                //             if let Err(err) = push_client.run().await {
-                //                 print!("push client error {}\n", err);
-                //             }
-                //         });
-                //     }
-                //     _ => {}
-                // }
+                        let mut push_client = PushClient::new(address, consumer, producer.clone());
+                        tokio::spawn(async move {
+                            if let Err(err) = push_client.run().await {
+                                print!("push client error {}\n", err);
+                            }
+                        });
+                    }
+                    _ => {}
+                }
                 let listen_port = rtmp_cfg.port;
                 let address = format!("0.0.0.0:{port}", port = listen_port);
                 let socket_addr: &SocketAddr = &address.parse().unwrap();

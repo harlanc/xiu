@@ -1,5 +1,7 @@
 use {
+    crate::amf0::define::Amf0ValueType,
     bytes::BytesMut,
+    std::collections::HashMap,
     tokio::sync::{broadcast, mpsc, oneshot},
 };
 #[derive(Clone)]
@@ -39,6 +41,7 @@ pub enum ChannelEvent {
         app_name: String,
         stream_name: String,
         responder: ChannelResponder<ChannelDataProducer>,
+        connect_command_object: HashMap<String, Amf0ValueType>,
     },
     UnPublish {
         app_name: String,
@@ -63,6 +66,7 @@ pub enum ClientEvent {
     Publish {
         app_name: String,
         stream_name: String,
+        connect_command_object: HashMap<String, Amf0ValueType>,
     },
     UnPublish {
         app_name: String,

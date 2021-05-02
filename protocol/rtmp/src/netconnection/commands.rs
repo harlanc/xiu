@@ -49,6 +49,19 @@ impl NetConnection {
             amf0_writer: Amf0Writer::new(writer),
         }
     }
+
+    pub fn connect_with_value(
+        &mut self,
+        transaction_id: &f64,
+        properties: HashMap<String, Amf0ValueType>,
+    ) -> Result<BytesMut, NetConnectionError> {
+        self.amf0_writer.write_string(&String::from("connect"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+
+        self.amf0_writer.write_object(&properties)?;
+
+        return Ok(self.amf0_writer.extract_current_bytes());
+    }
     pub fn connect(
         &mut self,
         transaction_id: &f64,
