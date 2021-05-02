@@ -2,6 +2,7 @@ use {
     super::{
         common::Common,
         define,
+        define::SessionType,
         errors::{SessionError, SessionErrorValue},
     },
     crate::utils::print::print,
@@ -97,7 +98,7 @@ impl ClientSession {
 
         Self {
             io: Arc::clone(&net_io),
-            common: Common::new(Arc::clone(&net_io), event_producer),
+            common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Client),
 
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
 
@@ -145,11 +146,13 @@ impl ClientSession {
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::PublishingContent => {
+                    println!("PublishingContent");
                     self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::StartPublish => {
+                    println!("StartPublish");
                     self.common.send_channel_data().await?;
                 }
                 ClientSessionState::WaitStateChange => {}
@@ -253,7 +256,7 @@ impl ClientSession {
         };
 
         match cmd_name.as_str() {
-            "_reslut" => match transaction_id {
+            "_result" => match transaction_id {
                 define::TRANSACTION_ID_CONNECT => {
                     self.on_result_connect().await?;
                 }
@@ -394,38 +397,6 @@ impl ClientSession {
         Ok(())
     }
 
-    // pub async fn send_audio(&mut self, data: BytesMut) -> Result<(), SessionError> {
-    //     let mut chunk_info = ChunkInfo::new(
-    //         csid_type::AUDIO,
-    //         chunk_type::TYPE_0,
-    //         0,
-    //         data.len() as u32,
-    //         msg_type_id::AUDIO,
-    //         0,
-    //         data,
-    //     );
-
-    //     self.packetizer.write_chunk(&mut chunk_info).await?;
-
-    //     Ok(())
-    // }
-
-    // pub async fn send_video(&mut self, data: BytesMut) -> Result<(), SessionError> {
-    //     let mut chunk_info = ChunkInfo::new(
-    //         csid_type::VIDEO,
-    //         chunk_type::TYPE_0,
-    //         0,
-    //         data.len() as u32,
-    //         msg_type_id::VIDEO,
-    //         0,
-    //         data,
-    //     );
-
-    //     self.packetizer.write_chunk(&mut chunk_info).await?;
-
-    //     Ok(())
-    // }
-
     pub async fn on_result_connect(&mut self) -> Result<(), SessionError> {
         let mut controlmessage =
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
@@ -475,6 +446,7 @@ impl ClientSession {
         &mut self,
         obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
+        println!("on_status===");
         if let Some(Amf0ValueType::UTF8String(code_info)) = obj.get("code") {
             match &code_info[..] == "NetStream.Publish.Start" {
                 true => {

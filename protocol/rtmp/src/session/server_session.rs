@@ -2,6 +2,7 @@ use {
     super::{
         common::Common,
         define,
+        define::SessionType,
         errors::{SessionError, SessionErrorValue},
     },
     crate::{
@@ -87,7 +88,7 @@ impl ServerSession {
 
             state: ServerSessionState::Handshake,
 
-            common: Common::new(Arc::clone(&net_io), event_producer),
+            common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Server),
 
             session_id: session_id,
             netio_data: BytesMut::new(),
@@ -139,6 +140,7 @@ impl ServerSession {
     }
 
     async fn read_parse_chunks(&mut self) -> Result<(), SessionError> {
+        self.send_set_chunk_size().await?;
         if !self.need_process {
             self.netio_data = self.io.lock().await.read().await?;
             self.unpacketizer.extend_data(&self.netio_data[..]);
@@ -281,9 +283,7 @@ impl ServerSession {
                         },
                         _ => 0.0,
                     };
-
                     print!("deletestream....{}\n", stream_id);
-
                     self.on_delete_stream(transaction_id, &stream_id).await?;
                 }
             }
@@ -325,7 +325,7 @@ impl ServerSession {
                 define::peer_bandwidth_limit_type::DYNAMIC,
             )
             .await?;
-        control_message.write_set_chunk_size(CHUNK_SIZE).await?;
+        //control_message.write_set_chunk_size(CHUNK_SIZE).await?;
 
         let obj_encoding = command_obj.get("objectEncoding");
         let encoding = match obj_encoding {

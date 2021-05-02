@@ -1,6 +1,6 @@
 use {
     super::{
-        define,
+        define::{SessionSubType, SessionType},
         errors::{SessionError, SessionErrorValue},
     },
     crate::{
@@ -25,6 +25,7 @@ use {
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
+        utils::print::print,
     },
     bytes::BytesMut,
     networkio::{
@@ -38,6 +39,10 @@ use {
     },
 };
 
+pub struct SessionInfo {
+    pub session_id: u64,
+    pub session_sub_type: SessionSubType,
+}
 pub struct Common {
     packetizer: ChunkPacketizer,
 
@@ -45,10 +50,15 @@ pub struct Common {
     data_producer: ChannelDataProducer,
 
     event_producer: ChannelEventProducer,
+    session_type: SessionType,
 }
 
 impl Common {
-    pub fn new(net_io: Arc<Mutex<NetworkIO>>, event_producer: ChannelEventProducer) -> Self {
+    pub fn new(
+        net_io: Arc<Mutex<NetworkIO>>,
+        event_producer: ChannelEventProducer,
+        session_type: SessionType,
+    ) -> Self {
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = mpsc::unbounded_channel();
 
@@ -59,6 +69,7 @@ impl Common {
             data_consumer: init_consumer,
 
             event_producer,
+            session_type,
         }
     }
     pub async fn send_channel_data(&mut self) -> Result<(), SessionError> {
@@ -66,15 +77,12 @@ impl Common {
             if let Some(data) = self.data_consumer.recv().await {
                 match data {
                     ChannelData::Audio { timestamp, data } => {
-                        //print!("send audio data\n");
                         self.send_audio(data, timestamp).await?;
                     }
                     ChannelData::Video { timestamp, data } => {
-                        //print!("send video data\n");
                         self.send_video(data, timestamp).await?;
                     }
                     ChannelData::MetaData { body } => {
-                        print!("send meta data\n");
                         self.send_metadata(body).await?;
                     }
                 }
@@ -191,6 +199,19 @@ impl Common {
         Ok(())
     }
 
+    fn get_session_info(&mut self, session_id: u64) -> SessionInfo {
+        match self.session_type {
+            SessionType::Client => SessionInfo {
+                session_id: session_id,
+                session_sub_type: SessionSubType::Publisher,
+            },
+            SessionType::Server => SessionInfo {
+                session_id: session_id,
+                session_sub_type: SessionSubType::Player,
+            },
+        }
+    }
+
     pub async fn subscribe_from_channels(
         &mut self,
         app_name: String,
@@ -205,10 +226,11 @@ impl Common {
         );
 
         let (sender, receiver) = oneshot::channel();
+
         let subscribe_event = ChannelEvent::Subscribe {
             app_name: app_name,
             stream_name,
-            session_id: session_id,
+            session_info: self.get_session_info(session_id),
             responder: sender,
         };
 
@@ -240,7 +262,7 @@ impl Common {
         let subscribe_event = ChannelEvent::UnSubscribe {
             app_name,
             stream_name,
-            session_id,
+            session_info: self.get_session_info(session_id),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
             print!("unsubscribe_from_channels err {}\n", err)

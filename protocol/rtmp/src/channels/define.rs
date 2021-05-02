@@ -1,5 +1,5 @@
 use {
-    crate::amf0::define::Amf0ValueType,
+    crate::{amf0::define::Amf0ValueType, session::common::SessionInfo},
     bytes::BytesMut,
     std::collections::HashMap,
     tokio::sync::{broadcast, mpsc, oneshot},
@@ -29,13 +29,13 @@ pub enum ChannelEvent {
     Subscribe {
         app_name: String,
         stream_name: String,
-        session_id: u64,
+        session_info: SessionInfo,
         responder: ChannelResponder<ChannelDataConsumer>,
     },
     UnSubscribe {
         app_name: String,
         stream_name: String,
-        session_id: u64,
+        session_info: SessionInfo,
     },
     Publish {
         app_name: String,
@@ -52,11 +52,11 @@ pub enum ChannelEvent {
 pub enum TransmitEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,
-        session_id: u64,
+        session_info: SessionInfo,
     },
 
     UnSubscribe {
-        session_id: u64,
+        session_info: SessionInfo,
     },
 
     UnPublish {},
