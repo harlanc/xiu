@@ -1,13 +1,13 @@
 # Xiu
-Xiu is a live server written by RUST.
+Xiu is a live server written by Rust.
 
 
 ## Functionalities
 
 - [x] RTMP 
-  - [x] RTMP publish and play
-  - [ ] RTMP static push
-  - [ ] RTMP pull
+  - [x] publish and play
+  - [ ] relay: static push
+  - [ ] relay: static pull
 - [ ] HTTPFLV
 - [ ] HLS
 - ...
