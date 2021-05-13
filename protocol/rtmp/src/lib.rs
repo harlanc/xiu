@@ -9,7 +9,7 @@ extern crate sha2;
 extern crate tokio;
 
 pub mod amf0;
-pub mod application;
+pub mod relay;
 pub mod channels;
 pub mod chunk;
 pub mod config;
