@@ -72,4 +72,12 @@ pub enum ClientEvent {
         app_name: String,
         stream_name: String,
     },
+    Subscribe {
+        app_name: String,
+        stream_name: String,
+    },
+    UnSubscribe {
+        app_name: String,
+        stream_name: String,
+    },
 }

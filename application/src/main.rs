@@ -3,8 +3,10 @@ use {
     anyhow::Result,
     application::config::{config, config::Config},
     rtmp::{
-        application::push_client::PushClient, channels::channels::ChannelsManager,
-        session::client_session, session::server_session,
+        channels::channels::ChannelsManager,
+        relay::{pull_client::PullClient, push_client::PushClient},
+        session::client_session,
+        session::server_session,
     },
     std::{env, net::SocketAddr},
     tokio,
@@ -40,8 +42,6 @@ impl Service {
         let mut channel = ChannelsManager::new();
 
         let producer = channel.get_session_event_producer();
-        let consumer = channel.get_client_event_consumer();
-        tokio::spawn(async move { channel.run().await });
 
         let rtmp = &self.cfg.rtmp;
         match rtmp {
@@ -54,7 +54,11 @@ impl Service {
                             port = push_cfg[0].port
                         );
 
-                        let mut push_client = PushClient::new(address, consumer, producer.clone());
+                        let mut push_client = PushClient::new(
+                            address,
+                            channel.get_client_event_consumer(),
+                            producer.clone(),
+                        );
                         tokio::spawn(async move {
                             if let Err(err) = push_client.run().await {
                                 print!("push client error {}\n", err);
@@ -63,6 +67,28 @@ impl Service {
                     }
                     _ => {}
                 }
+
+                match rtmp_cfg.clone().pull {
+                    Some(pull_cfg) => {
+                        let address =
+                            format!("{ip}:{port}", ip = pull_cfg.address, port = pull_cfg.port);
+                        let mut pull_client = PullClient::new(
+                            address,
+                            channel.get_client_event_consumer(),
+                            producer.clone(),
+                        );
+
+                        tokio::spawn(async move {
+                            if let Err(err) = pull_client.run().await {
+                                print!("pull client error {}\n", err);
+                            }
+                        });
+                    }
+                    _ => {}
+                }
+
+                tokio::spawn(async move { channel.run().await });
+
                 let listen_port = rtmp_cfg.port;
                 let address = format!("0.0.0.0:{port}", port = listen_port);
                 let socket_addr: &SocketAddr = &address.parse().unwrap();
