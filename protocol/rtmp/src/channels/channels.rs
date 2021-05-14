@@ -185,6 +185,8 @@ pub struct ChannelsManager {
     channel_event_producer: ChannelEventProducer,
     //client_event_producer: client_event_producer
     client_event_producer: ClientEventProducer,
+    push_enabled: bool,
+    pull_enabled: bool,
 }
 
 impl ChannelsManager {
@@ -197,10 +199,20 @@ impl ChannelsManager {
             channel_event_consumer: event_consumer,
             channel_event_producer: event_producer,
             client_event_producer: client_producer,
+            push_enabled: false,
+            pull_enabled: false,
         }
     }
     pub async fn run(&mut self) {
         self.event_loop().await;
+    }
+
+    pub fn set_push_enabled(&mut self, enabled: bool) {
+        self.push_enabled = enabled;
+    }
+
+    pub fn set_pull_enabled(&mut self, enabled: bool) {
+        self.pull_enabled = enabled;
     }
 
     pub fn get_session_event_producer(&mut self) -> ChannelEventProducer {
@@ -377,19 +389,20 @@ impl ChannelsManager {
 
             stream_map.insert(stream_name.clone(), event_publisher);
 
-            let client_event = ClientEvent::Publish {
-                app_name: app_name.clone(),
-                stream_name: stream_name.clone(),
-                connect_command_object: command_object.clone(),
-            };
+            if self.push_enabled {
+                let client_event = ClientEvent::Publish {
+                    app_name: app_name.clone(),
+                    stream_name: stream_name.clone(),
+                    connect_command_object: command_object.clone(),
+                };
 
-            //send publish info to push clients
-
-            self.client_event_producer
-                .send(client_event)
-                .map_err(|_| ChannelError {
-                    value: ChannelErrorValue::SendError,
-                })?;
+                //send publish info to push clients
+                self.client_event_producer
+                    .send(client_event)
+                    .map_err(|_| ChannelError {
+                        value: ChannelErrorValue::SendError,
+                    })?;
+            }
 
             return Ok(data_publisher);
         } else {

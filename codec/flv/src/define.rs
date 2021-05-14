@@ -29,3 +29,8 @@ pub mod frame_type {
     pub const KEY_FRAME: u8 = 1;
     pub const INTER_FRAME: u8 = 2;
 }
+
+pub mod codec_id {
+    pub const FLV_VIDEO_H264: u8 = 7;
+    pub const FLV_VIDEO_H265: u8 = 12;
+}

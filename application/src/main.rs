@@ -64,25 +64,31 @@ impl Service {
                                 print!("push client error {}\n", err);
                             }
                         });
+
+                        channel.set_push_enabled(true);
                     }
                     _ => {}
                 }
 
                 match rtmp_cfg.clone().pull {
                     Some(pull_cfg) => {
-                        let address =
-                            format!("{ip}:{port}", ip = pull_cfg.address, port = pull_cfg.port);
-                        let mut pull_client = PullClient::new(
-                            address,
-                            channel.get_client_event_consumer(),
-                            producer.clone(),
-                        );
+                        if pull_cfg.enabled {
+                            let address =
+                                format!("{ip}:{port}", ip = pull_cfg.address, port = pull_cfg.port);
+                            let mut pull_client = PullClient::new(
+                                address,
+                                channel.get_client_event_consumer(),
+                                producer.clone(),
+                            );
 
-                        tokio::spawn(async move {
-                            if let Err(err) = pull_client.run().await {
-                                print!("pull client error {}\n", err);
-                            }
-                        });
+                            tokio::spawn(async move {
+                                if let Err(err) = pull_client.run().await {
+                                    print!("pull client error {}\n", err);
+                                }
+                            });
+
+                            channel.set_pull_enabled(true);
+                        }
                     }
                     _ => {}
                 }
