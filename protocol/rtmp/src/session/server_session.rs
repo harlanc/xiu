@@ -570,7 +570,6 @@ impl ServerSession {
             )
             .await?;
 
-        //print!("before publish_to_channels\n");
         self.common
             .publish_to_channels(
                 self.app_name.clone(),
@@ -578,7 +577,6 @@ impl ServerSession {
                 self.connect_command_object.clone().unwrap(),
             )
             .await?;
-        //print!("after publish_to_channels\n");
 
         Ok(())
     }

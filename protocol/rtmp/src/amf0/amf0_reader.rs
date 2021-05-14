@@ -86,9 +86,6 @@ impl Amf0Reader {
         let l = self.reader.read_u16::<BigEndian>()?;
 
         let bytes = self.reader.read_bytes(l as usize)?;
-
-
-
         let val = String::from_utf8(bytes.to_vec())?;
 
         Ok(val)

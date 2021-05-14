@@ -53,6 +53,9 @@ pub enum RtmpMessageData {
     StreamBegin {
         stream_id: u32,
     },
+    StreamIsRecorded {
+        stream_id: u32,
+    },
 
     Unknow,
 }

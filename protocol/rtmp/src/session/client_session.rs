@@ -164,10 +164,12 @@ impl ClientSession {
 
             match result {
                 UnpackResult::ChunkInfo(chunk_info) => {
-                    let mut message_parser = MessageParser::new(chunk_info, self.session_type);
+                    let mut message_parser =
+                        MessageParser::new(chunk_info.clone(), self.session_type);
                     let mut msg = message_parser.parse()?;
+                    let timestamp = chunk_info.message_header.timestamp;
 
-                    self.process_messages(&mut msg).await?;
+                    self.process_messages(&mut msg, &timestamp).await?;
                 }
                 _ => {}
             }
@@ -197,6 +199,7 @@ impl ClientSession {
     pub async fn process_messages(
         &mut self,
         msg: &mut RtmpMessageData,
+        timestamp: &u32,
     ) -> Result<(), SessionError> {
         match msg {
             RtmpMessageData::Amf0Command {
@@ -205,32 +208,31 @@ impl ClientSession {
                 command_object,
                 others,
             } => {
-                self.process_amf0_command_message(
-                    command_name,
-                    transaction_id,
-                    command_object,
-                    others,
-                )
-                .await?
+                self.on_amf0_command_message(command_name, transaction_id, command_object, others)
+                    .await?
             }
             RtmpMessageData::SetPeerBandwidth { properties } => {
                 print!("{}", properties.window_size);
                 self.on_set_peer_bandwidth().await?
             }
             RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
-            RtmpMessageData::AudioData { data } => {
-                let _ = data.len();
+
+            RtmpMessageData::StreamBegin { stream_id } => self.on_stream_begin(stream_id)?,
+
+            RtmpMessageData::StreamIsRecorded { stream_id } => {
+                self.on_stream_is_recorded(stream_id)?
             }
-            RtmpMessageData::VideoData { data } => {
-                let _ = data.len();
-            }
+
+            RtmpMessageData::AudioData { data } => self.common.on_audio_data(data, timestamp)?,
+
+            RtmpMessageData::VideoData { data } => self.common.on_video_data(data, timestamp)?,
 
             _ => {}
         }
         Ok(())
     }
 
-    pub async fn process_amf0_command_message(
+    pub async fn on_amf0_command_message(
         &mut self,
         command_name: &Amf0ValueType,
         transaction_id: &Amf0ValueType,
@@ -433,6 +435,14 @@ impl ClientSession {
         Ok(())
     }
 
+    pub fn on_stream_is_recorded(&mut self, stream_id: &mut u32) -> Result<(), SessionError> {
+        Ok(())
+    }
+
+    pub fn on_stream_begin(&mut self, stream_id: &mut u32) -> Result<(), SessionError> {
+        Ok(())
+    }
+
     pub async fn on_set_peer_bandwidth(&mut self) -> Result<(), SessionError> {
         self.send_window_acknowledgement_size(250000).await?;
         Ok(())
@@ -448,8 +458,8 @@ impl ClientSession {
     ) -> Result<(), SessionError> {
         println!("on_status===");
         if let Some(Amf0ValueType::UTF8String(code_info)) = obj.get("code") {
-            match &code_info[..] == "NetStream.Publish.Start" {
-                true => {
+            match &code_info[..] {
+                "NetStream.Publish.Start" => {
                     self.state = ClientSessionState::StartPublish;
                     self.common
                         .subscribe_from_channels(
@@ -459,7 +469,15 @@ impl ClientSession {
                         )
                         .await?;
                 }
-                false => {}
+                "NetStream.Publish.Reset" => {}
+
+                // "NetStream.Play.Start" => self.common.publish_to_channels(
+                //     self.app_name.clone(),
+                //     self.stream_name.clone(),
+                //     connect_command_object,
+                // ),
+
+                _ => {}
             }
         }
         println!("{}", obj.len());

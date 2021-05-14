@@ -34,27 +34,35 @@ impl PullClient {
     }
 
     pub async fn run(&mut self) -> Result<(), PushClientError> {
+        let mut session_id = std::u64::MAX;
+
         loop {
             let val = self.client_event_consumer.recv().await?;
             match val {
-                ClientEvent::Publish {
+                ClientEvent::Subscribe {
                     app_name,
                     stream_name,
-                    connect_command_object,
-                } => {}
+                } => {
+                    let stream = TcpStream::connect(self.address.clone()).await?;
+
+                    let mut client_session = ClientSession::new(
+                        stream,
+                        ClientType::Play,
+                        app_name.clone(),
+                        stream_name.clone(),
+                        self.channel_event_producer.clone(),
+                        session_id,
+                    );
+
+                    tokio::spawn(async move {
+                        if let Err(err) = client_session.run().await {
+                            print!(" session error {}\n", err);
+                        }
+                    });
+                }
+                _ => {}
             }
         }
-
-        // let stream = TcpStream::connect(self.address.clone()).await?;
-
-        // let mut client_session = ClientSession::new(
-        //     stream,
-        //     ClientType::Publish,
-        //     app_name.clone(),
-        //     stream_name.clone(),
-        //     self.channel_event_producer.clone(),
-        //     session_id,
-        // );
 
         Ok(())
     }
