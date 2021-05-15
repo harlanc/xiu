@@ -571,11 +571,7 @@ impl ServerSession {
             .await?;
 
         self.common
-            .publish_to_channels(
-                self.app_name.clone(),
-                self.stream_name.clone(),
-                self.connect_command_object.clone().unwrap(),
-            )
+            .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
             .await?;
 
         Ok(())

@@ -484,11 +484,11 @@ impl ClientSession {
                 }
                 "NetStream.Publish.Reset" => {}
 
-                // "NetStream.Play.Start" => self.common.publish_to_channels(
-                //     self.app_name.clone(),
-                //     self.stream_name.clone(),
-                //     connect_command_object,
-                // ),
+                "NetStream.Play.Start" => {
+                    self.common
+                        .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .await?
+                }
                 _ => {}
             }
         }

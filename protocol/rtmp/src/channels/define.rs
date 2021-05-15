@@ -41,7 +41,6 @@ pub enum ChannelEvent {
         app_name: String,
         stream_name: String,
         responder: ChannelResponder<ChannelDataProducer>,
-        connect_command_object: HashMap<String, Amf0ValueType>,
     },
     UnPublish {
         app_name: String,

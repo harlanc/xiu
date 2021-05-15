@@ -230,9 +230,8 @@ impl ChannelsManager {
                     app_name,
                     stream_name,
                     responder,
-                    connect_command_object: command_object,
                 } => {
-                    let rv = self.publish(&app_name, &stream_name, &command_object);
+                    let rv = self.publish(&app_name, &stream_name);
                     match rv {
                         Ok(producer) => {
                             if let Err(_) = responder.send(producer) {
@@ -359,7 +358,6 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-        command_object: &HashMap<String, Amf0ValueType>,
     ) -> Result<ChannelDataProducer, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get(stream_name) {
