@@ -5,10 +5,16 @@ pub enum ChannelErrorValue {
     NoAppName,
     #[fail(display = "no stream name\n")]
     NoStreamName,
+    #[fail(display = "no app or stream name\n")]
+    NoAppOrStreamName,
     #[fail(display = "exists\n")]
     Exists,
-    #[fail(display = "no app name\n")]
+    #[fail(display = "send error\n")]
     SendError,
+    #[fail(display = "send video error\n")]
+    SendVideoError,
+    #[fail(display = "send audio error\n")]
+    SendAudioError,
     #[fail(display = "cache error name: {}\n", _0)]
     CacheError(CacheError),
 }

@@ -83,7 +83,7 @@ impl EventMessagesWriter {
     ) -> Result<(), EventMessagesError> {
         self.write_control_message_header(6)?;
         self.writer
-            .write_u16::<BigEndian>(define::RTMP_EVENT_STREAM_IS_RECORD)?;
+            .write_u16::<BigEndian>(define::RTMP_EVENT_STREAM_IS_RECORDED)?;
         self.writer.write_u32::<BigEndian>(stream_id)?;
 
         self.writer.flush().await?;

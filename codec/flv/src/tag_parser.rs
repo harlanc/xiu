@@ -149,15 +149,16 @@ impl TagParser {
         self.tag.frame_type = flags >> 4;
         self.tag.codec_id = flags & 0x0f;
 
-        if self.tag.frame_type == define::frame_type::INTER_FRAME
-            || self.tag.frame_type == define::frame_type::KEY_FRAME
+        if self.tag.codec_id == define::codec_id::FLV_VIDEO_H264
+            || self.tag.codec_id == define::codec_id::FLV_VIDEO_H265
         {
             self.tag.avc_packet_type = self.bytes_reader.read_u8()?;
+            self.tag.composition_time = 0;
 
             for _ in 0..3 {
-                self.tag.composition_time = self.bytes_reader.read_u32::<BigEndian>()?;
+                let time = self.bytes_reader.read_u8()?;
                 // print!("==time=={}\n",self.tag.composition_time);
-                // self.tag.composition_time = self.tag.composition_time << 8 + time as u32;
+                self.tag.composition_time = self.tag.composition_time << 8 + time as u32;
             }
         }
 

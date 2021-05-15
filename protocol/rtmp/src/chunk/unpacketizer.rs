@@ -93,7 +93,7 @@ impl ChunkUnpacketizer {
             );
         }
 
-        if (config::SERVER_PUSH & self.session_type) == 0 {
+        if config::DEBUG && ((config::SERVER_PUSH & self.session_type) == 0){
             print!("begin trunks data========\n");
             utils::print::print(self.reader.get_remaining_bytes());
             print!("end trunks data========\n");
@@ -463,6 +463,7 @@ impl ChunkUnpacketizer {
                         self.current_message_header().timestamp_delta;
                 }
             }
+            //todo: 3 should also be processed
             _ => {}
         }
 

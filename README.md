@@ -4,12 +4,12 @@ Xiu is a live server written by Rust.
 
 ## Functionalities
 
-- [x] RTMP 
-  - [x] publish and play
-  - [ ] relay: static push
-  - [ ] relay: pull
-- [ ] HTTPFLV
-- [ ] HLS
+- [x] rtmp
+  - [x] publish and play (now only simple handshake is supported.)
+  - [x] relay: static push
+  - [x] relay: pull
+- [ ] httpflv
+- [ ] hls
 - ...
 
 ## Dev Environment Establish
@@ -39,20 +39,91 @@ use master branch
 
     cd ./xiu/target/debug
     
-    ./application
+    ./application config.toml
     
 #### Push
 
-I use OBS to push a live rtmp stream.
+Use OBS to push a live rtmp stream.
 
 
 #### Play
 
-I use ffplay to play rtmp live stream:
+Use ffplay to play rtmp live stream:
 
     ffplay -i rtmp://localhost:1935/live/test
+    
+#### Relay static push
+
+The configuration file is as follows (now only test on local machine):
+
+Service 1 configuration file named config.toml:
+
+    [rtmp]
+    enabled = true
+    port = 1935
+    [[rtmp.push]]
+    enabled = true
+    address = "localhost"
+    port = 1936
+    
+Service 2 configuration file named config_push.toml:
+
+    [rtmp]
+    enabled = true
+    port = 1936
+
+Run the 2 services:
+
+    ./application config.toml
+    ./application config_push.toml
+
+
+Use Obs to push live stream to service 1, then the stream can be pushed to service 2 automatically, you can play the same live stream from both the two services:
+
+    ffplay -i rtmp://localhost:1935/live/test
+    ffplay -i rtmp://localhost:1936/live/test
+
+
+    
+#### Relay pull
+
+The configuration file is as follows (now only test on local machine):
+
+Service 1 configuration file named config.toml:
+
+    [rtmp]
+    enabled = true
+    port = 1935
+
+ 
+Service 2 configuration file named config_pull.toml:
+
+    [rtmp]
+    enabled = true
+    port = 1936
+    [rtmp.pull]
+    enabled = false
+    address = "localhost"
+    port = 1935
+
+Run the 2 services:
+
+    ./application config.toml
+    ./application config_pull.toml
+
+Use obs to push live stream to service 1, when you play the stream from serivce 2, it will pull the stream from service 1:
+
+    ffplay -i rtmp://localhost:1935/live/test
+    ffplay -i rtmp://localhost:1936/live/test
+
+
 
 ## Change Logs
+
+[2021-05-15]
+
+- Impl : Coding for pull is finished.
+
 
 [2021-05-02]
 

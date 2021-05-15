@@ -1,13 +1,16 @@
+use tokio::sync::broadcast;
+
 use {
     super::{
         define::{
-            ChannelData, ChannelDataConsumer, ChannelDataPublisher, ChannelEvent,
-            ChannelEventConsumer, ChannelEventPublisher, TransmitEvent, TransmitEventConsumer,
-            TransmitEventPublisher,
+            ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
+            ChannelEventConsumer, ChannelEventProducer, ClientEvent, ClientEventConsumer,
+            ClientEventProducer, TransmitEvent, TransmitEventConsumer, TransmitEventPublisher,
         },
         errors::{ChannelError, ChannelErrorValue},
     },
     crate::cache::cache::Cache,
+    crate::session::{common::SessionInfo, define::SessionSubType},
     std::{
         //borrow::BorrowMut,
         //cell::RefCell,
@@ -44,7 +47,7 @@ pub struct Transmiter {
     data_consumer: ChannelDataConsumer, //used for publisher to produce AV data
     event_consumer: TransmitEventConsumer,
 
-    player_producers: Arc<Mutex<HashMap<u64, ChannelDataPublisher>>>,
+    player_producers: Arc<Mutex<HashMap<u64, ChannelDataProducer>>>,
     cache: Arc<Mutex<Cache>>,
 }
 
@@ -61,25 +64,6 @@ impl Transmiter {
         }
     }
 
-    // pub async fn run(&mut self) {
-    //     tokio::spawn(async move {
-    //         self.write_loop().await;
-    //     });
-
-    //     tokio::spawn(async move {
-    //         self.subscriber_loop().await;
-    //     });
-    // val = self.stream_consumer.recv() => {
-    //     match val{
-    //         Ok(data)=>{
-
-    //         }
-    //         _ =>{}
-    //     }
-    // }
-    // val = self.event_consumer.recv() => {
-    //}
-
     pub async fn run(&mut self) -> Result<(), ChannelError> {
         loop {
             tokio::select! {
@@ -87,35 +71,45 @@ impl Transmiter {
                     if let Some(val) = data{
                         print!("receive player event\n");
                         match val{
-                            TransmitEvent::Subscribe { responder,session_id } => {
-                                let ( sender, receiver) = mpsc::unbounded_channel();
+                            TransmitEvent::Subscribe { responder,session_info } => {
 
+                                let ( sender, receiver) = mpsc::unbounded_channel();
                                 responder.send(receiver).map_err(|_| ChannelError {
                                     value: ChannelErrorValue::SendError,
                                 })?;
 
-                                let meta_body = self.cache.lock().unwrap().get_metadata();
-                                let audio_seq = self.cache.lock().unwrap().get_audio_seq();
-                                let video_seq = self.cache.lock().unwrap().get_video_seq();
+                                match session_info.session_sub_type {
+                                    SessionSubType::Player=>{
+                                        let meta_body = self.cache.lock().unwrap().get_metadata();
+                                        let audio_seq = self.cache.lock().unwrap().get_audio_seq();
+                                        let video_seq = self.cache.lock().unwrap().get_video_seq();
 
-                                sender.send(meta_body).map_err(|_| ChannelError {
-                                    value: ChannelErrorValue::SendError,
-                                })?;
-                                sender.send(audio_seq).map_err(|_| ChannelError {
-                                    value: ChannelErrorValue::SendError,
-                                })?;
-                                sender.send(video_seq).map_err(|_| ChannelError {
-                                    value: ChannelErrorValue::SendError,
-                                })?;
+                                        sender.send(meta_body).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendError,
+                                        })?;
+                                        sender.send(audio_seq).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendError,
+                                        })?;
+                                        sender.send(video_seq).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendError,
+                                        })?;
+
+                                    }
+                                    SessionSubType::Publisher =>{
+
+                                    }
+
+                                }
+
 
                                 let mut pro = self.player_producers.lock().unwrap();
-                                pro.insert(session_id,sender);
+                                pro.insert(session_info.session_id, sender);
 
                             },
-                            TransmitEvent::UnSubscribe{session_id} =>{
+                            TransmitEvent::UnSubscribe{session_info} =>{
 
                                 let mut pro = self.player_producers.lock().unwrap();
-                                pro.remove(&session_id);
+                                pro.remove(&session_info.session_id);
 
                             },
                             TransmitEvent::UnPublish{} => {
@@ -148,7 +142,7 @@ impl Transmiter {
 
                                 for (_,v) in self.player_producers.lock().unwrap().iter() {
                                     v.send(data.clone()).map_err(|_| ChannelError {
-                                        value: ChannelErrorValue::SendError,
+                                            value: ChannelErrorValue::SendAudioError,
                                     })?;
                                 }
                             }
@@ -162,7 +156,7 @@ impl Transmiter {
                                 };
                                 for (_,v) in self.player_producers.lock().unwrap().iter() {
                                     v.send(data.clone()).map_err(|_| ChannelError {
-                                        value: ChannelErrorValue::SendError,
+                                        value: ChannelErrorValue::SendVideoError,
                                     })?;
                                 }
                             }
@@ -185,31 +179,51 @@ pub struct ChannelsManager {
     //app_name to stream_name to producer
     channels: HashMap<String, HashMap<String, TransmitEventPublisher>>,
     //event is consumed in Channels, produced from other rtmp sessions
-    event_consumer: ChannelEventConsumer,
+    channel_event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
-    event_producer: ChannelEventPublisher,
+    channel_event_producer: ChannelEventProducer,
+    //client_event_producer: client_event_producer
+    client_event_producer: ClientEventProducer,
+    push_enabled: bool,
+    pull_enabled: bool,
 }
 
 impl ChannelsManager {
     pub fn new() -> Self {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
+        let (client_producer, _) = broadcast::channel(100);
 
         Self {
             channels: HashMap::new(),
-            event_consumer,
-            event_producer,
+            channel_event_consumer: event_consumer,
+            channel_event_producer: event_producer,
+            client_event_producer: client_producer,
+            push_enabled: false,
+            pull_enabled: false,
         }
     }
     pub async fn run(&mut self) {
         self.event_loop().await;
     }
 
-    pub fn get_event_producer(&mut self) -> ChannelEventPublisher {
-        return self.event_producer.clone();
+    pub fn set_push_enabled(&mut self, enabled: bool) {
+        self.push_enabled = enabled;
+    }
+
+    pub fn set_pull_enabled(&mut self, enabled: bool) {
+        self.pull_enabled = enabled;
+    }
+
+    pub fn get_session_event_producer(&mut self) -> ChannelEventProducer {
+        return self.channel_event_producer.clone();
+    }
+
+    pub fn get_client_event_consumer(&mut self) -> ClientEventConsumer {
+        return self.client_event_producer.subscribe();
     }
 
     pub async fn event_loop(&mut self) {
-        while let Some(message) = self.event_consumer.recv().await {
+        while let Some(message) = self.channel_event_consumer.recv().await {
             match message {
                 ChannelEvent::Publish {
                     app_name,
@@ -241,10 +255,10 @@ impl ChannelsManager {
                 ChannelEvent::Subscribe {
                     app_name,
                     stream_name,
-                    session_id,
+                    session_info,
                     responder,
                 } => {
-                    let rv = self.subscribe(&app_name, &stream_name, session_id).await;
+                    let rv = self.subscribe(&app_name, &stream_name, session_info).await;
                     match rv {
                         Ok(consumer) => if let Err(_) = responder.send(consumer) {},
                         Err(_) => continue,
@@ -253,9 +267,9 @@ impl ChannelsManager {
                 ChannelEvent::UnSubscribe {
                     app_name,
                     stream_name,
-                    session_id,
+                    session_info,
                 } => {
-                    let _ = self.unsubscribe(&app_name, &stream_name, session_id);
+                    let _ = self.unsubscribe(&app_name, &stream_name, session_info);
                 }
             }
         }
@@ -268,7 +282,7 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-        session_id: u64,
+        session_info: SessionInfo,
     ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
@@ -277,7 +291,7 @@ impl ChannelsManager {
 
                     let event = TransmitEvent::Subscribe {
                         responder: sender,
-                        session_id,
+                        session_info,
                     };
                     producer.send(event).map_err(|_| ChannelError {
                         value: ChannelErrorValue::SendError,
@@ -288,36 +302,55 @@ impl ChannelsManager {
                             return Ok(consumer);
                         }
                         Err(_) => {
-                            return Err(ChannelError {
-                                value: ChannelErrorValue::NoStreamName,
-                            });
+                            // return Err(ChannelError {
+                            //     value: ChannelErrorValue::NoStreamName,
+                            // });
                         }
                     }
                 }
                 None => {
-                    return Err(ChannelError {
-                        value: ChannelErrorValue::NoStreamName,
-                    })
+                    // return Err(ChannelError {
+                    //     value: ChannelErrorValue::NoStreamName,
+                    // })
                 }
             },
             None => {
-                return Err(ChannelError {
-                    value: ChannelErrorValue::NoAppName,
-                })
+
+                // return Err(ChannelError {
+                //     value: ChannelErrorValue::NoAppName,
+                // })
             }
         }
+
+        if self.pull_enabled {
+            let client_event = ClientEvent::Subscribe {
+                app_name: app_name.clone(),
+                stream_name: stream_name.clone(),
+            };
+
+            //send subscribe info to pull clients
+            self.client_event_producer
+                .send(client_event)
+                .map_err(|_| ChannelError {
+                    value: ChannelErrorValue::SendError,
+                })?;
+        }
+
+        return Err(ChannelError {
+            value: ChannelErrorValue::NoAppOrStreamName,
+        });
     }
 
     pub fn unsubscribe(
         &mut self,
         app_name: &String,
         stream_name: &String,
-        session_id: u64,
+        session_info: SessionInfo,
     ) -> Result<(), ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
                 Some(producer) => {
-                    let event = TransmitEvent::UnSubscribe { session_id };
+                    let event = TransmitEvent::UnSubscribe { session_info };
                     producer.send(event).map_err(|_| ChannelError {
                         value: ChannelErrorValue::SendError,
                     })?;
@@ -343,7 +376,7 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-    ) -> Result<ChannelDataPublisher, ChannelError> {
+    ) -> Result<ChannelDataProducer, ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get(stream_name) {
                 Some(_) => {
@@ -365,10 +398,26 @@ impl ChannelsManager {
 
             let mut transmiter = Transmiter::new(data_consumer, event_consumer);
             tokio::spawn(async move {
-                let _ = transmiter.run().await;
+                if let Err(err) = transmiter.run().await {
+                    print!("transmiter error {}\n", err);
+                }
             });
 
             stream_map.insert(stream_name.clone(), event_publisher);
+
+            if self.push_enabled {
+                let client_event = ClientEvent::Publish {
+                    app_name: app_name.clone(),
+                    stream_name: stream_name.clone(),
+                };
+
+                //send publish info to push clients
+                self.client_event_producer
+                    .send(client_event)
+                    .map_err(|_| ChannelError {
+                        value: ChannelErrorValue::SendError,
+                    })?;
+            }
 
             return Ok(data_publisher);
         } else {

@@ -60,6 +60,8 @@ pub enum SessionErrorValue {
     NoneChannelDataReceiver,
     #[fail(display = "send channel data error\n")]
     SendChannelDataErr,
+    #[fail(display = "subscribe count limit is reached.\n")]
+    SubscribeCountLimitReach,
 
     #[fail(display = "no app name error\n")]
     NoAppName,
