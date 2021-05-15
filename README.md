@@ -56,7 +56,7 @@ Use ffplay to play rtmp live stream:
 
 The configuration file is as follows (now only test on local machine):
 
-Service 1 configuration file named config.toml:
+The configuration file of Service 1 named config.toml:
 
     [rtmp]
     enabled = true
@@ -66,7 +66,7 @@ Service 1 configuration file named config.toml:
     address = "localhost"
     port = 1936
     
-Service 2 configuration file named config_push.toml:
+The configuration file of Service 2 named config_push.toml:
 
     [rtmp]
     enabled = true
@@ -89,14 +89,14 @@ Use Obs to push live stream to service 1, then the stream can be pushed to servi
 
 The configuration file is as follows (now only test on local machine):
 
-Service 1 configuration file named config.toml:
+The configuration file of Service 1 named config.toml:
 
     [rtmp]
     enabled = true
     port = 1935
 
  
-Service 2 configuration file named config_pull.toml:
+The configuration file of Service 2 named config_pull.toml:
 
     [rtmp]
     enabled = true
