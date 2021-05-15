@@ -81,7 +81,6 @@ pub struct ClientSession {
 
     state: ClientSessionState,
     client_type: ClientType,
-    connect_command_object: Option<HashMap<String, Amf0ValueType>>,
 }
 
 impl ClientSession {
@@ -112,12 +111,7 @@ impl ClientSession {
             state: ClientSessionState::Handshake,
             session_type: 0,
             session_id: session_id,
-            connect_command_object: None,
         }
-    }
-
-    pub fn set_connect_command_object(&mut self, object: HashMap<String, Amf0ValueType>) {
-        self.connect_command_object = Some(object);
     }
 
     pub async fn run(&mut self) -> Result<(), SessionError> {
@@ -290,10 +284,29 @@ impl ClientSession {
     pub async fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         self.send_set_chunk_size().await?;
 
-        // let properties = ConnectProperties::new(self.app_name.clone());
         let mut netconnection = NetConnection::new(BytesWriter::new());
-        let data = netconnection
-            .connect_with_value(transaction_id, self.connect_command_object.clone().unwrap())?;
+
+        let mut properties = ConnectProperties::new_none();
+
+        let url = format!("rtmp://localhost:1935/{app_name}", app_name = self.app_name);
+        properties.app = Some(self.app_name.clone());
+        properties.tc_url = Some(url.clone());
+
+        match self.client_type {
+            ClientType::Play => {
+                properties.flash_ver = Some("flashVerFMLE/3.0 (compatible; FMSc/1.0)".to_string());
+                properties.swf_url = Some(url.clone());
+            }
+            ClientType::Publish => {
+                properties.fpad = Some(false);
+                properties.capabilities = Some(15_f64);
+                properties.audio_codecs = Some(3191_f64);
+                properties.video_codecs = Some(252_f64);
+                properties.video_function = Some(1_f64);
+            }
+        }
+
+        let data = netconnection.connect(transaction_id, &properties)?;
 
         let mut chunk_info = ChunkInfo::new(
             csid_type::COMMAND_AMF0_AMF3,
@@ -476,7 +489,6 @@ impl ClientSession {
                 //     self.stream_name.clone(),
                 //     connect_command_object,
                 // ),
-
                 _ => {}
             }
         }

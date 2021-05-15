@@ -41,7 +41,6 @@ impl PushClient {
                 ClientEvent::Publish {
                     app_name,
                     stream_name,
-                    connect_command_object,
                 } => {
                     println!(
                         "publish app_name: {} stream_name: {} address: {}",
@@ -59,8 +58,6 @@ impl PushClient {
                         self.channel_event_producer.clone(),
                         session_id,
                     );
-
-                    client_session.set_connect_command_object(connect_command_object);
 
                     tokio::spawn(async move {
                         if let Err(err) = client_session.run().await {

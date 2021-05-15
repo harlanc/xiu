@@ -184,7 +184,7 @@ impl Common {
         Ok(())
     }
 
-    pub fn on_amf_data(&mut self, body: &mut BytesMut) -> Result<(), SessionError> {
+    pub fn on_meta_data(&mut self, body: &mut BytesMut) -> Result<(), SessionError> {
         let data = ChannelData::MetaData { body: body.clone() };
 
         match self.data_producer.send(data) {

@@ -66,7 +66,6 @@ pub enum ClientEvent {
     Publish {
         app_name: String,
         stream_name: String,
-        connect_command_object: HashMap<String, Amf0ValueType>,
     },
     UnPublish {
         app_name: String,

@@ -393,7 +393,6 @@ impl ChannelsManager {
                 let client_event = ClientEvent::Publish {
                     app_name: app_name.clone(),
                     stream_name: stream_name.clone(),
-                    connect_command_object: command_object.clone(),
                 };
 
                 //send publish info to push clients
