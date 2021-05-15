@@ -119,7 +119,7 @@ impl SimpleHandshakeClient {
     fn write_c2(&mut self) -> Result<(), HandshakeError> {
         //let time = self.s1_bytes.split_to(4);
         self.writer.write(&self.s1_bytes[0..])?;
-        self.writer.write_u32::<BigEndian>(current_time())?;
+        //self.writer.write_u32::<BigEndian>(current_time())?;
         Ok(())
     }
 
@@ -149,28 +149,39 @@ impl SimpleHandshakeClient {
     }
 
     pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
-        match self.state {
-            ClientHandshakeState::WriteC0C1 => {
-                self.write_c0()?;
-                self.write_c1()?;
-                self.flush().await?;
-                self.state = ClientHandshakeState::ReadS0S1S2;
-            }
+        loop {
+            match self.state {
+                ClientHandshakeState::WriteC0C1 => {
+                    println!("writec0c1");
+                    self.write_c0()?;
+                    self.write_c1()?;
+                    self.flush().await?;
+                    self.state = ClientHandshakeState::ReadS0S1S2;
+                    break;
+                }
 
-            ClientHandshakeState::ReadS0S1S2 => {
-                self.read_s0()?;
-                self.read_s1()?;
-                self.read_s2()?;
-                self.state = ClientHandshakeState::WriteC2;
-            }
+                ClientHandshakeState::ReadS0S1S2 => {
+                    println!("ReadS0S1S2");
+                    self.read_s0()?;
+                    println!("ReadS0S1S21");
+                    self.read_s1()?;
+                    println!("ReadS0S1S22");
+                    self.read_s2()?;
+                    println!("ReadS0S1S23");
+                    self.state = ClientHandshakeState::WriteC2;
+                }
 
-            ClientHandshakeState::WriteC2 => {
-                self.write_c2()?;
-                self.flush().await?;
-                self.state = ClientHandshakeState::Finish;
-            }
+                ClientHandshakeState::WriteC2 => {
+                    println!("WriteC2");
+                    self.write_c2()?;
+                    self.flush().await?;
+                    self.state = ClientHandshakeState::Finish;
+                }
 
-            ClientHandshakeState::Finish => {}
+                ClientHandshakeState::Finish => {
+                    break;
+                }
+            }
         }
 
         Ok(())

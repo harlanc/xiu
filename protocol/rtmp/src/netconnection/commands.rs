@@ -7,33 +7,48 @@ use {
 };
 
 pub struct ConnectProperties {
-    app: String,         // Server application name, e.g.: testapp
-    flash_ver: String,   // Flash Player version, FMSc/1.0
-    swf_url: String,     // URL of the source SWF file file://C:/FlvPlayer.swf
-    tc_url: String,      // URL of the Server, rtmp://host:1935/testapp/instance1
-    fpad: bool,          // True if proxy is being used.
-    capabilities: f64,   // double default: 15
-    audio_codecs: f64,   // double default: 4071
-    video_codecs: f64,   // double default: 252
-    video_function: f64, // double default: 1
-    object_encoding: f64,
-    page_url: String, // http://host/sample.html
+    pub app: Option<String>,         // Server application name, e.g.: testapp
+    pub flash_ver: Option<String>,   // Flash Player version, FMSc/1.0
+    pub swf_url: Option<String>,     // URL of the source SWF file file://C:/FlvPlayer.swf
+    pub tc_url: Option<String>,      // URL of the Server, rtmp://host:1935/testapp/instance1
+    pub fpad: Option<bool>,          // True if proxy is being used.
+    pub capabilities: Option<f64>,   // double default: 15
+    pub audio_codecs: Option<f64>,   // double default: 4071
+    pub video_codecs: Option<f64>,   // double default: 252
+    pub video_function: Option<f64>, // double default: 1
+    pub object_encoding: Option<f64>,
+    pub page_url: Option<String>, // http://host/sample.html
 }
 
 impl ConnectProperties {
     pub fn new(app_name: String) -> Self {
         Self {
-            app: app_name,
-            flash_ver: "LNX 9,0,124,2".to_string(),
-            swf_url: "".to_string(),
-            tc_url: "".to_string(),
-            fpad: false,
-            capabilities: 15_f64,
-            audio_codecs: 4071_f64,
-            video_codecs: 252_f64,
-            video_function: 1_f64,
-            object_encoding: 0_f64,
-            page_url: "".to_string(),
+            app: Some(app_name),
+            flash_ver: Some("LNX 9,0,124,2".to_string()),
+            swf_url: Some("".to_string()),
+            tc_url: Some("".to_string()),
+            fpad: Some(false),
+            capabilities: Some(15_f64),
+            audio_codecs: Some(4071_f64),
+            video_codecs: Some(252_f64),
+            video_function: Some(1_f64),
+            object_encoding: Some(0_f64),
+            page_url: Some("".to_string()),
+        }
+    }
+    pub fn new_none() -> Self {
+        Self {
+            app: None,
+            flash_ver: None,
+            swf_url: None,
+            tc_url: None,
+            fpad: None,
+            capabilities: None,
+            audio_codecs: None,
+            video_codecs: None,
+            video_function: None,
+            object_encoding: None,
+            page_url: None,
         }
     }
 }
@@ -49,6 +64,19 @@ impl NetConnection {
             amf0_writer: Amf0Writer::new(writer),
         }
     }
+
+    pub fn connect_with_value(
+        &mut self,
+        transaction_id: &f64,
+        properties: HashMap<String, Amf0ValueType>,
+    ) -> Result<BytesMut, NetConnectionError> {
+        self.amf0_writer.write_string(&String::from("connect"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+
+        self.amf0_writer.write_object(&properties)?;
+
+        return Ok(self.amf0_writer.extract_current_bytes());
+    }
     pub fn connect(
         &mut self,
         transaction_id: &f64,
@@ -58,52 +86,68 @@ impl NetConnection {
         self.amf0_writer.write_number(transaction_id)?;
 
         let mut properties_map = HashMap::new();
-        properties_map.insert(
-            String::from("app"),
-            Amf0ValueType::UTF8String(properties.app.clone()),
-        );
-        properties_map.insert(
-            String::from("flashVer"),
-            Amf0ValueType::UTF8String(properties.flash_ver.clone()),
-        );
 
-        properties_map.insert(
-            String::from("tcUrl"),
-            Amf0ValueType::UTF8String(properties.tc_url.clone()),
-        );
-        properties_map.insert(
-            String::from("swfUrl"),
-            Amf0ValueType::UTF8String(properties.swf_url.clone()),
-        );
-        properties_map.insert(
-            String::from("pageUrl"),
-            Amf0ValueType::UTF8String(properties.page_url.clone()),
-        );
+        if let Some(app) = properties.app.clone() {
+            properties_map.insert(String::from("app"), Amf0ValueType::UTF8String(app));
+        }
 
-        properties_map.insert(
-            String::from("fpab"),
-            Amf0ValueType::Boolean(properties.fpad),
-        );
-        properties_map.insert(
-            String::from("capabilities"),
-            Amf0ValueType::Number(properties.capabilities),
-        );
-        properties_map.insert(
-            String::from("audioCodecs"),
-            Amf0ValueType::Number(properties.audio_codecs),
-        );
-        properties_map.insert(
-            String::from("videoCodecs"),
-            Amf0ValueType::Number(properties.video_codecs),
-        );
-        properties_map.insert(
-            String::from("videoFunction"),
-            Amf0ValueType::Number(properties.video_function),
-        );
-        properties_map.insert(
-            String::from("objectEncoding"),
-            Amf0ValueType::Number(properties.object_encoding),
-        );
+        if let Some(flash_ver) = properties.flash_ver.clone() {
+            properties_map.insert(
+                String::from("flashVer"),
+                Amf0ValueType::UTF8String(flash_ver),
+            );
+        }
+
+        if let Some(tc_url) = properties.tc_url.clone() {
+            properties_map.insert(String::from("tcUrl"), Amf0ValueType::UTF8String(tc_url));
+        }
+
+        if let Some(swf_url) = properties.swf_url.clone() {
+            properties_map.insert(String::from("swfUrl"), Amf0ValueType::UTF8String(swf_url));
+        }
+
+        if let Some(page_url) = properties.page_url.clone() {
+            properties_map.insert(String::from("pageUrl"), Amf0ValueType::UTF8String(page_url));
+        }
+
+        if let Some(fpad) = properties.fpad {
+            properties_map.insert(String::from("fpab"), Amf0ValueType::Boolean(fpad));
+        }
+
+        if let Some(capabilities) = properties.capabilities {
+            properties_map.insert(
+                String::from("capabilities"),
+                Amf0ValueType::Number(capabilities),
+            );
+        }
+
+        if let Some(audio_codecs) = properties.audio_codecs {
+            properties_map.insert(
+                String::from("audioCodecs"),
+                Amf0ValueType::Number(audio_codecs),
+            );
+        }
+
+        if let Some(video_codecs) = properties.video_codecs {
+            properties_map.insert(
+                String::from("videoCodecs"),
+                Amf0ValueType::Number(video_codecs),
+            );
+        }
+
+        if let Some(video_function) = properties.video_function {
+            properties_map.insert(
+                String::from("videoFunction"),
+                Amf0ValueType::Number(video_function),
+            );
+        }
+
+        if let Some(object_encoding) = properties.object_encoding {
+            properties_map.insert(
+                String::from("objectEncoding"),
+                Amf0ValueType::Number(object_encoding),
+            );
+        }
 
         self.amf0_writer.write_object(&properties_map)?;
 

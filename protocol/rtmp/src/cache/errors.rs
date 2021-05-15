@@ -2,7 +2,7 @@ use {crate::chunk::errors::PackError, failure::Fail, flvparser::errors::TagParse
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
-    #[fail(display = "tag parse error\n")]
+    #[fail(display = "cache tag parse error\n")]
     TagParseError(TagParseError),
     #[fail(display = "pack error\n")]
     PackError(PackError),
@@ -36,7 +36,7 @@ impl From<PackError> for CacheError {
 
 #[derive(Debug, Fail)]
 pub enum MetadataErrorValue {
-    #[fail(display = "tag parse error\n")]
+    #[fail(display = "metadata tag parse error\n")]
     TagParseError(TagParseError),
     #[fail(display = "pack error\n")]
     PackError(PackError),

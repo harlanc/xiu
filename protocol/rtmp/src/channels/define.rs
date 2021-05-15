@@ -1,4 +1,5 @@
 use {
+    crate::session::common::SessionInfo,
     bytes::BytesMut,
     tokio::sync::{broadcast, mpsc, oneshot},
 };
@@ -9,13 +10,13 @@ pub enum ChannelData {
     MetaData { body: BytesMut },
 }
 
-pub type ChannelDataPublisher = mpsc::UnboundedSender<ChannelData>;
+pub type ChannelDataProducer = mpsc::UnboundedSender<ChannelData>;
 pub type ChannelDataConsumer = mpsc::UnboundedReceiver<ChannelData>;
 
-pub type ChanPublisher = broadcast::Sender<ChannelDataPublisher>;
-pub type ChanConsumer = broadcast::Receiver<ChannelDataConsumer>;
+pub type ClientEventProducer = broadcast::Sender<ClientEvent>;
+pub type ClientEventConsumer = broadcast::Receiver<ClientEvent>;
 
-pub type ChannelEventPublisher = mpsc::UnboundedSender<ChannelEvent>;
+pub type ChannelEventProducer = mpsc::UnboundedSender<ChannelEvent>;
 pub type ChannelEventConsumer = mpsc::UnboundedReceiver<ChannelEvent>;
 
 pub type TransmitEventPublisher = mpsc::UnboundedSender<TransmitEvent>;
@@ -27,18 +28,18 @@ pub enum ChannelEvent {
     Subscribe {
         app_name: String,
         stream_name: String,
-        session_id: u64,
+        session_info: SessionInfo,
         responder: ChannelResponder<ChannelDataConsumer>,
     },
     UnSubscribe {
         app_name: String,
         stream_name: String,
-        session_id: u64,
+        session_info: SessionInfo,
     },
     Publish {
         app_name: String,
         stream_name: String,
-        responder: ChannelResponder<ChannelDataPublisher>,
+        responder: ChannelResponder<ChannelDataProducer>,
     },
     UnPublish {
         app_name: String,
@@ -49,12 +50,31 @@ pub enum ChannelEvent {
 pub enum TransmitEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,
-        session_id: u64,
+        session_info: SessionInfo,
     },
 
     UnSubscribe {
-        session_id: u64,
+        session_info: SessionInfo,
     },
 
     UnPublish {},
+}
+#[derive(Debug, Clone)]
+pub enum ClientEvent {
+    Publish {
+        app_name: String,
+        stream_name: String,
+    },
+    UnPublish {
+        app_name: String,
+        stream_name: String,
+    },
+    Subscribe {
+        app_name: String,
+        stream_name: String,
+    },
+    UnSubscribe {
+        app_name: String,
+        stream_name: String,
+    },
 }

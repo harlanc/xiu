@@ -23,3 +23,13 @@ pub const TRANSACTION_ID_CREATE_STREAM: u8 = 2;
 pub const RTMP_LEVEL_WARNING: &'static str = "warning";
 pub const RTMP_LEVEL_STATUS: &'static str = "status";
 pub const RTMP_LEVEL_ERROR: &'static str = "error\n";
+//session subscribe type
+pub enum SessionSubType {
+    Player,
+    Publisher,
+}
+
+pub enum SessionType {
+    Client,
+    Server,
+}
