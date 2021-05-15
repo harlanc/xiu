@@ -1,13 +1,15 @@
-use tokio::sync::broadcast::error::{RecvError, SendError};
+use {
+    failure::Fail,
+    std::{fmt, io::Error},
+    tokio::sync::broadcast::error::RecvError,
+};
 
-use std::io::Error;
-use {crate::cache::errors::CacheError, failure::Fail, std::fmt};
 #[derive(Debug)]
-pub struct PushClientError {
+pub struct ClientError {
     pub value: PushClientErrorValue,
 }
 
-impl fmt::Display for PushClientError {
+impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
     }
@@ -24,17 +26,17 @@ pub enum PushClientErrorValue {
     IOError(Error),
 }
 
-impl From<Error> for PushClientError {
+impl From<Error> for ClientError {
     fn from(error: Error) -> Self {
-        PushClientError {
+        ClientError {
             value: PushClientErrorValue::IOError(error),
         }
     }
 }
 
-impl From<RecvError> for PushClientError {
+impl From<RecvError> for ClientError {
     fn from(error: RecvError) -> Self {
-        PushClientError {
+        ClientError {
             value: PushClientErrorValue::ReceiveError(error),
         }
     }

@@ -1,17 +1,11 @@
-use super::errors::PushClientError;
-use super::errors::PushClientErrorValue;
-use crate::channels::define::ChannelDataConsumer;
-use crate::channels::define::ChannelEventProducer;
-use crate::channels::define::ClientEvent;
-use crate::channels::define::ClientEventConsumer;
-use crate::session::client_session::ClientSession;
-use tokio::net::TcpStream;
-use tokio::sync::mpsc;
-use tokio::sync::oneshot;
-
-use crate::session::client_session::ClientType;
-
-use crate::channels::define::ChannelEvent;
+use {
+    super::errors::ClientError,
+    crate::{
+        channels::define::{ChannelEventProducer, ClientEvent, ClientEventConsumer},
+        session::client_session::{ClientSession, ClientType},
+    },
+    tokio::net::TcpStream,
+};
 
 pub struct PullClient {
     address: String,
@@ -33,7 +27,7 @@ impl PullClient {
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), PushClientError> {
+    pub async fn run(&mut self) -> Result<(), ClientError> {
         let mut session_id = std::u64::MAX;
 
         loop {
@@ -59,11 +53,11 @@ impl PullClient {
                             print!(" session error {}\n", err);
                         }
                     });
+
+                    session_id = session_id - 1;
                 }
                 _ => {}
             }
         }
-
-        Ok(())
     }
 }

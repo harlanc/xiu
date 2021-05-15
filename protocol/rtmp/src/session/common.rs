@@ -4,38 +4,23 @@ use {
         errors::{SessionError, SessionErrorValue},
     },
     crate::{
-        amf0::Amf0ValueType,
         channels::define::{
             ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
             ChannelEventProducer,
         },
         chunk::{
-            define::{chunk_type, csid_type, CHUNK_SIZE},
+            define::{chunk_type, csid_type},
             packetizer::ChunkPacketizer,
-            unpacketizer::{ChunkUnpacketizer, UnpackResult},
             ChunkInfo,
         },
-        config,
-        handshake::handshake::{ServerHandshakeState, SimpleHandshakeServer},
-        messages::{
-            define::{msg_type_id, RtmpMessageData},
-            parser::MessageParser,
-        },
-        netconnection::commands::NetConnection,
-        netstream::writer::NetStreamWriter,
-        protocol_control_messages::writer::ProtocolControlMessagesWriter,
-        user_control_messages::writer::EventMessagesWriter,
-        utils::print::print,
+        messages::define::msg_type_id,
     },
     bytes::BytesMut,
-    networkio::{
-        bytes_writer::{AsyncBytesWriter, BytesWriter},
-        networkio::NetworkIO,
-    },
-    std::{collections::HashMap, sync::Arc},
+    networkio::networkio::NetworkIO,
+    std::{sync::Arc, time::Duration},
     tokio::{
-        net::TcpStream,
         sync::{mpsc, oneshot, Mutex},
+        time::sleep,
     },
 };
 
@@ -225,31 +210,45 @@ impl Common {
             session_id
         );
 
-        let (sender, receiver) = oneshot::channel();
+        let mut retry_count: u8 = 0;
 
-        let subscribe_event = ChannelEvent::Subscribe {
-            app_name: app_name,
-            stream_name,
-            session_info: self.get_session_info(session_id),
-            responder: sender,
-        };
+        loop {
+            let (sender, receiver) = oneshot::channel();
 
-        let rv = self.event_producer.send(subscribe_event);
-        match rv {
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::ChannelEventSendErr,
-                })
+            let subscribe_event = ChannelEvent::Subscribe {
+                app_name: app_name.clone(),
+                stream_name: stream_name.clone(),
+                session_info: self.get_session_info(session_id),
+                responder: sender,
+            };
+            let rv = self.event_producer.send(subscribe_event);
+            match rv {
+                Err(_) => {
+                    return Err(SessionError {
+                        value: SessionErrorValue::ChannelEventSendErr,
+                    })
+                }
+                _ => {}
             }
-            _ => {}
+
+            match receiver.await {
+                Ok(consumer) => {
+                    self.data_consumer = consumer;
+                    break;
+                }
+                Err(_) => {
+                    if retry_count > 10 {
+                        return Err(SessionError {
+                            value: SessionErrorValue::SubscribeCountLimitReach,
+                        });
+                    }
+                }
+            }
+
+            sleep(Duration::from_millis(800)).await;
+            retry_count = retry_count + 1;
         }
 
-        match receiver.await {
-            Ok(consumer) => {
-                self.data_consumer = consumer;
-            }
-            Err(_) => {}
-        }
         Ok(())
     }
 

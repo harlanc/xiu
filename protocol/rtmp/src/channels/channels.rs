@@ -9,7 +9,6 @@ use {
         },
         errors::{ChannelError, ChannelErrorValue},
     },
-    crate::amf0::define::Amf0ValueType,
     crate::cache::cache::Cache,
     crate::session::{common::SessionInfo, define::SessionSubType},
     std::{
@@ -303,24 +302,43 @@ impl ChannelsManager {
                             return Ok(consumer);
                         }
                         Err(_) => {
-                            return Err(ChannelError {
-                                value: ChannelErrorValue::NoStreamName,
-                            });
+                            // return Err(ChannelError {
+                            //     value: ChannelErrorValue::NoStreamName,
+                            // });
                         }
                     }
                 }
                 None => {
-                    return Err(ChannelError {
-                        value: ChannelErrorValue::NoStreamName,
-                    })
+                    // return Err(ChannelError {
+                    //     value: ChannelErrorValue::NoStreamName,
+                    // })
                 }
             },
             None => {
-                return Err(ChannelError {
-                    value: ChannelErrorValue::NoAppName,
-                })
+
+                // return Err(ChannelError {
+                //     value: ChannelErrorValue::NoAppName,
+                // })
             }
         }
+
+        if self.pull_enabled {
+            let client_event = ClientEvent::Subscribe {
+                app_name: app_name.clone(),
+                stream_name: stream_name.clone(),
+            };
+
+            //send subscribe info to pull clients
+            self.client_event_producer
+                .send(client_event)
+                .map_err(|_| ChannelError {
+                    value: ChannelErrorValue::SendError,
+                })?;
+        }
+
+        return Err(ChannelError {
+            value: ChannelErrorValue::NoAppOrStreamName,
+        });
     }
 
     pub fn unsubscribe(

@@ -5,6 +5,8 @@ pub enum ChannelErrorValue {
     NoAppName,
     #[fail(display = "no stream name\n")]
     NoStreamName,
+    #[fail(display = "no app or stream name\n")]
+    NoAppOrStreamName,
     #[fail(display = "exists\n")]
     Exists,
     #[fail(display = "send error\n")]

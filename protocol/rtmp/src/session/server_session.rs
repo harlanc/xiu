@@ -7,10 +7,7 @@ use {
     },
     crate::{
         amf0::Amf0ValueType,
-        channels::define::{
-            ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
-            ChannelEventProducer,
-        },
+        channels::define::ChannelEventProducer,
         chunk::{
             define::{chunk_type, csid_type, CHUNK_SIZE},
             packetizer::ChunkPacketizer,
@@ -34,10 +31,7 @@ use {
         networkio::NetworkIO,
     },
     std::{collections::HashMap, sync::Arc},
-    tokio::{
-        net::TcpStream,
-        sync::{mpsc, oneshot, Mutex},
-    },
+    tokio::{net::TcpStream, sync::Mutex},
 };
 
 enum ServerSessionState {

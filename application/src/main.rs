@@ -5,12 +5,11 @@ use {
     rtmp::{
         channels::channels::ChannelsManager,
         relay::{pull_client::PullClient, push_client::PushClient},
-        session::client_session,
         session::server_session,
     },
     std::{env, net::SocketAddr},
     tokio,
-    tokio::net::{TcpListener, TcpStream},
+    tokio::net::TcpListener,
 };
 
 #[tokio::main]

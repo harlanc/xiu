@@ -3,7 +3,7 @@
 enabled = true
 port = 1935
 [rtmp.pull]
-enabled = true
+enabled = false
 address = "192.168.0.1"
 port = 1935
 [[rtmp.push]]

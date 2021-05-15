@@ -25,7 +25,6 @@ use {
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
     },
-    bytes::BytesMut,
     networkio::{
         bytes_writer::{AsyncBytesWriter, BytesWriter},
         networkio::NetworkIO,
@@ -449,10 +448,12 @@ impl ClientSession {
     }
 
     pub fn on_stream_is_recorded(&mut self, stream_id: &mut u32) -> Result<(), SessionError> {
+        println!("stream is recorded stream_id is {}", stream_id);
         Ok(())
     }
 
     pub fn on_stream_begin(&mut self, stream_id: &mut u32) -> Result<(), SessionError> {
+        println!("stream is begin stream_id is {}", stream_id);
         Ok(())
     }
 
