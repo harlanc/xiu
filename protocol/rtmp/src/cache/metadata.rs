@@ -1,11 +1,12 @@
 use {
-    crate::{amf0::amf0_reader::Amf0Reader, amf0::Amf0ValueType},
+    super::errors::MetadataError,
+    crate::amf0::{amf0_reader::Amf0Reader, amf0_writer::Amf0Writer, Amf0ValueType},
     bytes::BytesMut,
-    networkio::bytes_reader::BytesReader,
+    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
 pub struct MetaData {
     chunk_body: BytesMut,
-   // values: Vec<Amf0ValueType>,
+    // values: Vec<Amf0ValueType>,
 }
 
 impl MetaData {
@@ -20,6 +21,16 @@ impl MetaData {
         if self.is_metadata(body.clone()) {
             self.chunk_body = body;
         }
+    }
+
+    //used for the http-flv protocol
+    pub fn remove_set_data_frame(&mut self) -> Result<BytesMut, MetadataError> {
+        let mut amf_writer: Amf0Writer = Amf0Writer::new(BytesWriter::new());
+        amf_writer.write_string(&String::from("@setDataFrame"))?;
+
+        let (_, right) = self.chunk_body.split_at(amf_writer.len());
+
+        Ok(BytesMut::from(right))
     }
 
     pub fn is_metadata(&mut self, body: BytesMut) -> bool {
