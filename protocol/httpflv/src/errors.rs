@@ -3,6 +3,7 @@ use rtmp::session::errors::SessionError;
 
 use networkio::bytes_errors::BytesWriteError;
 use rtmp::amf0::errors::Amf0WriteError;
+use rtmp::cache::errors::MetadataError;
 
 #[derive(Debug)]
 pub struct ServerError {
@@ -28,7 +29,9 @@ pub enum HttpFLvErrorValue {
     #[fail(display = "bytes write error")]
     BytesWriteError(BytesWriteError),
     #[fail(display = "amf write error")]
-    AmfWriteError(Amf0WriteError),
+    Amf0WriteError(Amf0WriteError),
+    #[fail(display = "metadata error")]
+    MetadataError(MetadataError),
 }
 
 impl From<SessionError> for HttpFLvError {
@@ -51,6 +54,14 @@ impl From<Amf0WriteError> for HttpFLvError {
     fn from(error: Amf0WriteError) -> Self {
         HttpFLvError {
             value: HttpFLvErrorValue::Amf0WriteError(error),
+        }
+    }
+}
+
+impl From<MetadataError> for HttpFLvError {
+    fn from(error: MetadataError) -> Self {
+        HttpFLvError {
+            value: HttpFLvErrorValue::MetadataError(error),
         }
     }
 }

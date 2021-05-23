@@ -1,9 +1,12 @@
+use core::time;
+
 use super::define::tag_type;
 use super::errors::HttpFLvError;
 use super::errors::HttpFLvErrorValue;
 use byteorder::BigEndian;
 use networkio::bytes_writer::BytesWriter;
 use rtmp::amf0::amf0_writer::Amf0Writer;
+use rtmp::cache::metadata::MetaData;
 use rtmp::session::common::SessionInfo;
 use rtmp::session::define::SessionSubType;
 use rtmp::session::errors::SessionError;
@@ -29,7 +32,7 @@ const FLV_HEADER: [u8; 9] = [
     0x05, //00000101  audio tag  and video tag
     0x00, 0x00, 0x00, 0x09, //flv header size
 ]; // 9
-
+const HEADER_LENGTH: u32 = 11;
 pub struct HttpFlv {
     //writer: BytesWriter,
     data_consumer: ChannelDataConsumer,
@@ -45,52 +48,66 @@ impl HttpFlv {
         }
     }
 
-    fn get_set_data_frame_bytes_len() -> Result<u32, HttpFLvError> {
-        let bytes_writer: BytesWriter = BytesWriter::new();
-        let amf_writer: Amf0Writer = Amf0Writer::new(bytes_writer);
-
-        amf_writer.write_string(String::from("@setDataFrame"))?;
-        Ok(bytes_writer.bytes.len() as u32)
-    }
-
-    pub fn write_flv_header() -> Result<(), SessionError> {
-        let writer: BytesWriter = BytesWriter::new();
-        writer.write(FLV_HEADER)?;
+    pub fn write_flv_header() -> Result<(), HttpFLvError> {
+        let mut writer: BytesWriter = BytesWriter::new();
+        writer.write(&FLV_HEADER)?;
         Ok(())
     }
 
-    pub fn write_previous_tag_size(size: u32) -> Result<u32, HttpFLvError> {
-        let writer: BytesWriter = BytesWriter::new();
+    pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), HttpFLvError> {
+        let mut writer: BytesWriter = BytesWriter::new();
         writer.write_u32::<BigEndian>(size)?;
+
+        Ok(())
+    }
+
+    pub fn write_flv_tag(&mut self, channel_data: ChannelData) -> Result<(), HttpFLvError> {
+        match channel_data {
+            ChannelData::Audio { timestamp, data } => {
+                let len = data.len() as u32;
+                self.write_flv_tag_header(tag_type::audio, len, timestamp)?;
+                self.write_previous_tag_size(len + HEADER_LENGTH)?;
+            }
+            ChannelData::Video { timestamp, data } => {
+                let len = data.len() as u32;
+                self.write_flv_tag_header(tag_type::video, len, timestamp)?;
+                self.write_previous_tag_size(len + HEADER_LENGTH)?;
+            }
+            ChannelData::MetaData { body } => {
+                let mut metadata = MetaData::default();
+                metadata.save(body);
+                let body = metadata.remove_set_data_frame()?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn write_flv_tag_header(
-        t: tag_type,
+        &mut self,
+        tag_type: u8,
         data_size: u32,
         timestamp: u32,
     ) -> Result<(), SessionError> {
-        let writer: BytesWriter = BytesWriter::new();
+        let mut writer: BytesWriter = BytesWriter::new();
 
         //tag type
-        writer.write_u8(t)?;
+        writer.write_u8(tag_type)?;
         //data size
         writer.write_u24::<BigEndian>(data_size)?;
         //timestamp
         writer.write_u24::<BigEndian>(timestamp & 0xffffff)?;
         //timestamp extended.
-        writer.write_u8(timestamp >> 24 & 0xff)?;
+        let timestamp_ext = (timestamp >> 24 & 0xff) as u8;
+        writer.write_u8(timestamp_ext)?;
 
         Ok(())
     }
 
-    pub async fn send_rtmp_channel_data(&mut self) -> Result<(), SessionError> {
+    pub async fn send_rtmp_channel_data(&mut self) -> Result<(), HttpFLvError> {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
-                match data {
-                    ChannelData::Audio { timestamp, data } => {}
-                    ChannelData::Video { timestamp, data } => {}
-                    ChannelData::MetaData { body } => {}
-                }
+                self.write_flv_tag(data)?;
             }
         }
     }

@@ -2,8 +2,8 @@
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{header, Body, Client, Method, Request, Response, Server, StatusCode};
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-use hyper::client::HttpConnector;
 use futures_util::{stream, StreamExt};
+use hyper::client::HttpConnector;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -15,35 +15,24 @@ static NOTFOUND: &[u8] = b"Not Found";
 static POST_DATA: &str = r#"{"original": "data"}"#;
 static URL: &str = "http://127.0.0.1:1337/json_api";
 
-async fn client_request_response(client: &Client<HttpConnector>) -> Result<Response<Body>> {
-    let req = Request::builder()
-        .method(Method::POST)
-        .uri(URL)
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(POST_DATA.into())
-        .unwrap();
-
-    let web_res = client.request(req).await?;
-    // Compare the JSON we sent (before) with what we received (after):
-    let before = stream::once(async {
-        Ok(format!(
-            "<b>POST request body</b>: {}<br><b>Response</b>: ",
-            POST_DATA,
-        )
-        .into())
-    });
-    let after = web_res.into_body();
-    let body = Body::wrap_stream(before.chain(after));
-
-    Ok(Response::new(body))
+async fn api_get_response() -> Result<Response<Body>> {
+    let data = vec!["foo", "bar"];
+    let res = match serde_json::to_string(&data) {
+        Ok(json) => Response::builder()
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(json))
+            .unwrap(),
+        Err(_) => Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(INTERNAL_SERVER_ERROR.into())
+            .unwrap(),
+    };
+    Ok(res)
 }
 
-async fn response_examples(
-    req: Request<Body>,
-    client: Client<HttpConnector>,
-) -> Result<Response<Body>> {
+async fn response_examples(req: Request<Body>) -> Result<Response<Body>> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/test.html") => client_request_response(&client).await,
+        (&Method::GET, "/test.html") => api_get_response().await,
 
         _ => {
             // Return 404 not found response.
@@ -55,26 +44,21 @@ async fn response_examples(
     }
 }
 
-async fn run() {
-    let addr = "127.0.0.1:1337".parse().unwrap();
-
+pub async fn run() -> Result<()> {
+    let addr = "0.0.0.0:13370".parse().unwrap();
     // Share a `Client` with all `Service`s
-    let client = Client::new();
-
     let new_service = make_service_fn(move |_| {
-        // Move a clone of `client` into the `service_fn`.
-        let client = client.clone();
         async {
             Ok::<_, GenericError>(service_fn(move |req| {
                 // Clone again to ensure that client outlives this closure.
-                response_examples(req, client.to_owned())
+                response_examples(req)
             }))
         }
     });
 
     let server = Server::bind(&addr).serve(new_service);
-
     println!("Listening on http://{}", addr);
+    server.await?;
 
-    server.await;
+    Ok(())
 }
