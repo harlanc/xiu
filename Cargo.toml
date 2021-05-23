@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "protocol/rtmp",
+  "protocol/httpflv",
   "library/networkio",
   "application",
   "codec/flv",

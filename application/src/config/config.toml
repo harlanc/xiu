@@ -14,3 +14,6 @@ port = 1936
 # enabled = true
 # address = "192.168.0.3"
 # port = 1935
+[httpflv]
+enabled = true
+port = 7000

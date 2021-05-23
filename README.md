@@ -1,5 +1,5 @@
 # Xiu
-Xiu is a live server written by Rust.
+**Xiu is a live server written by Rust.**
 
 
 ## Functionalities

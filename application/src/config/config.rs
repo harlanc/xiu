@@ -6,6 +6,7 @@ use std::vec::Vec;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub rtmp: Option<RtmpConfig>,
+    pub httpflv: Option<HttpFlvConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -28,7 +29,13 @@ pub struct RtmpPushConfig {
     pub port: u16,
 }
 
-pub fn load(cfg_path : &String) -> Result<Config, ConfigError> {
+#[derive(Debug, Deserialize, Clone)]
+pub struct HttpFlvConfig {
+    pub enabled: bool,
+    pub port: u32,
+}
+
+pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
     let content = fs::read_to_string(cfg_path)?;
     let decoded_config = toml::from_str(&content[..]).unwrap();
     Ok(decoded_config)
