@@ -1,4 +1,9 @@
-use {crate::chunk::errors::PackError, failure::Fail, flvparser::errors::TagParseError, std::fmt};
+use {
+    crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
+    failure::Fail,
+    flvparser::errors::TagParseError,
+    std::fmt,
+};
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
@@ -40,8 +45,18 @@ pub enum MetadataErrorValue {
     TagParseError(TagParseError),
     #[fail(display = "pack error\n")]
     PackError(PackError),
+    #[fail(display = "amf write error\n")]
+    Amf0WriteError(Amf0WriteError),
 }
 #[derive(Debug)]
 pub struct MetadataError {
-    pub value: CacheErrorValue,
+    pub value: MetadataErrorValue,
+}
+
+impl From<Amf0WriteError> for MetadataError {
+    fn from(error: Amf0WriteError) -> Self {
+        MetadataError {
+            value: MetadataErrorValue::Amf0WriteError(error),
+        }
+    }
 }

@@ -92,4 +92,8 @@ impl Amf0Writer {
     pub fn extract_current_bytes(&mut self) -> BytesMut {
         self.writer.extract_current_bytes()
     }
+
+    pub fn len(&self) -> usize {
+        self.writer.len()
+    }
 }

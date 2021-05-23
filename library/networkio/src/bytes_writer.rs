@@ -72,6 +72,10 @@ impl BytesWriter {
 
         rv_data
     }
+
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
 }
 
 pub struct AsyncBytesWriter {
