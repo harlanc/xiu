@@ -1,11 +1,36 @@
 use std::ops::Index;
 
+use bytes::BytesMut;
 // use super::errors::ServerError;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{header, Body, Method, Request, Response, Server, StatusCode};
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
+use super::define::HttpResponseDataConsumer;
+use super::define::HttpResponseDataProducer;
+use super::httpflv::HttpFlv;
 use futures_util::{stream, StreamExt};
-// use hyper::client::HttpConnector;
+use networkio::bytes_writer::BytesWriter;
+use std::io;
+use tokio::sync::mpsc;
+use tokio_util::codec::{BytesCodec, FramedRead};
+
+use tokio_stream::wrappers::UnboundedReceiverStream;
+
+use futures::{task::SpawnExt, SinkExt, Stream}; // 0.3.1, features = ["thread-pool"]
+
+use {
+    crate::rtmp::channels::define::{
+        ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventProducer,
+    },
+    networkio::networkio::NetworkIO,
+    std::{sync::Arc, time::Duration},
+    // tokio::{
+    //     sync::{mpsc, oneshot, Mutex},
+    //     time::sleep,
+    // },
+};
+
+//pub static mut event_producer : ChannelEventProducer ;//
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -33,7 +58,14 @@ async fn api_get_response() -> Result<Response<Body>> {
     Ok(res)
 }
 
-async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
+fn stream(rv: HttpResponseDataConsumer) -> impl Stream<Item = io::Result<BytesMut>> {
+    rv
+}
+
+async fn handle_connection(
+    req: Request<Body>,
+    event_producer: ChannelEventProducer, // event_producer: ChannelEventProducer
+) -> Result<Response<Body>> {
     let path = req.uri().path();
 
     match path.find(".flv") {
@@ -41,14 +73,36 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
             println!("{}: {}", index, path);
             let (left, _) = path.split_at(index);
             println!("11{}: {}", index, left);
-            let mut rv = left.split("/");
-            for s in rv{
+            let rv: Vec<_> = left.split("/").collect();
+            for s in rv.clone() {
                 println!("22{}: {}", index, s);
             }
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body(OK.into())
-                .unwrap())
+
+            let app_name = String::from(rv[0]);
+            let stream_name = String::from(rv[1]);
+
+            let (http_response_data_producer, http_response_data_consumer) =
+                mpsc::unbounded_channel();
+
+            let mut flv_hanlder = HttpFlv::new(
+                app_name,
+                stream_name,
+                event_producer,
+                http_response_data_producer,
+            );
+
+            flv_hanlder.run();
+
+            // Ok(Response::builder()
+            //     .status(StatusCode::OK)
+            //     .body(OK.into())
+            //     .unwrap())
+
+            let stream = UnboundedReceiverStream::new(http_response_data_consumer);
+
+            let resp = Response::new(Body::wrap_stream(stream));
+
+            Ok(resp)
         }
 
         _ => Ok(Response::builder()
@@ -56,32 +110,85 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
             .body(NOTFOUND.into())
             .unwrap()),
     }
-
-    // if let Some(index) = path.find(".flv") && (index >0){
-
-    // }
-
-    // match (req.method(), req.uri().path()) {
-    //     (&Method::GET, "/test.html") => api_get_response().await,
-
-    //     _ => {
-    //         println!("{}:{}", req.method(), req.uri().path());
-    //         // Return 404 not found response.
-
-    //     }
-    // }
 }
 
-pub async fn run() -> Result<()> {
+pub async fn run(event_producer: ChannelEventProducer) -> Result<()> {
     let addr = "0.0.0.0:13370".parse().unwrap();
 
-    let new_service = make_service_fn(move |_| async {
-        Ok::<_, GenericError>(service_fn(move |req| handle_connection(req)))
+    let new_service = make_service_fn(move |_| {
+        let flv_copy = event_producer.clone();
+        async {
+            Ok::<_, GenericError>(service_fn(move |req| {
+                handle_connection(req, flv_copy.clone())
+            }))
+        }
     });
+
+    // let shared_router = Arc::new(router);
+    // let new_service = make_service_fn(move |_| {
+    //     let app_state = AppState {
+    //         state_thing: some_state.clone(),
+    //     };
+
+    //     let router_capture = shared_router.clone();
+    //     async {
+    //         Ok::<_, Error>(service_fn(move |req| {
+    //             route(router_capture.clone(), req, app_state.clone())
+    //         }))
+    //     }
+    // });
 
     let server = Server::bind(&addr).serve(new_service);
     println!("Listening on http://{}", addr);
     server.await?;
 
+    // let addr = "0.0.0.0:8080".parse().expect("address creation works");
+    // let server = Server::bind(&addr).serve(new_service);
+    // println!("Listening on http://{}", addr);
+    // let _ = server.await;
+
     Ok(())
 }
+
+// pub struct HttpFlvServer {}
+
+// impl HttpFlvServer {
+//     async fn handle_connection(& mut self, req: Request<Body>) -> Result<Response<Body>> {
+//         let path = req.uri().path();
+
+//         match path.find(".flv") {
+//             Some(index) if index > 0 => {
+//                 println!("{}: {}", index, path);
+//                 let (left, _) = path.split_at(index);
+//                 println!("11{}: {}", index, left);
+//                 let mut rv = left.split("/");
+//                 for s in rv {
+//                     println!("22{}: {}", index, s);
+//                 }
+//                 Ok(Response::builder()
+//                     .status(StatusCode::OK)
+//                     .body(OK.into())
+//                     .unwrap())
+//             }
+
+//             _ => Ok(Response::builder()
+//                 .status(StatusCode::NOT_FOUND)
+//                 .body(NOTFOUND.into())
+//                 .unwrap()),
+//         }
+//     }
+
+//     pub async fn run(&'static mut self) -> Result<()> {
+//         let addr = "0.0.0.0:13370".parse().unwrap();
+
+//         let new_service = make_service_fn(move |_| async {
+//             Ok::<_, GenericError>(service_fn(move |req| self.handle_connection(req)))
+//         });
+
+//         let server = Server::bind(&addr).serve(new_service);
+//         println!("Listening on http://{}", addr);
+//         server.await?;
+
+//         Ok(())
+//     }
+// }

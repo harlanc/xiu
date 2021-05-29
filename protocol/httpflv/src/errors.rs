@@ -1,9 +1,11 @@
+use bytes::BytesMut;
 use failure::Fail;
 use rtmp::session::errors::SessionError;
 
 use networkio::bytes_errors::BytesWriteError;
 use rtmp::amf0::errors::Amf0WriteError;
 use rtmp::cache::errors::MetadataError;
+use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug)]
 pub struct ServerError {
@@ -32,6 +34,8 @@ pub enum HttpFLvErrorValue {
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "metadata error")]
     MetadataError(MetadataError),
+    #[fail(display = "tokio mpsc error")]
+    MpscSendError(SendError<BytesMut>),
 }
 
 impl From<SessionError> for HttpFLvError {
@@ -46,6 +50,14 @@ impl From<BytesWriteError> for HttpFLvError {
     fn from(error: BytesWriteError) -> Self {
         HttpFLvError {
             value: HttpFLvErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl From<SendError<BytesMut>> for HttpFLvError {
+    fn from(error: SendError<BytesMut>) -> Self {
+        HttpFLvError {
+            value: HttpFLvErrorValue::MpscSendError(error),
         }
     }
 }
