@@ -1,6 +1,9 @@
 use core::time;
 
+use crate::define::HttpResponseDataConsumer;
+
 use super::define::tag_type;
+use super::define::HttpResponseDataProducer;
 use super::errors::HttpFLvError;
 use super::errors::HttpFLvErrorValue;
 use byteorder::BigEndian;
@@ -34,30 +37,50 @@ const FLV_HEADER: [u8; 9] = [
 ]; // 9
 const HEADER_LENGTH: u32 = 11;
 pub struct HttpFlv {
-    //writer: BytesWriter,
-    data_consumer: ChannelDataConsumer,
+    app_name: String,
+    stream_name: String,
+    writer: BytesWriter,
     event_producer: ChannelEventProducer,
+    data_consumer: ChannelDataConsumer,
+
+    http_response_data_producer: HttpResponseDataProducer,
 }
 
 impl HttpFlv {
-    fn new(event_producer: ChannelEventProducer) -> Self {
+    pub fn new(
+        app_name: String,
+        stream_name: String,
+        event_producer: ChannelEventProducer,
+        http_response_data_producer: HttpResponseDataProducer,
+    ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
+
         Self {
+            app_name,
+            stream_name,
+            writer: BytesWriter::new(),
             data_consumer,
             event_producer,
+            http_response_data_producer,
         }
     }
 
-    pub fn write_flv_header() -> Result<(), HttpFLvError> {
-        let mut writer: BytesWriter = BytesWriter::new();
-        writer.write(&FLV_HEADER)?;
+    pub async fn run(&mut self) -> Result<(), HttpFLvError> {
+        self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone(), 50)
+            .await?;
+
+        self.send_rtmp_channel_data().await?;
+
+        Ok(())
+    }
+
+    pub fn write_flv_header(&mut self) -> Result<(), HttpFLvError> {
+        self.writer.write(&FLV_HEADER)?;
         Ok(())
     }
 
     pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), HttpFLvError> {
-        let mut writer: BytesWriter = BytesWriter::new();
-        writer.write_u32::<BigEndian>(size)?;
-
+        self.writer.write_u32::<BigEndian>(size)?;
         Ok(())
     }
 
@@ -80,6 +103,8 @@ impl HttpFlv {
             }
         }
 
+        self.flush_response_data()?;
+
         Ok(())
     }
 
@@ -89,18 +114,22 @@ impl HttpFlv {
         data_size: u32,
         timestamp: u32,
     ) -> Result<(), SessionError> {
-        let mut writer: BytesWriter = BytesWriter::new();
-
         //tag type
-        writer.write_u8(tag_type)?;
+        self.writer.write_u8(tag_type)?;
         //data size
-        writer.write_u24::<BigEndian>(data_size)?;
+        self.writer.write_u24::<BigEndian>(data_size)?;
         //timestamp
-        writer.write_u24::<BigEndian>(timestamp & 0xffffff)?;
+        self.writer.write_u24::<BigEndian>(timestamp & 0xffffff)?;
         //timestamp extended.
         let timestamp_ext = (timestamp >> 24 & 0xff) as u8;
-        writer.write_u8(timestamp_ext)?;
+        self.writer.write_u8(timestamp_ext)?;
 
+        Ok(())
+    }
+
+    pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
+        let data = self.writer.extract_current_bytes();
+        self.http_response_data_producer.send(data)?;
         Ok(())
     }
 
@@ -125,7 +154,7 @@ impl HttpFlv {
 
             let session_info = SessionInfo {
                 session_id: session_id,
-                session_sub_type: SessionSubType::Publisher,
+                session_sub_type: SessionSubType::Player,
             };
 
             let subscribe_event = ChannelEvent::Subscribe {
