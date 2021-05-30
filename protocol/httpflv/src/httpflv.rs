@@ -69,18 +69,25 @@ impl HttpFlv {
         self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone(), 50)
             .await?;
 
-        self.send_rtmp_channel_data().await?;
+        self.send_http_response_data().await?;
 
         Ok(())
+    }
+
+    pub async fn send_http_response_data(&mut self) -> Result<(), HttpFLvError> {
+        self.write_flv_header()?;
+        self.write_previous_tag_size(0)?;
+        self.flush_response_data()?;
+        //write flv body
+        loop {
+            if let Some(data) = self.data_consumer.recv().await {
+                self.write_flv_tag(data)?;
+            }
+        }
     }
 
     pub fn write_flv_header(&mut self) -> Result<(), HttpFLvError> {
         self.writer.write(&FLV_HEADER)?;
-        Ok(())
-    }
-
-    pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), HttpFLvError> {
-        self.writer.write_u32::<BigEndian>(size)?;
         Ok(())
     }
 
@@ -139,23 +146,16 @@ impl HttpFlv {
         Ok(())
     }
 
+    pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), HttpFLvError> {
+        self.writer.write_u32::<BigEndian>(size)?;
+        Ok(())
+    }
+
     pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
         let data = self.writer.extract_current_bytes();
         print::print(data.clone());
         self.http_response_data_producer.start_send(Ok(data))?;
         Ok(())
-    }
-
-    pub async fn send_rtmp_channel_data(&mut self) -> Result<(), HttpFLvError> {
-        self.write_flv_header()?;
-        self.write_previous_tag_size(0)?;
-        self.flush_response_data()?;
-        //write flv body
-        loop {
-            if let Some(data) = self.data_consumer.recv().await {
-                self.write_flv_tag(data)?;
-            }
-        }
     }
 
     pub async fn subscribe_from_rtmp_channels(
