@@ -226,7 +226,7 @@ impl ServerSession {
                 self.common.on_video_data(data, timestamp)?;
             }
             RtmpMessageData::AmfData { raw_data } => {
-                self.common.on_meta_data(raw_data)?;
+                self.common.on_meta_data(raw_data, timestamp)?;
             }
 
             _ => {}

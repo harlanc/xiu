@@ -7,7 +7,7 @@ use {
 pub enum ChannelData {
     Video { timestamp: u32, data: BytesMut },
     Audio { timestamp: u32, data: BytesMut },
-    MetaData { body: BytesMut },
+    MetaData { timestamp: u32, data: BytesMut },
 }
 
 pub type ChannelDataProducer = mpsc::UnboundedSender<ChannelData>;

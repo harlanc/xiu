@@ -7,6 +7,7 @@ use {
 
 pub struct Cache {
     metadata: metadata::MetaData,
+    metadata_timestamp: u32,
     video_seq: BytesMut,
     video_timestamp: u32,
     audio_seq: BytesMut,
@@ -17,6 +18,7 @@ impl Cache {
     pub fn new() -> Self {
         Self {
             metadata: metadata::MetaData::default(),
+            metadata_timestamp: 0,
             video_seq: BytesMut::new(),
             video_timestamp: 0,
             audio_seq: BytesMut::new(),
@@ -78,13 +80,17 @@ impl Cache {
     // }
 
     //, values: Vec<Amf0ValueType>
-    pub fn save_metadata(&mut self, chunk_body: BytesMut) {
+    pub fn save_metadata(&mut self, chunk_body: BytesMut, timestamp: u32) {
         self.metadata.save(chunk_body);
+        self.metadata_timestamp = timestamp;
     }
 
     pub fn get_metadata(&self) -> ChannelData {
-        let body = self.metadata.get_chunk_body();
-        return ChannelData::MetaData { body };
+        let data = self.metadata.get_chunk_body();
+        return ChannelData::MetaData {
+            timestamp: self.metadata_timestamp,
+            data,
+        };
     }
 
     pub fn save_audio_seq(
