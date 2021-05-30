@@ -5,7 +5,9 @@ use rtmp::session::errors::SessionError;
 use networkio::bytes_errors::BytesWriteError;
 use rtmp::amf0::errors::Amf0WriteError;
 use rtmp::cache::errors::MetadataError;
-use tokio::sync::mpsc::error::SendError;
+use std::fmt;
+// use tokio::sync::mpsc::error::SendError;
+use futures::channel::mpsc::SendError;
 
 #[derive(Debug)]
 pub struct ServerError {
@@ -35,7 +37,7 @@ pub enum HttpFLvErrorValue {
     #[fail(display = "metadata error")]
     MetadataError(MetadataError),
     #[fail(display = "tokio mpsc error")]
-    MpscSendError(SendError<BytesMut>),
+    MpscSendError(SendError),
 }
 
 impl From<SessionError> for HttpFLvError {
@@ -54,8 +56,8 @@ impl From<BytesWriteError> for HttpFLvError {
     }
 }
 
-impl From<SendError<BytesMut>> for HttpFLvError {
-    fn from(error: SendError<BytesMut>) -> Self {
+impl From<SendError> for HttpFLvError {
+    fn from(error: SendError) -> Self {
         HttpFLvError {
             value: HttpFLvErrorValue::MpscSendError(error),
         }
@@ -75,5 +77,11 @@ impl From<MetadataError> for HttpFLvError {
         HttpFLvError {
             value: HttpFLvErrorValue::MetadataError(error),
         }
+    }
+}
+
+impl fmt::Display for HttpFLvError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
     }
 }
