@@ -67,8 +67,8 @@ impl Common {
                     ChannelData::Video { timestamp, data } => {
                         self.send_video(data, timestamp).await?;
                     }
-                    ChannelData::MetaData { body } => {
-                        self.send_metadata(body).await?;
+                    ChannelData::MetaData { timestamp, data } => {
+                        self.send_metadata(data, timestamp).await?;
                     }
                 }
             }
@@ -107,11 +107,15 @@ impl Common {
         Ok(())
     }
 
-    pub async fn send_metadata(&mut self, data: BytesMut) -> Result<(), SessionError> {
+    pub async fn send_metadata(
+        &mut self,
+        data: BytesMut,
+        timestamp: u32,
+    ) -> Result<(), SessionError> {
         let mut chunk_info = ChunkInfo::new(
             csid_type::DATA_AMF0_AMF3,
             chunk_type::TYPE_0,
-            0,
+            timestamp,
             data.len() as u32,
             msg_type_id::DATA_AMF0,
             0,
@@ -169,8 +173,15 @@ impl Common {
         Ok(())
     }
 
-    pub fn on_meta_data(&mut self, body: &mut BytesMut) -> Result<(), SessionError> {
-        let data = ChannelData::MetaData { body: body.clone() };
+    pub fn on_meta_data(
+        &mut self,
+        body: &mut BytesMut,
+        timestamp: &u32,
+    ) -> Result<(), SessionError> {
+        let data = ChannelData::MetaData {
+            timestamp: timestamp.clone(),
+            data: body.clone(),
+        };
 
         match self.data_producer.send(data) {
             Ok(_) => {}

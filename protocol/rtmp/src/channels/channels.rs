@@ -127,8 +127,8 @@ impl Transmiter {
                     if let Some(val) = data{
 
                         match val {
-                            ChannelData::MetaData { body } => {
-                                self.cache.lock().unwrap().save_metadata(body);
+                            ChannelData::MetaData { timestamp, data } => {
+                                self.cache.lock().unwrap().save_metadata(data,timestamp);
                             }
                             ChannelData::Audio { timestamp, data } => {
 

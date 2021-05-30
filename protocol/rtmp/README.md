@@ -9,3 +9,8 @@ support rtmp relay pull and static push
 ## v0.0.3
 
 add amf0 functions 
+## v0.0.4
+
+add timestamp for metadata 
+
+
