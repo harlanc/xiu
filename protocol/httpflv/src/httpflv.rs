@@ -14,13 +14,13 @@ use rtmp::session::common::SessionInfo;
 use rtmp::session::define::SessionSubType;
 use rtmp::session::errors::SessionError;
 use rtmp::session::errors::SessionErrorValue;
+use rtmp::utils::print;
 use {
     crate::rtmp::channels::define::{
         ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventProducer,
     },
     bytes::BytesMut,
-    networkio::networkio::NetworkIO,
-    std::{sync::Arc, time::Duration},
+    std::time::Duration,
     tokio::{
         sync::{mpsc, oneshot, Mutex},
         time::sleep,
@@ -89,22 +89,27 @@ impl HttpFlv {
             ChannelData::Audio { timestamp, data } => {
                 let len = data.len() as u32;
                 self.write_flv_tag_header(tag_type::audio, len, timestamp)?;
+                self.write_flv_tag_body(data)?;
                 self.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
             ChannelData::Video { timestamp, data } => {
                 let len = data.len() as u32;
                 self.write_flv_tag_header(tag_type::video, len, timestamp)?;
+                self.write_flv_tag_body(data)?;
                 self.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
-            ChannelData::MetaData { body } => {
+            ChannelData::MetaData { timestamp, data } => {
                 let mut metadata = MetaData::default();
-                metadata.save(body);
-                let body = metadata.remove_set_data_frame()?;
+                metadata.save(data);
+                let data = metadata.remove_set_data_frame()?;
+                let len = data.len() as u32;
+                self.write_flv_tag_header(tag_type::script_data_amf, len, timestamp)?;
+                self.write_flv_tag_body(data)?;
+                self.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
         }
 
         self.flush_response_data()?;
-
         Ok(())
     }
 
@@ -123,17 +128,29 @@ impl HttpFlv {
         //timestamp extended.
         let timestamp_ext = (timestamp >> 24 & 0xff) as u8;
         self.writer.write_u8(timestamp_ext)?;
+        //stream id
+        self.writer.write_u24::<BigEndian>(0)?;
 
+        Ok(())
+    }
+
+    pub fn write_flv_tag_body(&mut self, body: BytesMut) -> Result<(), SessionError> {
+        self.writer.write(&body[..])?;
         Ok(())
     }
 
     pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
         let data = self.writer.extract_current_bytes();
-        self.http_response_data_producer.send(data)?;
+        print::print(data.clone());
+        self.http_response_data_producer.start_send(Ok(data))?;
         Ok(())
     }
 
     pub async fn send_rtmp_channel_data(&mut self) -> Result<(), HttpFLvError> {
+        self.write_flv_header()?;
+        self.write_previous_tag_size(0)?;
+        self.flush_response_data()?;
+        //write flv body
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 self.write_flv_tag(data)?;
@@ -163,12 +180,14 @@ impl HttpFlv {
                 session_info: session_info,
                 responder: sender,
             };
+            println!("httpflv begin send subscribe");
             let rv = self.event_producer.send(subscribe_event);
             match rv {
                 Err(_) => {
                     let session_error = SessionError {
                         value: SessionErrorValue::SendChannelDataErr,
                     };
+                    println!("httpflv send subscribe error");
                     return Err(HttpFLvError {
                         value: HttpFLvErrorValue::SessionError(session_error),
                     });

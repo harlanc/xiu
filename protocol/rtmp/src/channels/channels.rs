@@ -224,12 +224,18 @@ impl ChannelsManager {
 
     pub async fn event_loop(&mut self) {
         while let Some(message) = self.channel_event_consumer.recv().await {
+            println!("event_loop receive event...");
             match message {
                 ChannelEvent::Publish {
                     app_name,
                     stream_name,
                     responder,
                 } => {
+                    println!(
+                        "event_loop receive Publish event...{}:{}",
+                        app_name.clone(),
+                        stream_name.clone()
+                    );
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
                         Ok(producer) => {
@@ -258,6 +264,11 @@ impl ChannelsManager {
                     session_info,
                     responder,
                 } => {
+                    println!(
+                        "channel subscribe...{}:{}",
+                        app_name.clone(),
+                        stream_name.clone()
+                    );
                     let rv = self.subscribe(&app_name, &stream_name, session_info).await;
                     match rv {
                         Ok(consumer) => if let Err(_) = responder.send(consumer) {},
@@ -299,6 +310,7 @@ impl ChannelsManager {
 
                     match receiver.await {
                         Ok(consumer) => {
+                            println!("get consumer");
                             return Ok(consumer);
                         }
                         Err(_) => {
@@ -323,6 +335,7 @@ impl ChannelsManager {
         }
 
         if self.pull_enabled {
+            println!("try pull");
             let client_event = ClientEvent::Subscribe {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
@@ -335,7 +348,7 @@ impl ChannelsManager {
                     value: ChannelErrorValue::SendError,
                 })?;
         }
-
+        println!("no app or stream name");
         return Err(ChannelError {
             value: ChannelErrorValue::NoAppOrStreamName,
         });

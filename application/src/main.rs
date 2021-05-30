@@ -2,6 +2,7 @@ use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
     application::config::{config, config::Config},
+    httpflv::server,
     rtmp::{
         channels::channels::ChannelsManager,
         relay::{pull_client::PullClient, push_client::PushClient},
@@ -10,7 +11,6 @@ use {
     std::{env, net::SocketAddr},
     tokio,
     tokio::net::TcpListener,
-    httpflv::server,
 };
 
 #[tokio::main]
@@ -42,6 +42,12 @@ impl Service {
         let mut channel = ChannelsManager::new();
 
         let producer = channel.get_session_event_producer();
+        let event_producer = producer.clone();
+        tokio::spawn(async move {
+            if let Err(err) = server::run(event_producer).await {
+                print!("push client error {}\n", err);
+            }
+        });
 
         let rtmp = &self.cfg.rtmp;
         match rtmp {
