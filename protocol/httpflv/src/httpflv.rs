@@ -95,13 +95,13 @@ impl HttpFlv {
         match channel_data {
             ChannelData::Audio { timestamp, data } => {
                 let len = data.len() as u32;
-                self.write_flv_tag_header(tag_type::audio, len, timestamp)?;
+                self.write_flv_tag_header(tag_type::AUDIO, len, timestamp)?;
                 self.write_flv_tag_body(data)?;
                 self.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
             ChannelData::Video { timestamp, data } => {
                 let len = data.len() as u32;
-                self.write_flv_tag_header(tag_type::video, len, timestamp)?;
+                self.write_flv_tag_header(tag_type::VIDEO, len, timestamp)?;
                 self.write_flv_tag_body(data)?;
                 self.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
@@ -110,7 +110,7 @@ impl HttpFlv {
                 metadata.save(data);
                 let data = metadata.remove_set_data_frame()?;
                 let len = data.len() as u32;
-                self.write_flv_tag_header(tag_type::script_data_amf, len, timestamp)?;
+                self.write_flv_tag_header(tag_type::SCRIPT_DATA_AMF, len, timestamp)?;
                 self.write_flv_tag_body(data)?;
                 self.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
