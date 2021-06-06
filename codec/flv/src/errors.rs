@@ -2,6 +2,7 @@ use failure::{Backtrace, Fail};
 use std::fmt;
 
 use networkio::bytes_errors::BytesReadError;
+use networkio::bytes_errors::BytesWriteError;
 
 #[derive(Debug, Fail)]
 pub enum TagParseErrorValue {
@@ -9,6 +10,8 @@ pub enum TagParseErrorValue {
     BytesReadError(BytesReadError),
     #[fail(display = "tag data length error\n")]
     TagDataLength,
+    #[fail(display = "unknow tag type error\n")]
+    UnknownTagType,
 }
 #[derive(Debug)]
 pub struct TagParseError {
@@ -36,5 +39,31 @@ impl Fail for TagParseError {
 
     fn backtrace(&self) -> Option<&Backtrace> {
         self.value.backtrace()
+    }
+}
+
+pub struct MuxerError {
+    pub value: MuxerErrorValue,
+}
+
+#[derive(Debug, Fail)]
+pub enum MuxerErrorValue {
+    // #[fail(display = "server error")]
+    // Error,
+    #[fail(display = "bytes write error")]
+    BytesWriteError(BytesWriteError),
+}
+
+impl From<BytesWriteError> for MuxerError {
+    fn from(error: BytesWriteError) -> Self {
+        MuxerError {
+            value: MuxerErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl fmt::Display for MuxerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
     }
 }

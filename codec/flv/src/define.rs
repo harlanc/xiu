@@ -1,8 +1,3 @@
-pub enum TagType {
-    VIDEO,
-    AUDIO,
-}
-
 pub mod sound_format {
     pub const AAC: u8 = 10;
 }
@@ -33,4 +28,10 @@ pub mod frame_type {
 pub mod codec_id {
     pub const FLV_VIDEO_H264: u8 = 7;
     pub const FLV_VIDEO_H265: u8 = 12;
+}
+
+pub mod tag_type {
+    pub const AUDIO: u8 = 8;
+    pub const VIDEO: u8 = 9;
+    pub const SCRIPT_DATA_AMF: u8 = 18;
 }
