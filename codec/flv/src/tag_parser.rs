@@ -1,6 +1,7 @@
 use super::define;
-use super::define::TagType;
+use super::define::tag_type;
 use super::errors::TagParseError;
+use super::errors::TagParseErrorValue;
 use byteorder::BigEndian;
 use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
@@ -105,13 +106,13 @@ impl Tag {
 }
 
 pub struct TagParser {
-    tag_type: TagType,
+    tag_type: u8,
     bytes_reader: BytesReader,
     tag: Tag,
 }
 
 impl TagParser {
-    pub fn new(data: BytesMut, tag_type: TagType) -> Self {
+    pub fn new(data: BytesMut, tag_type: u8) -> Self {
         Self {
             tag_type,
             bytes_reader: BytesReader::new(data),
@@ -120,8 +121,13 @@ impl TagParser {
     }
     pub fn parse(&mut self) -> Result<Tag, TagParseError> {
         match self.tag_type {
-            TagType::AUDIO => return self.parse_audio_tag_header(),
-            TagType::VIDEO => return self.parse_video_tag_header(),
+            tag_type::AUDIO => return self.parse_audio_tag_header(),
+            tag_type::VIDEO => return self.parse_video_tag_header(),
+            _ => {
+                return Err(TagParseError {
+                    value: TagParseErrorValue::UnknownTagType,
+                })
+            }
         }
     }
 

@@ -1,13 +1,13 @@
 [package]
-name = "flvparser"
-description = "flv parser."
+name = "libflv"
+description = "flv library."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
 readme = "README.md"
 categories = ["flv"]
-keywords = ["rtmp", "video", "streaming"]
+keywords = ["flv", "video", "streaming"]
 edition = "2018"
 
 [dependencies]
