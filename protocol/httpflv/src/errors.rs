@@ -6,6 +6,7 @@ use networkio::bytes_errors::BytesWriteError;
 use rtmp::amf0::errors::Amf0WriteError;
 use rtmp::cache::errors::MetadataError;
 use std::fmt;
+use libflv::errors::MuxerError;
 // use tokio::sync::mpsc::error::SendError;
 use futures::channel::mpsc::SendError;
 
@@ -30,8 +31,8 @@ pub enum HttpFLvErrorValue {
     Error,
     #[fail(display = "session error")]
     SessionError(SessionError),
-    #[fail(display = "bytes write error")]
-    BytesWriteError(BytesWriteError),
+    #[fail(display = "flv muxer error")]
+    MuxerError(MuxerError),
     #[fail(display = "amf write error")]
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "metadata error")]
@@ -48,10 +49,10 @@ impl From<SessionError> for HttpFLvError {
     }
 }
 
-impl From<BytesWriteError> for HttpFLvError {
-    fn from(error: BytesWriteError) -> Self {
+impl From<MuxerError> for HttpFLvError {
+    fn from(error: MuxerError) -> Self {
         HttpFLvError {
-            value: HttpFLvErrorValue::BytesWriteError(error),
+            value: HttpFLvErrorValue::MuxerError(error),
         }
     }
 }

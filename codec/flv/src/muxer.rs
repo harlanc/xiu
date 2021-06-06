@@ -24,7 +24,7 @@ const FLV_HEADER: [u8; 9] = [
     0x05, //00000101  audio tag  and video tag
     0x00, 0x00, 0x00, 0x09, //flv header size
 ]; // 9
-const HEADER_LENGTH: u32 = 11;
+pub const HEADER_LENGTH: u32 = 11;
 pub struct FlvMuxer {
     pub writer: BytesWriter,
 }

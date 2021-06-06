@@ -41,7 +41,7 @@ impl Fail for TagParseError {
         self.value.backtrace()
     }
 }
-
+#[derive(Debug)]
 pub struct MuxerError {
     pub value: MuxerErrorValue,
 }

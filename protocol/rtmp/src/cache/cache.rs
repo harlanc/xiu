@@ -2,7 +2,7 @@ use {
     super::{errors::CacheError, metadata},
     crate::channels::define::ChannelData,
     bytes::BytesMut,
-    flvparser::{define, tag_parser},
+    libflv::{define, tag_parser},
 };
 
 pub struct Cache {
@@ -98,7 +98,7 @@ impl Cache {
         chunk_body: BytesMut,
         timestamp: u32,
     ) -> Result<(), CacheError> {
-        let mut parser = tag_parser::TagParser::new(chunk_body.clone(), define::TagType::AUDIO);
+        let mut parser = tag_parser::TagParser::new(chunk_body.clone(), define::tag_type::AUDIO);
         let tag = parser.parse()?;
 
         if tag.sound_format == define::sound_format::AAC
@@ -130,7 +130,7 @@ impl Cache {
         chunk_body: BytesMut,
         timestamp: u32,
     ) -> Result<(), CacheError> {
-        let mut parser = tag_parser::TagParser::new(chunk_body.clone(), define::TagType::VIDEO);
+        let mut parser = tag_parser::TagParser::new(chunk_body.clone(), define::tag_type::VIDEO);
         let tag = parser.parse()?;
 
         if tag.frame_type == define::frame_type::KEY_FRAME
