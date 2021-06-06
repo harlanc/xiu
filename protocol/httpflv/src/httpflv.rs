@@ -7,6 +7,8 @@ use super::define::HttpResponseDataProducer;
 use super::errors::HttpFLvError;
 use super::errors::HttpFLvErrorValue;
 use byteorder::BigEndian;
+use libflv::muxer::FlvMuxer;
+use libflv::muxer::HEADER_LENGTH;
 use networkio::bytes_writer::BytesWriter;
 use rtmp::amf0::amf0_writer::Amf0Writer;
 use rtmp::cache::metadata::MetaData;
@@ -27,19 +29,10 @@ use {
     },
 };
 
-const FLV_HEADER: [u8; 9] = [
-    0x46, // 'F'
-    0x4c, //'L'
-    0x56, //'V'
-    0x01, //version
-    0x05, //00000101  audio tag  and video tag
-    0x00, 0x00, 0x00, 0x09, //flv header size
-]; // 9
-const HEADER_LENGTH: u32 = 11;
 pub struct HttpFlv {
     app_name: String,
     stream_name: String,
-    writer: BytesWriter,
+    muxer: FlvMuxer,
     event_producer: ChannelEventProducer,
     data_consumer: ChannelDataConsumer,
 
@@ -58,7 +51,7 @@ impl HttpFlv {
         Self {
             app_name,
             stream_name,
-            writer: BytesWriter::new(),
+            muxer: FlvMuxer::new(),
             data_consumer,
             event_producer,
             http_response_data_producer,
@@ -75,8 +68,8 @@ impl HttpFlv {
     }
 
     pub async fn send_http_response_data(&mut self) -> Result<(), HttpFLvError> {
-        self.write_flv_header()?;
-        self.write_previous_tag_size(0)?;
+        self.muxer.write_flv_header()?;
+        self.muxer.write_previous_tag_size(0)?;
         self.flush_response_data()?;
         //write flv body
         loop {
@@ -86,33 +79,31 @@ impl HttpFlv {
         }
     }
 
-    pub fn write_flv_header(&mut self) -> Result<(), HttpFLvError> {
-        self.writer.write(&FLV_HEADER)?;
-        Ok(())
-    }
-
     pub fn write_flv_tag(&mut self, channel_data: ChannelData) -> Result<(), HttpFLvError> {
         match channel_data {
             ChannelData::Audio { timestamp, data } => {
                 let len = data.len() as u32;
-                self.write_flv_tag_header(tag_type::AUDIO, len, timestamp)?;
-                self.write_flv_tag_body(data)?;
-                self.write_previous_tag_size(len + HEADER_LENGTH)?;
+                self.muxer
+                    .write_flv_tag_header(tag_type::AUDIO, len, timestamp)?;
+                self.muxer.write_flv_tag_body(data)?;
+                self.muxer.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
             ChannelData::Video { timestamp, data } => {
                 let len = data.len() as u32;
-                self.write_flv_tag_header(tag_type::VIDEO, len, timestamp)?;
-                self.write_flv_tag_body(data)?;
-                self.write_previous_tag_size(len + HEADER_LENGTH)?;
+                self.muxer
+                    .write_flv_tag_header(tag_type::VIDEO, len, timestamp)?;
+                self.muxer.write_flv_tag_body(data)?;
+                self.muxer.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
             ChannelData::MetaData { timestamp, data } => {
                 let mut metadata = MetaData::default();
                 metadata.save(data);
                 let data = metadata.remove_set_data_frame()?;
                 let len = data.len() as u32;
-                self.write_flv_tag_header(tag_type::SCRIPT_DATA_AMF, len, timestamp)?;
-                self.write_flv_tag_body(data)?;
-                self.write_previous_tag_size(len + HEADER_LENGTH)?;
+                self.muxer
+                    .write_flv_tag_header(tag_type::SCRIPT_DATA_AMF, len, timestamp)?;
+                self.muxer.write_flv_tag_body(data)?;
+                self.muxer.write_previous_tag_size(len + HEADER_LENGTH)?;
             }
         }
 
@@ -120,39 +111,8 @@ impl HttpFlv {
         Ok(())
     }
 
-    pub fn write_flv_tag_header(
-        &mut self,
-        tag_type: u8,
-        data_size: u32,
-        timestamp: u32,
-    ) -> Result<(), SessionError> {
-        //tag type
-        self.writer.write_u8(tag_type)?;
-        //data size
-        self.writer.write_u24::<BigEndian>(data_size)?;
-        //timestamp
-        self.writer.write_u24::<BigEndian>(timestamp & 0xffffff)?;
-        //timestamp extended.
-        let timestamp_ext = (timestamp >> 24 & 0xff) as u8;
-        self.writer.write_u8(timestamp_ext)?;
-        //stream id
-        self.writer.write_u24::<BigEndian>(0)?;
-
-        Ok(())
-    }
-
-    pub fn write_flv_tag_body(&mut self, body: BytesMut) -> Result<(), SessionError> {
-        self.writer.write(&body[..])?;
-        Ok(())
-    }
-
-    pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), HttpFLvError> {
-        self.writer.write_u32::<BigEndian>(size)?;
-        Ok(())
-    }
-
     pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
-        let data = self.writer.extract_current_bytes();
+        let data = self.muxer.writer.extract_current_bytes();
         print::print(data.clone());
         self.http_response_data_producer.start_send(Ok(data))?;
         Ok(())
