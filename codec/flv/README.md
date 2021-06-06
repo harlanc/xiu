@@ -1,1 +1,1 @@
-A flv parser.
+A flv library.
