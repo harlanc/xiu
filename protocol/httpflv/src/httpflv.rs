@@ -80,34 +80,44 @@ impl HttpFlv {
     }
 
     pub fn write_flv_tag(&mut self, channel_data: ChannelData) -> Result<(), HttpFLvError> {
+        let common_data: BytesMut;
+        let common_timestamp: u32;
+        let tag_type: u8;
+
         match channel_data {
             ChannelData::Audio { timestamp, data } => {
-                let len = data.len() as u32;
-                self.muxer
-                    .write_flv_tag_header(tag_type::AUDIO, len, timestamp)?;
-                self.muxer.write_flv_tag_body(data)?;
-                self.muxer.write_previous_tag_size(len + HEADER_LENGTH)?;
+                common_data = data;
+                common_timestamp = timestamp;
+                tag_type = tag_type::AUDIO;
             }
+
             ChannelData::Video { timestamp, data } => {
-                let len = data.len() as u32;
-                self.muxer
-                    .write_flv_tag_header(tag_type::VIDEO, len, timestamp)?;
-                self.muxer.write_flv_tag_body(data)?;
-                self.muxer.write_previous_tag_size(len + HEADER_LENGTH)?;
+                common_data = data;
+                common_timestamp = timestamp;
+                tag_type = tag_type::VIDEO;
             }
+
             ChannelData::MetaData { timestamp, data } => {
                 let mut metadata = MetaData::default();
                 metadata.save(data);
                 let data = metadata.remove_set_data_frame()?;
-                let len = data.len() as u32;
-                self.muxer
-                    .write_flv_tag_header(tag_type::SCRIPT_DATA_AMF, len, timestamp)?;
-                self.muxer.write_flv_tag_body(data)?;
-                self.muxer.write_previous_tag_size(len + HEADER_LENGTH)?;
+
+                common_data = data;
+                common_timestamp = timestamp;
+                tag_type = tag_type::SCRIPT_DATA_AMF;
             }
         }
 
+        let common_data_len = common_data.len() as u32;
+
+        self.muxer
+            .write_flv_tag_header(tag_type, common_data_len, common_timestamp)?;
+        self.muxer.write_flv_tag_body(common_data)?;
+        self.muxer
+            .write_previous_tag_size(common_data_len + HEADER_LENGTH)?;
+
         self.flush_response_data()?;
+
         Ok(())
     }
 
