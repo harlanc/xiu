@@ -7,7 +7,7 @@ use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
 
 #[derive(Clone)]
-pub struct Tag {
+pub struct AudioTagHeader {
     /*
         SoundFormat: UB[4]
         0 = Linear PCM, platform endian
@@ -60,8 +60,54 @@ pub struct Tag {
         0: AAC sequence header
         1: AAC raw
     */
-    aac_packet_type: u8,
+    pub aac_packet_type: u8,
+}
 
+impl AudioTagHeader {
+    pub fn defalut() -> Self {
+        AudioTagHeader {
+            sound_format: 0,
+            sound_rate: 0,
+            sound_size: 0,
+            sound_type: 0,
+            aac_packet_type: 0,
+        }
+    }
+}
+
+pub struct AudioTagHeaderParser {
+    bytes_reader: BytesReader,
+    tag: AudioTagHeader,
+}
+
+impl AudioTagHeaderParser {
+    pub fn new(data: BytesMut) -> Self {
+        Self {
+            bytes_reader: BytesReader::new(data),
+            tag: AudioTagHeader::defalut(),
+        }
+    }
+
+    pub fn parse_tag_header(&mut self) -> Result<AudioTagHeader, TagParseError> {
+        let flags = self.bytes_reader.read_u8()?;
+
+        self.tag.sound_format = flags >> 4;
+        self.tag.sound_rate = (flags >> 2) & 0x03;
+        self.tag.sound_size = (flags >> 1) & 0x01;
+        self.tag.sound_type = flags & 0x01;
+
+        match self.tag.sound_format {
+            define::sound_format::AAC => {
+                self.tag.aac_packet_type = self.bytes_reader.read_u8()?;
+            }
+            _ => {}
+        }
+
+        return Ok(self.tag.clone());
+    }
+}
+#[derive(Clone)]
+pub struct VideoTagHeader {
     /*
         1: keyframe (for AVC, a seekable frame)
         2: inter frame (for AVC, a non- seekable frame)
@@ -89,14 +135,9 @@ pub struct Tag {
     pub composition_time: u32,
 }
 
-impl Tag {
+impl VideoTagHeader {
     pub fn defalut() -> Self {
-        Tag {
-            sound_format: 0,
-            sound_rate: 0,
-            sound_size: 0,
-            sound_type: 0,
-            aac_packet_type: 0,
+        VideoTagHeader {
             frame_type: 0,
             codec_id: 0,
             avc_packet_type: 0,
@@ -105,51 +146,20 @@ impl Tag {
     }
 }
 
-pub struct TagParser {
-    tag_type: u8,
+pub struct VideoTagHeaderParser {
     bytes_reader: BytesReader,
-    tag: Tag,
+    tag: VideoTagHeader,
 }
 
-impl TagParser {
-    pub fn new(data: BytesMut, tag_type: u8) -> Self {
+impl VideoTagHeaderParser {
+    pub fn new(data: BytesMut) -> Self {
         Self {
-            tag_type,
             bytes_reader: BytesReader::new(data),
-            tag: Tag::defalut(),
-        }
-    }
-    pub fn parse(&mut self) -> Result<Tag, TagParseError> {
-        match self.tag_type {
-            tag_type::AUDIO => return self.parse_audio_tag_header(),
-            tag_type::VIDEO => return self.parse_video_tag_header(),
-            _ => {
-                return Err(TagParseError {
-                    value: TagParseErrorValue::UnknownTagType,
-                })
-            }
+            tag: VideoTagHeader::defalut(),
         }
     }
 
-    fn parse_audio_tag_header(&mut self) -> Result<Tag, TagParseError> {
-        let flags = self.bytes_reader.read_u8()?;
-
-        self.tag.sound_format = flags >> 4;
-        self.tag.sound_rate = (flags >> 2) & 0x03;
-        self.tag.sound_size = (flags >> 1) & 0x01;
-        self.tag.sound_type = flags & 0x01;
-
-        match self.tag.sound_format {
-            define::sound_format::AAC => {
-                self.tag.aac_packet_type = self.bytes_reader.read_u8()?;
-            }
-            _ => {}
-        }
-
-        return Ok(self.tag.clone());
-    }
-
-    fn parse_video_tag_header(&mut self) -> Result<Tag, TagParseError> {
+    pub fn parse_tag_header(&mut self) -> Result<VideoTagHeader, TagParseError> {
         let flags = self.bytes_reader.read_u8()?;
 
         self.tag.frame_type = flags >> 4;

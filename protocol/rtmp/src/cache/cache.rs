@@ -98,11 +98,11 @@ impl Cache {
         chunk_body: BytesMut,
         timestamp: u32,
     ) -> Result<(), CacheError> {
-        let mut parser = tag_parser::TagParser::new(chunk_body.clone(), define::tag_type::AUDIO);
-        let tag = parser.parse()?;
+        let mut parser = tag_parser::AudioTagHeaderParser::new(chunk_body.clone());
+        let tag = parser.parse_tag_header()?;
 
         if tag.sound_format == define::sound_format::AAC
-            && tag.avc_packet_type == define::aac_packet_type::AAC_SEQHDR
+            && tag.aac_packet_type == define::aac_packet_type::AAC_SEQHDR
         {
             self.audio_seq = chunk_body;
             self.audio_timestamp = timestamp;
@@ -130,8 +130,8 @@ impl Cache {
         chunk_body: BytesMut,
         timestamp: u32,
     ) -> Result<(), CacheError> {
-        let mut parser = tag_parser::TagParser::new(chunk_body.clone(), define::tag_type::VIDEO);
-        let tag = parser.parse()?;
+        let mut parser = tag_parser::VideoTagHeaderParser::new(chunk_body.clone());
+        let tag = parser.parse_tag_header()?;
 
         if tag.frame_type == define::frame_type::KEY_FRAME
             && tag.avc_packet_type == define::avc_packet_type::AVC_SEQHDR
