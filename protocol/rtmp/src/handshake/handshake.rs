@@ -1,9 +1,13 @@
 use {
     super::errors::{HandshakeError, HandshakeErrorValue},
+    //crate::utils::print,
     byteorder::{BigEndian, WriteBytesExt},
     bytes::BytesMut,
     hmac::{Hmac, Mac},
-    networkio::{bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, networkio::NetworkIO},
+    networkio::{
+        bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, bytes_writer::BytesWriter,
+        networkio::NetworkIO,
+    },
     rand,
     rand::Rng,
     sha2::Sha256,
@@ -20,7 +24,7 @@ const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
 //     0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB, 0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
 // ];
 // //30
-// const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
+const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
 //36
 const RTMP_CLIENT_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Player 001";
 const RTMP_DIGEST_LENGTH: usize = 32;
@@ -49,7 +53,7 @@ pub enum ClientHandshakeState {
     WriteC2,
     Finish,
 }
-
+#[derive(Copy, Clone)]
 pub enum ServerHandshakeState {
     ReadC0C1,
     WriteS0S1S2,
@@ -625,55 +629,49 @@ impl ComplexHandshakeServer {
     }
 
     fn write_s1(&mut self) -> Result<(), HandshakeError> {
-        let mut s1_bytes = vec![];
-        s1_bytes.write_u32::<BigEndian>(current_time())?;
-        s1_bytes.write(&RTMP_SERVER_VERSION)?;
-        generate_random_bytes(&mut s1_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
+        let mut writer = BytesWriter::new();
+        writer.write_u32::<BigEndian>(current_time())?;
+        writer.write(&RTMP_SERVER_VERSION)?;
+        writer.write_random_bytes(RTMP_HANDSHAKE_SIZE as u32 - 8)?;
 
-        let s1_array: [u8; RTMP_HANDSHAKE_SIZE] =
-            s1_bytes.clone().try_into().unwrap_or_else(|v: Vec<u8>| {
-                panic!(
-                    "Expected a Vec of length {} but it was {}\n",
-                    RTMP_HANDSHAKE_SIZE,
-                    v.len()
-                )
-            });
+        let mut s1_array: [u8; RTMP_HANDSHAKE_SIZE] = writer.extract_current_bytes()[..]
+            .try_into()
+            .expect("slice with incorrect length");
 
         let offset = find_digest_offset(&s1_array, &self.c1_schema_version);
 
-        let left_part = &s1_bytes[0..(offset as usize)];
-        let right_part = &s1_bytes[(offset as usize + RTMP_HANDSHAKE_SIZE)..];
+        let left_part = &s1_array[0..(offset as usize)];
+        let right_part = &s1_array[(offset as usize + RTMP_DIGEST_LENGTH)..];
 
         let input = [left_part, right_part].concat();
-        let digest_bytes = make_digest(&input, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes());
+        let digest_bytes = make_digest(&input, RTMP_SERVER_KEY_FIRST_HALF.as_bytes());
 
         for idx in 0..RTMP_DIGEST_LENGTH {
-            s1_bytes[(offset as usize) + idx] = digest_bytes[idx];
+            s1_array[(offset as usize) + idx] = digest_bytes[idx];
         }
 
-        self.writer.write(&s1_bytes)?;
-
+        self.writer.write(&s1_array)?;
         Ok(())
     }
 
     fn write_s2(&mut self) -> Result<(), HandshakeError> {
-        let mut s2_bytes = vec![];
-        s2_bytes.write_u32::<BigEndian>(current_time())?;
+        let mut writer = BytesWriter::new();
+        writer.write_u32::<BigEndian>(current_time())?;
+        writer.write_u32::<BigEndian>(self.c1_timestamp)?;
+        writer.write_random_bytes(RTMP_HANDSHAKE_SIZE as u32 - 8)?;
 
-        s2_bytes.write_u32::<BigEndian>(self.c1_timestamp)?;
-        generate_random_bytes(&mut s2_bytes[8..RTMP_HANDSHAKE_SIZE - 24]);
-
-        let c1_array: [u8; RTMP_HANDSHAKE_SIZE] = self.c1_bytes[..]
+        let mut s2_array: [u8; RTMP_HANDSHAKE_SIZE] = writer.extract_current_bytes()[..]
             .try_into()
             .expect("slice with incorrect length");
 
-        let result = find_digest(&c1_array, RTMP_CLIENT_KEY_FIRST_HALF.as_bytes())?;
+        let tmp_key = make_digest(&self.c1_digest, &RTMP_SERVER_KEY);
+        let digest = make_digest(&s2_array[..1504], &tmp_key);
 
-        let tmp_key = make_digest(&result.digest_content, &RTMP_SERVER_KEY);
-        let digest = make_digest(&s2_bytes[..1504], &tmp_key);
+        for idx in 0..RTMP_DIGEST_LENGTH {
+            s2_array[RTMP_HANDSHAKE_SIZE - 32 + idx] = digest[idx];
+        }
 
-        s2_bytes.append(&mut digest.to_vec());
-        self.writer.write(&s2_bytes[..])?;
+        self.writer.write(&s2_array[..])?;
 
         Ok(())
     }
@@ -718,6 +716,84 @@ impl ComplexHandshakeServer {
                     break;
                 }
             }
+        }
+
+        Ok(())
+    }
+}
+
+pub struct HandshakeServer {
+    simple_handshaker: SimpleHandshakeServer,
+    complex_handshaker: ComplexHandshakeServer,
+    is_complex: bool,
+    saved_data: BytesMut,
+}
+
+impl HandshakeServer {
+    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+        Self {
+            simple_handshaker: SimpleHandshakeServer::new(io.clone()),
+            complex_handshaker: ComplexHandshakeServer::new(io),
+            is_complex: true,
+            saved_data: BytesMut::new(),
+        }
+    }
+
+    pub fn extend_data(&mut self, data: &[u8]) {
+        if self.is_complex {
+            self.complex_handshaker.extend_data(data);
+            self.saved_data.extend_from_slice(data);
+        } else {
+            self.simple_handshaker.extend_data(data);
+        }
+    }
+
+    pub fn state(&mut self) -> ServerHandshakeState {
+        if self.is_complex {
+            return self.complex_handshaker.state;
+        } else {
+            return self.simple_handshaker.state;
+        }
+    }
+
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        match self.is_complex {
+            true => self.complex_handshaker.get_remaining_bytes(),
+            false => self.simple_handshaker.get_remaining_bytes(),
+        }
+    }
+
+    pub async fn handshake(&mut self) -> Result<(), HandshakeError> {
+        match self.is_complex {
+            true => {
+                let result = self.complex_handshaker.handshake().await;
+                match result {
+                    Ok(_) => {
+                        //println!("Complex handshake is successfully!!")
+                    }
+                    Err(_) => {
+                        self.is_complex = false;
+                        let data = self.saved_data.clone();
+                        self.extend_data(&data[..]);
+                        self.simple_handshaker.handshake().await?;
+                    }
+                }
+            }
+            false => {
+                self.simple_handshaker.handshake().await?;
+            }
+        }
+
+        match self.state() {
+            ServerHandshakeState::Finish => match self.is_complex {
+                true => {
+                    println!("Complex handshake is successfully!!")
+                }
+                false => {
+                    println!("Simple handshake is successfully!!")
+                }
+            },
+            _ => {}
         }
 
         Ok(())
