@@ -171,6 +171,7 @@ impl VideoTagHeaderParser {
             self.tag.avc_packet_type = self.bytes_reader.read_u8()?;
             self.tag.composition_time = 0;
 
+            //bigend
             for _ in 0..3 {
                 let time = self.bytes_reader.read_u8()?;
                 // print!("==time=={}\n",self.tag.composition_time);
