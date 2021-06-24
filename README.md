@@ -4,12 +4,12 @@ Xiu is a live server written by Rust.
 
 ## Functionalities
 
-- [x] rtmp
-  - [x] publish and play (now only simple handshake is supported.)
+- [x] RTMP
+  - [x] publish and play 
   - [x] relay: static push
-  - [x] relay: pull
-- [x] httpflv
-- [ ] hls
+  - [x] relay: static pull
+- [x] HTTPFLV
+- [ ] HLS
 - ...
 
 ## Dev Environment Establish
