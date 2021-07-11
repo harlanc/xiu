@@ -1,6 +1,6 @@
 use super::define;
 use super::define::tag_type;
-use super::errors::TagParseError;
+use super::errors::FlvDemuxerError;
 use super::errors::TagParseErrorValue;
 use byteorder::BigEndian;
 use bytes::BytesMut;
@@ -75,12 +75,12 @@ impl AudioTagHeader {
     }
 }
 
-pub struct AudioTagHeaderParser {
+pub struct AudioTagHeaderDemuxer {
     bytes_reader: BytesReader,
     tag: AudioTagHeader,
 }
 
-impl AudioTagHeaderParser {
+impl AudioTagHeaderDemuxer {
     pub fn new(data: BytesMut) -> Self {
         Self {
             bytes_reader: BytesReader::new(data),
@@ -88,7 +88,7 @@ impl AudioTagHeaderParser {
         }
     }
 
-    pub fn parse_tag_header(&mut self) -> Result<AudioTagHeader, TagParseError> {
+    pub fn parse_tag_header(&mut self) -> Result<AudioTagHeader, FlvDemuxerError> {
         let flags = self.bytes_reader.read_u8()?;
 
         self.tag.sound_format = flags >> 4;
@@ -104,6 +104,10 @@ impl AudioTagHeaderParser {
         }
 
         return Ok(self.tag.clone());
+    }
+
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        return self.bytes_reader.get_remaining_bytes();
     }
 }
 #[derive(Clone)]
@@ -146,12 +150,12 @@ impl VideoTagHeader {
     }
 }
 
-pub struct VideoTagHeaderParser {
+pub struct VideoTagHeaderDemuxer {
     bytes_reader: BytesReader,
     tag: VideoTagHeader,
 }
 
-impl VideoTagHeaderParser {
+impl VideoTagHeaderDemuxer {
     pub fn new(data: BytesMut) -> Self {
         Self {
             bytes_reader: BytesReader::new(data),
@@ -159,7 +163,7 @@ impl VideoTagHeaderParser {
         }
     }
 
-    pub fn parse_tag_header(&mut self) -> Result<VideoTagHeader, TagParseError> {
+    pub fn parse_tag_header(&mut self) -> Result<VideoTagHeader, FlvDemuxerError> {
         let flags = self.bytes_reader.read_u8()?;
 
         self.tag.frame_type = flags >> 4;
@@ -180,5 +184,9 @@ impl VideoTagHeaderParser {
         }
 
         return Ok(self.tag.clone());
+    }
+
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        return self.bytes_reader.get_remaining_bytes();
     }
 }

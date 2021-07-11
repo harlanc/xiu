@@ -1,14 +1,14 @@
 use {
     crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
     failure::Fail,
-    libflv::errors::TagParseError,
+    libflv::errors::FlvDemuxerError,
     std::fmt,
 };
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
     #[fail(display = "cache tag parse error\n")]
-    TagParseError(TagParseError),
+    DemuxerError(FlvDemuxerError),
     #[fail(display = "pack error\n")]
     PackError(PackError),
 }
@@ -23,10 +23,10 @@ pub struct CacheError {
     pub value: CacheErrorValue,
 }
 
-impl From<TagParseError> for CacheError {
-    fn from(error: TagParseError) -> Self {
+impl From<FlvDemuxerError> for CacheError {
+    fn from(error: FlvDemuxerError) -> Self {
         CacheError {
-            value: CacheErrorValue::TagParseError(error),
+            value: CacheErrorValue::DemuxerError(error),
         }
     }
 }
@@ -42,7 +42,7 @@ impl From<PackError> for CacheError {
 #[derive(Debug, Fail)]
 pub enum MetadataErrorValue {
     #[fail(display = "metadata tag parse error\n")]
-    TagParseError(TagParseError),
+    DemuxerError(FlvDemuxerError),
     #[fail(display = "pack error\n")]
     PackError(PackError),
     #[fail(display = "amf write error\n")]

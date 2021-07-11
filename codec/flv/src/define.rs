@@ -1,3 +1,5 @@
+use bytes::BytesMut;
+
 pub mod sound_format {
     pub const AAC: u8 = 10;
 }
@@ -34,4 +36,28 @@ pub mod tag_type {
     pub const AUDIO: u8 = 8;
     pub const VIDEO: u8 = 9;
     pub const SCRIPT_DATA_AMF: u8 = 18;
+}
+
+pub mod h264_nal_type {
+    pub const H264_NAL_IDR: u8 = 5;
+    pub const H264_NAL_SPS: u8 = 7;
+    pub const H264_NAL_PPS: u8 = 8;
+    pub const H264_NAL_AUD: u8 = 9;
+}
+
+pub enum FlvDemuxerData {
+    Video {
+        codec_id: u8,
+        dts: u64,
+        pts: u64,
+        frame_type: u8,
+        data: BytesMut,
+    },
+    Audio {
+        sound_format: u8,
+        dts: u64,
+        pts: u64,
+        data: BytesMut,
+    },
+    None,
 }

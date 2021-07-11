@@ -58,6 +58,14 @@ impl BytesWriter {
         Ok(())
     }
 
+    pub fn prepend(&mut self, buf: &[u8]) -> Result<(), BytesWriteError> {
+        let tmp_bytes = self.bytes.clone();
+        self.bytes.clear();
+        self.bytes.write(buf)?;
+        self.bytes.write(tmp_bytes.as_slice())?;
+        Ok(())
+    }
+
     pub fn write_random_bytes(&mut self, length: u32) -> Result<(), BytesWriteError> {
         let mut rng = rand::thread_rng();
         for _ in 0..length {
