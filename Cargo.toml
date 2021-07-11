@@ -2,7 +2,7 @@
 members = [
   "protocol/rtmp",
   "protocol/httpflv",
-  #"protocol/hls",
+  "protocol/hls",
   "library/networkio",
   "application",
   "codec/flv",
