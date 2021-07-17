@@ -1,10 +1,11 @@
 use bytes::BytesMut;
 
+#[derive(Debug, Clone)]
 pub struct Pes {
-    program_number: u16,
-    pid: u16,
-    stream_id: u8,
-    codec_id: u8,
+    pub program_number: u16,
+    pub pid: u16,
+    pub stream_id: u8,
+    pub codec_id: u8,
     continuity_counter: u8,
     esinfo: BytesMut,
     esinfo_length: u16,
@@ -33,7 +34,7 @@ pub struct Pes {
     es_rate: u32,
     packet: Packet,
 }
-
+#[derive(Debug, Clone)]
 pub struct Packet {
     stream_id: u8,
     codec_id: u8,
