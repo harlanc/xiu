@@ -27,16 +27,15 @@ use {
 
 use super::errors::HlsError;
 use super::errors::HlsErrorValue;
+use super::media::Media;
 
 pub struct Hls {
     app_name: String,
     stream_name: String,
-    video_demuxer: FlvVideoDemuxer,
-    audio_demuxer: FlvAudioDemuxer,
+
     event_producer: ChannelEventProducer,
     data_consumer: ChannelDataConsumer,
-    pts: u64,
-    dts: u64,
+    media_processor: Media,
 }
 
 impl Hls {
@@ -44,18 +43,17 @@ impl Hls {
         app_name: String,
         stream_name: String,
         event_producer: ChannelEventProducer,
+        duration: u64,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
 
         Self {
             app_name,
             stream_name,
-            video_demuxer: FlvVideoDemuxer::new(),
-            audio_demuxer: FlvAudioDemuxer::new(),
+
             data_consumer,
             event_producer,
-            pts: 0,
-            dts: 0,
+            media_processor: Media::new(duration),
         }
     }
 
@@ -71,15 +69,7 @@ impl Hls {
     pub async fn process_media_data(&mut self) -> Result<(), HlsError> {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
-                match data {
-                    ChannelData::Audio { timestamp, data } => {
-                        let audio_data = self.audio_demuxer.demuxer(timestamp, data)?;
-                    }
-                    ChannelData::Video { timestamp, data } => {
-                        let video_data = self.video_demuxer.demuxer(timestamp, data)?;
-                    }
-                    ChannelData::MetaData { timestamp, data } => {}
-                }
+                self.media_processor.demux(data)?;
             }
         }
     }

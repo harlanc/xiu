@@ -5,7 +5,7 @@ use networkio::bytes_errors::BytesReadError;
 use networkio::bytes_errors::BytesWriteError;
 
 #[derive(Debug, Fail)]
-pub enum MpegTsParseErrorValue {
+pub enum MpegTsErrorValue {
     #[fail(display = "bytes read error\n")]
     BytesReadError(BytesReadError),
 
@@ -13,22 +13,22 @@ pub enum MpegTsParseErrorValue {
     BytesWriteError(BytesWriteError),
 }
 #[derive(Debug)]
-pub struct MpegTsParseError {
-    pub value: MpegTsParseErrorValue,
+pub struct MpegTsError {
+    pub value: MpegTsErrorValue,
 }
 
-impl From<BytesReadError> for MpegTsParseError {
+impl From<BytesReadError> for MpegTsError {
     fn from(error: BytesReadError) -> Self {
-        MpegTsParseError {
-            value: MpegTsParseErrorValue::BytesReadError(error),
+        MpegTsError {
+            value: MpegTsErrorValue::BytesReadError(error),
         }
     }
 }
 
-impl From<BytesWriteError> for MpegTsParseError {
+impl From<BytesWriteError> for MpegTsError {
     fn from(error: BytesWriteError) -> Self {
-        MpegTsParseError {
-            value: MpegTsParseErrorValue::BytesWriteError(error),
+        MpegTsError {
+            value: MpegTsErrorValue::BytesWriteError(error),
         }
     }
 }
