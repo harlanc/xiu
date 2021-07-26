@@ -1,3 +1,4 @@
+use super::crc32;
 use super::define::epat_pid;
 use super::define::epsi_stream_type;
 use super::errors::MpegTsError;
@@ -39,23 +40,20 @@ impl PmtWriter {
 
     pub fn write(&mut self, pmt: &Pmt) -> Result<(), MpegTsError> {
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PMS)?;
-        self.bytes_writer.write_u16::<BigEndian>(0x00)?; //skip length
 
-        self.bytes_writer
-            .write_u16::<BigEndian>(pmt.program_number)?;
-        self.bytes_writer
-            .write_u8(0xC1 | (pmt.version_number << 1))?;
+        let mut tmp_bytes_writer = BytesWriter::new();
 
-        self.bytes_writer.write_u8(0x00)?;
-        self.bytes_writer.write_u8(0x00)?;
+        tmp_bytes_writer.write_u16::<BigEndian>(pmt.program_number)?;
+        tmp_bytes_writer.write_u8(0xC1 | (pmt.version_number << 1))?;
 
-        self.bytes_writer
-            .write_u16::<BigEndian>(0xE000 | pmt.pcr_pid)?;
-        self.bytes_writer
-            .write_u16::<BigEndian>(0xF000 | pmt.program_info_length)?;
+        tmp_bytes_writer.write_u8(0x00)?;
+        tmp_bytes_writer.write_u8(0x00)?;
+
+        tmp_bytes_writer.write_u16::<BigEndian>(0xE000 | pmt.pcr_pid)?;
+        tmp_bytes_writer.write_u16::<BigEndian>(0xF000 | pmt.program_info_length)?;
 
         if pmt.program_info_length > 0 && pmt.program_info_length < 0x400 {
-            self.bytes_writer.write(&pmt.program_info[..])?;
+            tmp_bytes_writer.write(&pmt.program_info[..])?;
         }
 
         for stream in &pmt.streams {
@@ -66,10 +64,19 @@ impl PmtWriter {
                 stream_type = stream.codec_id;
             }
 
-            self.bytes_writer.write_u8(stream_type)?;
-            self.bytes_writer
-                .write_u16::<BigEndian>(0xE000 | stream.pid)?;
+            tmp_bytes_writer.write_u8(stream_type)?;
+            tmp_bytes_writer.write_u16::<BigEndian>(0xE000 | stream.pid)?;
+            tmp_bytes_writer.write_u16::<BigEndian>(0xF000)?;
         }
+
+        self.bytes_writer
+            .write_u16::<BigEndian>(0xB000 | (tmp_bytes_writer.len() as u16))?; //skip length
+
+        self.bytes_writer
+            .write(&tmp_bytes_writer.extract_current_bytes()[..])?;
+
+        let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.extract_current_bytes());
+        self.bytes_writer.write_u32::<BigEndian>(crc32_value)?;
 
         Ok(())
     }
