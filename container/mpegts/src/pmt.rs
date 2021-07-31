@@ -8,7 +8,7 @@ use bytes::BytesMut;
 use networkio::bytes_writer::BytesWriter;
 #[derive(Debug, Clone)]
 pub struct Pmt {
-    pub pid: u8,
+    pub pid: u16,
     pub program_number: u16,
     pub version_number: u8,       //5 bits
     pub continuity_counter: u8,   //4i bits
@@ -18,7 +18,7 @@ pub struct Pmt {
     pub program_info: BytesMut,
     pub provider: BytesMut,
     pub name: BytesMut,
-    pub stream_count: u8,
+    pub stream_count: usize,
     pub streams: [pes::Pes; 4],
 }
 
