@@ -58,10 +58,10 @@ impl Media {
         let cur_dts: u32;
         match data {
             ChannelData::Audio { timestamp, data } => {
-                let audio_data = self.audio_demuxer.demuxer(timestamp, data)?;
+                let audio_data = self.audio_demuxer.demux(timestamp, data)?;
             }
             ChannelData::Video { timestamp, data } => {
-                let video_data = self.video_demuxer.demuxer(timestamp, data)?;
+                let video_data = self.video_demuxer.demux(timestamp, data)?;
 
                 if video_data.has_data
                     && video_data.dts - self.last_dts >= self.duration

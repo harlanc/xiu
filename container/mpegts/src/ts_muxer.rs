@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use super::define;
 use super::define::epat_pid;
 use super::define::ts;
@@ -8,6 +10,7 @@ use super::pmt;
 use super::utils;
 use byteorder::BigEndian;
 use bytes::BytesMut;
+use networkio::bytes_reader::BytesReader;
 use networkio::bytes_writer::BytesWriter;
 use rand::Open01;
 
@@ -87,36 +90,37 @@ impl TsWriter {
         let mut cur_index: usize = 0;
         let mut stream_data_clone = stream_data.clone();
 
-        let mut bytes_data: Vec<u8> = Vec::new();
+        let mut bytes_reader = BytesReader::new(payload);
+        let mut bytes_writer = BytesWriter::new();
 
-        while payload.len() > 0 {
-            bytes_data[0] = 0x47;
-            bytes_data[1] = 0x00 | ((stream_data_clone.pid >> 8) as u8 & 0x1F);
-            bytes_data[2] = (stream_data_clone.pid & 0xFF) as u8;
-            bytes_data[3] = 0x10 | (stream_data_clone.continuity_counter & 0x0F) as u8;
-            bytes_data[4] = 0x00;
-            bytes_data[5] = 0x00;
+        while bytes_reader.len() > 0 {
+            bytes_writer.write_u8(0x47)?; //0
+            bytes_writer.write_u8(0x00 | ((stream_data_clone.pid >> 8) as u8 & 0x1F))?; //1
+            bytes_writer.write_u8((stream_data_clone.pid & 0xFF) as u8)?; //2
+            bytes_writer.write_u8(0x10 | (stream_data_clone.continuity_counter & 0x0F) as u8)?; //3
+            bytes_writer.write_u8(0x00)?; //4
+            bytes_writer.write_u8(0x00)?; //5
 
             stream_data_clone.continuity_counter = (stream_data_clone.continuity_counter + 1) % 16;
 
             if is_start && (stream_data_clone.pid == pmt_data.pcr_pid) {
-                bytes_data[3] |= 0x20;
-                bytes_data[5] |= define::AF_FLAG_PCR;
+                bytes_writer.or_u8_at(3, 0x20)?;
+                bytes_writer.or_u8_at(5, define::AF_FLAG_PCR)?;
             }
 
             if is_start
                 && (stream_data_clone.data_alignment_indicator > 0)
                 && define::PTS_NO_VALUE != stream_data_clone.pts
             {
-                bytes_data[3] |= 0x20;
-                bytes_data[5] |= define::AF_FLAG_RANDOM_ACCESS_INDICATOR;
+                bytes_writer.or_u8_at(3, 0x20)?;
+                bytes_writer.or_u8_at(5, define::AF_FLAG_RANDOM_ACCESS_INDICATOR)?;
             }
 
-            if (bytes_data[3] & 0x20) > 0 {
-                bytes_data[4] = 1;
+            if (bytes_writer.get(3).unwrap() & 0x20) > 0 {
+                bytes_writer.write_u8_at(4, 1)?;
 
-                if (bytes_data[5] & define::AF_FLAG_PCR) > 0 {
-                    let mut pcr: i64 = 0;
+                if (bytes_writer.get(5).unwrap() & define::AF_FLAG_PCR) > 0 {
+                    let pcr: i64;
                     if define::PTS_NO_VALUE == stream_data_clone.dts {
                         pcr = stream_data_clone.pts;
                     } else {
@@ -126,10 +130,10 @@ impl TsWriter {
                     let mut pcr_result: Vec<u8> = Vec::new();
                     utils::pcr_write(&mut pcr_result, pcr * 300);
 
-                    bytes_data.append(&mut pcr_result);
-                    bytes_data[4] += 6;
+                    bytes_writer.write(&pcr_result[..])?;
+                    bytes_writer.add_u8_at(4, 6)?;
                 }
-                cur_index = (define::TS_HEADER_LEN + 1 + bytes_data[4]) as usize;
+                cur_index = (define::TS_HEADER_LEN + 1 + bytes_writer.get(4).unwrap()) as usize;
             } else {
                 cur_index = define::TS_HEADER_LEN as usize;
             }
@@ -137,59 +141,67 @@ impl TsWriter {
             let mut save_cur_index = cur_index;
 
             if is_start {
-                bytes_data[1] |= define::TS_PAYLOAD_UNIT_START_INDICATOR;
+                bytes_writer.or_u8_at(1, define::TS_PAYLOAD_UNIT_START_INDICATOR)?;
 
-                let mut pes_header: Vec<u8> = Vec::new();
-                self.write_pes_header(stream_data_clone.clone(), &mut pes_header);
-                bytes_data.append(&mut pes_header);
+                let mut pes_header = BytesWriter::new();
+                self.write_pes_header(stream_data_clone.clone(), &mut pes_header)?;
+                bytes_writer.append(&mut pes_header);
 
                 cur_index += pes_header.len();
 
                 if define::PSI_STREAM_H264 == stream_data.codec_id && !self.h264_h265_with_aud {
-                    bytes_data[cur_index] = 0x00;
-                    cur_index += 1;
-                    bytes_data[cur_index] = 0x00;
-                    cur_index += 1;
-                    bytes_data[cur_index] = 0x00;
-                    cur_index += 1;
-                    bytes_data[cur_index] = 0x01;
-                    cur_index += 1;
-                    bytes_data[cur_index] = 0x09;
-                    cur_index += 1;
-                    bytes_data[cur_index] = 0xF0;
-                    cur_index += 1;
+                    let header: [u8; 6] = [0x00, 0x00, 0x00, 0x01, 0x09, 0xF0];
+                    bytes_writer.write(&header)?;
+                    cur_index += 6;
                 }
 
-                let pes_length =
-                    cur_index - save_cur_index - define::PES_HEADER_LEN as usize + payload.len();
+                let pes_length = cur_index - save_cur_index - define::PES_HEADER_LEN as usize
+                    + bytes_reader.len();
 
                 if pes_length > 0xFFFF {
-                    bytes_data[save_cur_index + 4] = 0x00;
-                    bytes_data[save_cur_index + 5] = 0x00;
+                    bytes_writer.write_u8_at(save_cur_index + 4, 0x00)?;
+                    bytes_writer.write_u8_at(save_cur_index + 5, 0x00)?;
                 } else {
-                    bytes_data[save_cur_index + 4] = (pes_length >> 8) as u8 & 0xFF;
-                    bytes_data[save_cur_index + 5] = (pes_length) as u8 & 0xFF;
+                    bytes_writer.write_u8_at(save_cur_index + 4, (pes_length >> 8) as u8 & 0xFF)?;
+                    bytes_writer.write_u8_at(save_cur_index + 5, (pes_length) as u8 & 0xFF)?;
                 }
             }
 
+            let mut length: usize = 0;
 
+            if cur_index + bytes_reader.len() < define::TS_PACKET_SIZE {
+            } else {
+                length = define::TS_PACKET_SIZE - cur_index;
+            }
+
+            is_start = false;
+
+            let data = bytes_reader.read_bytes(length)?;
+            bytes_writer.write(&data[..])?;
         }
         Ok(())
     }
 
-    pub fn write_pes_header(&mut self, stream_data: pes::Pes, pes_header: &mut Vec<u8>) {
+    pub fn write_pes_header(
+        &mut self,
+        stream_data: pes::Pes,
+        pes_header: &mut BytesWriter,
+    ) -> Result<(), MpegTsError> {
         let mut flags: u8 = 0x00;
         let mut length: u8 = 0x00;
 
-        pes_header[0] = 0x00;
-        pes_header[1] = 0x00;
-        pes_header[2] = 0x01;
-        pes_header[3] = stream_data.stream_id;
+        pes_header.write_u8(0x00)?; //0
+        pes_header.write_u8(0x00)?; //1
+        pes_header.write_u8(0x01)?; //2
+        pes_header.write_u8(stream_data.stream_id)?; //3
 
-        pes_header[6] = 0x80;
+        pes_header.write_u8(0x00)?; //4
+        pes_header.write_u8(0x00)?; //5
+
+        pes_header.write_u8(0x80)?; //6
 
         if stream_data.data_alignment_indicator > 0 {
-            pes_header[6] |= 0x04;
+            pes_header.or_u8_at(6, 0x04)?;
         }
 
         if define::PTS_NO_VALUE != stream_data.pts {
@@ -202,24 +214,43 @@ impl TsWriter {
             length += 5;
         }
 
-        pes_header[7] = flags;
-        pes_header[8] = length;
+        pes_header.write_u8(flags)?; //7
+        pes_header.write_u8(length)?; //8
 
         if (flags & 0x80) > 0 {
-            pes_header[9] = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((stream_data.pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
-            pes_header[10] = (stream_data.pts >> 22) as u8 & 0xFF; /* PTS 22-29 */
-            pes_header[11] = ((stream_data.pts >> 14) & 0xFE) as u8 /* PTS 15-21 */ | 0x01 /* marker_bit */;
-            pes_header[12] = (stream_data.pts >> 7) as u8 & 0xFF; /* PTS 7-14 */
-            pes_header[13]  = ((stream_data.pts << 1) & 0xFE) as u8 /* PTS 0-6 */ | 0x01 /* marker_bit */;
+            let b9 = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((stream_data.pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
+            pes_header.write_u8(b9)?; //9
+
+            let b10 = (stream_data.pts >> 22) as u8 & 0xFF; /* PTS 22-29 */
+            pes_header.write_u8(b10)?; //10
+
+            let b11 = ((stream_data.pts >> 14) & 0xFE) as u8 /* PTS 15-21 */ | 0x01; /* marker_bit */
+            pes_header.write_u8(b11)?; //11
+
+            let b12 = (stream_data.pts >> 7) as u8 & 0xFF; /* PTS 7-14 */
+            pes_header.write_u8(b12)?; //12
+
+            let b13 = ((stream_data.pts << 1) & 0xFE) as u8 /* PTS 0-6 */ | 0x01; /* marker_bit */
+            pes_header.write_u8(b13)?; //13
         }
 
         if (flags & 0x40) > 0 {
-            pes_header[13] = 0x10 /* 0001 */ | (((stream_data.dts >> 30) & 0x07) << 1) as u8 /* DTS 30-32 */ | 0x01 /* marker_bit */;
-            pes_header[14] = (stream_data.dts >> 22) as u8 & 0xFF; /* DTS 22-29 */
-            pes_header[15] = ((stream_data.dts >> 14) & 0xFE) as u8 /* DTS 15-21 */ | 0x01 /* marker_bit */;
-            pes_header[16] = (stream_data.dts >> 7) as u8 & 0xFF; /* DTS 7-14 */
-            pes_header[17]= ((stream_data.dts << 1) as u8 & 0xFE) /* DTS 0-6 */ | 0x01 /* marker_bit */;
+            let b14 = 0x10 /* 0001 */ | (((stream_data.dts >> 30) & 0x07) << 1) as u8 /* DTS 30-32 */ | 0x01 /* marker_bit */;
+            pes_header.write_u8(b14)?;
+
+            let b15 = (stream_data.dts >> 22) as u8 & 0xFF; /* DTS 22-29 */
+            pes_header.write_u8(b15)?;
+
+            let b16 =  ((stream_data.dts >> 14) & 0xFE) as u8 /* DTS 15-21 */ | 0x01 /* marker_bit */;
+            pes_header.write_u8(b16)?;
+
+            let b17 = (stream_data.dts >> 7) as u8 & 0xFF; /* DTS 7-14 */
+            pes_header.write_u8(b17)?;
+
+            let b18 = ((stream_data.dts << 1) as u8 & 0xFE) /* DTS 0-6 */ | 0x01 /* marker_bit */;
+            pes_header.write_u8(b18)?;
         }
+        Ok(())
     }
 
     pub fn find_stream(&mut self, pat: pat::Pat, pid: u16) -> Option<pes::Pes> {

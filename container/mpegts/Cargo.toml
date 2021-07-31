@@ -16,7 +16,7 @@ bytes = "1.0.0"
 rand = "0.3"
 failure = "0.1.1"
 
-networkio = "0.1.23"#{path = "../../library/networkio/"}
+networkio = {path = "../../library/networkio/"}
 tokio-util = { version = "0.6.5", features = ["codec"] }
 
 # [dependencies.tokio]
