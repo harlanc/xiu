@@ -129,35 +129,6 @@ impl BytesWriter {
     }
 }
 
-// impl Index<usize> for BytesWriter {
-//     type Output = Option<&u8>;
-
-//     fn index(&self, idx: usize) -> &Self::Output {
-//         self.bytes.get(idx)
-//     }
-// }
-
-// impl IndexMut<usize> for BytesWriter {
-//     type Output = Option<&mut u8>;
-
-//     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-//         return self.bytes.get(idx);
-//     }
-// }
-
-// impl Index<Nucleotide> for NucleotideCount {
-//     type Output = usize;
-
-//     fn index(&self, nucleotide: Nucleotide) -> &Self::Output {
-//         match nucleotide {
-//             Nucleotide::A => &self.a,
-//             Nucleotide::C => &self.c,
-//             Nucleotide::G => &self.g,
-//             Nucleotide::T => &self.t,
-//         }
-//     }
-// }
-
 pub struct AsyncBytesWriter {
     pub bytes_writer: BytesWriter,
     pub io: Arc<Mutex<NetworkIO>>,
@@ -272,5 +243,46 @@ mod tests {
         }
 
         assert_eq!(10, v.len());
+    }
+
+    #[test]
+    fn test_bit_opertion() {
+        let pts: i64 = 1627702096;
+
+        let val = ((pts << 1) & 0xFE) as u8;
+
+        print!("======={}=======\n", pts << 1);
+        print!("======={}=======\n", val);
+    }
+
+    #[test]
+    fn test_bit_opertion2() {
+        let flags = 0xC0;
+        let pts: i64 = 1627702096;
+
+        let b9 = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
+        print!("=======b9{}=======\n", b9);
+
+        let b10 = (pts >> 22) as u8 & 0xFF; /* PTS 22-29 */
+        print!("=======b10{}=======\n", b10);
+
+        let b11 = ((pts >> 14) & 0xFE) as u8 /* PTS 15-21 */ | 0x01; /* marker_bit */
+        print!("=======b11{}=======\n", b11);
+
+        let b12 = (pts >> 7) as u8 & 0xFF; /* PTS 7-14 */
+        print!("=======b12{}=======\n", b12);
+
+        let b13 = ((pts << 1) & 0xFE) as u8 /* PTS 0-6 */ | 0x01; /* marker_bit */
+        print!("=======b13{}=======\n", b13);
+    }
+
+    #[test]
+    fn test_bit_opertion3() {
+        //let flags = 0xC0;
+        let pts: i64 = 1627702096;
+
+        let b12 = ((pts & 0x7fff) << 1) | 1; /* PTS 7-14 */
+        print!("=======b12{}=======\n", b12>>8 as u8);
+        print!("=======b13{}=======\n", b12 as u8);
     }
 }

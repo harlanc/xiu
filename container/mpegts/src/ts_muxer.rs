@@ -87,123 +87,263 @@ impl TsWriter {
         payload: BytesMut,
     ) -> Result<(), MpegTsError> {
         let mut is_start: bool = true;
-        let mut cur_index: usize = 0;
+
         let mut stream_data_clone = stream_data.clone();
 
-        let mut bytes_reader = BytesReader::new(payload);
-        let mut bytes_writer = BytesWriter::new();
+        let mut payload_reader = BytesReader::new(payload);
+        let mut ts_header = BytesWriter::new();
 
-        while bytes_reader.len() > 0 {
-            bytes_writer.write_u8(0x47)?; //0
-            bytes_writer.write_u8(0x00 | ((stream_data_clone.pid >> 8) as u8 & 0x1F))?; //1
-            bytes_writer.write_u8((stream_data_clone.pid & 0xFF) as u8)?; //2
-            bytes_writer.write_u8(0x10 | (stream_data_clone.continuity_counter & 0x0F) as u8)?; //3
-            bytes_writer.write_u8(0x00)?; //4
-            bytes_writer.write_u8(0x00)?; //5
+        while payload_reader.len() > 0 {
+            self.write_ts_header(
+                &mut stream_data_clone,
+                &mut ts_header,
+                is_start,
+                pmt_data.pcr_pid,
+            )?;
+            /****************************************************************/
+            /*        ts header 4 bytes without adaptation filed            */
+            /*****************************************************************
+             0                   1                   2                   3
+             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            |   sync byte   | | | |          PID            |   |   |       |
+            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            */
+
+            /*sync byte*/
+            ts_header.write_u8(0x47)?; //0
+
+            /*PID 13 bits*/
+            ts_header.write_u8(0x00 | ((stream_data_clone.pid >> 8) as u8 & 0x1F))?; //1
+            ts_header.write_u8((stream_data_clone.pid & 0xFF) as u8)?; //2
+
+            /*continuity counter 4 bits*/
+            ts_header.write_u8(0x10 | (stream_data_clone.continuity_counter & 0x0F) as u8)?; //3
+
+            /*will be used for adaptation field length if have*/
+            ts_header.write_u8(0x00)?; //4
+
+            /*will be used for adaptation field flags if have*/
+            ts_header.write_u8(0x00)?; //5
 
             stream_data_clone.continuity_counter = (stream_data_clone.continuity_counter + 1) % 16;
 
-            if is_start && (stream_data_clone.pid == pmt_data.pcr_pid) {
-                bytes_writer.or_u8_at(3, 0x20)?;
-                bytes_writer.or_u8_at(5, define::AF_FLAG_PCR)?;
+            if is_start {
+                /*payload unit start indicator*/
+                ts_header.or_u8_at(1, define::TS_PAYLOAD_UNIT_START_INDICATOR)?;
+
+                if stream_data_clone.pid == pmt_data.pcr_pid {
+                    /*adaption field control*/
+                    ts_header.or_u8_at(3, 0x20)?;
+                    /*adaption field flags*/
+                    ts_header.or_u8_at(5, define::AF_FLAG_PCR)?;
+                }
+
+                if (stream_data_clone.data_alignment_indicator > 0)
+                    && define::PTS_NO_VALUE != stream_data_clone.pts
+                {
+                    /*adaption field control*/
+                    ts_header.or_u8_at(3, 0x20)?;
+                    /*adaption field flags*/
+                    ts_header.or_u8_at(5, define::AF_FLAG_RANDOM_ACCESS_INDICATOR)?;
+                }
             }
 
-            if is_start
-                && (stream_data_clone.data_alignment_indicator > 0)
-                && define::PTS_NO_VALUE != stream_data_clone.pts
-            {
-                bytes_writer.or_u8_at(3, 0x20)?;
-                bytes_writer.or_u8_at(5, define::AF_FLAG_RANDOM_ACCESS_INDICATOR)?;
-            }
+            /*if has adaption field */
+            if (ts_header.get(3).unwrap() & 0x20) > 0 {
+                /*adaption filed length -- set value to 1 for flags*/
+                ts_header.write_u8_at(4, 1)?;
 
-            if (bytes_writer.get(3).unwrap() & 0x20) > 0 {
-                bytes_writer.write_u8_at(4, 1)?;
-
-                if (bytes_writer.get(5).unwrap() & define::AF_FLAG_PCR) > 0 {
+                if (ts_header.get(5).unwrap() & define::AF_FLAG_PCR) > 0 {
                     let pcr: i64;
                     if define::PTS_NO_VALUE == stream_data_clone.dts {
                         pcr = stream_data_clone.pts;
                     } else {
                         pcr = stream_data_clone.dts;
                     }
-
                     let mut pcr_result: Vec<u8> = Vec::new();
                     utils::pcr_write(&mut pcr_result, pcr * 300);
-
-                    bytes_writer.write(&pcr_result[..])?;
-                    bytes_writer.add_u8_at(4, 6)?;
+                    ts_header.write(&pcr_result[..])?;
+                    /*adaption filed length -- add 6 for pcr length*/
+                    ts_header.add_u8_at(4, 6)?;
                 }
-                cur_index = (define::TS_HEADER_LEN + 1 + bytes_writer.get(4).unwrap()) as usize;
-            } else {
-                cur_index = define::TS_HEADER_LEN as usize;
             }
 
-            let mut save_cur_index = cur_index;
-
+            //write pes header
+            let mut pes_header = BytesWriter::new();
             if is_start {
-                bytes_writer.or_u8_at(1, define::TS_PAYLOAD_UNIT_START_INDICATOR)?;
-
-                let mut pes_header = BytesWriter::new();
                 self.write_pes_header(stream_data_clone.clone(), &mut pes_header)?;
-                bytes_writer.append(&mut pes_header);
 
-                cur_index += pes_header.len();
+                let pes_payload_length =
+                    pes_header.len() - define::PES_HEADER_LEN as usize + payload_reader.len();
 
-                if define::PSI_STREAM_H264 == stream_data.codec_id && !self.h264_h265_with_aud {
-                    let header: [u8; 6] = [0x00, 0x00, 0x00, 0x01, 0x09, 0xF0];
-                    bytes_writer.write(&header)?;
-                    cur_index += 6;
-                }
-
-                let pes_length = cur_index - save_cur_index - define::PES_HEADER_LEN as usize
-                    + bytes_reader.len();
-
-                if pes_length > 0xFFFF {
-                    bytes_writer.write_u8_at(save_cur_index + 4, 0x00)?;
-                    bytes_writer.write_u8_at(save_cur_index + 5, 0x00)?;
+                /*pes header -- update pes packet length*/
+                if pes_payload_length > 0xFFFF {
+                    //only video data can exceed the 0xFFFF length,0 represet unlimited length
+                    pes_header.write_u8_at(4, 0x00)?;
+                    pes_header.write_u8_at(5, 0x00)?;
                 } else {
-                    bytes_writer.write_u8_at(save_cur_index + 4, (pes_length >> 8) as u8 & 0xFF)?;
-                    bytes_writer.write_u8_at(save_cur_index + 5, (pes_length) as u8 & 0xFF)?;
+                    pes_header.write_u8_at(4, (pes_payload_length >> 8) as u8 & 0xFF)?;
+                    pes_header.write_u8_at(5, (pes_payload_length) as u8 & 0xFF)?;
                 }
             }
 
-            let mut length: usize = 0;
+            /*
+            +-------------------------------------------------------------------------+
+            |        ts header                              | PES data                |
+            +-------------------------------------------------------------------------+
+            | 4bytes fixed header | adaption field(stuffing)| pes header | pes payload|
+            +-------------------------------------------------------------------------+
+            */
+            // If payload data cannot fill up the 188 bytes packet,
+            // then stuffling bytes need to be filled in the adaptation field,
 
-            if cur_index + bytes_reader.len() < define::TS_PACKET_SIZE {
+            let ts_header_length: usize = ts_header.len();
+            let pes_header_length: usize = pes_header.len();
+            let mut stuffing_length = define::TS_PACKET_SIZE
+                - (ts_header_length + pes_header_length + payload_reader.len());
+
+            let payload_length;
+
+            if stuffing_length > 0 {
+                if (ts_header.get(3).unwrap() & 0x20) > 0 {
+                    /*adaption filed length -- add 6 for pcr length*/
+                    ts_header.add_u8_at(4, stuffing_length as u8)?;
+                } else {
+                    /*adaption field control*/
+                    ts_header.or_u8_at(3, 0x20)?;
+                    /*AF length*/
+                    stuffing_length -= 1;
+                    /*adaption filed length -- set value to 1 for flags*/
+                    ts_header.write_u8_at(4, stuffing_length as u8)?;
+                    /*add flag*/
+                    if stuffing_length > 0 {
+                        ts_header.write_u8(0)?;
+                    }
+                    if stuffing_length > 1 {
+                        /*remove flag*/
+                        stuffing_length -= 1;
+                    }
+                }
+                for _ in 0..stuffing_length {
+                    ts_header.write_u8(0xFF)?;
+                }
+                payload_length = payload_reader.len();
             } else {
-                length = define::TS_PACKET_SIZE - cur_index;
+                payload_length = define::TS_PACKET_SIZE - ts_header_length - pes_header_length;
             }
 
             is_start = false;
 
-            let data = bytes_reader.read_bytes(length)?;
-            bytes_writer.write(&data[..])?;
+            let data = payload_reader.read_bytes(payload_length)?;
+            ts_header.write(&data[..])?;
         }
         Ok(())
     }
+    pub fn write_ts_header(
+        &mut self,
+        stream_data: &mut pes::Pes,
+        ts_header: &mut BytesWriter,
+        is_start: bool,
+        pcr_pid: u16,
+    ) -> Result<(), MpegTsError> {
+        /****************************************************************/
+        /*        ts header 4 bytes without adaptation filed            */
+        /*****************************************************************
+         0                   1                   2                   3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |   sync byte   | | | |          PID            |   |   |       |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        */
 
+        /*sync byte*/
+        ts_header.write_u8(0x47)?; //0
+
+        /*PID 13 bits*/
+        ts_header.write_u8(0x00 | ((stream_data.pid >> 8) as u8 & 0x1F))?; //1
+        ts_header.write_u8((stream_data.pid & 0xFF) as u8)?; //2
+
+        /*continuity counter 4 bits*/
+        ts_header.write_u8(0x10 | (stream_data.continuity_counter & 0x0F) as u8)?; //3
+
+        /*will be used for adaptation field length if have*/
+        ts_header.write_u8(0x00)?; //4
+
+        /*will be used for adaptation field flags if have*/
+        ts_header.write_u8(0x00)?; //5
+
+        stream_data.continuity_counter = (stream_data.continuity_counter + 1) % 16;
+
+        if is_start {
+            /*payload unit start indicator*/
+            ts_header.or_u8_at(1, define::TS_PAYLOAD_UNIT_START_INDICATOR)?;
+
+            if stream_data.pid == pcr_pid {
+                /*adaption field control*/
+                ts_header.or_u8_at(3, 0x20)?;
+                /*adaption field flags*/
+                ts_header.or_u8_at(5, define::AF_FLAG_PCR)?;
+            }
+
+            if (stream_data.data_alignment_indicator > 0) && define::PTS_NO_VALUE != stream_data.pts
+            {
+                /*adaption field control*/
+                ts_header.or_u8_at(3, 0x20)?;
+                /*adaption field flags*/
+                ts_header.or_u8_at(5, define::AF_FLAG_RANDOM_ACCESS_INDICATOR)?;
+            }
+        }
+
+        /*if has adaption field */
+        if (ts_header.get(3).unwrap() & 0x20) > 0 {
+            /*adaption filed length -- set value to 1 for flags*/
+            ts_header.write_u8_at(4, 1)?;
+
+            if (ts_header.get(5).unwrap() & define::AF_FLAG_PCR) > 0 {
+                let pcr: i64;
+                if define::PTS_NO_VALUE == stream_data.dts {
+                    pcr = stream_data.pts;
+                } else {
+                    pcr = stream_data.dts;
+                }
+                let mut pcr_result: Vec<u8> = Vec::new();
+                utils::pcr_write(&mut pcr_result, pcr * 300);
+                ts_header.write(&pcr_result[..])?;
+                /*adaption filed length -- add 6 for pcr length*/
+                ts_header.add_u8_at(4, 6)?;
+            }
+        }
+
+        Ok(())
+    }
+    //http://dvdnav.mplayerhq.hu/dvdinfo/pes-hdr.html
     pub fn write_pes_header(
         &mut self,
         stream_data: pes::Pes,
         pes_header: &mut BytesWriter,
     ) -> Result<(), MpegTsError> {
-        let mut flags: u8 = 0x00;
-        let mut length: u8 = 0x00;
-
+        /*pes start code 3 bytes*/
         pes_header.write_u8(0x00)?; //0
         pes_header.write_u8(0x00)?; //1
         pes_header.write_u8(0x01)?; //2
+
+        /*stream id 1 byte*/
         pes_header.write_u8(stream_data.stream_id)?; //3
 
+        /*pes packet length 2 bytes*/
         pes_header.write_u8(0x00)?; //4
         pes_header.write_u8(0x00)?; //5
 
+        /*first flag 1 byte*/
         pes_header.write_u8(0x80)?; //6
 
         if stream_data.data_alignment_indicator > 0 {
             pes_header.or_u8_at(6, 0x04)?;
         }
 
+        let mut flags: u8 = 0x00;
+        let mut length: u8 = 0x00;
         if define::PTS_NO_VALUE != stream_data.pts {
             flags |= 0x80;
             length += 5;
@@ -214,9 +354,14 @@ impl TsWriter {
             length += 5;
         }
 
+        /*second flag 1 byte*/
         pes_header.write_u8(flags)?; //7
+
+        /*pes header data length*/
         pes_header.write_u8(length)?; //8
 
+        //http://dvdnav.mplayerhq.hu/dvdinfo/pes-hdr.html
+        /*The flags has 0x80 means that it has pts -- 5 bytes*/
         if (flags & 0x80) > 0 {
             let b9 = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((stream_data.pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
             pes_header.write_u8(b9)?; //9
@@ -234,6 +379,7 @@ impl TsWriter {
             pes_header.write_u8(b13)?; //13
         }
 
+        /*The flags has 0x40 means that it has dts -- 5 bytes*/
         if (flags & 0x40) > 0 {
             let b14 = 0x10 /* 0001 */ | (((stream_data.dts >> 30) & 0x07) << 1) as u8 /* DTS 30-32 */ | 0x01 /* marker_bit */;
             pes_header.write_u8(b14)?;
@@ -250,6 +396,12 @@ impl TsWriter {
             let b18 = ((stream_data.dts << 1) as u8 & 0xFE) /* DTS 0-6 */ | 0x01 /* marker_bit */;
             pes_header.write_u8(b18)?;
         }
+
+        if define::PSI_STREAM_H264 == stream_data.codec_id && !self.h264_h265_with_aud {
+            let header: [u8; 6] = [0x00, 0x00, 0x00, 0x01, 0x09, 0xF0];
+            pes_header.write(&header)?;
+        }
+
         Ok(())
     }
 
