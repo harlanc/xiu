@@ -16,13 +16,35 @@ pub struct Pmt {
     pub program_info_length: u16, //12 bits
 
     pub program_info: BytesMut,
-    pub provider: [char; 64],
-    pub name: [char; 64],
+    pub provider: BytesMut,
+    pub name: BytesMut,
     pub stream_count: u8,
     pub streams: [pes::Pes; 4],
 }
 
 impl Pmt {
+    pub fn default() -> Self {
+        Self {
+            pid: 0,
+            program_number: 0,
+            version_number: 0,      //5 bits
+            continuity_counter: 0,  //4i bits
+            pcr_pid: 0,             //13 bits
+            program_info_length: 0, //12 bits
+
+            program_info: BytesMut::new(),
+            provider: BytesMut::new(),
+            name: BytesMut::new(),
+            stream_count: 0,
+            streams: [
+                pes::Pes::default(),
+                pes::Pes::default(),
+                pes::Pes::default(),
+                pes::Pes::default(),
+            ],
+        }
+    }
+
     //p49
     pub fn write(&mut self) {}
 }

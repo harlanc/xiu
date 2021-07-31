@@ -18,6 +18,22 @@ pub struct Pat {
     pub pmt: [pmt::Pmt; 4],
 }
 
+impl Pat {
+    pub fn default() -> Self {
+        Self {
+            transport_stream_id: 1,
+            version_number: 0,
+            continuity_counter: 0,
+            pmt_count: 0,
+            pmt: [
+                pmt::Pmt::default(),
+                pmt::Pmt::default(),
+                pmt::Pmt::default(),
+                pmt::Pmt::default(),
+            ],
+        }
+    }
+}
 pub struct PatWriter {
     pub bytes_writer: BytesWriter,
 }
