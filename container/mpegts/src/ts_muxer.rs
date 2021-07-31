@@ -19,6 +19,7 @@ pub struct TsWriter {
     pat_continuity_counter: u8,
     pmt_continuity_counter: u8,
     h264_h265_with_aud: bool,
+    pat: pat::Pat,
 }
 
 impl TsWriter {
@@ -28,14 +29,15 @@ impl TsWriter {
             pat_continuity_counter: 0,
             pmt_continuity_counter: 0,
             h264_h265_with_aud: false,
+            pat: pat::Pat::default(),
         }
     }
 
-    pub fn write(&mut self, pat_data: pat::Pat) -> Result<(), MpegTsError> {
+    pub fn write(&mut self, pat_data: pat::Pat, payload: BytesMut) -> Result<(), MpegTsError> {
         let mut pat_writer = pat::PatWriter::new();
 
         pat_writer.write(pat_data.clone())?;
-        self.write_section_header(
+        self.write_ts_header_for_pat_pmt(
             epat_pid::PAT_TID_PAS,
             pat_writer.bytes_writer.extract_current_bytes(),
         )?;
@@ -43,17 +45,25 @@ impl TsWriter {
         let mut pmt_writer = pmt::PmtWriter::new();
         for pmt_data in &pat_data.pmt {
             pmt_writer.write(pmt_data)?;
-            self.write_section_header(
+            self.write_ts_header_for_pat_pmt(
                 epat_pid::PAT_TID_PMS,
                 pmt_writer.bytes_writer.extract_current_bytes(),
             )?;
         }
 
+        // self.write_pes(pmt_data, stream_data, payload)?;
+
         Ok(())
     }
 
-    pub fn write_section_header(&mut self, pid: u8, payload: BytesMut) -> Result<(), MpegTsError> {
-        self.bytes_writer.write_u8(pid)?;
+    pub fn write_ts_header_for_pat_pmt(
+        &mut self,
+        pid: u8,
+        payload: BytesMut,
+    ) -> Result<(), MpegTsError> {
+        /*sync byte*/
+        self.bytes_writer.write_u8(0x47)?;
+        /*PID 13 bits*/
         self.bytes_writer.write_u8(0x40 | ((pid >> 8) & 0x1F))?;
         self.bytes_writer.write_u8(pid & 0xFF)?;
 
@@ -62,25 +72,25 @@ impl TsWriter {
                 self.pat_continuity_counter = (self.pat_continuity_counter + 1) % 16;
             }
             epat_pid::PAT_TID_PMS => {
-                self.pmt_continuity_counter = (self.pat_continuity_counter + 1) % 16;
+                self.pmt_continuity_counter = (self.pmt_continuity_counter + 1) % 16;
             }
 
             _ => {}
         }
 
+        /*adaption field control*/
         self.bytes_writer.write_u8(0x00)?;
+        /*payload data*/
         self.bytes_writer.write(&payload)?;
 
-        let cur_size = self.bytes_writer.extract_current_bytes().len();
-        let left_size = ts::TS_PACKET_SIZE - cur_size as u8;
-
+        let left_size = ts::TS_PACKET_SIZE - self.bytes_writer.len() as u8;
         for _ in 0..left_size {
             self.bytes_writer.write_u8(0xFF)?;
         }
         Ok(())
     }
     //2.4.3.6 PES packet P35
-    pub fn write_pes(
+    pub fn write_pes_payload(
         &mut self,
         pmt_data: pmt::Pmt,
         stream_data: &mut pes::Pes,
@@ -94,7 +104,7 @@ impl TsWriter {
         while payload_reader.len() > 0 {
             //write ts header
             let mut ts_header = BytesWriter::new();
-            self.write_ts_header(stream_data, &mut ts_header, is_start, pmt_data.pcr_pid)?;
+            self.write_ts_header_for_pes(stream_data, &mut ts_header, is_start, pmt_data.pcr_pid)?;
 
             //write pes header
             let mut pes_header = BytesWriter::new();
@@ -170,7 +180,7 @@ impl TsWriter {
         }
         Ok(())
     }
-    pub fn write_ts_header(
+    pub fn write_ts_header_for_pes(
         &mut self,
         stream_data: &mut pes::Pes,
         ts_header: &mut BytesWriter,
@@ -239,7 +249,7 @@ impl TsWriter {
                 }
                 let mut pcr_result: Vec<u8> = Vec::new();
                 utils::pcr_write(&mut pcr_result, pcr * 300);
-                ts_header.write(&pcr_result[..])?;
+                ts_header.write(&pcr_result)?;
                 /*adaption filed length -- add 6 for pcr length*/
                 ts_header.add_u8_at(4, 6)?;
             }
