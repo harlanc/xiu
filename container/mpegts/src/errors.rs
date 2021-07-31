@@ -16,6 +16,15 @@ pub enum MpegTsErrorValue {
 
     #[fail(display = "io error\n")]
     IOError(Error),
+
+    #[fail(display = "program number exists\n")]
+    ProgramNumberExists,
+
+    #[fail(display = "pmt count execeed\n")]
+    PmtCountExeceed,
+
+    #[fail(display = "stream count execeed\n")]
+    StreamCountExeceed,
 }
 #[derive(Debug)]
 pub struct MpegTsError {

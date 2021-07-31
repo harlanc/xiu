@@ -4,11 +4,14 @@ use super::define;
 use super::define::epat_pid;
 use super::define::ts;
 use super::errors::MpegTsError;
+use super::errors::MpegTsErrorValue;
 use super::pat;
 use super::pes;
 use super::pmt;
 use super::utils;
 use byteorder::BigEndian;
+use bytes::BufMut;
+use bytes::Bytes;
 use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
 use networkio::bytes_writer::BytesWriter;
@@ -19,6 +22,10 @@ pub struct TsWriter {
     pat_continuity_counter: u8,
     pmt_continuity_counter: u8,
     h264_h265_with_aud: bool,
+    pid: u16,
+    pat_period: i64,
+    pcr_period: i64,
+    pcr_clock: i64,
     pat: pat::Pat,
 }
 
@@ -29,6 +36,10 @@ impl TsWriter {
             pat_continuity_counter: 0,
             pmt_continuity_counter: 0,
             h264_h265_with_aud: false,
+            pid: 0,
+            pat_period: 0,
+            pcr_period: 80 * 90,
+            pcr_clock: 0,
             pat: pat::Pat::default(),
         }
     }
@@ -337,7 +348,9 @@ impl TsWriter {
             pes_header.write_u8(b18)?;
         }
 
-        if define::PSI_STREAM_H264 == stream_data.codec_id && !self.h264_h265_with_aud {
+        if define::epsi_stream_type::PSI_STREAM_H264 == stream_data.codec_id
+            && !self.h264_h265_with_aud
+        {
             let header: [u8; 6] = [0x00, 0x00, 0x00, 0x01, 0x09, 0xF0];
             pes_header.write(&header)?;
         }
@@ -355,5 +368,67 @@ impl TsWriter {
         }
 
         None
+    }
+
+    pub fn add_stream(&mut self, codecid: u8, extra_data: BytesMut) -> Result<(), MpegTsError> {
+        if 0 == self.pat.pmt_count {
+            self.add_program(1, BytesMut::new())?;
+        }
+
+        Ok(())
+    }
+
+    pub fn pmt_add_stream(
+        &mut self,
+        pmt: &mut pmt::Pmt,
+        codecid: u8,
+        extra_data: BytesMut,
+    ) -> Result<(), MpegTsError> {
+        if pmt.stream_count == 4 {
+            return Err(MpegTsError {
+                value: MpegTsErrorValue::StreamCountExeceed,
+            });
+        }
+
+        let cur_stream = &mut pmt.streams[pmt.stream_count];
+
+        cur_stream.codec_id = codecid;
+        cur_stream.pid = self.pid;
+        self.pid += 1;
+
+        Ok(())
+    }
+
+    pub fn add_program(&mut self, program_number: u16, info: BytesMut) -> Result<(), MpegTsError> {
+        for i in 0..self.pat.pmt_count {
+            let cur_pmt = &self.pat.pmt[i as usize];
+            if cur_pmt.program_number == program_number {
+                return Err(MpegTsError {
+                    value: MpegTsErrorValue::ProgramNumberExists,
+                });
+            }
+        }
+
+        if self.pat.pmt_count == 4 {
+            return Err(MpegTsError {
+                value: MpegTsErrorValue::PmtCountExeceed,
+            });
+        }
+        let mut cur_pmt = &mut self.pat.pmt[self.pat.pmt_count];
+
+        cur_pmt.pid = self.pid + 1;
+        self.pid += 1;
+        cur_pmt.program_number = program_number;
+        cur_pmt.version_number = 0x00;
+        cur_pmt.continuity_counter = 0;
+        cur_pmt.pcr_pid = 0x1FFF;
+
+        if info.len() > 0 {
+            cur_pmt.program_info.put(&info[..]);
+        }
+
+        self.pat.pmt_count += 1;
+
+        Ok(())
     }
 }
