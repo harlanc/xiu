@@ -57,6 +57,8 @@ pub enum BytesWriteErrorValue {
     NetIOError(NetIOError),
     #[fail(display = "write time out")]
     Timeout,
+    #[fail(display = "outof index")]
+    OutofIndex,
 }
 
 impl From<io::Error> for BytesWriteError {

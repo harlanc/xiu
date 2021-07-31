@@ -24,3 +24,5 @@ pub const PES_HEADER_LEN: u8 = 6; // 3-bytes packet_start_code_prefix + 1-byte s
 pub const TS_PAYLOAD_UNIT_START_INDICATOR: u8 = 0x40;
 
 pub const PSI_STREAM_H264: u8 = 0x1b; // H.264
+
+pub const TS_PACKET_SIZE: usize = 188;

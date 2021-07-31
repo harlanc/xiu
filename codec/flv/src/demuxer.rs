@@ -63,7 +63,7 @@ impl FlvVideoDemuxer {
             avc_processor: Mpeg4AvcProcessor::new(),
         }
     }
-    pub fn demuxer(
+    pub fn demux(
         &mut self,
         timestamp: u32,
         data: BytesMut,
@@ -115,7 +115,7 @@ impl FlvAudioDemuxer {
         }
     }
 
-    pub fn demuxer(
+    pub fn demux(
         &mut self,
         timestamp: u32,
         data: BytesMut,

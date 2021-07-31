@@ -17,6 +17,8 @@ use tokio::sync::Mutex;
 
 use std::time::Duration;
 
+use std::ops::Index;
+use std::ops::IndexMut;
 use tokio::time::timeout;
 
 pub struct BytesWriter {
@@ -31,6 +33,43 @@ impl BytesWriter {
     pub fn write_u8(&mut self, byte: u8) -> Result<(), BytesWriteError> {
         self.bytes.write_u8(byte)?;
         Ok(())
+    }
+
+    pub fn or_u8_at(&mut self, position: usize, byte: u8) -> Result<(), BytesWriteError> {
+        if position > self.bytes.len() {
+            return Err(BytesWriteError {
+                value: BytesWriteErrorValue::OutofIndex,
+            });
+        }
+        self.bytes[position] |= byte;
+
+        Ok(())
+    }
+
+    pub fn add_u8_at(&mut self, position: usize, byte: u8) -> Result<(), BytesWriteError> {
+        if position > self.bytes.len() {
+            return Err(BytesWriteError {
+                value: BytesWriteErrorValue::OutofIndex,
+            });
+        }
+        self.bytes[position] += byte;
+
+        Ok(())
+    }
+
+    pub fn write_u8_at(&mut self, position: usize, byte: u8) -> Result<(), BytesWriteError> {
+        if position > self.bytes.len() {
+            return Err(BytesWriteError {
+                value: BytesWriteErrorValue::OutofIndex,
+            });
+        }
+        self.bytes[position] = byte;
+
+        Ok(())
+    }
+
+    pub fn get(&mut self, position: usize) -> Option<&u8> {
+        return self.bytes.get(position);
     }
 
     pub fn write_u16<T: ByteOrder>(&mut self, bytes: u16) -> Result<(), BytesWriteError> {
@@ -66,6 +105,10 @@ impl BytesWriter {
         Ok(())
     }
 
+    pub fn append(&mut self, writer: &mut BytesWriter) {
+        self.bytes.append(&mut writer.bytes);
+    }
+
     pub fn write_random_bytes(&mut self, length: u32) -> Result<(), BytesWriteError> {
         let mut rng = rand::thread_rng();
         for _ in 0..length {
@@ -85,6 +128,35 @@ impl BytesWriter {
         self.bytes.len()
     }
 }
+
+// impl Index<usize> for BytesWriter {
+//     type Output = Option<&u8>;
+
+//     fn index(&self, idx: usize) -> &Self::Output {
+//         self.bytes.get(idx)
+//     }
+// }
+
+// impl IndexMut<usize> for BytesWriter {
+//     type Output = Option<&mut u8>;
+
+//     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+//         return self.bytes.get(idx);
+//     }
+// }
+
+// impl Index<Nucleotide> for NucleotideCount {
+//     type Output = usize;
+
+//     fn index(&self, nucleotide: Nucleotide) -> &Self::Output {
+//         match nucleotide {
+//             Nucleotide::A => &self.a,
+//             Nucleotide::C => &self.c,
+//             Nucleotide::G => &self.g,
+//             Nucleotide::T => &self.t,
+//         }
+//     }
+// }
 
 pub struct AsyncBytesWriter {
     pub bytes_writer: BytesWriter,
@@ -163,5 +235,42 @@ impl AsyncBytesWriter {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    #[test]
+    fn test_write_vec() {
+        let mut v: Vec<u8> = Vec::new();
+
+        v.push(0x01);
+        assert_eq!(1, v.len());
+        assert_eq!(0x01, v[0]);
+
+        v[0] = 0x02;
+        assert_eq!(0x02, v[0]);
+
+        const FLV_HEADER: [u8; 9] = [
+            0x46, // 'F'
+            0x4c, //'L'
+            0x56, //'V'
+            0x01, //version
+            0x05, //00000101  audio tag  and video tag
+            0x00, 0x00, 0x00, 0x09, //flv header size
+        ];
+
+        let rv = v.write(&FLV_HEADER);
+
+        match rv {
+            Ok(val) => {
+                print!("{} ", val);
+            }
+            _ => {}
+        }
+
+        assert_eq!(10, v.len());
     }
 }
