@@ -30,23 +30,32 @@ impl PatWriter {
     }
 
     pub fn write(&mut self, pat: Pat) -> Result<(), MpegTsError> {
+        /*table id*/
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PAS)?;
 
+        /*section length*/
         let length = pat.pmt_count as u16 * 4 + 5 + 4;
         self.bytes_writer.write_u16::<BigEndian>(0xb000 | length)?;
+        /*transport_stream_id*/
         self.bytes_writer
             .write_u16::<BigEndian>(pat.transport_stream_id)?;
+        /*version_number*/
         self.bytes_writer
             .write_u8(0xC1 | (pat.version_number << 1))?;
 
+        /*section_number*/
+        /*last_section_number*/
         self.bytes_writer.write_u16::<BigEndian>(0x00)?;
 
         for ele in &pat.pmt {
+            /*program number*/
             self.bytes_writer
                 .write_u16::<BigEndian>(ele.program_number)?;
+            /*PID*/
             self.bytes_writer.write_u16::<BigEndian>(ele.pid as u16)?;
         }
 
+        /*crc32*/
         let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.extract_current_bytes());
         self.bytes_writer.write_u32::<BigEndian>(crc32_value)?;
 
