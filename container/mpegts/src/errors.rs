@@ -25,6 +25,9 @@ pub enum MpegTsErrorValue {
 
     #[fail(display = "stream count execeed\n")]
     StreamCountExeceed,
+
+    #[fail(display = "stream not found\n")]
+    StreamNotFound,
 }
 #[derive(Debug)]
 pub struct MpegTsError {

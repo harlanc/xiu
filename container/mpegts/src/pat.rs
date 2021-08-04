@@ -1,6 +1,7 @@
 use super::define::epat_pid;
 use super::errors::MpegTsError;
 use super::pmt;
+use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
 use networkio::bytes_writer::BytesWriter;
 
@@ -45,7 +46,7 @@ impl PatWriter {
         }
     }
 
-    pub fn write(&mut self, pat: Pat) -> Result<(), MpegTsError> {
+    pub fn write(&mut self, pat: &Pat) -> Result<BytesMut, MpegTsError> {
         /*table id*/
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PAS)?;
 
@@ -75,6 +76,6 @@ impl PatWriter {
         let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.extract_current_bytes());
         self.bytes_writer.write_u32::<BigEndian>(crc32_value)?;
 
-        Ok(())
+        Ok(self.bytes_writer.extract_current_bytes())
     }
 }

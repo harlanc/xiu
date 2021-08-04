@@ -39,7 +39,7 @@ pub struct Mpeg4Avc {
     profile: u8,
     compatibility: u8,
     level: u8,
-    nalu: u8,
+    nalu_length: u8,
 
     nb_sps: u8,
     nb_pps: u8,
@@ -47,8 +47,8 @@ pub struct Mpeg4Avc {
     sps: Vec<Sps>,
     pps: Vec<Pps>,
 
-    sps_data: BytesWriter, // pice together all the sps data
-    pps_data: BytesWriter, // pice together all the pps data
+    sps_annexb_data: BytesWriter, // pice together all the sps data
+    pps_annexb_data: BytesWriter, // pice together all the pps data
 
     //extension
     chroma_format_idc: u8,
@@ -65,15 +65,15 @@ impl Mpeg4Avc {
             profile: 0,
             compatibility: 0,
             level: 0,
-            nalu: 0,
+            nalu_length: 0,
             nb_pps: 0,
             nb_sps: 0,
 
             sps: Vec::new(),
             pps: Vec::new(),
 
-            sps_data: BytesWriter::new(),
-            pps_data: BytesWriter::new(),
+            sps_annexb_data: BytesWriter::new(),
+            pps_annexb_data: BytesWriter::new(),
 
             chroma_format_idc: 0,
             bit_depth_chroma_minus8: 0,
@@ -107,29 +107,35 @@ impl Mpeg4AvcProcessor {
     }
 
     pub fn decoder_configuration_record_load(&mut self) -> Result<(), MpegAvcError> {
+        /*version */
         self.bytes_reader.read_u8()?;
-
+        /*avc profile*/
         self.mpeg4_avc.profile = self.bytes_reader.read_u8()?;
+        /*avc compatibility*/
         self.mpeg4_avc.compatibility = self.bytes_reader.read_u8()?;
+        /*avc level*/
         self.mpeg4_avc.level = self.bytes_reader.read_u8()?;
-        self.mpeg4_avc.nalu = self.bytes_reader.read_u8()? & 0x03 + 1;
+        /*nalu length*/
+        self.mpeg4_avc.nalu_length = self.bytes_reader.read_u8()? & 0x03 + 1;
 
-        //sps
+        /*number of SPS NALUs */
         self.mpeg4_avc.nb_sps = self.bytes_reader.read_u8()? & 0x1F;
 
         for i in 0..self.mpeg4_avc.nb_sps as usize {
+            /*SPS size*/
             self.mpeg4_avc.sps[i].size = self.bytes_reader.read_u16::<BigEndian>()?;
+            /*SPS data*/
             self.mpeg4_avc.sps[i].data = self
                 .bytes_reader
                 .read_bytes(self.mpeg4_avc.sps[i].size as usize)?;
 
-            self.mpeg4_avc.sps_data.write(&H264_START_CODE)?;
+            self.mpeg4_avc.sps_annexb_data.write(&H264_START_CODE)?;
             self.mpeg4_avc
-                .sps_data
+                .sps_annexb_data
                 .write(&self.mpeg4_avc.sps[i].data[..])?;
         }
 
-        //pps
+        /*number of PPS NALUs*/
         self.mpeg4_avc.nb_pps = self.bytes_reader.read_u8()?;
 
         for i in 0..self.mpeg4_avc.nb_sps as usize {
@@ -138,9 +144,9 @@ impl Mpeg4AvcProcessor {
                 .bytes_reader
                 .read_bytes(self.mpeg4_avc.pps[i].size as usize)?;
 
-            self.mpeg4_avc.pps_data.write(&H264_START_CODE)?;
+            self.mpeg4_avc.pps_annexb_data.write(&H264_START_CODE)?;
             self.mpeg4_avc
-                .pps_data
+                .pps_annexb_data
                 .write(&self.mpeg4_avc.pps[i].data[..])?;
         }
 
@@ -162,9 +168,9 @@ impl Mpeg4AvcProcessor {
                         self.sps_pps_flag = true;
 
                         self.bytes_writer
-                            .prepend(&self.mpeg4_avc.sps_data.extract_current_bytes()[..])?;
+                            .prepend(&self.mpeg4_avc.sps_annexb_data.extract_current_bytes()[..])?;
                         self.bytes_writer
-                            .prepend(&self.mpeg4_avc.pps_data.extract_current_bytes()[..])?;
+                            .prepend(&self.mpeg4_avc.pps_annexb_data.extract_current_bytes()[..])?;
                     }
                 }
 
@@ -182,7 +188,7 @@ impl Mpeg4AvcProcessor {
     pub fn get_nalu_size(&mut self) -> Result<u8, MpegAvcError> {
         let mut size: u8 = 0;
 
-        for _ in 0..self.mpeg4_avc.nalu {
+        for _ in 0..self.mpeg4_avc.nalu_length {
             size = self.bytes_reader.read_u8()? + size << 8;
         }
         Ok(size)
@@ -202,7 +208,7 @@ impl Mpeg4AvcWriter {
         self.bytes_writer.write_u8(self.mpeg4_avc.compatibility)?;
         self.bytes_writer.write_u8(self.mpeg4_avc.level)?;
         self.bytes_writer
-            .write_u8((self.mpeg4_avc.nalu - 1) | 0xFC)?;
+            .write_u8((self.mpeg4_avc.nalu_length - 1) | 0xFC)?;
 
         //sps
         self.bytes_writer.write_u8(self.mpeg4_avc.nb_sps | 0xE0)?;

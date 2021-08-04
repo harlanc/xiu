@@ -17,3 +17,13 @@ pub fn is_steam_type_video(stream_type: u8) -> bool {
         _ => false,
     }
 }
+
+pub fn is_steam_type_audio(stream_type: u8) -> bool {
+    match stream_type {
+        epsi_stream_type::PSI_STREAM_AUDIO_OPUS
+        | epsi_stream_type::PSI_STREAM_AAC
+        | epsi_stream_type::PSI_STREAM_MP3
+        | epsi_stream_type::PSI_STREAM_MPEG4_AAC => true,
+        _ => false,
+    }
+}

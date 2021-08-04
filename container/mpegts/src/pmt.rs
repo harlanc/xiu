@@ -60,7 +60,7 @@ impl PmtWriter {
         }
     }
 
-    pub fn write(&mut self, pmt: &Pmt) -> Result<(), MpegTsError> {
+    pub fn write(&mut self, pmt: &Pmt) -> Result<BytesMut, MpegTsError> {
         /*table id*/
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PMS)?;
 
@@ -108,7 +108,7 @@ impl PmtWriter {
         let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.extract_current_bytes());
         self.bytes_writer.write_u32::<BigEndian>(crc32_value)?;
 
-        Ok(())
+        Ok(self.bytes_writer.extract_current_bytes())
     }
 
     pub fn write_descriptor(&mut self) -> Result<(), MpegTsError> {
