@@ -8,8 +8,8 @@ pub struct Pes {
     pub stream_id: u8,
     pub codec_id: u8,
     pub continuity_counter: u8,
-    esinfo: BytesMut,
-    esinfo_length: u16,
+    pub esinfo: BytesMut,
+    pub esinfo_length: usize,
     packet_length: u32,
 
     reserved10: u8,                   //2

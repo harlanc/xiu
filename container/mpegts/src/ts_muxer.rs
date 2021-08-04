@@ -1,7 +1,10 @@
+use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 use std::io::Write;
 
 use super::define;
 use super::define::epat_pid;
+use super::define::epes_stream_id;
 use super::define::ts;
 use super::errors::MpegTsError;
 use super::errors::MpegTsErrorValue;
@@ -44,22 +47,62 @@ impl TsWriter {
         }
     }
 
-    pub fn write(&mut self, pat_data: pat::Pat, payload: BytesMut) -> Result<(), MpegTsError> {
-        let mut pat_writer = pat::PatWriter::new();
+    pub fn reset(&mut self) {
+        self.pat_period = 0;
+        self.pcr_period = 80 * 90;
+        self.pcr_clock = 0;
+    }
 
-        pat_writer.write(pat_data.clone())?;
-        self.write_ts_header_for_pat_pmt(
-            epat_pid::PAT_TID_PAS,
-            pat_writer.bytes_writer.extract_current_bytes(),
-        )?;
+    pub fn write(
+        &mut self,
+        // pat_data: pat::Pat,
+        pid: u16,
+        pts: i64,
+        dts: i64,
+        flags: u16,
+        payload: BytesMut,
+    ) -> Result<(), MpegTsError> {
+        if (flags & define::MPEG_FLAG_H264_H265_WITH_AUD) > 0 {
+            self.h264_h265_with_aud = true;
+        } else {
+            self.h264_h265_with_aud = false;
+        }
 
-        let mut pmt_writer = pmt::PmtWriter::new();
-        for pmt_data in &pat_data.pmt {
-            pmt_writer.write(pmt_data)?;
-            self.write_ts_header_for_pat_pmt(
-                epat_pid::PAT_TID_PMS,
-                pmt_writer.bytes_writer.extract_current_bytes(),
-            )?;
+        let stream_info: (&mut pes::Pes, &mut pmt::Pmt);
+        match self.find_stream(pid) {
+            Some(value) => {
+                stream_info = value;
+            }
+            None => {
+                return Err(MpegTsError {
+                    value: MpegTsErrorValue::StreamNotFound,
+                });
+            }
+        }
+
+        let stream = stream_info.0;
+        stream.pts = pts;
+        stream.dts = dts;
+
+        if (flags & define::MPEG_FLAG_IDR_FRAME) > 0 {
+            stream.data_alignment_indicator = 1; // idr frame
+        } else {
+            stream.data_alignment_indicator = 0; // idr frame
+        }
+
+        let cur_pmt = stream_info.1;
+
+        if 0x1FFF == cur_pmt.pcr_pid
+            || (define::epes_stream_id::PES_SID_VIDEO
+                == (stream.stream_id & define::epes_stream_id::PES_SID_VIDEO))
+        {}
+
+        let pat_data = pat::PatWriter::new().write(&self.pat)?;
+        self.write_ts_header_for_pat_pmt(epat_pid::PAT_TID_PAS, pat_data)?;
+
+        for pmt_data in &mut self.pat.pmt.clone() {
+            let payload_data = pmt::PmtWriter::new().write(pmt_data)?;
+            self.write_ts_header_for_pat_pmt(epat_pid::PAT_TID_PMS, payload_data)?;
         }
 
         // self.write_pes(pmt_data, stream_data, payload)?;
@@ -192,7 +235,7 @@ impl TsWriter {
         Ok(())
     }
     pub fn write_ts_header_for_pes(
-        &mut self,
+        &self,
         stream_data: &mut pes::Pes,
         ts_header: &mut BytesWriter,
         is_start: bool,
@@ -358,14 +401,31 @@ impl TsWriter {
         Ok(())
     }
 
-    pub fn find_stream(&mut self, pat: pat::Pat, pid: u16) -> Option<pes::Pes> {
-        for p in &pat.pmt {
-            for s in &p.streams {
-                if s.pid == pid {
-                    return Some(s.clone());
-                }
-            }
-        }
+    pub fn find_stream(&mut self, pid: u16) -> Option<(&mut pes::Pes, &mut pmt::Pmt)> {
+
+
+        // for pmt in self.pat.pmt.iter_mut(){
+        //     for pes in pmt.streams.iter_mut() {
+        //         if pes.pid == pid {
+        //             return Some((pes, pmt));
+        //         }
+        //     }
+
+        // }
+
+        // for pmt_index in 0..self.pat.pmt_count {
+        //    // use this to bypass reference &mut more than once error.
+        //     if pmt_index >= self.pat.pmt_count {
+        //         break;
+        //     }
+        //     let pmt = &mut self.pat.pmt;
+        //     for pes in pmt.streams.iter_mut() {
+        //         if pes.pid == pid {
+        //             return Some((pes, pmt));
+        //         }
+        //     }
+        //     pmt_index += 1;
+        // }
 
         None
     }
@@ -375,15 +435,19 @@ impl TsWriter {
             self.add_program(1, BytesMut::new())?;
         }
 
+        self.pmt_add_stream(0, codecid, extra_data)?;
+
         Ok(())
     }
 
     pub fn pmt_add_stream(
         &mut self,
-        pmt: &mut pmt::Pmt,
+        pmt_index: usize,
         codecid: u8,
         extra_data: BytesMut,
     ) -> Result<(), MpegTsError> {
+        let pmt = &mut self.pat.pmt[pmt_index];
+
         if pmt.stream_count == 4 {
             return Err(MpegTsError {
                 value: MpegTsErrorValue::StreamCountExeceed,
@@ -395,6 +459,23 @@ impl TsWriter {
         cur_stream.codec_id = codecid;
         cur_stream.pid = self.pid;
         self.pid += 1;
+
+        if utils::is_steam_type_video(codecid) {
+            cur_stream.stream_id = epes_stream_id::PES_SID_VIDEO;
+        } else if utils::is_steam_type_audio(codecid) {
+            cur_stream.stream_id = epes_stream_id::PES_SID_AUDIO;
+        } else {
+            cur_stream.stream_id = epes_stream_id::PES_SID_PRIVATE_1;
+        }
+
+        if extra_data.len() > 0 {
+            cur_stream.esinfo.put(extra_data);
+        }
+
+        pmt.stream_count += 1;
+        pmt.version_number = (pmt.version_number + 1) % 32;
+
+        self.reset();
 
         Ok(())
     }
