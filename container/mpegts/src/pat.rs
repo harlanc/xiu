@@ -15,8 +15,8 @@ pub struct Pat {
     version_number: u8,     //5bits
     continuity_counter: u8, //s4 bits
 
-    pub pmt_count: usize,
-    pub pmt: [pmt::Pmt; 4],
+    //pub pmt_count: usize,
+    pub pmt: Vec<pmt::Pmt>,
 }
 
 impl Pat {
@@ -25,13 +25,8 @@ impl Pat {
             transport_stream_id: 1,
             version_number: 0,
             continuity_counter: 0,
-            pmt_count: 0,
-            pmt: [
-                pmt::Pmt::default(),
-                pmt::Pmt::default(),
-                pmt::Pmt::default(),
-                pmt::Pmt::default(),
-            ],
+            //pmt_count: 0,
+            pmt: Vec::new(),
         }
     }
 }
@@ -46,12 +41,12 @@ impl PatWriter {
         }
     }
 
-    pub fn write(&mut self, pat: &Pat) -> Result<BytesMut, MpegTsError> {
+    pub fn write(&mut self, pat: Pat) -> Result<BytesMut, MpegTsError> {
         /*table id*/
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PAS)?;
 
         /*section length*/
-        let length = pat.pmt_count as u16 * 4 + 5 + 4;
+        let length = pat.pmt.len() as u16 * 4 + 5 + 4;
         self.bytes_writer.write_u16::<BigEndian>(0xb000 | length)?;
         /*transport_stream_id*/
         self.bytes_writer
