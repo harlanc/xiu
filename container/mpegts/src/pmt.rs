@@ -18,8 +18,8 @@ pub struct Pmt {
     pub program_info: BytesMut,
     pub provider: BytesMut,
     pub name: BytesMut,
-    pub stream_count: usize,
-    pub streams: [pes::Pes; 4],
+    //pub stream_count: usize,
+    pub streams: Vec<pes::Pes>,
 }
 
 impl Pmt {
@@ -35,13 +35,8 @@ impl Pmt {
             program_info: BytesMut::new(),
             provider: BytesMut::new(),
             name: BytesMut::new(),
-            stream_count: 0,
-            streams: [
-                pes::Pes::default(),
-                pes::Pes::default(),
-                pes::Pes::default(),
-                pes::Pes::default(),
-            ],
+            //stream_count: 0,
+            streams: Vec::new(),
         }
     }
 

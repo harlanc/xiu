@@ -38,3 +38,5 @@ pub const TS_PACKET_SIZE: usize = 188;
 
 pub const MPEG_FLAG_IDR_FRAME: u16 = 0x0001;
 pub const MPEG_FLAG_H264_H265_WITH_AUD: u16 = 0x8000;
+
+pub const PAT_PERIOD: i64 = 400 * 90;
