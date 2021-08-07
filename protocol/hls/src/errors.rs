@@ -7,6 +7,8 @@ use rtmp::session::errors::SessionError;
 use networkio::bytes_errors::BytesWriteError;
 use rtmp::amf0::errors::Amf0WriteError;
 use rtmp::cache::errors::MetadataError;
+
+use libmpegts::errors::MpegTsError;
 use std::fmt;
 // use tokio::sync::mpsc::error::SendError;
 
@@ -38,6 +40,8 @@ pub enum MediaErrorValue {
     MetadataError(MetadataError),
     #[fail(display = "flv demuxer error")]
     FlvDemuxerError(FlvDemuxerError),
+    #[fail(display = "mpegts error")]
+    MpegTsError(MpegTsError),
 }
 
 impl From<SessionError> for MediaError {
@@ -52,6 +56,14 @@ impl From<FlvDemuxerError> for MediaError {
     fn from(error: FlvDemuxerError) -> Self {
         MediaError {
             value: MediaErrorValue::FlvDemuxerError(error),
+        }
+    }
+}
+
+impl From<MpegTsError> for MediaError {
+    fn from(error: MpegTsError) -> Self {
+        MediaError {
+            value: MediaErrorValue::MpegTsError(error),
         }
     }
 }

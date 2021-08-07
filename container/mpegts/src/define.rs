@@ -21,7 +21,6 @@ pub mod epes_stream_id {
 
     pub const PES_SID_AUDIO: u8 = 0xC0; // ISO/IEC 13818-3/11172-3/13818-7/14496-3 audio stream '110x xxxx'
     pub const PES_SID_VIDEO: u8 = 0xE0; // H.262 | H.264 | H.265 | ISO/IEC 13818-2/11172-2/14496-2/14496-10 video stream '1110 xxxx'
-
     pub const PES_SID_PRIVATE_1: u8 = 0xBD; // private_stream_1
 }
 
