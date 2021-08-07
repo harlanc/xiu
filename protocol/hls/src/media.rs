@@ -2,6 +2,8 @@ use core::time;
 
 use super::define::FlvDemuxerData;
 use super::errors::MediaError;
+use super::m3u8::M3u8;
+use super::ts::Ts;
 use byteorder::BigEndian;
 use bytes::BufMut;
 use libflv::demuxer::FlvAudioDemuxer;
@@ -40,7 +42,6 @@ pub struct Media {
 
     ts_muxer: TsMuxer,
 
-    pts: i64,
     last_ts_dts: i64,
     last_ts_pts: i64,
 
@@ -49,6 +50,9 @@ pub struct Media {
 
     video_pid: u16,
     audio_pid: u16,
+
+    m3u8_handler: M3u8,
+    ts_handler: Ts,
 }
 
 impl Media {
@@ -66,7 +70,6 @@ impl Media {
 
             ts_muxer,
 
-            pts: 0,
             last_ts_dts: 0,
             last_ts_pts: 0,
             duration,
@@ -74,6 +77,8 @@ impl Media {
 
             video_pid,
             audio_pid,
+            m3u8_handler: M3u8::new(duration, 3),
+            ts_handler: Ts::new(),
         }
     }
 
@@ -89,9 +94,7 @@ impl Media {
                 let video_data = self.video_demuxer.demux(timestamp, data)?;
                 flv_demux_data = FlvDemuxerData::Video { data: video_data };
             }
-            ChannelData::MetaData { timestamp, data } => {
-                flv_demux_data = FlvDemuxerData::None;
-            }
+            ChannelData::MetaData { timestamp, data } => return Ok(()),
         }
 
         self.process_media_data(&flv_demux_data)?;
@@ -143,6 +146,14 @@ impl Media {
         }
 
         if self.need_new_segment {
+            let name = self.ts_handler.write(self.ts_muxer.get_data())?;
+
+            let mut discontinuity: bool = false;
+            if dts > self.last_ts_dts + 5 {
+                discontinuity = true;
+            }
+            self.m3u8_handler
+                .add_segment(name, pts, self.last_ts_dts - dts, discontinuity);
             self.ts_muxer.reset();
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;

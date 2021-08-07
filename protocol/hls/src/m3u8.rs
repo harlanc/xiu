@@ -3,16 +3,16 @@ use std::{collections::VecDeque, fmt::format};
 use rtmp::messages::define::msg_type_id;
 
 pub struct Segment {
-    pts: u64,
+    pts: i64,
     /*ts duration*/
-    duration: u64,
+    duration: i64,
     discontinuity: bool,
     /*ts name*/
     name: String,
 }
 
 impl Segment {
-    pub fn new(pts: u64, duration: u64, discontinuity: bool, name: String) -> Self {
+    pub fn new(pts: i64, duration: i64, discontinuity: bool, name: String) -> Self {
         Self {
             pts,
             duration,
@@ -28,7 +28,7 @@ pub struct M3u8 {
     /*What duration should media files be?
     A duration of 10 seconds of media per file seems to strike a reasonable balance for most broadcast content.
     http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8*/
-    duration: u64,
+    duration: i64,
 
     is_live: bool,
     /*How many files should be listed in the index file during a continuous, ongoing session?
@@ -39,7 +39,17 @@ pub struct M3u8 {
 }
 
 impl M3u8 {
-    pub fn add_segment(&mut self, name: String, pts: u64, duration: u64, discontinuity: bool) {
+    pub fn new(duration: i64, live_ts_count: usize) -> Self {
+        Self {
+            version: 3,
+            sequence_no: 0,
+            duration,
+            is_live: true,
+            live_ts_count,
+            segments: VecDeque::new(),
+        }
+    }
+    pub fn add_segment(&mut self, name: String, pts: i64, duration: i64, discontinuity: bool) {
         let segment_count = self.segments.len();
 
         if self.is_live && segment_count >= self.live_ts_count {

@@ -10,6 +10,7 @@ use rtmp::cache::errors::MetadataError;
 
 use libmpegts::errors::MpegTsError;
 use std::fmt;
+
 // use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug)]
@@ -33,7 +34,6 @@ pub enum MediaErrorValue {
     Error,
     #[fail(display = "session error")]
     SessionError(SessionError),
-
     #[fail(display = "amf write error")]
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "metadata error")]
@@ -42,6 +42,9 @@ pub enum MediaErrorValue {
     FlvDemuxerError(FlvDemuxerError),
     #[fail(display = "mpegts error")]
     MpegTsError(MpegTsError),
+
+    #[fail(display = "ts write error")]
+    TsError(TsError),
 }
 
 impl From<SessionError> for MediaError {
@@ -84,6 +87,14 @@ impl From<MetadataError> for MediaError {
     }
 }
 
+impl From<TsError> for MediaError {
+    fn from(error: TsError) -> Self {
+        MediaError {
+            value: MediaErrorValue::TsError(error),
+        }
+    }
+}
+
 impl fmt::Display for MediaError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
@@ -100,7 +111,6 @@ pub enum HlsErrorValue {
     Error,
     #[fail(display = "session error")]
     SessionError(SessionError),
-
     #[fail(display = "amf write error")]
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "metadata error")]
@@ -154,5 +164,29 @@ impl From<MetadataError> for HlsError {
 impl fmt::Display for HlsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
+    }
+}
+#[derive(Debug, Fail)]
+pub struct TsError {
+    pub value: TsErrorValue,
+}
+
+impl fmt::Display for TsError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+#[derive(Debug, Fail)]
+pub enum TsErrorValue {
+    #[fail(display = "write file error")]
+    IOError(std::io::Error),
+}
+
+impl From<std::io::Error> for TsError {
+    fn from(error: std::io::Error) -> Self {
+        TsError {
+            value: TsErrorValue::IOError(error),
+        }
     }
 }
