@@ -77,7 +77,7 @@ impl Media {
 
             video_pid,
             audio_pid,
-            m3u8_handler: M3u8::new(duration, 3),
+            m3u8_handler: M3u8::new(duration, 3, String::from("test")),
             ts_handler: Ts::new(),
         }
     }
@@ -154,6 +154,7 @@ impl Media {
             }
             self.m3u8_handler
                 .add_segment(name, pts, self.last_ts_dts - dts, discontinuity);
+
             self.ts_muxer.reset();
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
