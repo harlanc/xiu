@@ -10,14 +10,13 @@ use networkio::bytes_writer::BytesWriter;
 pub struct Pmt {
     pub pid: u16,
     pub program_number: u16,
-    pub version_number: u8,       //5 bits
-    pub continuity_counter: u8,   //4i bits
-    pub pcr_pid: u16,             //13 bits
-    pub program_info_length: u16, //12 bits
-
+    pub version_number: u8,     //5 bits
+    pub continuity_counter: u8, //4i bits
+    pub pcr_pid: u16,           //13 bits
+    //pub program_info_length: u16, //12 bits
     pub program_info: BytesMut,
-    pub provider: BytesMut,
-    pub name: BytesMut,
+    //pub provider: BytesMut,
+    //pub name: BytesMut,
     //pub stream_count: usize,
     pub streams: Vec<pes::Pes>,
 }
@@ -27,14 +26,13 @@ impl Pmt {
         Self {
             pid: 0,
             program_number: 0,
-            version_number: 0,      //5 bits
-            continuity_counter: 0,  //4i bits
-            pcr_pid: 0,             //13 bits
-            program_info_length: 0, //12 bits
-
+            version_number: 0,     //5 bits
+            continuity_counter: 0, //4i bits
+            pcr_pid: 0,            //13 bits
+            //program_info_length: 0, //12 bits
             program_info: BytesMut::new(),
-            provider: BytesMut::new(),
-            name: BytesMut::new(),
+            //provider: BytesMut::new(),
+            //name: BytesMut::new(),
             //stream_count: 0,
             streams: Vec::new(),
         }
@@ -44,11 +42,11 @@ impl Pmt {
     pub fn write(&mut self) {}
 }
 
-pub struct PmtWriter {
+pub struct PmtMuxer {
     pub bytes_writer: BytesWriter,
 }
 
-impl PmtWriter {
+impl PmtMuxer {
     pub fn new() -> Self {
         Self {
             bytes_writer: BytesWriter::new(),
@@ -68,12 +66,13 @@ impl PmtWriter {
         tmp_bytes_writer.write_u8(0x00)?;
         /*last_section_number*/
         tmp_bytes_writer.write_u8(0x00)?;
-        /*PID*/
+        /*PCR_PID*/
         tmp_bytes_writer.write_u16::<BigEndian>(0xE000 | pmt.pcr_pid)?;
         /*program_info_length*/
-        tmp_bytes_writer.write_u16::<BigEndian>(0xF000 | pmt.program_info_length)?;
+        let program_info_length = pmt.program_info.len() as u16;
+        tmp_bytes_writer.write_u16::<BigEndian>(0xF000 | program_info_length)?;
 
-        if pmt.program_info_length > 0 && pmt.program_info_length < 0x400 {
+        if program_info_length > 0 && program_info_length < 0x400 {
             tmp_bytes_writer.write(&pmt.program_info[..])?;
         }
 

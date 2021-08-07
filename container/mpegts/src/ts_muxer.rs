@@ -21,7 +21,7 @@ use networkio::bytes_writer::BytesWriter;
 use rand::Open01;
 use tokio::stream;
 
-pub struct TsWriter {
+pub struct TsMuxer {
     bytes_writer: BytesWriter,
     pat_continuity_counter: u8,
     pmt_continuity_counter: u8,
@@ -35,7 +35,7 @@ pub struct TsWriter {
     cur_stream_index: usize,
 }
 
-impl TsWriter {
+impl TsMuxer {
     pub fn new() -> Self {
         Self {
             bytes_writer: BytesWriter::new(),
@@ -60,7 +60,6 @@ impl TsWriter {
 
     pub fn write(
         &mut self,
-        // pat_data: pat::Pat,
         pid: u16,
         pts: i64,
         dts: i64,
@@ -87,16 +86,16 @@ impl TsWriter {
         }
 
         if 0 == self.pat_period || (self.pat_period + define::PAT_PERIOD) <= dts {
-            let pat_data = pat::PatWriter::new().write(self.pat.clone())?;
+            let pat_data = pat::PatMuxer::new().write(self.pat.clone())?;
             self.write_ts_header_for_pat_pmt(epat_pid::PAT_TID_PAS, pat_data)?;
 
             for pmt_data in &mut self.pat.pmt.clone() {
-                let payload_data = pmt::PmtWriter::new().write(pmt_data)?;
+                let payload_data = pmt::PmtMuxer::new().write(pmt_data)?;
                 self.write_ts_header_for_pat_pmt(epat_pid::PAT_TID_PMS, payload_data)?;
             }
         }
 
-        self.write_pes_payload(payload)?;
+        self.write_pes(payload)?;
 
         Ok(())
     }
@@ -135,18 +134,9 @@ impl TsWriter {
         Ok(())
     }
     //2.4.3.6 PES packet P35
-    pub fn write_pes_payload(
-        &mut self,
-        //pcr_pid: u16,
-        //stream_data: &mut pes::Pes,
-        // pmt_index: usize,
-        // stream_index: usize,
-        payload: BytesMut,
-    ) -> Result<(), MpegTsError> {
+    pub fn write_pes(&mut self, payload: BytesMut) -> Result<(), MpegTsError> {
         let mut is_start: bool = true;
         let mut payload_reader = BytesReader::new(payload);
-
-        let mut writer = BytesWriter::new();
 
         let cur_pcr_pid = self.pat.pmt.get(self.cur_pmt_index).unwrap().pcr_pid;
 
@@ -223,9 +213,9 @@ impl TsWriter {
 
             let data = payload_reader.read_bytes(payload_length)?;
 
-            writer.append(&mut ts_header);
-            writer.append(&mut pes_header);
-            writer.write(&data[..])?;
+            self.bytes_writer.append(&mut ts_header);
+            self.bytes_writer.append(&mut pes_header);
+            self.bytes_writer.write(&data[..])?;
         }
         Ok(())
     }
@@ -437,14 +427,12 @@ impl TsWriter {
         });
     }
 
-    pub fn add_stream(&mut self, codecid: u8, extra_data: BytesMut) -> Result<(), MpegTsError> {
+    pub fn add_stream(&mut self, codecid: u8, extra_data: BytesMut) -> Result<u16, MpegTsError> {
         if 0 == self.pat.pmt.len() {
             self.add_program(1, BytesMut::new())?;
         }
 
-        self.pmt_add_stream(0, codecid, extra_data)?;
-
-        Ok(())
+        self.pmt_add_stream(0, codecid, extra_data)
     }
 
     pub fn pmt_add_stream(
@@ -452,7 +440,7 @@ impl TsWriter {
         pmt_index: usize,
         codecid: u8,
         extra_data: BytesMut,
-    ) -> Result<(), MpegTsError> {
+    ) -> Result<u16, MpegTsError> {
         let pmt = &mut self.pat.pmt[pmt_index];
 
         if pmt.streams.len() == 4 {
@@ -484,7 +472,7 @@ impl TsWriter {
 
         self.reset();
 
-        Ok(())
+        Ok(self.pid - 1)
     }
 
     pub fn add_program(&mut self, program_number: u16, info: BytesMut) -> Result<(), MpegTsError> {
@@ -495,15 +483,6 @@ impl TsWriter {
                 });
             }
         }
-
-        // for i in 0..self.pat.pmt_count {
-        //     let cur_pmt = &self.pat.pmt[i as usize];
-        //     if cur_pmt.program_number == program_number {
-        //         return Err(MpegTsError {
-        //             value: MpegTsErrorValue::ProgramNumberExists,
-        //         });
-        //     }
-        // }
 
         if self.pat.pmt.len() == 4 {
             return Err(MpegTsError {

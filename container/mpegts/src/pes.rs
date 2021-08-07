@@ -10,30 +10,30 @@ pub struct Pes {
     pub continuity_counter: u8,
     pub esinfo: BytesMut,
     pub esinfo_length: usize,
-    packet_length: u32,
 
-    reserved10: u8,                   //2
-    pes_scrambling_control: u8,       //2
-    pes_priority: u8,                 //1
+    //packet_length: u32,
+
+    // reserved10: u8,                   //2
+    // pes_scrambling_control: u8,       //2
+    // pes_priority: u8,                 //1
     pub data_alignment_indicator: u8, //1
-    copyright: u8,                    //1
-    original_or_copy: u8,             //1
+    // copyright: u8,                    //1
+    // original_or_copy: u8,             //1
 
-    pts_dts_flags: u8,             //2
-    escr_flag: u8,                 //1
-    es_rate_flag: u8,              //1
-    dsm_trick_mode_flag: u8,       //1
-    additional_copy_info_flag: u8, //1
-    pes_crc_flag: u8,              //1
-    pes_extension_flag: u8,        //1
-    pes_header_data_length: u8,    //8
-
+    // pts_dts_flags: u8,             //2
+    // escr_flag: u8,                 //1
+    // es_rate_flag: u8,              //1
+    // dsm_trick_mode_flag: u8,       //1
+    // additional_copy_info_flag: u8, //1
+    // pes_crc_flag: u8,              //1
+    // pes_extension_flag: u8,        //1
+    // pes_header_data_length: u8,    //8
     pub pts: i64,
     pub dts: i64,
     escr_base: u64,
     escr_extension: u32,
     es_rate: u32,
-    packet: Packet,
+    //packet: Packet,
 }
 
 impl Pes {
@@ -46,30 +46,29 @@ impl Pes {
             continuity_counter: 0,
             esinfo: BytesMut::new(),
             esinfo_length: 0,
-            packet_length: 0,
+            //packet_length: 0,
 
-            reserved10: 0,               //2
-            pes_scrambling_control: 0,   //2
-            pes_priority: 0,             //1
+            // reserved10: 0,               //2
+            // pes_scrambling_control: 0,   //2
+            // pes_priority: 0,             //1
             data_alignment_indicator: 0, //1
-            copyright: 0,                //1
-            original_or_copy: 0,         //1
+            // copyright: 0,                //1
+            // original_or_copy: 0,         //1
 
-            pts_dts_flags: 0,             //2
-            escr_flag: 0,                 //1
-            es_rate_flag: 0,              //1
-            dsm_trick_mode_flag: 0,       //1
-            additional_copy_info_flag: 0, //1
-            pes_crc_flag: 0,              //1
-            pes_extension_flag: 0,        //1
-            pes_header_data_length: 0,    //8
-
+            // pts_dts_flags: 0,             //2
+            // escr_flag: 0,                 //1
+            // es_rate_flag: 0,              //1
+            // dsm_trick_mode_flag: 0,       //1
+            // additional_copy_info_flag: 0, //1
+            // pes_crc_flag: 0,              //1
+            // pes_extension_flag: 0,        //1
+            // pes_header_data_length: 0,    //8
             pts: 0,
             dts: 0,
             escr_base: 0,
             escr_extension: 0,
             es_rate: 0,
-            packet: Packet::default(),
+            //packet: Packet::default(),
         }
     }
 }

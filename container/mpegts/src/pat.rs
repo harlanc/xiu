@@ -30,11 +30,11 @@ impl Pat {
         }
     }
 }
-pub struct PatWriter {
+pub struct PatMuxer {
     pub bytes_writer: BytesWriter,
 }
 
-impl PatWriter {
+impl PatMuxer {
     pub fn new() -> Self {
         Self {
             bytes_writer: BytesWriter::new(),

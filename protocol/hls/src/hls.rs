@@ -1,7 +1,7 @@
 use core::time;
 
 use byteorder::BigEndian;
-use libflv::define::FlvDemuxerData;
+//use libflv::define::FlvDemuxerData;
 use libflv::demuxer::FlvAudioDemuxer;
 use libflv::demuxer::FlvVideoDemuxer;
 use libflv::muxer::HEADER_LENGTH;
@@ -43,7 +43,7 @@ impl Hls {
         app_name: String,
         stream_name: String,
         event_producer: ChannelEventProducer,
-        duration: u64,
+        duration: i64,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
 

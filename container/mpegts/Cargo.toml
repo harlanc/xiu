@@ -1,5 +1,5 @@
 [package]
-name = "mpegts"
+name = "libmpegts"
 description = "mpegts library."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]

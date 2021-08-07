@@ -45,19 +45,4 @@ pub mod h264_nal_type {
     pub const H264_NAL_AUD: u8 = 9;
 }
 
-pub enum FlvDemuxerData {
-    Video {
-        codec_id: u8,
-        dts: u64,
-        pts: u64,
-        frame_type: u8,
-        data: BytesMut,
-    },
-    Audio {
-        sound_format: u8,
-        dts: u64,
-        pts: u64,
-        data: BytesMut,
-    },
-    None,
-}
+
