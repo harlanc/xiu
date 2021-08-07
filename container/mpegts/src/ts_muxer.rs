@@ -58,6 +58,10 @@ impl TsMuxer {
         self.pcr_clock = 0;
     }
 
+    pub fn get_data(&mut self) -> BytesMut {
+        return self.bytes_writer.extract_current_bytes();
+    }
+
     pub fn write(
         &mut self,
         pid: u16,
