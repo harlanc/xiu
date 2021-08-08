@@ -1,4 +1,4 @@
-use super::errors::TsError;
+use super::errors::MediaError;
 use bytes::BytesMut;
 use networkio::bytes_writer::BytesWriter;
 use std::{fs::File, io::Write};
@@ -10,7 +10,7 @@ impl Ts {
     pub fn new() -> Self {
         Self { ts_number: 0 }
     }
-    pub fn write(&mut self, data: BytesMut) -> Result<String, TsError> {
+    pub fn write(&mut self, data: BytesMut) -> Result<String, MediaError> {
         let ts_file_name = format!("{}.ts", self.ts_number);
         self.ts_number += 1;
 

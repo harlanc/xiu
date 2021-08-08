@@ -29,6 +29,8 @@ use super::errors::HlsError;
 use super::errors::HlsErrorValue;
 use super::media::Media;
 
+////https://www.jianshu.com/p/d6311f03b81f
+
 pub struct Hls {
     app_name: String,
     stream_name: String,
