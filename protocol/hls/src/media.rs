@@ -64,6 +64,7 @@ impl Media {
         let audio_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
             .unwrap();
+
         Self {
             video_demuxer: FlvVideoDemuxer::new(),
             audio_demuxer: FlvAudioDemuxer::new(),
@@ -152,8 +153,9 @@ impl Media {
             if dts > self.last_ts_dts + 5 {
                 discontinuity = true;
             }
+            self.m3u8_handler.write_m3u8_header()?;
             self.m3u8_handler
-                .add_segment(name, pts, self.last_ts_dts - dts, discontinuity);
+                .add_segment(name, pts, self.last_ts_dts - dts, discontinuity)?;
 
             self.ts_muxer.reset();
             self.last_ts_dts = dts;

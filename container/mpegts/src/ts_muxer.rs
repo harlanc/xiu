@@ -80,6 +80,20 @@ impl TsMuxer {
 
         let cur_pmt = self.pat.pmt.get_mut(self.cur_pmt_index).unwrap();
         let cur_stream = cur_pmt.streams.get_mut(self.cur_stream_index).unwrap();
+
+        if 0x1FFF == cur_pmt.pcr_pid
+            || (define::epes_stream_id::PES_SID_VIDEO
+                == (cur_stream.stream_id & define::epes_stream_id::PES_SID_VIDEO)
+                && (cur_pmt.pcr_pid != cur_stream.pid))
+        {
+            cur_pmt.pcr_pid = cur_stream.pid;
+            self.pat_period = 0;
+        }
+
+        if cur_pmt.pcr_pid == cur_stream.pid {
+            self.pcr_clock += 1;
+        }
+
         cur_stream.pts = pts;
         cur_stream.dts = dts;
 
@@ -403,19 +417,6 @@ impl TsMuxer {
         for pmt in self.pat.pmt.iter_mut() {
             for stream in pmt.streams.iter_mut() {
                 if stream.pid == pid {
-                    if 0x1FFF == pmt.pcr_pid
-                        || (define::epes_stream_id::PES_SID_VIDEO
-                            == (stream.stream_id & define::epes_stream_id::PES_SID_VIDEO)
-                            && (pmt.pcr_pid != stream.pid))
-                    {
-                        pmt.pcr_pid = stream.pid;
-                        self.pat_period = 0;
-                    }
-
-                    if pmt.pcr_pid == stream.pid {
-                        self.pcr_clock += 1;
-                    }
-
                     self.cur_pmt_index = pmt_index;
                     self.cur_stream_index = stream_index;
 

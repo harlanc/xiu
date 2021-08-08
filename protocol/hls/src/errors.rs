@@ -43,8 +43,8 @@ pub enum MediaErrorValue {
     #[fail(display = "mpegts error")]
     MpegTsError(MpegTsError),
 
-    #[fail(display = "ts write error")]
-    TsError(TsError),
+    #[fail(display = "write file error")]
+    IOError(std::io::Error),
 }
 
 impl From<SessionError> for MediaError {
@@ -87,13 +87,14 @@ impl From<MetadataError> for MediaError {
     }
 }
 
-impl From<TsError> for MediaError {
-    fn from(error: TsError) -> Self {
+impl From<std::io::Error> for MediaError {
+    fn from(error: std::io::Error) -> Self {
         MediaError {
-            value: MediaErrorValue::TsError(error),
+            value: MediaErrorValue::IOError(error),
         }
     }
 }
+
 
 impl fmt::Display for MediaError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -166,27 +167,27 @@ impl fmt::Display for HlsError {
         fmt::Display::fmt(&self.value, f)
     }
 }
-#[derive(Debug, Fail)]
-pub struct TsError {
-    pub value: TsErrorValue,
-}
+// #[derive(Debug, Fail)]
+// pub struct TsError {
+//     pub value: TsErrorValue,
+// }
 
-impl fmt::Display for TsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.value, f)
-    }
-}
+// impl fmt::Display for TsError {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         fmt::Display::fmt(&self.value, f)
+//     }
+// }
 
-#[derive(Debug, Fail)]
-pub enum TsErrorValue {
-    #[fail(display = "write file error")]
-    IOError(std::io::Error),
-}
+// #[derive(Debug, Fail)]
+// pub enum TsErrorValue {
+//     #[fail(display = "write file error")]
+//     IOError(std::io::Error),
+// }
 
-impl From<std::io::Error> for TsError {
-    fn from(error: std::io::Error) -> Self {
-        TsError {
-            value: TsErrorValue::IOError(error),
-        }
-    }
-}
+// impl From<std::io::Error> for TsError {
+//     fn from(error: std::io::Error) -> Self {
+//         TsError {
+//             value: TsErrorValue::IOError(error),
+//         }
+//     }
+// }

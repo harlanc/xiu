@@ -2,6 +2,7 @@ use std::{collections::VecDeque, fmt::format};
 
 use rtmp::messages::define::msg_type_id;
 
+use super::errors::MediaError;
 use std::{fs::File, io::Write};
 
 pub struct Segment {
@@ -38,8 +39,8 @@ pub struct M3u8 {
     live_ts_count: usize,
 
     segments: VecDeque<Segment>,
+    is_header_generated: bool,
     m3u8_header: String,
-
     m3u8_file_handler: File,
 }
 
@@ -54,12 +55,19 @@ impl M3u8 {
             is_live: true,
             live_ts_count,
             segments: VecDeque::new(),
+            is_header_generated: false,
             m3u8_header: String::new(),
             m3u8_file_handler: file_handler,
         }
     }
     pub fn flush(&mut self) {}
-    pub fn add_segment(&mut self, name: String, pts: i64, duration: i64, discontinuity: bool) {
+    pub fn add_segment(
+        &mut self,
+        name: String,
+        pts: i64,
+        duration: i64,
+        discontinuity: bool,
+    ) -> Result<(), MediaError> {
         let segment_count = self.segments.len();
 
         if self.is_live && segment_count >= self.live_ts_count {
@@ -78,10 +86,18 @@ impl M3u8 {
             segment_content += "#EXT-X-DISCONTINUITY\n";
         }
         segment_content += format!("#EXTINF:{:.3}\n{}\n", duration as f64 / 1000.0, name).as_str();
-        self.m3u8_file_handler.write(segment_content.as_bytes());
+        self.m3u8_file_handler.write(segment_content.as_bytes())?;
+
+        Ok(())
     }
 
-    fn init_m3u8_header(&mut self) {
+    pub fn write_m3u8_header(&mut self) -> Result<(), MediaError> {
+        if self.is_header_generated {
+            return Ok(());
+        }
+
+        self.is_header_generated = true;
+
         let mut playlist_type: &str = "";
         let mut allow_cache: &str = "";
         if !self.is_live {
@@ -98,7 +114,8 @@ impl M3u8 {
         self.m3u8_header += allow_cache;
 
         /*flush to file*/
-        self.m3u8_file_handler.write(self.m3u8_header.as_bytes());
+        self.m3u8_file_handler.write(self.m3u8_header.as_bytes())?;
+        Ok(())
     }
 
     pub fn generate_m3u8_content(&mut self) -> String {
