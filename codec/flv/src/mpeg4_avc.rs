@@ -123,12 +123,14 @@ impl Mpeg4AvcProcessor {
 
         for i in 0..self.mpeg4_avc.nb_sps as usize {
             /*SPS size*/
-            self.mpeg4_avc.sps[i].size = self.bytes_reader.read_u16::<BigEndian>()?;
-            /*SPS data*/
-            self.mpeg4_avc.sps[i].data = self
-                .bytes_reader
-                .read_bytes(self.mpeg4_avc.sps[i].size as usize)?;
+            let sps_data_size = self.bytes_reader.read_u16::<BigEndian>()?;
+            let sps_data = Sps {
+                size: sps_data_size,
+                /*SPS data*/
+                data: self.bytes_reader.read_bytes(sps_data_size as usize)?,
+            };
 
+            self.mpeg4_avc.sps.push(sps_data);
             self.mpeg4_avc.sps_annexb_data.write(&H264_START_CODE)?;
             self.mpeg4_avc
                 .sps_annexb_data
@@ -138,11 +140,14 @@ impl Mpeg4AvcProcessor {
         /*number of PPS NALUs*/
         self.mpeg4_avc.nb_pps = self.bytes_reader.read_u8()?;
 
-        for i in 0..self.mpeg4_avc.nb_sps as usize {
-            self.mpeg4_avc.pps[i].size = self.bytes_reader.read_u16::<BigEndian>()?;
-            self.mpeg4_avc.pps[i].data = self
-                .bytes_reader
-                .read_bytes(self.mpeg4_avc.pps[i].size as usize)?;
+        for i in 0..self.mpeg4_avc.nb_pps as usize {
+            let pps_data_size = self.bytes_reader.read_u16::<BigEndian>()?;
+            let pps_data = Pps {
+                size: pps_data_size,
+                data: self.bytes_reader.read_bytes(pps_data_size as usize)?,
+            };
+
+            self.mpeg4_avc.pps.push(pps_data);
 
             self.mpeg4_avc.pps_annexb_data.write(&H264_START_CODE)?;
             self.mpeg4_avc
@@ -150,13 +155,17 @@ impl Mpeg4AvcProcessor {
                 .write(&self.mpeg4_avc.pps[i].data[..])?;
         }
 
+        let leng = self.bytes_reader.len();
+
         Ok(())
     }
     //https://stackoverflow.com/questions/28678615/efficiently-insert-or-replace-multiple-elements-in-the-middle-or-at-the-beginnin
     pub fn h264_mp4toannexb(&mut self) -> Result<(), MpegAvcError> {
         while self.bytes_reader.len() > 0 {
-            let size = self.get_nalu_size()?;
+            let bytes_length = self.bytes_reader.len();
+            let mut size = self.get_nalu_size()?;
             let nalu_type = self.bytes_reader.read_u8()? & 0x1f;
+            size -= 1;
 
             match nalu_type {
                 h264_nal_type::H264_NAL_PPS | h264_nal_type::H264_NAL_SPS => {
@@ -185,11 +194,11 @@ impl Mpeg4AvcProcessor {
         Ok(())
     }
 
-    pub fn get_nalu_size(&mut self) -> Result<u8, MpegAvcError> {
-        let mut size: u8 = 0;
+    pub fn get_nalu_size(&mut self) -> Result<u32, MpegAvcError> {
+        let mut size: u32 = 0;
 
         for _ in 0..self.mpeg4_avc.nalu_length {
-            size = self.bytes_reader.read_u8()? + size << 8;
+            size = self.bytes_reader.read_u8()? as u32 + (size << 8);
         }
         Ok(size)
     }

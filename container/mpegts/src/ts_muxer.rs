@@ -22,7 +22,7 @@ use rand::Open01;
 use tokio::stream;
 
 pub struct TsMuxer {
-    bytes_writer: BytesWriter,
+    pub bytes_writer: BytesWriter,
     pat_continuity_counter: u8,
     pmt_continuity_counter: u8,
     h264_h265_with_aud: bool,
@@ -33,6 +33,8 @@ pub struct TsMuxer {
     pat: pat::Pat,
     cur_pmt_index: usize,
     cur_stream_index: usize,
+
+    payload_sum: usize,
 }
 
 impl TsMuxer {
@@ -49,6 +51,7 @@ impl TsMuxer {
             pat: pat::Pat::default(),
             cur_pmt_index: 0,
             cur_stream_index: 0,
+            payload_sum: 0,
         }
     }
 
@@ -75,6 +78,8 @@ impl TsMuxer {
         } else {
             self.h264_h265_with_aud = false;
         }
+
+        print!("pes payload length {}\n", payload.len());
 
         self.find_stream(pid)?;
 
@@ -126,8 +131,11 @@ impl TsMuxer {
         /*sync byte*/
         self.bytes_writer.write_u8(0x47)?;
         /*PID 13 bits*/
-        self.bytes_writer.write_u8(0x40 | ((pid >> 8) & 0x1F))?;
-        self.bytes_writer.write_u8(pid & 0xFF)?;
+        // self.bytes_writer
+        //     .write_u8(0x40 | ((pid >> 8) as u8 & 0x1F))?;
+
+        self.bytes_writer.write_u8(0x40)?;
+        self.bytes_writer.write_u8(pid as u8 & 0xFF)?;
 
         match pid {
             epat_pid::PAT_TID_PAS => {
@@ -145,7 +153,7 @@ impl TsMuxer {
         /*payload data*/
         self.bytes_writer.write(&payload)?;
 
-        let left_size = ts::TS_PACKET_SIZE - self.bytes_writer.len() as u8;
+        let left_size = ts::TS_PACKET_SIZE - payload.len() as u8 - 5;
         for _ in 0..left_size {
             self.bytes_writer.write_u8(0xFF)?;
         }
@@ -194,8 +202,9 @@ impl TsMuxer {
 
             let ts_header_length: usize = ts_header.len();
             let pes_header_length: usize = pes_header.len();
-            let mut stuffing_length = define::TS_PACKET_SIZE
-                - (ts_header_length + pes_header_length + payload_reader.len());
+
+            let mut stuffing_length = define::TS_PACKET_SIZE as i32
+                - (ts_header_length + pes_header_length + payload_reader.len()) as i32;
 
             let payload_length;
 

@@ -2,6 +2,7 @@ use core::time;
 
 use byteorder::BigEndian;
 //use libflv::define::FlvDemuxerData;
+use libflv::define::FlvData;
 use libflv::demuxer::FlvAudioDemuxer;
 use libflv::demuxer::FlvVideoDemuxer;
 use libflv::muxer::HEADER_LENGTH;
@@ -71,7 +72,19 @@ impl Hls {
     pub async fn process_media_data(&mut self) -> Result<(), HlsError> {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
-                self.media_processor.demux(data)?;
+                let flv_data: FlvData;
+
+                match data {
+                    ChannelData::Audio { timestamp, data } => {
+                        flv_data = FlvData::Audio { timestamp, data };
+                    }
+                    ChannelData::Video { timestamp, data } => {
+                        flv_data = FlvData::Video { timestamp, data };
+                    }
+                    _ => continue,
+                }
+
+                self.media_processor.process_flv_data(flv_data)?;
             }
         }
     }
