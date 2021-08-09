@@ -45,4 +45,8 @@ pub mod h264_nal_type {
     pub const H264_NAL_AUD: u8 = 9;
 }
 
-
+pub enum FlvData {
+    Video { timestamp: u32, data: BytesMut },
+    Audio { timestamp: u32, data: BytesMut },
+    MetaData { timestamp: u32, data: BytesMut },
+}

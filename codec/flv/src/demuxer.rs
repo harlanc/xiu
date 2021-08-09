@@ -1,16 +1,20 @@
+use std::borrow::Borrow;
+
 use super::define::aac_packet_type;
 use super::define::avc_packet_type;
 use super::define::codec_id;
 use super::define::sound_format;
+use super::define::tag_type;
+use super::define::FlvData;
 
 use super::demuxer_tag::AudioTagHeaderDemuxer;
 use super::demuxer_tag::VideoTagHeaderDemuxer;
 use super::errors::FlvDemuxerError;
 use super::mpeg4_aac::Mpeg4AacProcessor;
 use super::mpeg4_avc::Mpeg4AvcProcessor;
+use byteorder::BigEndian;
 use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
-
 
 pub struct FlvDemuxerAudioData {
     pub has_data: bool,
@@ -150,5 +154,63 @@ impl FlvAudioDemuxer {
             _ => {}
         }
         Ok(FlvDemuxerAudioData::default())
+    }
+}
+
+pub struct FlvDemuxer {
+    bytes_reader: BytesReader,
+}
+
+impl FlvDemuxer {
+    pub fn new(data: BytesMut) -> Self {
+        Self {
+            bytes_reader: BytesReader::new(data),
+        }
+    }
+
+    pub fn read_flv_header(&mut self) -> Result<(), FlvDemuxerError> {
+        /*flv header*/
+        self.bytes_reader.read_bytes(9)?;
+        Ok(())
+    }
+
+    pub fn read_tag(&mut self) -> Result<Option<FlvData>, FlvDemuxerError> {
+        /*previous_tag_size*/
+        self.bytes_reader.read_u32::<BigEndian>()?;
+
+        /*tag type*/
+        let tag_type = self.bytes_reader.read_u8()?;
+        /*data size*/
+        let data_size = self.bytes_reader.read_u24::<BigEndian>()?;
+        /*timestamp*/
+        let timestamp = self.bytes_reader.read_u24::<BigEndian>()?;
+        /*timestamp extended*/
+        let timestamp_ext = self.bytes_reader.read_u8()?;
+        /*stream id*/
+        self.bytes_reader.read_u24::<BigEndian>()?;
+
+        let dts: u32 = (timestamp & 0xffffff) | ((timestamp_ext as u32) << 24);
+
+        /*data*/
+        let body = self.bytes_reader.read_bytes(data_size as usize)?;
+
+        match tag_type {
+            tag_type::VIDEO => {
+                return Ok(Some(FlvData::Video {
+                    timestamp: dts,
+                    data: body,
+                }));
+            }
+            tag_type::AUDIO => {
+                return Ok(Some(FlvData::Audio {
+                    timestamp: dts,
+                    data: body,
+                }));
+            }
+
+            _ => {}
+        }
+
+        Ok(None)
     }
 }

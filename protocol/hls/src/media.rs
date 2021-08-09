@@ -10,6 +10,8 @@ use libflv::demuxer::FlvAudioDemuxer;
 use libflv::demuxer::FlvDemuxerAudioData;
 use libflv::demuxer::FlvDemuxerVideoData;
 use libflv::demuxer::FlvVideoDemuxer;
+
+use libflv::define::FlvData;
 use libflv::muxer::HEADER_LENGTH;
 use networkio::bytes_writer::BytesWriter;
 use rtmp::amf0::amf0_writer::Amf0Writer;
@@ -83,27 +85,27 @@ impl Media {
         }
     }
 
-    pub fn demux(&mut self, data: ChannelData) -> Result<(), MediaError> {
+    pub fn process_flv_data(&mut self, data: FlvData) -> Result<(), MediaError> {
         let flv_demux_data: FlvDemuxerData;
 
         match data {
-            ChannelData::Audio { timestamp, data } => {
+            FlvData::Audio { timestamp, data } => {
                 let audio_data = self.audio_demuxer.demux(timestamp, data)?;
                 flv_demux_data = FlvDemuxerData::Audio { data: audio_data };
             }
-            ChannelData::Video { timestamp, data } => {
+            FlvData::Video { timestamp, data } => {
                 let video_data = self.video_demuxer.demux(timestamp, data)?;
                 flv_demux_data = FlvDemuxerData::Video { data: video_data };
             }
-            ChannelData::MetaData { timestamp, data } => return Ok(()),
+            FlvData::MetaData { timestamp, data } => return Ok(()),
         }
 
-        self.process_media_data(&flv_demux_data)?;
+        self.process_demux_data(&flv_demux_data)?;
 
         Ok(())
     }
 
-    pub fn process_media_data(
+    pub fn process_demux_data(
         &mut self,
         flv_demux_data: &FlvDemuxerData,
     ) -> Result<(), MediaError> {
@@ -121,14 +123,14 @@ impl Media {
                     return Ok(());
                 }
 
-                pts = data.pts * 90;
-                dts = data.dts * 90;
+                pts = data.pts;
+                dts = data.dts;
                 pid = self.video_pid;
                 payload.extend_from_slice(&data.data[..]);
 
                 if data.frame_type == frame_type::KEY_FRAME {
                     flags = MPEG_FLAG_IDR_FRAME;
-                    if data.dts - self.last_ts_dts >= self.duration {
+                    if dts - self.last_ts_dts >= self.duration * 1000 {
                         self.need_new_segment = true;
                     }
                 }
@@ -138,8 +140,8 @@ impl Media {
                     return Ok(());
                 }
 
-                pts = data.pts * 90;
-                dts = data.dts * 90;
+                pts = data.pts;
+                dts = data.dts;
                 pid = self.audio_pid;
                 payload.extend_from_slice(&data.data[..]);
             }
@@ -147,7 +149,10 @@ impl Media {
         }
 
         if self.need_new_segment {
+            let mut length = self.ts_muxer.bytes_writer.len();
             let name = self.ts_handler.write(self.ts_muxer.get_data())?;
+
+            length = self.ts_muxer.bytes_writer.len();
 
             let mut discontinuity: bool = false;
             if dts > self.last_ts_dts + 5 {
@@ -160,9 +165,11 @@ impl Media {
             self.ts_muxer.reset();
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
+            self.need_new_segment = false;
         }
 
-        self.ts_muxer.write(pid, pts, dts, flags, payload)?;
+        self.ts_muxer
+            .write(pid, pts * 90, dts * 90, flags, payload)?;
 
         Ok(())
     }

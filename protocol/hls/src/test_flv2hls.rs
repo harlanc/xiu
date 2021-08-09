@@ -1,6 +1,86 @@
 #[cfg(test)]
 mod tests {
+    use crate::errors::MediaError;
+    use crate::media::Media;
+    use bytes::BytesMut;
+    use libflv::define::FlvData;
+    use libflv::demuxer::FlvAudioDemuxer;
+    use libflv::demuxer::FlvDemuxer;
+
+    use std::fs::File;
+    use std::io::prelude::*;
+    use std::time::Instant;
+
+    pub fn print(data: BytesMut) {
+        print!("==========={}\n", data.len());
+        let mut idx = 0;
+        for i in data {
+            print!("{:02X} ", i);
+            idx = idx + 1;
+            match idx % 16 {
+                0 => {
+                    print!("\n")
+                }
+                _ => {}
+            }
+        }
+
+        print!("===========\n")
+    }
+
+    pub fn print_flv_data(data: FlvData) {
+        match data {
+            FlvData::Audio { timestamp, data } => {
+                print! {"==audio data begin==\n"};
+                print! {"timestamp: {}\n",timestamp};
+                print! {"data :\n"};
+                print(data);
+                print! {"==audio data end==\n"};
+            }
+            FlvData::Video { timestamp, data } => {
+                print! {"==video data begin==\n"};
+                print! {"timestamp: {}\n",timestamp};
+                print! {"data :\n"};
+                print(data);
+                print! {"==video data end==\n"};
+            }
+            _ => {
+                print!("not video or audio \n")
+            }
+        }
+    }
 
     #[test]
-    fn test_flv2hls() {}
+
+    fn test_flv2hls() -> Result<(), MediaError> {
+        let mut file =
+            File::open("/Users/zexu/github/xiu/protocol/hls/src/xgplayer_demo.flv").unwrap();
+        let mut contents = Vec::new();
+
+        file.read_to_end(&mut contents)?;
+
+        let mut data = BytesMut::new();
+        data.extend(contents);
+
+        let size = data.len();
+
+        let mut demuxer = FlvDemuxer::new(data);
+        demuxer.read_flv_header()?;
+
+        let start = Instant::now();
+        let mut media_demuxer = Media::new(5);
+
+        loop {
+            let data = demuxer.read_tag()?;
+            if let Some(real_data) = data {
+                //print_flv_data(real_data);
+                media_demuxer.process_flv_data(real_data)?;
+            }
+        }
+
+        let elapsed = start.elapsed();
+        println!("Debug: {:?}", elapsed);
+
+        Ok(())
+    }
 }

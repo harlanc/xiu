@@ -175,11 +175,12 @@ impl VideoTagHeaderDemuxer {
             self.tag.avc_packet_type = self.bytes_reader.read_u8()?;
             self.tag.composition_time = 0;
 
-            //bigend
+            //bigend 3bytes
             for _ in 0..3 {
                 let time = self.bytes_reader.read_u8()?;
-                // print!("==time=={}\n",self.tag.composition_time);
-                self.tag.composition_time = self.tag.composition_time << 8 + time as u32;
+                //print!("==time0=={}\n", time);
+                //print!("==time1=={}\n", self.tag.composition_time);
+                self.tag.composition_time = (self.tag.composition_time << 8) + time as u32;
             }
         }
 
