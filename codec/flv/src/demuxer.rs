@@ -16,6 +16,61 @@ use byteorder::BigEndian;
 use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
 
+/*
+ ** Flv Struct **
+ +-------------------------------------------------------------------------------+
+ | FLV header(9 bytes) | FLV body                                                |
+ +-------------------------------------------------------------------------------+
+ |                     | PreviousTagSize0(4 bytes)| Tag1|PreviousTagSize1|Tag2|...
+ +-------------------------------------------------------------------------------+
+
+ *** Flv Tag ***
+ +-------------------------------------------------------------------------------------------------------------------------------+
+ |                                                    Tag1                                                                       |
+ +-------------------------------------------------------------------------------------------------------------------------------+
+ |     Tag Header                                                                                                   |  Tag Data  |
+ +-------------------------------------------------------------------------------------------------------------------------------+
+ | Tag Type(1 byte) | Data Size(3 bytes) | Timestamp(3 bytes dts) | Timestamp Extended(1 byte) | Stream ID(3 bytes) |  Tag Data  |
+ +-------------------------------------------------------------------------------------------------------------------------------+
+
+
+  The Tag Data contains
+  - video tag data
+  - audio tag data
+
+ **** Video Tag ****
+ +-------------------------------------------------+
+ |    Tag Data  (Video Tag)                        |
+ +-------------------------------------------------+
+ | FrameType(4 bits) | CodecID(4 bits) | Video Data|
+ +-------------------------------------------------+
+
+  The contents of Video Data depends on the codecID:
+  2: H263VIDEOPACKET
+  3: SCREENVIDEOPACKET
+  4: VP6FLVVIDEOPACKET
+  5: VP6FLVALPHAVIDEOPACKET
+  6: SCREENV2VIDEOPACKET
+  7: AVCVIDEOPACKE
+
+ When the codecid equals 7, the Video Data's struct is as follows:
+
+ +------------------------------------------------------------+
+ |    Video Data  (codecID == 7)                              |
+ +------------------------------------------------------------+
+ | AVCPacketType(1 byte) | CompositionTime(3 bytes) | Payload |
+ +------------------------------------------------------------+
+
+ **** Audio Tag ****
+ +----------------------------------------------------------------------------------------+
+ |    Tag Data  (Audio Tag)                                                               |
+ +----------------------------------------------------------------------------------------+
+ | SoundFormat(4 bits) | SoundRate(2 bits) | SoundSize(1 bit) | SoundType(1 bit)| Payload |
+ +----------------------------------------------------------------------------------------+
+
+ reference: https://www.cnblogs.com/chyingp/p/flv-getting-started.html
+*/
+
 pub struct FlvDemuxerAudioData {
     pub has_data: bool,
     pub sound_format: u8,
@@ -58,11 +113,11 @@ impl FlvDemuxerVideoData {
     }
 }
 
-pub struct FlvVideoDemuxer {
+pub struct FlvVideoTagDemuxer {
     avc_processor: Mpeg4AvcProcessor,
 }
 
-impl FlvVideoDemuxer {
+impl FlvVideoTagDemuxer {
     pub fn new() -> Self {
         Self {
             avc_processor: Mpeg4AvcProcessor::new(),
@@ -97,6 +152,7 @@ impl FlvVideoDemuxer {
                         frame_type: header.frame_type,
                         data: self.avc_processor.bytes_writer.extract_current_bytes(),
                     };
+                    //print!("flv demux video payload length {}\n", video_data.data.len());
                     return Ok(video_data);
                 }
                 _ => {}
@@ -109,11 +165,11 @@ impl FlvVideoDemuxer {
     }
 }
 
-pub struct FlvAudioDemuxer {
+pub struct FlvAudioTagDemuxer {
     aac_processor: Mpeg4AacProcessor,
 }
 
-impl FlvAudioDemuxer {
+impl FlvAudioTagDemuxer {
     pub fn new() -> Self {
         Self {
             aac_processor: Mpeg4AacProcessor::new(),
@@ -147,6 +203,7 @@ impl FlvAudioDemuxer {
                         dts: timestamp as i64,
                         data: self.aac_processor.bytes_writer.extract_current_bytes(),
                     };
+                    print!("flv demux audio payload length {}\n", audio_data.data.len());
                     return Ok(audio_data);
                 }
                 _ => {}
@@ -174,7 +231,7 @@ impl FlvDemuxer {
         Ok(())
     }
 
-    pub fn read_tag(&mut self) -> Result<Option<FlvData>, FlvDemuxerError> {
+    pub fn read_flv_tag(&mut self) -> Result<Option<FlvData>, FlvDemuxerError> {
         /*previous_tag_size*/
         self.bytes_reader.read_u32::<BigEndian>()?;
 
@@ -196,12 +253,14 @@ impl FlvDemuxer {
 
         match tag_type {
             tag_type::VIDEO => {
+                //print!("flv vido payload length {}\n", body.len());
                 return Ok(Some(FlvData::Video {
                     timestamp: dts,
                     data: body,
                 }));
             }
             tag_type::AUDIO => {
+                print!("flv audio payload length {}\n", body.len());
                 return Ok(Some(FlvData::Audio {
                     timestamp: dts,
                     data: body,
