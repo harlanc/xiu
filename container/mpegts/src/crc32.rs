@@ -39,7 +39,43 @@ pub fn gen_crc32(crc: u32, buffer: BytesMut) -> u32 {
     let mut result: u32 = crc;
 
     for i in buffer {
-        result = CRC32_TABLE[((result ^ i as u32) & 0xff) as usize] ^ (crc >> 8);
+        let a = result ^ i as u32;
+        let b = CRC32_TABLE[(a & 0xff) as usize];
+        let c = result >> 8;
+        result = b ^ c;
     }
     return result;
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::gen_crc32;
+
+    use bytes::BytesMut;
+
+    #[test]
+    fn test_gen_crc32() {
+        let data: [u8; 12] = [
+            0x00, 0xB0, 0x0D, 0x00, 0x01, 0xC1, 0x00, 0x00, 0x00, 0x01, 0xE1, 0x00,
+        ];
+
+        let mut payload = BytesMut::new();
+        payload.extend_from_slice(&data[..]);
+
+        let result = gen_crc32(0xffffffff, payload);
+
+        let aa0 = result & 0xFF;
+
+        let bb0 = (result >> 8) & 0xFF;
+
+        let cc0 = (result >> 16) & 0xFF;
+
+        let dd0 = (result >> 24) & 0xFF;
+
+        assert_eq!(aa0, 0xE8, "not success");
+        assert_eq!(bb0, 0xF9, "not success");
+        assert_eq!(cc0, 0x5E, "not success");
+        assert_eq!(dd0, 0x7D, "not success");
+    }
 }

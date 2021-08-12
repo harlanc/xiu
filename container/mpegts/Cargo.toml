@@ -17,6 +17,7 @@ rand = "0.3"
 failure = "0.1.1"
 
 networkio = {path = "../../library/networkio/"}
+rtmp = {path = "../../protocol/rtmp/"}#"0.0.4"
 tokio-util = { version = "0.6.5", features = ["codec"] }
 
 # [dependencies.tokio]

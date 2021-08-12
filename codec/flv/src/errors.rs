@@ -126,22 +126,25 @@ impl fmt::Display for FlvDemuxerError {
 }
 
 #[derive(Debug, Fail)]
-pub enum MpegTsParseErrorValue {
+pub enum MpegAacErrorValue {
     #[fail(display = "bytes read error\n")]
     BytesReadError(BytesReadError),
 
     #[fail(display = "bytes write error\n")]
     BytesWriteError(BytesWriteError),
+
+    #[fail(display = "there is not enough bits to read\n")]
+    NotEnoughBitsToRead,
 }
 #[derive(Debug)]
 pub struct MpegAvcError {
-    pub value: MpegTsParseErrorValue,
+    pub value: MpegAacErrorValue,
 }
 
 impl From<BytesReadError> for MpegAvcError {
     fn from(error: BytesReadError) -> Self {
         MpegAvcError {
-            value: MpegTsParseErrorValue::BytesReadError(error),
+            value: MpegAacErrorValue::BytesReadError(error),
         }
     }
 }
@@ -149,20 +152,20 @@ impl From<BytesReadError> for MpegAvcError {
 impl From<BytesWriteError> for MpegAvcError {
     fn from(error: BytesWriteError) -> Self {
         MpegAvcError {
-            value: MpegTsParseErrorValue::BytesWriteError(error),
+            value: MpegAacErrorValue::BytesWriteError(error),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct MpegAacError {
-    pub value: MpegTsParseErrorValue,
+    pub value: MpegAacErrorValue,
 }
 
 impl From<BytesReadError> for MpegAacError {
     fn from(error: BytesReadError) -> Self {
         MpegAacError {
-            value: MpegTsParseErrorValue::BytesReadError(error),
+            value: MpegAacErrorValue::BytesReadError(error),
         }
     }
 }
@@ -170,7 +173,17 @@ impl From<BytesReadError> for MpegAacError {
 impl From<BytesWriteError> for MpegAacError {
     fn from(error: BytesWriteError) -> Self {
         MpegAacError {
-            value: MpegTsParseErrorValue::BytesWriteError(error),
+            value: MpegAacErrorValue::BytesWriteError(error),
         }
     }
+}
+
+#[derive(Debug, Fail)]
+pub enum BitVecErrorValue {
+    #[fail(display = "not enough bits left\n")]
+    NotEnoughBits,
+}
+#[derive(Debug)]
+pub struct BitVecError {
+    pub value: BitVecErrorValue,
 }

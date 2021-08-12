@@ -203,7 +203,7 @@ impl FlvAudioTagDemuxer {
                         dts: timestamp as i64,
                         data: self.aac_processor.bytes_writer.extract_current_bytes(),
                     };
-                    print!("flv demux audio payload length {}\n", audio_data.data.len());
+                    //print!("flv demux audio payload length {}\n", audio_data.data.len());
                     return Ok(audio_data);
                 }
                 _ => {}
@@ -260,7 +260,7 @@ impl FlvDemuxer {
                 }));
             }
             tag_type::AUDIO => {
-                print!("flv audio payload length {}\n", body.len());
+                //print!("flv audio payload length {}\n", body.len());
                 return Ok(Some(FlvData::Audio {
                     timestamp: dts,
                     data: body,

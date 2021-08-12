@@ -79,6 +79,7 @@ impl BytesWriter {
 
     pub fn write_u24<T: ByteOrder>(&mut self, bytes: u32) -> Result<(), BytesWriteError> {
         self.bytes.write_u24::<T>(bytes)?;
+
         Ok(())
     }
 
@@ -122,6 +123,22 @@ impl BytesWriter {
         self.bytes.clear();
 
         rv_data
+    }
+
+    pub fn clear(&mut self) {
+        self.bytes.clear();
+    }
+
+    pub fn get_current_bytes(&mut self) -> BytesMut {
+        let mut rv_data = BytesMut::new();
+        rv_data.extend_from_slice(&self.bytes[..]);
+        rv_data
+    }
+
+    pub fn pop_bytes(&mut self, size: usize) {
+        for _ in 0..size {
+            self.bytes.pop();
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -282,7 +299,7 @@ mod tests {
         let pts: i64 = 1627702096;
 
         let b12 = ((pts & 0x7fff) << 1) | 1; /* PTS 7-14 */
-        print!("=======b12{}=======\n", b12>>8 as u8);
+        print!("=======b12{}=======\n", b12 >> 8 as u8);
         print!("=======b13{}=======\n", b12 as u8);
     }
 }

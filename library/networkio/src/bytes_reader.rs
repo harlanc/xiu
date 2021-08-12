@@ -110,7 +110,7 @@ impl BytesReader {
     }
 
     pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.buffer.clone();
+        return self.buffer.split_to(self.buffer.len());
     }
 }
 

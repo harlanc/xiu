@@ -4,7 +4,7 @@ mod tests {
     use crate::media::Media;
     use bytes::BytesMut;
     use libflv::define::FlvData;
-    use libflv::demuxer::FlvAudioDemuxer;
+    use libflv::demuxer::FlvAudioTagDemuxer;
     use libflv::demuxer::FlvDemuxer;
 
     use std::fs::File;
@@ -71,7 +71,7 @@ mod tests {
         let mut media_demuxer = Media::new(5);
 
         loop {
-            let data = demuxer.read_tag()?;
+            let data = demuxer.read_flv_tag()?;
             if let Some(real_data) = data {
                 //print_flv_data(real_data);
                 media_demuxer.process_flv_data(real_data)?;

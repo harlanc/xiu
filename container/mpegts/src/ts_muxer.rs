@@ -19,6 +19,7 @@ use bytes::BytesMut;
 use networkio::bytes_reader::BytesReader;
 use networkio::bytes_writer::BytesWriter;
 use rand::Open01;
+use rtmp::utils::print;
 use tokio::stream;
 
 pub struct TsMuxer {
@@ -34,7 +35,7 @@ pub struct TsMuxer {
     cur_pmt_index: usize,
     cur_stream_index: usize,
 
-    payload_sum: usize,
+    packet_number: usize,
 }
 
 impl TsMuxer {
@@ -44,14 +45,14 @@ impl TsMuxer {
             pat_continuity_counter: 0,
             pmt_continuity_counter: 0,
             h264_h265_with_aud: false,
-            pid: 0,
+            pid: 0x0100,
             pat_period: 0,
             pcr_period: 80 * 90,
             pcr_clock: 0,
             pat: pat::Pat::default(),
             cur_pmt_index: 0,
             cur_stream_index: 0,
-            payload_sum: 0,
+            packet_number: 0,
         }
     }
 
@@ -59,6 +60,8 @@ impl TsMuxer {
         self.pat_period = 0;
         self.pcr_period = 80 * 90;
         self.pcr_clock = 0;
+
+        self.packet_number = 0;
     }
 
     pub fn get_data(&mut self) -> BytesMut {
@@ -79,7 +82,9 @@ impl TsMuxer {
             self.h264_h265_with_aud = false;
         }
 
-        print!("pes payload length {}\n", payload.len());
+        //print!("pes payload length {}\n", payload.len());
+        //self.packet_number += payload.len();
+        //print!("pes payload sum length {}\n", self.payload_sum);
 
         self.find_stream(pid)?;
 
@@ -109,12 +114,26 @@ impl TsMuxer {
         }
 
         if 0 == self.pat_period || (self.pat_period + define::PAT_PERIOD) <= dts {
+            self.pat_period = dts;
             let pat_data = pat::PatMuxer::new().write(self.pat.clone())?;
-            self.write_ts_header_for_pat_pmt(epat_pid::PAT_TID_PAS, pat_data)?;
+
+            self.write_ts_header_for_pat_pmt(
+                epat_pid::PAT_TID_PAS,
+                pat_data,
+                self.pat_continuity_counter,
+            )?;
+            self.pat_continuity_counter = (self.pat_continuity_counter + 1) % 16;
+            self.packet_number += 1;
 
             for pmt_data in &mut self.pat.pmt.clone() {
                 let payload_data = pmt::PmtMuxer::new().write(pmt_data)?;
-                self.write_ts_header_for_pat_pmt(epat_pid::PAT_TID_PMS, payload_data)?;
+                self.write_ts_header_for_pat_pmt(
+                    pmt_data.pid,
+                    payload_data,
+                    self.pmt_continuity_counter,
+                )?;
+                self.pmt_continuity_counter = (self.pmt_continuity_counter + 1) % 16;
+                self.packet_number += 1;
             }
         }
 
@@ -125,31 +144,39 @@ impl TsMuxer {
 
     pub fn write_ts_header_for_pat_pmt(
         &mut self,
-        pid: u8,
+        pid: u16,
         payload: BytesMut,
+        continuity_counter: u8,
     ) -> Result<(), MpegTsError> {
         /*sync byte*/
-        self.bytes_writer.write_u8(0x47)?;
-        /*PID 13 bits*/
-        // self.bytes_writer
-        //     .write_u8(0x40 | ((pid >> 8) as u8 & 0x1F))?;
+        self.bytes_writer.write_u8(0x47)?; //0
+                                           /*PID 13 bits*/
+        self.bytes_writer
+            .write_u8(0x40 | ((pid >> 8) as u8 & 0x1F))?; //1
 
-        self.bytes_writer.write_u8(0x40)?;
-        self.bytes_writer.write_u8(pid as u8 & 0xFF)?;
+        self.bytes_writer.write_u8(pid as u8 & 0xFF)?; //2
 
-        match pid {
-            epat_pid::PAT_TID_PAS => {
-                self.pat_continuity_counter = (self.pat_continuity_counter + 1) % 16;
-            }
-            epat_pid::PAT_TID_PMS => {
-                self.pmt_continuity_counter = (self.pmt_continuity_counter + 1) % 16;
-            }
+        self.bytes_writer
+            .write_u8(0x10 | (continuity_counter & 0xFF))?;
 
-            _ => {}
-        }
+        // match pid {
+        //     epat_pid::PAT_TID_PAS => {
+        //         self.bytes_writer
+        //             .write_u8(0x10 | (self.pat_continuity_counter & 0xFF))?;
+        //         self.pat_continuity_counter = (self.pat_continuity_counter + 1) % 16;
+        //     }
+        //     epat_pid::PAT_TID_PMS => {
+        //         self.bytes_writer
+        //             .write_u8(0x10 | (self.pmt_continuity_counter & 0xFF))?;
+        //         self.pmt_continuity_counter = (self.pmt_continuity_counter + 1) % 16;
+        //     }
+
+        //     _ => {}
+        // }
 
         /*adaption field control*/
-        self.bytes_writer.write_u8(0x00)?;
+        self.bytes_writer.write_u8(0x00)?; //4
+
         /*payload data*/
         self.bytes_writer.write(&payload)?;
 
@@ -170,6 +197,7 @@ impl TsMuxer {
             //write ts header
             let mut ts_header = BytesWriter::new();
             self.write_ts_header_for_pes(&mut ts_header, is_start, cur_pcr_pid)?;
+            self.packet_number += 1;
 
             //write pes header
             let mut pes_header = BytesWriter::new();
@@ -200,13 +228,19 @@ impl TsMuxer {
             // If payload data cannot fill up the 188 bytes packet,
             // then stuffling bytes need to be filled in the adaptation field,
 
-            let ts_header_length: usize = ts_header.len();
+            let mut ts_header_length = ts_header.len();
+            if (ts_header.get(3).unwrap() & 0x20) == 0 {
+                ts_header_length -= 2;
+            }
             let pes_header_length: usize = pes_header.len();
+            let mut payload_length = payload_reader.len();
 
             let mut stuffing_length = define::TS_PACKET_SIZE as i32
-                - (ts_header_length + pes_header_length + payload_reader.len()) as i32;
+                - (ts_header_length + pes_header_length + payload_length) as i32;
 
-            let payload_length;
+            if self.packet_number == 253 || self.packet_number == 254 {
+                print!("packet number  is 9 {}", self.packet_number);
+            }
 
             if stuffing_length > 0 {
                 if (ts_header.get(3).unwrap() & 0x20) > 0 {
@@ -219,11 +253,10 @@ impl TsMuxer {
                     stuffing_length -= 1;
                     /*adaption filed length -- set value to 1 for flags*/
                     ts_header.write_u8_at(4, stuffing_length as u8)?;
-                    /*add flag*/
-                    if stuffing_length > 0 {
-                        ts_header.write_u8(0)?;
-                    }
-                    if stuffing_length > 1 {
+                    // /*add flag*/
+                    if stuffing_length == 0 {
+                        ts_header.pop_bytes(1);
+                    } else if stuffing_length > 1 {
                         /*remove flag*/
                         stuffing_length -= 1;
                     }
@@ -231,18 +264,39 @@ impl TsMuxer {
                 for _ in 0..stuffing_length {
                     ts_header.write_u8(0xFF)?;
                 }
-                payload_length = payload_reader.len();
             } else {
+                if (ts_header.get(3).unwrap() & 0x20) == 0 {
+                    // let length = ts_header.len();
+                    // print!(
+                    //     "ts header length {} and stuffing length is {}\n",
+                    //     length, stuffing_length
+                    // );
+                    ts_header.pop_bytes(2);
+                }
                 payload_length = define::TS_PACKET_SIZE - ts_header_length - pes_header_length;
             }
 
             is_start = false;
 
             let data = payload_reader.read_bytes(payload_length)?;
+            print::print(data.clone());
 
             self.bytes_writer.append(&mut ts_header);
+
+            //print!("==================");
+
+            //print::print(pes_header.get_current_bytes());
+
             self.bytes_writer.append(&mut pes_header);
+
             self.bytes_writer.write(&data[..])?;
+            //print!("packet number pes {}", self.packet_number);
+
+            //self.packet_number += 1;
+
+            if self.packet_number == 12 {
+                print!("packet number  is 9 {}", self.packet_number);
+            }
         }
         Ok(())
     }
@@ -275,14 +329,13 @@ impl TsMuxer {
 
         /*continuity counter 4 bits*/
         ts_header.write_u8(0x10 | (stream_data.continuity_counter & 0x0F) as u8)?; //3
+        stream_data.continuity_counter = (stream_data.continuity_counter + 1) % 16;
 
         /*will be used for adaptation field length if have*/
         ts_header.write_u8(0x00)?; //4
 
         /*will be used for adaptation field flags if have*/
         ts_header.write_u8(0x00)?; //5
-
-        stream_data.continuity_counter = (stream_data.continuity_counter + 1) % 16;
 
         if is_start {
             /*payload unit start indicator*/
@@ -316,9 +369,11 @@ impl TsMuxer {
                 } else {
                     pcr = stream_data.dts;
                 }
-                let mut pcr_result: Vec<u8> = Vec::new();
-                utils::pcr_write(&mut pcr_result, pcr * 300);
-                ts_header.write(&pcr_result)?;
+                let mut pcr_result: BytesWriter = BytesWriter::new();
+
+                utils::pcr_write(&mut pcr_result, pcr * 300)?;
+
+                ts_header.write(&pcr_result.extract_current_bytes()[..])?;
                 /*adaption filed length -- add 6 for pcr length*/
                 ts_header.add_u8_at(4, 6)?;
             }
@@ -416,6 +471,12 @@ impl TsMuxer {
             pes_header.write(&header)?;
         }
 
+        if self.packet_number == 13 {
+            let aa = 4;
+        }
+
+        print::print(pes_header.get_current_bytes());
+
         Ok(())
     }
 
@@ -505,7 +566,7 @@ impl TsMuxer {
         }
         let mut cur_pmt = pmt::Pmt::default(); //&mut self.pat.pmt[self.pat.pmt_count];
 
-        cur_pmt.pid = self.pid + 1;
+        cur_pmt.pid = self.pid;
         self.pid += 1;
         cur_pmt.program_number = program_number;
         cur_pmt.version_number = 0x00;

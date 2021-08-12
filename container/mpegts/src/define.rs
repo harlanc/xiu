@@ -1,7 +1,7 @@
 pub mod epat_pid {
-    pub const PAT_TID_PAS: u8 = 0x00;
-    pub const PAT_TID_CAS: u8 = 0x01; // conditional_access_section(CA_section)
-    pub const PAT_TID_PMS: u8 = 0x02; // TS_program_map_section
+    pub const PAT_TID_PAS: u16 = 0x00;
+    pub const PAT_TID_CAS: u16 = 0x01; // conditional_access_section(CA_section)
+    pub const PAT_TID_PMS: u16 = 0x02; // TS_program_map_section
 }
 
 pub mod ts {
