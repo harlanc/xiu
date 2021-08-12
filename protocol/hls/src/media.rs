@@ -6,10 +6,10 @@ use super::m3u8::M3u8;
 use super::ts::Ts;
 use byteorder::BigEndian;
 use bytes::BufMut;
-use libflv::demuxer::FlvAudioDemuxer;
+use libflv::demuxer::FlvAudioTagDemuxer;
 use libflv::demuxer::FlvDemuxerAudioData;
 use libflv::demuxer::FlvDemuxerVideoData;
-use libflv::demuxer::FlvVideoDemuxer;
+use libflv::demuxer::FlvVideoTagDemuxer;
 
 use libflv::define::FlvData;
 use libflv::muxer::HEADER_LENGTH;
@@ -39,8 +39,8 @@ use libmpegts::define::MPEG_FLAG_IDR_FRAME;
 use libmpegts::ts_muxer::TsMuxer;
 
 pub struct Media {
-    video_demuxer: FlvVideoDemuxer,
-    audio_demuxer: FlvAudioDemuxer,
+    video_demuxer: FlvVideoTagDemuxer,
+    audio_demuxer: FlvAudioTagDemuxer,
 
     ts_muxer: TsMuxer,
 
@@ -60,16 +60,16 @@ pub struct Media {
 impl Media {
     pub fn new(duration: i64) -> Self {
         let mut ts_muxer = TsMuxer::new();
-        let video_pid = ts_muxer
-            .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
-            .unwrap();
         let audio_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
             .unwrap();
+        let video_pid = ts_muxer
+            .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
+            .unwrap();
 
         Self {
-            video_demuxer: FlvVideoDemuxer::new(),
-            audio_demuxer: FlvAudioDemuxer::new(),
+            video_demuxer: FlvVideoTagDemuxer::new(),
+            audio_demuxer: FlvAudioTagDemuxer::new(),
 
             ts_muxer,
 
@@ -150,7 +150,12 @@ impl Media {
 
         if self.need_new_segment {
             let mut length = self.ts_muxer.bytes_writer.len();
-            let name = self.ts_handler.write(self.ts_muxer.get_data())?;
+
+            let data = self.ts_muxer.get_data();
+
+            //print::print(data.clone().split_to(188*2));
+
+            let name = self.ts_handler.write(data)?;
 
             length = self.ts_muxer.bytes_writer.len();
 

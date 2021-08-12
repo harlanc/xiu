@@ -106,7 +106,15 @@ impl Mpeg4AvcProcessor {
         self.bytes_reader.extend_from_slice(&data[..]);
     }
 
+    pub fn clear_sps_pps_data(&mut self) {
+        self.mpeg4_avc.pps.clear();
+        self.mpeg4_avc.sps.clear();
+        self.mpeg4_avc.pps_annexb_data.clear();
+        self.mpeg4_avc.sps_annexb_data.clear();
+    }
+
     pub fn decoder_configuration_record_load(&mut self) -> Result<(), MpegAvcError> {
+        self.clear_sps_pps_data();
         /*version */
         self.bytes_reader.read_u8()?;
         /*avc profile*/
@@ -164,8 +172,7 @@ impl Mpeg4AvcProcessor {
         while self.bytes_reader.len() > 0 {
             let bytes_length = self.bytes_reader.len();
             let mut size = self.get_nalu_size()?;
-            let nalu_type = self.bytes_reader.read_u8()? & 0x1f;
-            size -= 1;
+            let nalu_type = self.bytes_reader.advance_u8()? & 0x1f;
 
             match nalu_type {
                 h264_nal_type::H264_NAL_PPS | h264_nal_type::H264_NAL_SPS => {
@@ -177,9 +184,9 @@ impl Mpeg4AvcProcessor {
                         self.sps_pps_flag = true;
 
                         self.bytes_writer
-                            .prepend(&self.mpeg4_avc.sps_annexb_data.extract_current_bytes()[..])?;
+                            .prepend(&self.mpeg4_avc.pps_annexb_data.get_current_bytes()[..])?;
                         self.bytes_writer
-                            .prepend(&self.mpeg4_avc.pps_annexb_data.extract_current_bytes()[..])?;
+                            .prepend(&self.mpeg4_avc.sps_annexb_data.get_current_bytes()[..])?;
                     }
                 }
 

@@ -153,9 +153,9 @@ impl Amf0Reader {
         Ok(Amf0ValueType::LongUTF8String(val))
     }
 
-    pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.reader.get_remaining_bytes();
-    }
+    // pub fn get_remaining_bytes(&mut self) -> BytesMut {
+    //     return self.reader.get_remaining_bytes();
+    // }
 }
 
 #[cfg(test)]

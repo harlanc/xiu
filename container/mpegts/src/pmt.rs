@@ -4,6 +4,7 @@ use super::define::epsi_stream_type;
 use super::errors::MpegTsError;
 use super::pes;
 use byteorder::BigEndian;
+use byteorder::LittleEndian;
 use bytes::BytesMut;
 use networkio::bytes_writer::BytesWriter;
 #[derive(Debug, Clone)]
@@ -55,7 +56,7 @@ impl PmtMuxer {
 
     pub fn write(&mut self, pmt: &Pmt) -> Result<BytesMut, MpegTsError> {
         /*table id*/
-        self.bytes_writer.write_u8(epat_pid::PAT_TID_PMS)?;
+        self.bytes_writer.write_u8(epat_pid::PAT_TID_PMS as u8)?;
 
         let mut tmp_bytes_writer = BytesWriter::new();
         /*program_number*/
@@ -93,14 +94,14 @@ impl PmtMuxer {
 
         /*section_length*/
         self.bytes_writer
-            .write_u16::<BigEndian>(0xB000 | (tmp_bytes_writer.len() as u16))?;
+            .write_u16::<BigEndian>(0xB000 | (tmp_bytes_writer.len() as u16) + 4)?;
 
         self.bytes_writer
             .write(&tmp_bytes_writer.extract_current_bytes()[..])?;
 
         /*crc32*/
-        let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.extract_current_bytes());
-        self.bytes_writer.write_u32::<BigEndian>(crc32_value)?;
+        let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.get_current_bytes());
+        self.bytes_writer.write_u32::<LittleEndian>(crc32_value)?;
 
         Ok(self.bytes_writer.extract_current_bytes())
     }

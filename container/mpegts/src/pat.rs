@@ -6,6 +6,7 @@ use networkio::bytes_reader::BytesReader;
 use networkio::bytes_writer::BytesWriter;
 
 use byteorder::BigEndian;
+use byteorder::LittleEndian;
 
 use super::crc32;
 
@@ -33,7 +34,7 @@ impl Pat {
 pub struct PatMuxer {
     pub bytes_writer: BytesWriter,
 }
-
+//ITU-T H.222.0
 impl PatMuxer {
     pub fn new() -> Self {
         Self {
@@ -43,7 +44,7 @@ impl PatMuxer {
 
     pub fn write(&mut self, pat: Pat) -> Result<BytesMut, MpegTsError> {
         /*table id*/
-        self.bytes_writer.write_u8(epat_pid::PAT_TID_PAS)?;
+        self.bytes_writer.write_u8(epat_pid::PAT_TID_PAS as u8)?;
 
         /*section length*/
         let length = pat.pmt.len() as u16 * 4 + 5 + 4;
@@ -64,12 +65,24 @@ impl PatMuxer {
             self.bytes_writer
                 .write_u16::<BigEndian>(ele.program_number)?;
             /*PID*/
-            self.bytes_writer.write_u16::<BigEndian>(ele.pid as u16)?;
+            self.bytes_writer
+                .write_u16::<BigEndian>(0xE000 | (ele.pid as u16))?;
         }
 
         /*crc32*/
-        let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.extract_current_bytes());
-        self.bytes_writer.write_u32::<BigEndian>(crc32_value)?;
+        let crc32_value = crc32::gen_crc32(0xffffffff, self.bytes_writer.get_current_bytes());
+        self.bytes_writer.write_u32::<LittleEndian>(crc32_value)?;
+
+        // let mut test = BytesWriter::new();
+        // test.write_u32::<LittleEndian>(crc32_value)?;
+        // let a0 = test.get(0).unwrap().clone();
+        // let aa0 = crc32_value & 0xFF;
+        // let b0 = test.get(1).unwrap().clone();
+        // let bb0 = (crc32_value >> 8) & 0xFF;
+        // let c0 = test.get(2).unwrap().clone();
+        // let cc0 = (crc32_value >> 16) & 0xFF;
+        // let d0 = test.get(3).unwrap().clone();
+        // let dd0 = (crc32_value >> 24) & 0xFF;
 
         Ok(self.bytes_writer.extract_current_bytes())
     }
