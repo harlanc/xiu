@@ -5,6 +5,6 @@ members = [
   "protocol/hls",
   "library/networkio",
   "application",
-  "codec/flv",
-  "container/mpegts"
+  "library/container/flv",
+  "library/container/mpegts"
 ]

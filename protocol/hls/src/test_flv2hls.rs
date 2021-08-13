@@ -62,8 +62,6 @@ mod tests {
         let mut data = BytesMut::new();
         data.extend(contents);
 
-        let size = data.len();
-
         let mut demuxer = FlvDemuxer::new(data);
         demuxer.read_flv_header()?;
 
@@ -71,10 +69,19 @@ mod tests {
         let mut media_demuxer = Media::new(5);
 
         loop {
-            let data = demuxer.read_flv_tag()?;
-            if let Some(real_data) = data {
-                //print_flv_data(real_data);
-                media_demuxer.process_flv_data(real_data)?;
+            let data_ = demuxer.read_flv_tag();
+
+            match data_ {
+                Ok(data) => {
+                    if let Some(real_data) = data {
+                        media_demuxer.process_flv_data(real_data)?;
+                    }
+                }
+
+                Err(err) => {
+                    media_demuxer.flush_remaining_data()?;
+                    break;
+                }
             }
         }
 

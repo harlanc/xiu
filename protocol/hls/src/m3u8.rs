@@ -114,7 +114,7 @@ impl M3u8 {
         self.m3u8_header += allow_cache;
 
         /*flush to file*/
-        self.m3u8_file_handler.write(self.m3u8_header.as_bytes())?;
+        let len = self.m3u8_file_handler.write(self.m3u8_header.as_bytes())?;
         Ok(())
     }
 

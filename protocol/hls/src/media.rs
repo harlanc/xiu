@@ -47,6 +47,9 @@ pub struct Media {
     last_ts_dts: i64,
     last_ts_pts: i64,
 
+    last_dts: i64,
+    last_pts: i64,
+
     duration: i64,
     need_new_segment: bool,
 
@@ -75,12 +78,16 @@ impl Media {
 
             last_ts_dts: 0,
             last_ts_pts: 0,
+
+            last_dts: 0,
+            last_pts: 0,
+
             duration,
             need_new_segment: false,
 
             video_pid,
             audio_pid,
-            m3u8_handler: M3u8::new(duration, 3, String::from("test")),
+            m3u8_handler: M3u8::new(duration, 3, String::from("test.m3u8")),
             ts_handler: Ts::new(),
         }
     }
@@ -101,6 +108,26 @@ impl Media {
         }
 
         self.process_demux_data(&flv_demux_data)?;
+
+        Ok(())
+    }
+
+    pub fn flush_remaining_data(&mut self) -> Result<(), MediaError> {
+        let data = self.ts_muxer.get_data();
+
+        let name = self.ts_handler.write(data)?;
+
+        let mut discontinuity: bool = false;
+        if self.last_dts > self.last_ts_dts + 15 * 1000 {
+            discontinuity = true;
+        }
+        self.m3u8_handler.write_m3u8_header()?;
+        self.m3u8_handler.add_segment(
+            name,
+            self.last_pts,
+            self.last_dts - self.last_ts_dts,
+            discontinuity,
+        )?;
 
         Ok(())
     }
@@ -149,29 +176,25 @@ impl Media {
         }
 
         if self.need_new_segment {
-            let mut length = self.ts_muxer.bytes_writer.len();
-
             let data = self.ts_muxer.get_data();
-
-            //print::print(data.clone().split_to(188*2));
-
             let name = self.ts_handler.write(data)?;
 
-            length = self.ts_muxer.bytes_writer.len();
-
             let mut discontinuity: bool = false;
-            if dts > self.last_ts_dts + 5 {
+            if dts > self.last_ts_dts + 15 * 1000 {
                 discontinuity = true;
             }
             self.m3u8_handler.write_m3u8_header()?;
             self.m3u8_handler
-                .add_segment(name, pts, self.last_ts_dts - dts, discontinuity)?;
+                .add_segment(name, pts, dts - self.last_ts_dts, discontinuity)?;
 
             self.ts_muxer.reset();
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
             self.need_new_segment = false;
         }
+
+        self.last_dts = dts;
+        self.last_pts = pts;
 
         self.ts_muxer
             .write(pid, pts * 90, dts * 90, flags, payload)?;
