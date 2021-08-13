@@ -59,6 +59,23 @@ pub struct Mpeg4Avc {
     off: i32,
 }
 
+pub fn print(data: BytesMut) {
+    print!("==========={}\n", data.len());
+    let mut idx = 0;
+    for i in data {
+        print!("{:02X} ", i);
+        idx = idx + 1;
+        match idx % 16 {
+            0 => {
+                print!("\n")
+            }
+            _ => {}
+        }
+    }
+
+    print!("===========\n")
+}
+
 impl Mpeg4Avc {
     pub fn default() -> Self {
         Self {
@@ -89,7 +106,6 @@ pub struct Mpeg4AvcProcessor {
     pub bytes_reader: BytesReader,
     pub bytes_writer: BytesWriter,
     pub mpeg4_avc: Mpeg4Avc,
-    pub sps_pps_flag: bool,
 }
 
 impl Mpeg4AvcProcessor {
@@ -98,7 +114,6 @@ impl Mpeg4AvcProcessor {
             bytes_reader: BytesReader::new(BytesMut::new()),
             bytes_writer: BytesWriter::new(),
             mpeg4_avc: Mpeg4Avc::default(),
-            sps_pps_flag: false,
         }
     }
 
@@ -106,15 +121,17 @@ impl Mpeg4AvcProcessor {
         self.bytes_reader.extend_from_slice(&data[..]);
     }
 
-    pub fn clear_sps_pps_data(&mut self) {
-        self.mpeg4_avc.pps.clear();
+    pub fn clear_sps_data(&mut self) {
         self.mpeg4_avc.sps.clear();
-        self.mpeg4_avc.pps_annexb_data.clear();
         self.mpeg4_avc.sps_annexb_data.clear();
     }
 
+    pub fn clear_pps_data(&mut self) {
+        self.mpeg4_avc.pps.clear();
+        self.mpeg4_avc.pps_annexb_data.clear();
+    }
+
     pub fn decoder_configuration_record_load(&mut self) -> Result<(), MpegAvcError> {
-        self.clear_sps_pps_data();
         /*version */
         self.bytes_reader.read_u8()?;
         /*avc profile*/
@@ -128,6 +145,10 @@ impl Mpeg4AvcProcessor {
 
         /*number of SPS NALUs */
         self.mpeg4_avc.nb_sps = self.bytes_reader.read_u8()? & 0x1F;
+
+        if self.mpeg4_avc.nb_sps > 0 {
+            self.clear_sps_data();
+        }
 
         for i in 0..self.mpeg4_avc.nb_sps as usize {
             /*SPS size*/
@@ -148,6 +169,10 @@ impl Mpeg4AvcProcessor {
         /*number of PPS NALUs*/
         self.mpeg4_avc.nb_pps = self.bytes_reader.read_u8()?;
 
+        if self.mpeg4_avc.nb_pps > 0 {
+            self.clear_pps_data();
+        }
+
         for i in 0..self.mpeg4_avc.nb_pps as usize {
             let pps_data_size = self.bytes_reader.read_u16::<BigEndian>()?;
             let pps_data = Pps {
@@ -163,12 +188,12 @@ impl Mpeg4AvcProcessor {
                 .write(&self.mpeg4_avc.pps[i].data[..])?;
         }
 
-        let leng = self.bytes_reader.len();
-
         Ok(())
     }
     //https://stackoverflow.com/questions/28678615/efficiently-insert-or-replace-multiple-elements-in-the-middle-or-at-the-beginnin
     pub fn h264_mp4toannexb(&mut self) -> Result<(), MpegAvcError> {
+        let mut sps_pps_flag = false;
+
         while self.bytes_reader.len() > 0 {
             let bytes_length = self.bytes_reader.len();
             let mut size = self.get_nalu_size()?;
@@ -176,12 +201,12 @@ impl Mpeg4AvcProcessor {
 
             match nalu_type {
                 h264_nal_type::H264_NAL_PPS | h264_nal_type::H264_NAL_SPS => {
-                    self.sps_pps_flag = true;
+                    sps_pps_flag = true;
                 }
 
                 h264_nal_type::H264_NAL_IDR => {
-                    if !self.sps_pps_flag {
-                        self.sps_pps_flag = true;
+                    if !sps_pps_flag {
+                        sps_pps_flag = true;
 
                         self.bytes_writer
                             .prepend(&self.mpeg4_avc.pps_annexb_data.get_current_bytes()[..])?;
@@ -196,6 +221,8 @@ impl Mpeg4AvcProcessor {
             self.bytes_writer.write(&H264_START_CODE)?;
             let data = self.bytes_reader.read_bytes(size as usize)?;
             self.bytes_writer.write(&data[..])?;
+
+            //print(self.bytes_writer.get_current_bytes());
         }
 
         Ok(())

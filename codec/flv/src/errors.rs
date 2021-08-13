@@ -135,6 +135,9 @@ pub enum MpegAacErrorValue {
 
     #[fail(display = "there is not enough bits to read\n")]
     NotEnoughBitsToRead,
+
+    #[fail(display = "should not come here\n")]
+    ShouldNotComeHere,
 }
 #[derive(Debug)]
 pub struct MpegAvcError {

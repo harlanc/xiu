@@ -189,7 +189,7 @@ impl TsMuxer {
     //2.4.3.6 PES packet P35
     pub fn write_pes(&mut self, payload: BytesMut) -> Result<(), MpegTsError> {
         let mut is_start: bool = true;
-        let mut payload_reader = BytesReader::new(payload);
+        let mut payload_reader = BytesReader::new(payload.clone());
 
         let cur_pcr_pid = self.pat.pmt.get(self.cur_pmt_index).unwrap().pcr_pid;
 
@@ -198,6 +198,10 @@ impl TsMuxer {
             let mut ts_header = BytesWriter::new();
             self.write_ts_header_for_pes(&mut ts_header, is_start, cur_pcr_pid)?;
             self.packet_number += 1;
+
+            // if self.packet_number == 1415 {
+            //     print::print(payload.clone());
+            // }
 
             //write pes header
             let mut pes_header = BytesWriter::new();
@@ -238,7 +242,7 @@ impl TsMuxer {
             let mut stuffing_length = define::TS_PACKET_SIZE as i32
                 - (ts_header_length + pes_header_length + payload_length) as i32;
 
-            if self.packet_number == 253 || self.packet_number == 254 {
+            if self.packet_number == 1416 || self.packet_number == 254 {
                 print!("packet number  is 9 {}", self.packet_number);
             }
 
@@ -249,15 +253,19 @@ impl TsMuxer {
                 } else {
                     /*adaption field control*/
                     ts_header.or_u8_at(3, 0x20)?;
-                    /*AF length*/
+                    /*AF length，because it occupys one byte,so here sub one.*/
                     stuffing_length -= 1;
-                    /*adaption filed length -- set value to 1 for flags*/
+                    /*adaption filed length*/
                     ts_header.write_u8_at(4, stuffing_length as u8)?;
-                    // /*add flag*/
+                    /*add flag*/
                     if stuffing_length == 0 {
+                        /*if stuffing_length is zero, means no stuffing bytes will be filled,
+                        we in advance write two bytes(one for adaption filed length and one
+                        for adaptation field flags) in function write_ts_header_for_pes, so the
+                        adaptation field flags byte should be poped.*/
                         ts_header.pop_bytes(1);
-                    } else if stuffing_length > 1 {
-                        /*remove flag*/
+                    } else if stuffing_length >= 1 {
+                        /*adaptation field flags flag occupies one byte, sub one.*/
                         stuffing_length -= 1;
                     }
                 }
@@ -279,7 +287,11 @@ impl TsMuxer {
             is_start = false;
 
             let data = payload_reader.read_bytes(payload_length)?;
-            print::print(data.clone());
+
+            if self.packet_number == 1416 {
+       
+                print::print(data.clone());
+            }
 
             self.bytes_writer.append(&mut ts_header);
 
@@ -475,7 +487,7 @@ impl TsMuxer {
             let aa = 4;
         }
 
-        print::print(pes_header.get_current_bytes());
+        //print::print(pes_header.get_current_bytes());
 
         Ok(())
     }
