@@ -67,6 +67,7 @@ impl M3u8 {
         pts: i64,
         duration: i64,
         discontinuity: bool,
+        is_eof: bool,
     ) -> Result<(), MediaError> {
         let segment_count = self.segments.len();
 
@@ -86,6 +87,9 @@ impl M3u8 {
             segment_content += "#EXT-X-DISCONTINUITY\n";
         }
         segment_content += format!("#EXTINF:{:.3}\n{}\n", duration as f64 / 1000.0, name).as_str();
+        if is_eof {
+            segment_content += "#EXT-X-ENDLIST\n";
+        }
         self.m3u8_file_handler.write(segment_content.as_bytes())?;
 
         Ok(())
