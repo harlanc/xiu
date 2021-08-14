@@ -36,7 +36,7 @@ use {
 use libflv::define::frame_type;
 use libmpegts::define::epsi_stream_type;
 use libmpegts::define::MPEG_FLAG_IDR_FRAME;
-use libmpegts::ts_muxer::TsMuxer;
+use libmpegts::ts::TsMuxer;
 
 pub struct Media {
     video_demuxer: FlvVideoTagDemuxer,
