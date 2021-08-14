@@ -14,11 +14,7 @@ pub struct Pmt {
     pub version_number: u8,     //5 bits
     pub continuity_counter: u8, //4i bits
     pub pcr_pid: u16,           //13 bits
-    //pub program_info_length: u16, //12 bits
     pub program_info: BytesMut,
-    //pub provider: BytesMut,
-    //pub name: BytesMut,
-    //pub stream_count: usize,
     pub streams: Vec<pes::Pes>,
 }
 
@@ -29,18 +25,11 @@ impl Pmt {
             program_number: 0,
             version_number: 0,     //5 bits
             continuity_counter: 0, //4i bits
-            pcr_pid: 0,            //13 bits
-            //program_info_length: 0, //12 bits
+            pcr_pid: 0,            //13 bit
             program_info: BytesMut::new(),
-            //provider: BytesMut::new(),
-            //name: BytesMut::new(),
-            //stream_count: 0,
             streams: Vec::new(),
         }
     }
-
-    //p49
-    pub fn write(&mut self) {}
 }
 
 pub struct PmtMuxer {
