@@ -12,5 +12,7 @@ add amf0 functions
 ## v0.0.4
 
 add timestamp for metadata 
+## v0.0.5
 
+support complex handshake
 

@@ -15,7 +15,7 @@ use {
             ChunkInfo,
         },
         config,
-        handshake::handshake::{ServerHandshakeState, SimpleHandshakeServer},
+        handshake::handshake::{ServerHandshakeState,HandshakeServer},
         messages::{
             define::{msg_type_id, RtmpMessageData},
             parser::MessageParser,
@@ -48,7 +48,7 @@ pub struct ServerSession {
     stream_name: String,
 
     io: Arc<Mutex<NetworkIO>>,
-    simple_handshaker: SimpleHandshakeServer,
+    handshaker: HandshakeServer,
     //complex_handshaker: ComplexHandshakeServer,
     packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
@@ -75,7 +75,7 @@ impl ServerSession {
             stream_name: String::from(""),
 
             io: Arc::clone(&net_io),
-            simple_handshaker: SimpleHandshakeServer::new(Arc::clone(&net_io)),
+            handshaker: HandshakeServer::new(Arc::clone(&net_io)),
             //complex_handshaker: ComplexHandshakeServer::new(Arc::clone(&net_io)),
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
@@ -112,19 +112,19 @@ impl ServerSession {
 
     async fn handshake(&mut self) -> Result<(), SessionError> {
         self.netio_data = self.io.lock().await.read().await?;
-        self.simple_handshaker.extend_data(&self.netio_data[..]);
-        self.simple_handshaker.handshake().await?;
+        self.handshaker.extend_data(&self.netio_data[..]);
+        self.handshaker.handshake().await?;
 
-        match self.simple_handshaker.state {
+        match self.handshaker.state() {
             ServerHandshakeState::Finish => {
                 self.state = ServerSessionState::ReadChunk;
 
-                let left_bytes = self.simple_handshaker.get_remaining_bytes();
+                let left_bytes = self.handshaker.get_remaining_bytes();
                 if left_bytes.len() > 0 {
                     self.unpacketizer.extend_data(&left_bytes[..]);
                     self.need_process = true;
                 }
-
+                self.send_set_chunk_size().await?;
                 return Ok(());
             }
             _ => {}
@@ -134,7 +134,7 @@ impl ServerSession {
     }
 
     async fn read_parse_chunks(&mut self) -> Result<(), SessionError> {
-        self.send_set_chunk_size().await?;
+
         if !self.need_process {
             self.netio_data = self.io.lock().await.read().await?;
             self.unpacketizer.extend_data(&self.netio_data[..]);
