@@ -61,6 +61,7 @@ pub enum TransmitEvent {
 }
 #[derive(Debug, Clone)]
 pub enum ClientEvent {
+    /*Need publish(push) a stream to other rtmp server*/
     Publish {
         app_name: String,
         stream_name: String,
@@ -69,6 +70,7 @@ pub enum ClientEvent {
         app_name: String,
         stream_name: String,
     },
+    /*Need subscribe(pull) a stream from other rtmp server*/
     Subscribe {
         app_name: String,
         stream_name: String,

@@ -127,6 +127,7 @@ impl Media {
             self.last_pts,
             self.last_dts - self.last_ts_dts,
             discontinuity,
+            true,
         )?;
 
         Ok(())
@@ -184,8 +185,13 @@ impl Media {
                 discontinuity = true;
             }
             self.m3u8_handler.write_m3u8_header()?;
-            self.m3u8_handler
-                .add_segment(name, pts, dts - self.last_ts_dts, discontinuity)?;
+            self.m3u8_handler.add_segment(
+                name,
+                pts,
+                dts - self.last_ts_dts,
+                discontinuity,
+                false,
+            )?;
 
             self.ts_muxer.reset();
             self.last_ts_dts = dts;

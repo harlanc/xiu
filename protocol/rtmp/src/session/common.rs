@@ -208,6 +208,7 @@ impl Common {
         }
     }
 
+    /*Begin to send data to common player or relay pull client*/
     pub async fn subscribe_from_channels(
         &mut self,
         app_name: String,
@@ -281,6 +282,7 @@ impl Common {
         Ok(())
     }
 
+    /*Begin to receive stream data from RTMP push client or RTMP relay push client*/
     pub async fn publish_to_channels(
         &mut self,
         app_name: String,
