@@ -345,7 +345,7 @@ impl ClientSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream.delete_stream(transaction_id, stream_id).await?;
 
         Ok(())
@@ -357,7 +357,7 @@ impl ClientSession {
         stream_name: &String,
         stream_type: &String,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
             .publish(transaction_id, stream_name, stream_type)
             .await?;
@@ -373,7 +373,7 @@ impl ClientSession {
         duration: &f64,
         reset: &bool,
     ) -> Result<(), SessionError> {
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
             .play(transaction_id, stream_name, start, duration, reset)
             .await?;
@@ -416,7 +416,7 @@ impl ClientSession {
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         controlmessage.write_acknowledgement(3107).await?;
 
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
             .release_stream(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
             .await?;

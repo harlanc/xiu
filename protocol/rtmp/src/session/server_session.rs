@@ -391,7 +391,7 @@ impl ServerSession {
             .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
             .await?;
 
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
             .on_status(
                 transaction_id,
@@ -466,7 +466,7 @@ impl ServerSession {
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
 
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
             .on_status(
                 transaction_id,
@@ -554,7 +554,7 @@ impl ServerSession {
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
 
-        let mut netstream = NetStreamWriter::new(BytesWriter::new(), Arc::clone(&self.io));
+        let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
             .on_status(
                 transaction_id,
