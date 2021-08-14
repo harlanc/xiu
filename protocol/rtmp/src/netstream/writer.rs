@@ -17,9 +17,9 @@ pub struct NetStreamWriter {
 }
 
 impl NetStreamWriter {
-    pub fn new(writer: BytesWriter, io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
         Self {
-            amf0_writer: Amf0Writer::new(writer),
+            amf0_writer: Amf0Writer::new(BytesWriter::new()),
             packetizer: ChunkPacketizer::new(io),
         }
     }

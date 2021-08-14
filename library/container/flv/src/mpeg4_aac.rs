@@ -381,7 +381,6 @@ impl Mpeg4AacProcessor {
         let mut audio_object_type: u64;
 
         audio_object_type = self.bits_data.read_n_bits(5)?;
-
         if 31 == audio_object_type {
             audio_object_type = 32 + self.bits_data.read_n_bits(6)?;
         }
@@ -393,7 +392,6 @@ impl Mpeg4AacProcessor {
         let mut sampling_frequency_index: u64;
 
         sampling_frequency_index = self.bits_data.read_n_bits(4)?;
-
         if sampling_frequency_index == 0x0F {
             sampling_frequency_index = self.bits_data.read_n_bits(24)?;
         }
