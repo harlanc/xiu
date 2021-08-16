@@ -12,7 +12,6 @@ pub struct RtmpServer {
 
 impl RtmpServer {
     pub fn new(address: String, event_producer: ChannelEventProducer) -> Self {
-        env_logger::init();
         Self {
             address,
             event_producer,

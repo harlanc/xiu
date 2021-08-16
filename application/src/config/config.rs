@@ -8,6 +8,7 @@ pub struct Config {
     pub rtmp: Option<RtmpConfig>,
     pub httpflv: Option<HttpFlvConfig>,
     pub hls: Option<HlsConfig>,
+    pub log: Option<LogConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -40,6 +41,19 @@ pub struct HttpFlvConfig {
 pub struct HlsConfig {
     pub enabled: bool,
     pub port: u32,
+}
+
+pub enum LogLevel {
+    Info,
+    Warn,
+    Error,
+    Trace,
+    Debug,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LogConfig {
+    pub level: String,
 }
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
