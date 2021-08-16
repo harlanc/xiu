@@ -76,8 +76,9 @@ async fn handle_connection(
 }
 
 pub async fn run(event_producer: ChannelEventProducer, port: u32) -> Result<()> {
+    env_logger::try_init();
 
-    let listen_address = format!("0.0.0.0:{}",port);
+    let listen_address = format!("0.0.0.0:{}", port);
     let sock_addr = listen_address.parse().unwrap();
 
     let new_service = make_service_fn(move |_| {
@@ -91,6 +92,8 @@ pub async fn run(event_producer: ChannelEventProducer, port: u32) -> Result<()> 
 
     let server = Server::bind(&sock_addr).serve(new_service);
     println!("Listening on http://{}", sock_addr);
+    log::info!("Listening on http://{}", sock_addr);
+
     server.await?;
 
     Ok(())

@@ -94,15 +94,17 @@ async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
     Ok(not_found())
 }
 
-pub async fn run() -> Result<()> {
-    let addr = "0.0.0.0:8080".parse().unwrap();
+pub async fn run(port: u32) -> Result<()> {
+    let listen_address = format!("0.0.0.0:{}", port);
+    let sock_addr = listen_address.parse().unwrap();
 
     let new_service = make_service_fn(move |_| async {
         Ok::<_, GenericError>(service_fn(move |req| handle_connection(req)))
     });
 
-    let server = Server::bind(&addr).serve(new_service);
-    println!("Listening on http://{}", addr);
+    let server = Server::bind(&sock_addr).serve(new_service);
+    println!("Listening on http://{}", sock_addr);
+
     server.await?;
 
     Ok(())

@@ -161,8 +161,9 @@ impl Service {
             }
 
             let event_producer = channel.get_session_event_producer().clone();
+            let cient_event_consumer = channel.get_client_event_consumer();
             let mut rtmp_event_processor =
-                RtmpEventProcessor::new(channel.get_client_event_consumer(), event_producer);
+                RtmpEventProcessor::new(cient_event_consumer, event_producer);
 
             tokio::spawn(async move {
                 if let Err(err) = rtmp_event_processor.run().await {
@@ -170,8 +171,10 @@ impl Service {
                 }
             });
 
+            let port = hls_cfg_value.port;
+
             tokio::spawn(async move {
-                if let Err(err) = hls_server::run().await {
+                if let Err(err) = hls_server::run(port).await {
                     print!("push client error {}\n", err);
                 }
             });

@@ -1,7 +1,7 @@
 use super::channels::define::ChannelEventProducer;
 
 use super::session::server_session;
-use std::{env, net::SocketAddr};
+use std::net::SocketAddr;
 use tokio::io::Error;
 use tokio::net::TcpListener;
 
@@ -12,6 +12,7 @@ pub struct RtmpServer {
 
 impl RtmpServer {
     pub fn new(address: String, event_producer: ChannelEventProducer) -> Self {
+        env_logger::init();
         Self {
             address,
             event_producer,
@@ -36,12 +37,16 @@ impl RtmpServer {
                         "session type: {}, id {}, session error {}\n",
                         session.session_type, session.session_id, err
                     );
+                    log::error!(
+                        "session type: {}, id {}, session error {}\n",
+                        session.session_type,
+                        session.session_id,
+                        err
+                    );
                 }
             });
 
             idx = idx + 1;
         }
-
-        Ok(())
     }
 }
