@@ -29,6 +29,8 @@ impl PushClient {
 
     pub async fn run(&mut self) -> Result<(), ClientError> {
         println!("push client run...");
+        log::info!("push client run...");
+
         let mut session_id = std::u64::MAX;
         loop {
             let val = self.client_event_consumer.recv().await?;

@@ -39,6 +39,7 @@ pub struct HttpFlvConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct HlsConfig {
     pub enabled: bool,
+    pub port: u32,
 }
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {

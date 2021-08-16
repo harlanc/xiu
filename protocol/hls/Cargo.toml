@@ -15,6 +15,7 @@ byteorder = "1.4.2"
 bytes = "1.0.0"
 rand = "0.3"
 failure = "0.1.1"
+log = "0.4"
 
 networkio = "0.1.23"#{path = "../../library/networkio/"}
 libflv = {path = "../../library/container/flv/"}
