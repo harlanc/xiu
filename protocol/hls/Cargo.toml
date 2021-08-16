@@ -1,5 +1,5 @@
 [package]
-name = "libhls"
+name = "hls"
 description = "hls library."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]

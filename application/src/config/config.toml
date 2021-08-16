@@ -17,3 +17,5 @@ port = 1936
 [httpflv]
 enabled = true
 port = 7000
+[hls]
+enabled = true

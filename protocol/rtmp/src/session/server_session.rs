@@ -15,7 +15,7 @@ use {
             ChunkInfo,
         },
         config,
-        handshake::handshake::{ServerHandshakeState,HandshakeServer},
+        handshake::handshake::{HandshakeServer, ServerHandshakeState},
         messages::{
             define::{msg_type_id, RtmpMessageData},
             parser::MessageParser,
@@ -49,7 +49,7 @@ pub struct ServerSession {
 
     io: Arc<Mutex<NetworkIO>>,
     handshaker: HandshakeServer,
-    //complex_handshaker: ComplexHandshakeServer,
+
     packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
 
@@ -76,7 +76,7 @@ impl ServerSession {
 
             io: Arc::clone(&net_io),
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
-            //complex_handshaker: ComplexHandshakeServer::new(Arc::clone(&net_io)),
+            
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
@@ -134,7 +134,6 @@ impl ServerSession {
     }
 
     async fn read_parse_chunks(&mut self) -> Result<(), SessionError> {
-
         if !self.need_process {
             self.netio_data = self.io.lock().await.read().await?;
             self.unpacketizer.extend_data(&self.netio_data[..]);
