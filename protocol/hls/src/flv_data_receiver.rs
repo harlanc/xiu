@@ -9,6 +9,8 @@ use libflv::muxer::HEADER_LENGTH;
 use networkio::bytes_writer::BytesWriter;
 use rtmp::amf0::amf0_writer::Amf0Writer;
 use rtmp::cache::metadata::MetaData;
+use rtmp::channels::define::ClientEvent;
+use rtmp::channels::define::ClientEventConsumer;
 use rtmp::session::common::SessionInfo;
 use rtmp::session::define::SessionSubType;
 use rtmp::session::errors::SessionError;
@@ -28,48 +30,48 @@ use {
 
 use super::errors::HlsError;
 use super::errors::HlsErrorValue;
-use super::media::Media;
+use super::flv2hls::Flv2HlsRemuxer;
 
 ////https://www.jianshu.com/p/d6311f03b81f
 
-pub struct Hls {
+pub struct FlvDataReceiver {
     app_name: String,
     stream_name: String,
 
     event_producer: ChannelEventProducer,
     data_consumer: ChannelDataConsumer,
-    media_processor: Media,
+    media_processor: Flv2HlsRemuxer,
 }
 
-impl Hls {
+impl FlvDataReceiver {
     pub fn new(
         app_name: String,
         stream_name: String,
         event_producer: ChannelEventProducer,
+
         duration: i64,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
 
         Self {
-            app_name,
-            stream_name,
+            app_name: app_name.clone(),
+            stream_name: stream_name.clone(),
 
             data_consumer,
             event_producer,
-            media_processor: Media::new(duration),
+            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name),
         }
     }
 
     pub async fn run(&mut self) -> Result<(), HlsError> {
         self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone(), 50)
             .await?;
-
-        self.process_media_data().await?;
+        self.receive_flv_data().await?;
 
         Ok(())
     }
 
-    pub async fn process_media_data(&mut self) -> Result<(), HlsError> {
+    pub async fn receive_flv_data(&mut self) -> Result<(), HlsError> {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 let flv_data: FlvData;
@@ -115,14 +117,14 @@ impl Hls {
                 session_info: session_info,
                 responder: sender,
             };
-            println!("httpflv begin send subscribe");
+            println!("hls begin send subscribe");
             let rv = self.event_producer.send(subscribe_event);
             match rv {
                 Err(_) => {
                     let session_error = SessionError {
                         value: SessionErrorValue::SendChannelDataErr,
                     };
-                    println!("httpflv send subscribe error");
+                    println!("hls send subscribe error");
                     return Err(HlsError {
                         value: HlsErrorValue::SessionError(session_error),
                     });

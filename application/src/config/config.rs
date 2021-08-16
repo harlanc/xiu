@@ -7,6 +7,7 @@ use std::vec::Vec;
 pub struct Config {
     pub rtmp: Option<RtmpConfig>,
     pub httpflv: Option<HttpFlvConfig>,
+    pub hls: Option<HlsConfig>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -33,6 +34,11 @@ pub struct RtmpPushConfig {
 pub struct HttpFlvConfig {
     pub enabled: bool,
     pub port: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct HlsConfig {
+    pub enabled: bool,
 }
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {

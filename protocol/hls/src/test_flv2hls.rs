@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::errors::MediaError;
-    use crate::media::Media;
+    use crate::flv2hls::Flv2HlsRemuxer;
     use bytes::BytesMut;
     use libflv::define::FlvData;
     use libflv::demuxer::FlvAudioTagDemuxer;
@@ -66,7 +66,7 @@ mod tests {
         demuxer.read_flv_header()?;
 
         let start = Instant::now();
-        let mut media_demuxer = Media::new(5);
+        let mut media_demuxer = Flv2HlsRemuxer::new(5, String::from("live"), String::from("test"));
 
         loop {
             let data_ = demuxer.read_flv_tag();

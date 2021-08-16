@@ -38,7 +38,7 @@ use libmpegts::define::epsi_stream_type;
 use libmpegts::define::MPEG_FLAG_IDR_FRAME;
 use libmpegts::ts::TsMuxer;
 
-pub struct Media {
+pub struct Flv2HlsRemuxer {
     video_demuxer: FlvVideoTagDemuxer,
     audio_demuxer: FlvAudioTagDemuxer,
 
@@ -57,11 +57,10 @@ pub struct Media {
     audio_pid: u16,
 
     m3u8_handler: M3u8,
-    ts_handler: Ts,
 }
 
-impl Media {
-    pub fn new(duration: i64) -> Self {
+impl Flv2HlsRemuxer {
+    pub fn new(duration: i64, app_name: String, stream_name: String) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
@@ -87,8 +86,14 @@ impl Media {
 
             video_pid,
             audio_pid,
-            m3u8_handler: M3u8::new(duration, 3, String::from("test.m3u8")),
-            ts_handler: Ts::new(),
+
+            m3u8_handler: M3u8::new(
+                duration,
+                6,
+                String::from("test.m3u8"),
+                app_name.clone(),
+                stream_name.clone(),
+            ),
         }
     }
 
@@ -114,21 +119,18 @@ impl Media {
 
     pub fn flush_remaining_data(&mut self) -> Result<(), MediaError> {
         let data = self.ts_muxer.get_data();
-
-        let name = self.ts_handler.write(data)?;
-
         let mut discontinuity: bool = false;
         if self.last_dts > self.last_ts_dts + 15 * 1000 {
             discontinuity = true;
         }
-        self.m3u8_handler.write_m3u8_header()?;
         self.m3u8_handler.add_segment(
-            name,
             self.last_pts,
             self.last_dts - self.last_ts_dts,
             discontinuity,
             true,
+            data,
         )?;
+        self.m3u8_handler.refresh_playlist()?;
 
         Ok(())
     }
@@ -177,21 +179,20 @@ impl Media {
         }
 
         if self.need_new_segment {
-            let data = self.ts_muxer.get_data();
-            let name = self.ts_handler.write(data)?;
-
             let mut discontinuity: bool = false;
             if dts > self.last_ts_dts + 15 * 1000 {
                 discontinuity = true;
             }
-            self.m3u8_handler.write_m3u8_header()?;
+            let data = self.ts_muxer.get_data();
+
             self.m3u8_handler.add_segment(
-                name,
                 pts,
                 dts - self.last_ts_dts,
                 discontinuity,
                 false,
+                data,
             )?;
+            self.m3u8_handler.refresh_playlist()?;
 
             self.ts_muxer.reset();
             self.last_ts_dts = dts;

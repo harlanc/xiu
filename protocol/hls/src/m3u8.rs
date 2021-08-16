@@ -1,8 +1,11 @@
 use std::{collections::VecDeque, fmt::format};
 
+use bytes::BytesMut;
 use rtmp::messages::define::msg_type_id;
 
 use super::errors::MediaError;
+use super::ts::Ts;
+use std::fs;
 use std::{fs::File, io::Write};
 
 pub struct Segment {
@@ -12,15 +15,26 @@ pub struct Segment {
     discontinuity: bool,
     /*ts name*/
     name: String,
+    path: String,
+    is_eof: bool,
 }
 
 impl Segment {
-    pub fn new(pts: i64, duration: i64, discontinuity: bool, name: String) -> Self {
+    pub fn new(
+        pts: i64,
+        duration: i64,
+        discontinuity: bool,
+        name: String,
+        path: String,
+        is_eof: bool,
+    ) -> Self {
         Self {
             pts,
             duration,
             discontinuity,
             name,
+            path,
+            is_eof,
         }
     }
 }
@@ -40,14 +54,24 @@ pub struct M3u8 {
 
     segments: VecDeque<Segment>,
     is_header_generated: bool,
+
     m3u8_header: String,
-    m3u8_file_handler: File,
+    m3u8_folder: String,
+    m3u8_name: String,
+
+    ts_handler: Ts,
 }
 
 impl M3u8 {
-    pub fn new(duration: i64, live_ts_count: usize, name: String) -> Self {
-        let file_handler = File::create(name).unwrap();
-
+    pub fn new(
+        duration: i64,
+        live_ts_count: usize,
+        name: String,
+        app_name: String,
+        stream_name: String,
+    ) -> Self {
+        let m3u8_folder = format!("./{}/{}", app_name, stream_name);
+        fs::create_dir_all(m3u8_folder.clone()).unwrap();
         Self {
             version: 3,
             sequence_no: 0,
@@ -56,50 +80,40 @@ impl M3u8 {
             live_ts_count,
             segments: VecDeque::new(),
             is_header_generated: false,
+            m3u8_folder,
             m3u8_header: String::new(),
-            m3u8_file_handler: file_handler,
+            m3u8_name: name,
+            ts_handler: Ts::new(app_name, stream_name),
         }
     }
-    pub fn flush(&mut self) {}
+
     pub fn add_segment(
         &mut self,
-        name: String,
+
         pts: i64,
         duration: i64,
         discontinuity: bool,
         is_eof: bool,
+        ts_data: BytesMut,
     ) -> Result<(), MediaError> {
         let segment_count = self.segments.len();
 
         if self.is_live && segment_count >= self.live_ts_count {
-            self.segments.pop_front();
+            let segment = self.segments.pop_front().unwrap();
+            self.ts_handler.delete(segment.path);
+            self.sequence_no += 1;
         }
 
         self.duration = std::cmp::max(duration, self.duration);
-        self.sequence_no += 1;
 
-        let segment = Segment::new(pts, duration, discontinuity, name.clone());
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data)?;
+        let segment = Segment::new(pts, duration, discontinuity, ts_name, ts_path, is_eof);
         self.segments.push_back(segment);
-
-        /*flush to file*/
-        let mut segment_content: String = String::from("");
-        if discontinuity {
-            segment_content += "#EXT-X-DISCONTINUITY\n";
-        }
-        segment_content += format!("#EXTINF:{:.3}\n{}\n", duration as f64 / 1000.0, name).as_str();
-        if is_eof {
-            segment_content += "#EXT-X-ENDLIST\n";
-        }
-        self.m3u8_file_handler.write(segment_content.as_bytes())?;
 
         Ok(())
     }
 
-    pub fn write_m3u8_header(&mut self) -> Result<(), MediaError> {
-        if self.is_header_generated {
-            return Ok(());
-        }
-
+    pub fn generate_m3u8_header(&mut self) -> Result<(), MediaError> {
         self.is_header_generated = true;
 
         let mut playlist_type: &str = "";
@@ -117,14 +131,13 @@ impl M3u8 {
         self.m3u8_header += playlist_type;
         self.m3u8_header += allow_cache;
 
-        /*flush to file*/
-        let len = self.m3u8_file_handler.write(self.m3u8_header.as_bytes())?;
         Ok(())
     }
 
-    pub fn generate_m3u8_content(&mut self) -> String {
-        let mut m3u8_content = self.m3u8_header.clone();
+    pub fn refresh_playlist(&mut self) -> Result<String, MediaError> {
+        self.generate_m3u8_header()?;
 
+        let mut m3u8_content = self.m3u8_header.clone();
         for segment in &self.segments {
             if segment.discontinuity {
                 m3u8_content += "#EXT-X-DISCONTINUITY\n";
@@ -135,8 +148,18 @@ impl M3u8 {
                 segment.name
             )
             .as_str();
+
+            if segment.is_eof {
+                m3u8_content += "#EXT-X-ENDLIST\n";
+                break;
+            }
         }
 
-        return m3u8_content;
+        let m3u8_path = format!("{}/{}", self.m3u8_folder, self.m3u8_name);
+
+        let mut file_handler = File::create(m3u8_path).unwrap();
+        file_handler.write(m3u8_content.as_bytes())?;
+
+        Ok(m3u8_content)
     }
 }

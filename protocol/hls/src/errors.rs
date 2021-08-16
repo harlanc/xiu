@@ -10,6 +10,7 @@ use rtmp::cache::errors::MetadataError;
 
 use libmpegts::errors::MpegTsError;
 use std::fmt;
+use tokio::sync::broadcast::error::RecvError;
 
 // use tokio::sync::mpsc::error::SendError;
 
@@ -95,7 +96,6 @@ impl From<std::io::Error> for MediaError {
     }
 }
 
-
 impl fmt::Display for MediaError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
@@ -120,7 +120,18 @@ pub enum HlsErrorValue {
     FlvDemuxerError(FlvDemuxerError),
     #[fail(display = "media error")]
     MediaError(MediaError),
+
+    #[fail(display = "receive error\n")]
+    RecvError(RecvError),
 }
+impl From<RecvError> for HlsError {
+    fn from(error: RecvError) -> Self {
+        HlsError {
+            value: HlsErrorValue::RecvError(error),
+        }
+    }
+}
+
 
 impl From<MediaError> for HlsError {
     fn from(error: MediaError) -> Self {

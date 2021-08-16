@@ -16,8 +16,10 @@ use {
         //cell::RefCell,
         collections::HashMap,
         sync::{Arc, Mutex},
+        time::Duration,
     },
     tokio::sync::{mpsc, mpsc::UnboundedReceiver, oneshot},
+    tokio::time::sleep,
 };
 
 /************************************************************************************
@@ -80,21 +82,29 @@ impl Transmiter {
 
                                 match session_info.session_sub_type {
                                     SessionSubType::Player=>{
+                            
                                         let meta_body = self.cache.lock().unwrap().get_metadata();
+                                        if let Some(meta_body_data) = meta_body{
+                                            sender.send(meta_body_data).map_err(|_| ChannelError {
+                                                value: ChannelErrorValue::SendError,
+                                            })?;
+                                   
+                                        }
+                                        
                                         let audio_seq = self.cache.lock().unwrap().get_audio_seq();
+                                        if let Some(audio_seq_data) = audio_seq{
+                                            sender.send(audio_seq_data).map_err(|_| ChannelError {
+                                                value: ChannelErrorValue::SendError,
+                                            })?;
+                                        }
+                                        
                                         let video_seq = self.cache.lock().unwrap().get_video_seq();
-
-                                        sender.send(meta_body).map_err(|_| ChannelError {
-                                            value: ChannelErrorValue::SendError,
-                                        })?;
-                                        sender.send(audio_seq).map_err(|_| ChannelError {
-                                            value: ChannelErrorValue::SendError,
-                                        })?;
-                                        sender.send(video_seq).map_err(|_| ChannelError {
-                                            value: ChannelErrorValue::SendError,
-                                        })?;
-
-                                    }
+                                        if let Some(video_seq_data) = video_seq{
+                                            sender.send(video_seq_data).map_err(|_| ChannelError {
+                                                value: ChannelErrorValue::SendError,
+                                            })?;
+                                        }
+                                     }
                                     SessionSubType::Publisher =>{
 
                                     }
@@ -186,6 +196,7 @@ pub struct ChannelsManager {
     client_event_producer: ClientEventProducer,
     push_enabled: bool,
     pull_enabled: bool,
+    hls_enabled: bool,
 }
 
 impl ChannelsManager {
@@ -200,6 +211,7 @@ impl ChannelsManager {
             client_event_producer: client_producer,
             push_enabled: false,
             pull_enabled: false,
+            hls_enabled: false,
         }
     }
     pub async fn run(&mut self) {
@@ -208,6 +220,10 @@ impl ChannelsManager {
 
     pub fn set_push_enabled(&mut self, enabled: bool) {
         self.push_enabled = enabled;
+    }
+
+    pub fn set_hls_enabled(&mut self, enabled: bool) {
+        self.hls_enabled = enabled;
     }
 
     pub fn set_pull_enabled(&mut self, enabled: bool) {
@@ -418,7 +434,7 @@ impl ChannelsManager {
 
             stream_map.insert(stream_name.clone(), event_publisher);
 
-            if self.push_enabled {
+            if self.push_enabled || self.hls_enabled {
                 let client_event = ClientEvent::Publish {
                     app_name: app_name.clone(),
                     stream_name: stream_name.clone(),

@@ -85,12 +85,16 @@ impl Cache {
         self.metadata_timestamp = timestamp;
     }
 
-    pub fn get_metadata(&self) -> ChannelData {
+    pub fn get_metadata(&self) -> Option<ChannelData> {
         let data = self.metadata.get_chunk_body();
-        return ChannelData::MetaData {
-            timestamp: self.metadata_timestamp,
-            data,
-        };
+        if data.len() > 0 {
+            Some(ChannelData::MetaData {
+                timestamp: self.metadata_timestamp,
+                data,
+            })
+        } else {
+            None
+        }
     }
 
     pub fn save_audio_seq(
@@ -111,18 +115,24 @@ impl Cache {
         Ok(())
     }
 
-    pub fn get_audio_seq(&self) -> ChannelData {
-        return ChannelData::Audio {
-            timestamp: self.audio_timestamp,
-            data: self.audio_seq.clone(),
-        };
+    pub fn get_audio_seq(&self) -> Option<ChannelData> {
+        if self.audio_seq.len() > 0 {
+            return Some(ChannelData::Audio {
+                timestamp: self.audio_timestamp,
+                data: self.audio_seq.clone(),
+            });
+        }
+        None
     }
 
-    pub fn get_video_seq(&self) -> ChannelData {
-        return ChannelData::Video {
-            timestamp: self.video_timestamp,
-            data: self.video_seq.clone(),
-        };
+    pub fn get_video_seq(&self) -> Option<ChannelData> {
+        if self.video_seq.len() > 0 {
+            return Some(ChannelData::Video {
+                timestamp: self.video_timestamp,
+                data: self.video_seq.clone(),
+            });
+        }
+        None
     }
 
     pub fn save_video_seq(
