@@ -22,7 +22,6 @@ libflv = {path = "../../library/container/flv/"}
 
 tokio-util = { version = "0.6.5", features = ["codec"] }
 log = "0.4"
-env_logger = "0.9"
 chrono = "0.4"
 
 [dependencies.tokio]

@@ -20,3 +20,5 @@ port = 8081
 [hls]
 enabled = true
 port = 8080
+[log]
+level = "info"
