@@ -4,15 +4,16 @@ use {
     application::config::{config, config::Config},
     hls::server as hls_server,
     httpflv::server,
+
     rtmp::{
         channels::channels::ChannelsManager,
         relay::{pull_client::PullClient, push_client::PushClient},
-        session::server_session,
+        rtmp::RtmpServer,
     },
-
-    std::{env, net::SocketAddr},
+    std::env,
     tokio,
-    tokio::net::TcpListener,
+
+    tokio::signal,
 };
 
 use hls::rtmp_event_processor::RtmpEventProcessor;
@@ -31,6 +32,8 @@ async fn main() -> Result<()> {
         }
         _ => (),
     }
+
+    signal::ctrl_c().await?;
     Ok(())
 }
 
@@ -43,236 +46,137 @@ impl Service {
         Service { cfg: cfg }
     }
 
-    // fn process_hls(&mut self) -> Result<()> {
-    //     let hls_cfg = &self.cfg.hls;
-    //     match hls_cfg {
-    //         Some(hls_cfg_value) => if hls_cfg_value.enabled {
+    async fn run(&mut self) -> Result<()> {
+        let mut channel = ChannelsManager::new();
 
-    //             let hls_service = HlsService::new(consumer, event_producer)
-    //         },
-    //         None => {}
-    //     }
-    //     Ok(())
-    // }
+        self.start_httpflv(&mut channel).await?;
+        self.start_hls(&mut channel).await?;
+        self.start_rtmp(&mut channel).await?;
+
+        tokio::spawn(async move { channel.run().await });
+
+        Ok(())
+    }
 
     async fn start_rtmp(&mut self, channel: &mut ChannelsManager) -> Result<()> {
-        let producer = channel.get_session_event_producer();
-        let event_producer = producer.clone();
-        let rtmp = &self.cfg.rtmp;
-        match rtmp {
-            Some(rtmp_cfg) => {
-                match rtmp_cfg.clone().push {
-                    Some(push_cfg) => {
-                        let address = format!(
-                            "{ip}:{port}",
-                            ip = push_cfg[0].address,
-                            port = push_cfg[0].port
-                        );
+        let rtmp_cfg = &self.cfg.rtmp;
 
-                        let mut push_client = PushClient::new(
-                            address,
-                            channel.get_client_event_consumer(),
-                            producer.clone(),
-                        );
-                        tokio::spawn(async move {
-                            if let Err(err) = push_client.run().await {
-                                print!("push client error {}\n", err);
-                            }
-                        });
+        if let Some(rtmp_cfg_value) = rtmp_cfg {
+            if !rtmp_cfg_value.enabled {
+                return Ok(());
+            }
 
-                        channel.set_push_enabled(true);
+            let producer = channel.get_session_event_producer();
+
+            /*static push */
+            if let Some(push_cfg_values) = &rtmp_cfg_value.push {
+                for push_value in push_cfg_values {
+                    if !push_value.enabled {
+                        continue;
                     }
-                    _ => {}
-                }
+                    let address = format!(
+                        "{ip}:{port}",
+                        ip = push_value.address,
+                        port = push_value.port
+                    );
 
-                match rtmp_cfg.clone().pull {
-                    Some(pull_cfg) => {
-                        if pull_cfg.enabled {
-                            let address =
-                                format!("{ip}:{port}", ip = pull_cfg.address, port = pull_cfg.port);
-                            let mut pull_client = PullClient::new(
-                                address,
-                                channel.get_client_event_consumer(),
-                                producer.clone(),
-                            );
-
-                            tokio::spawn(async move {
-                                if let Err(err) = pull_client.run().await {
-                                    print!("pull client error {}\n", err);
-                                }
-                            });
-
-                            channel.set_pull_enabled(true);
-                        }
-                    }
-                    _ => {}
-                }
-
-                let listen_port = rtmp_cfg.port;
-                let address = format!("0.0.0.0:{port}", port = listen_port);
-                let socket_addr: &SocketAddr = &address.parse().unwrap();
-                let listener = TcpListener::bind(socket_addr).await?;
-
-                let mut idx: u64 = 0;
-
-                loop {
-                    let (tcp_stream, _) = listener.accept().await?;
-                    //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
-
-                    let mut session =
-                        server_session::ServerSession::new(tcp_stream, producer.clone(), idx);
+                    let mut push_client = PushClient::new(
+                        address,
+                        channel.get_client_event_consumer(),
+                        producer.clone(),
+                    );
                     tokio::spawn(async move {
-                        if let Err(err) = session.run().await {
-                            print!(
-                                "session type: {}, id {}, session error {}\n",
-                                session.session_type, session.session_id, err
-                            );
+                        if let Err(err) = push_client.run().await {
+                            print!("push client error {}\n", err);
                         }
                     });
 
-                    idx = idx + 1;
+                    channel.set_push_enabled(true);
                 }
             }
-            None => return Ok(()),
+            /*static pull*/
+            if let Some(pull_cfg_value) = &rtmp_cfg_value.pull {
+                if pull_cfg_value.enabled {
+                    let address = format!(
+                        "{ip}:{port}",
+                        ip = pull_cfg_value.address,
+                        port = pull_cfg_value.port
+                    );
+                    let mut pull_client = PullClient::new(
+                        address,
+                        channel.get_client_event_consumer(),
+                        producer.clone(),
+                    );
+
+                    tokio::spawn(async move {
+                        if let Err(err) = pull_client.run().await {
+                            print!("pull client error {}\n", err);
+                        }
+                    });
+
+                    channel.set_pull_enabled(true);
+                }
+            }
+
+            let listen_port = rtmp_cfg_value.port;
+            let address = format!("0.0.0.0:{port}", port = listen_port);
+
+            let mut rtmp_server = RtmpServer::new(address, producer.clone());
+            tokio::spawn(async move {
+                if let Err(err) = rtmp_server.run().await {
+                    print!("rtmp server  error {}\n", err);
+                }
+            });
         }
 
         Ok(())
     }
 
     async fn start_httpflv(&mut self, channel: &mut ChannelsManager) -> Result<()> {
-        let producer = channel.get_session_event_producer();
-        let event_producer = producer.clone();
-        tokio::spawn(async move {
-            if let Err(err) = server::run(event_producer).await {
-                print!("push client error {}\n", err);
+        let httpflv_cfg = &self.cfg.httpflv;
+
+        if let Some(httpflv_cfg_value) = httpflv_cfg {
+            if !httpflv_cfg_value.enabled {
+                return Ok(());
             }
-        });
+            let port = httpflv_cfg_value.port;
+            let event_producer = channel.get_session_event_producer().clone();
+
+            tokio::spawn(async move {
+                if let Err(err) = server::run(event_producer, port).await {
+                    print!("push client error {}\n", err);
+                }
+            });
+        }
+
         Ok(())
     }
 
     async fn start_hls(&mut self, channel: &mut ChannelsManager) -> Result<()> {
         let hls_cfg = &self.cfg.hls;
 
-        match hls_cfg {
-            Some(hls_cfg_value) => {
-                if !hls_cfg_value.enabled {
-                    return Ok(());
-                }
+        if let Some(hls_cfg_value) = hls_cfg {
+            if !hls_cfg_value.enabled {
+                return Ok(());
             }
-            None => return Ok(()),
+
+            let event_producer = channel.get_session_event_producer().clone();
+            let mut rtmp_event_processor =
+                RtmpEventProcessor::new(channel.get_client_event_consumer(), event_producer);
+
+            tokio::spawn(async move {
+                if let Err(err) = rtmp_event_processor.run().await {
+                    print!("push client error {}\n", err);
+                }
+            });
+
+            tokio::spawn(async move {
+                if let Err(err) = hls_server::run().await {
+                    print!("push client error {}\n", err);
+                }
+            });
         }
 
-        let producer = channel.get_session_event_producer();
-        let event_producer = producer.clone();
-        let mut hls_service =
-            RtmpEventProcessor::new(channel.get_client_event_consumer(), event_producer);
-
-        tokio::spawn(async move {
-            if let Err(err) = hls_service.run().await {
-                print!("push client error {}\n", err);
-            }
-        });
-
-        tokio::spawn(async move {
-            if let Err(err) = hls_server::run().await {
-                print!("push client error {}\n", err);
-            }
-        });
         Ok(())
-    }
-
-    async fn run(&mut self) -> Result<()> {
-        let mut channel = ChannelsManager::new();
-
-        let producer = channel.get_session_event_producer();
-        let event_producer = producer.clone();
-        // tokio::spawn(async move {
-        //     if let Err(err) = server::run(event_producer).await {
-        //         print!("push client error {}\n", err);
-        //     }
-        // });
-
-        self.start_httpflv(&mut channel).await?;
-        self.start_hls(&mut channel).await?;
-
-        let rtmp = &self.cfg.rtmp;
-        match rtmp {
-            Some(rtmp_cfg) => {
-                match rtmp_cfg.clone().push {
-                    Some(push_cfg) => {
-                        let address = format!(
-                            "{ip}:{port}",
-                            ip = push_cfg[0].address,
-                            port = push_cfg[0].port
-                        );
-
-                        let mut push_client = PushClient::new(
-                            address,
-                            channel.get_client_event_consumer(),
-                            producer.clone(),
-                        );
-                        tokio::spawn(async move {
-                            if let Err(err) = push_client.run().await {
-                                print!("push client error {}\n", err);
-                            }
-                        });
-
-                        channel.set_push_enabled(true);
-                    }
-                    _ => {}
-                }
-
-                match rtmp_cfg.clone().pull {
-                    Some(pull_cfg) => {
-                        if pull_cfg.enabled {
-                            let address =
-                                format!("{ip}:{port}", ip = pull_cfg.address, port = pull_cfg.port);
-                            let mut pull_client = PullClient::new(
-                                address,
-                                channel.get_client_event_consumer(),
-                                producer.clone(),
-                            );
-
-                            tokio::spawn(async move {
-                                if let Err(err) = pull_client.run().await {
-                                    print!("pull client error {}\n", err);
-                                }
-                            });
-
-                            channel.set_pull_enabled(true);
-                        }
-                    }
-                    _ => {}
-                }
-
-                let listen_port = rtmp_cfg.port;
-                let address = format!("0.0.0.0:{port}", port = listen_port);
-                let socket_addr: &SocketAddr = &address.parse().unwrap();
-                let listener = TcpListener::bind(socket_addr).await?;
-
-                let mut idx: u64 = 0;
-
-                tokio::spawn(async move { channel.run().await });
-
-                loop {
-                    let (tcp_stream, _) = listener.accept().await?;
-                    //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
-
-                    let mut session =
-                        server_session::ServerSession::new(tcp_stream, producer.clone(), idx);
-                    tokio::spawn(async move {
-                        if let Err(err) = session.run().await {
-                            print!(
-                                "session type: {}, id {}, session error {}\n",
-                                session.session_type, session.session_id, err
-                            );
-                        }
-                    });
-
-                    idx = idx + 1;
-                }
-            }
-            None => Ok(()),
-        }
     }
 }
