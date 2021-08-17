@@ -1,4 +1,7 @@
-#RTMP server configurations
+#live server configurations
+##########################
+#   RTMP configurations  #
+##########################
 [rtmp]
 enabled = true
 port = 1935
@@ -10,15 +13,27 @@ port = 1935
 enabled = true
 address = "localhost"
 port = 1936
-# [[rtmp.push]]
-# enabled = true
-# address = "192.168.0.3"
-# port = 1935
+[[rtmp.push]]
+enabled = true
+address = "192.168.0.3"
+port = 1935
+
+##########################
+# HTTPFLV configurations #
+##########################
 [httpflv]
 enabled = true
 port = 8081
+
+##########################
+#    HLS configurations  #
+##########################
 [hls]
 enabled = true
 port = 8080
+
+##########################
+#   LOG configurations   #
+##########################
 [log]
 level = "info"
