@@ -19,7 +19,7 @@ log = "0.4"
 
 
 xflv = {path = "../../library/container/flv/"}
-mpegts = {path = "../../library/container/mpegts/"}
+xmpegts = {path = "../../library/container/mpegts/"}
 hyper = { version = "0.14", features = ["full"] }
 serde_json = "1.0"
 futures-core = { version = "0.3", default-features = false }

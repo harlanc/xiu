@@ -1,7 +1,7 @@
 use {
     failure::Fail,
     xflv::errors::FlvDemuxerError,
-    mpegts::errors::MpegTsError,
+    xmpegts::errors::MpegTsError,
     rtmp::{
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
