@@ -16,15 +16,16 @@ bytes = "1.0.0"
 rand = "0.3"
 failure = "0.1.1"
 log = "0.4"
-env_logger = "0.9"
 
-xflv = {path = "../../library/container/flv/"}
+
+xflv = "0.0.1"#{path = "../../library/container/flv/"}
+rtmp = "0.0.6"#{path = "../rtmp/"}#"0.0.4"
 hyper = { version = "0.14", features = ["full"] }
 serde_json = "1.0"
 futures-core = { version = "0.3", default-features = false }
 futures = "0.3"
 futures-util = { version = "0.3", default-features = false }
-rtmp = {path = "../rtmp/"}#"0.0.4"
+
 
 tokio-util = { version = "0.6.5", features = ["codec"] }
 tokio-stream = "0.1.6"
