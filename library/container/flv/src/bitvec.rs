@@ -2,7 +2,6 @@ use super::errors::MpegAacError;
 use super::errors::MpegAacErrorValue;
 use bitvec::prelude::*;
 use bytes::BytesMut;
-use std::collections::VecDeque;
 
 pub enum BitVectorOpType {
     Read,

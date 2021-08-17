@@ -24,6 +24,7 @@ pub const RTMP_LEVEL_WARNING: &'static str = "warning";
 pub const RTMP_LEVEL_STATUS: &'static str = "status";
 pub const RTMP_LEVEL_ERROR: &'static str = "error\n";
 //session subscribe type
+#[derive(Debug)]
 pub enum SessionSubType {
     Player,
     Publisher,

@@ -1,9 +1,9 @@
-use super::bytes_errors::{BytesReadError, BytesReadErrorValue};
-use byteorder::{ByteOrder, ReadBytesExt};
-use bytes::BufMut;
-use bytes::BytesMut;
-
-use std::io::Cursor;
+use {
+    super::bytes_errors::{BytesReadError, BytesReadErrorValue},
+    byteorder::{ByteOrder, ReadBytesExt},
+    bytes::{BufMut, BytesMut},
+    std::io::Cursor,
+};
 
 pub struct BytesReader {
     buffer: BytesMut,
@@ -109,8 +109,11 @@ impl BytesReader {
         return self.buffer.len();
     }
 
-    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+    pub fn extract_remaining_bytes(&mut self) -> BytesMut {
         return self.buffer.split_to(self.buffer.len());
+    }
+    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+        return self.buffer.clone();
     }
 }
 

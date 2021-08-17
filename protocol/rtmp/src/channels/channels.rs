@@ -71,7 +71,9 @@ impl Transmiter {
             tokio::select! {
                 data = self.event_consumer.recv() =>{
                     if let Some(val) = data{
-                        print!("receive player event\n");
+
+                        log::info!("receive player event :{}",val);
+
                         match val{
                             TransmitEvent::Subscribe { responder,session_info } => {
 
@@ -240,27 +242,22 @@ impl ChannelsManager {
 
     pub async fn event_loop(&mut self) {
         while let Some(message) = self.channel_event_consumer.recv().await {
-            println!("event_loop receive event...");
+            log::info!("event_loop receive event: {}", message);
             match message {
                 ChannelEvent::Publish {
                     app_name,
                     stream_name,
                     responder,
                 } => {
-                    println!(
-                        "event_loop receive Publish event...{}:{}",
-                        app_name.clone(),
-                        stream_name.clone()
-                    );
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
                         Ok(producer) => {
                             if let Err(_) = responder.send(producer) {
-                                print!("event_loop responder send err\n");
+                                log::error!("event_loop responder send err");
                             }
                         }
                         Err(err) => {
-                            print!("event_loop Publish err: {}\n", err);
+                            log::error!("event_loop Publish err: {}\n", err);
                             continue;
                         }
                     }
@@ -271,7 +268,7 @@ impl ChannelsManager {
                     stream_name,
                 } => {
                     if let Err(err) = self.unpublish(&app_name, &stream_name) {
-                        println!("unpublish err: {}", err);
+                        log::error!("event_loop Unpublish err: {}\n", err);
                     }
                 }
                 ChannelEvent::Subscribe {
@@ -280,15 +277,13 @@ impl ChannelsManager {
                     session_info,
                     responder,
                 } => {
-                    println!(
-                        "channel subscribe...{}:{}",
-                        app_name.clone(),
-                        stream_name.clone()
-                    );
                     let rv = self.subscribe(&app_name, &stream_name, session_info).await;
                     match rv {
                         Ok(consumer) => if let Err(_) = responder.send(consumer) {},
-                        Err(_) => continue,
+                        Err(err) => {
+                            log::error!("event_loop Subscribe error: {}", err);
+                            continue;
+                        }
                     }
                 }
                 ChannelEvent::UnSubscribe {
@@ -326,7 +321,7 @@ impl ChannelsManager {
 
                     match receiver.await {
                         Ok(consumer) => {
-                            println!("get consumer");
+                            log::info!("subscribe get consumer successfully, app_name: {}, stream_name: {}",app_name,stream_name);
                             return Ok(consumer);
                         }
                         Err(_) => {
@@ -351,7 +346,12 @@ impl ChannelsManager {
         }
 
         if self.pull_enabled {
-            println!("try pull");
+            log::info!(
+                "subscribe: try to pull stream, app_name: {}, stream_name: {}",
+                app_name,
+                stream_name
+            );
+
             let client_event = ClientEvent::Subscribe {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
@@ -364,7 +364,7 @@ impl ChannelsManager {
                     value: ChannelErrorValue::SendError,
                 })?;
         }
-        println!("no app or stream name");
+
         return Err(ChannelError {
             value: ChannelErrorValue::NoAppOrStreamName,
         });
@@ -426,9 +426,18 @@ impl ChannelsManager {
             let (data_publisher, data_consumer) = mpsc::unbounded_channel();
 
             let mut transmiter = Transmiter::new(data_consumer, event_consumer);
+
+            let app_name_clone = app_name.clone();
+            let stream_name_clone = stream_name.clone();
+
             tokio::spawn(async move {
                 if let Err(err) = transmiter.run().await {
-                    print!("transmiter error {}\n", err);
+                    log::error!(
+                        "transmiter run error, app_name: {}, stream_name: {}, error: {}",
+                        app_name_clone,
+                        stream_name_clone,
+                        err,
+                    );
                 }
             });
 
@@ -457,7 +466,6 @@ impl ChannelsManager {
     }
 
     fn unpublish(&mut self, app_name: &String, stream_name: &String) -> Result<(), ChannelError> {
-        println!("unpublish begin...{} {}", app_name, stream_name);
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
                 Some(producer) => {
@@ -466,7 +474,11 @@ impl ChannelsManager {
                         value: ChannelErrorValue::SendError,
                     })?;
                     val.remove(stream_name);
-                    print!("remove stream name{}\n", stream_name);
+                    log::info!(
+                        "unpublish remove stream, app_name: {},stream_name: {}",
+                        app_name,
+                        stream_name
+                    );
                 }
                 None => {
                     return Err(ChannelError {

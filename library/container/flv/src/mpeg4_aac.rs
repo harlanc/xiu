@@ -1,15 +1,12 @@
-use super::bitvec as mpeg4bitvec;
-use super::bitvec::Mpeg4BitVec;
-use super::define::h264_nal_type;
-use super::errors::MpegAacError;
-use super::errors::MpegAacErrorValue;
-use bitvec::array::BitArray;
-use bitvec::prelude::*;
-use byteorder::BigEndian;
-use bytes::BytesMut;
-use networkio::bytes_reader::BytesReader;
-use networkio::bytes_writer::BytesWriter;
-use std::vec::Vec;
+use {
+    super::{
+        bitvec as mpeg4bitvec,
+        bitvec::Mpeg4BitVec,
+        errors::{MpegAacError, MpegAacErrorValue},
+    },
+    bytes::BytesMut,
+    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+};
 
 const AAC_FREQUENCE_SIZE: usize = 13;
 const AAC_FREQUENCE: [u32; AAC_FREQUENCE_SIZE] = [
@@ -45,23 +42,23 @@ impl Mpeg4Aac {
     }
 }
 
-pub struct Mpeg4Bits {
-    data: BytesMut,
-    size: usize,
-    bits: usize,
-    error: u32,
-}
+// pub struct Mpeg4Bits {
+//     data: BytesMut,
+//     size: usize,
+//     bits: usize,
+//     error: u32,
+// }
 
-impl Mpeg4Bits {
-    pub fn default() -> Self {
-        Self {
-            data: BytesMut::new(),
-            size: 0,
-            bits: 0,
-            error: 0,
-        }
-    }
-}
+// impl Mpeg4Bits {
+//     pub fn default() -> Self {
+//         Self {
+//             data: BytesMut::new(),
+//             size: 0,
+//             bits: 0,
+//             error: 0,
+//         }
+//     }
+// }
 
 pub struct Mpeg4AacProcessor {
     pub bytes_reader: BytesReader,
@@ -102,22 +99,22 @@ impl Mpeg4AacProcessor {
         self.bytes_reader.read_u8()?;
         self.bytes_reader.read_u8()?;
 
-        self.bytes_reader.get_remaining_bytes();
+        self.bytes_reader.extract_remaining_bytes();
 
         Ok(())
     }
 
     pub fn audio_specific_config_load2(&mut self) -> Result<(), MpegAacError> {
-        let remain_bytes = self.bytes_reader.get_remaining_bytes();
+        let remain_bytes = self.bytes_reader.extract_remaining_bytes();
         self.bits_data.extend_from_bytesmut(remain_bytes);
 
         self.mpeg4_aac.profile = self.get_audio_object_type()?;
         self.mpeg4_aac.sampling_frequency_index = self.get_sampling_frequency()?;
         self.mpeg4_aac.channel_configuration = self.bits_data.read_n_bits(4)? as u8;
 
-        let mut extension_audio_object_type: u8 = 0;
-        let mut extension_sampling_frequency_index: u8 = 0;
-        let mut extension_channel_configuration: u8 = 0;
+        let mut extension_audio_object_type: u8;
+        let mut extension_sampling_frequency_index: u8;
+        let mut extension_channel_configuration: u8;
 
         if self.mpeg4_aac.profile == 5 || self.mpeg4_aac.profile == 29 {
             extension_audio_object_type = 5;
@@ -422,7 +419,7 @@ impl Mpeg4AacProcessor {
         self.bytes_writer.write_u8(0xFC)?; //6
 
         self.bytes_writer
-            .write(&self.bytes_reader.get_remaining_bytes()[..])?;
+            .write(&self.bytes_reader.extract_remaining_bytes()[..])?;
 
         Ok(())
     }

@@ -1,10 +1,8 @@
-use super::define;
-use super::define::tag_type;
-use super::errors::FlvDemuxerError;
-use super::errors::TagParseErrorValue;
-use byteorder::BigEndian;
-use bytes::BytesMut;
-use networkio::bytes_reader::BytesReader;
+use {
+    super::{define, errors::FlvDemuxerError},
+    bytes::BytesMut,
+    networkio::bytes_reader::BytesReader,
+};
 
 #[derive(Clone)]
 pub struct AudioTagHeader {
@@ -107,7 +105,7 @@ impl AudioTagHeaderDemuxer {
     }
 
     pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.bytes_reader.get_remaining_bytes();
+        return self.bytes_reader.extract_remaining_bytes();
     }
 }
 #[derive(Clone)]
@@ -188,6 +186,6 @@ impl VideoTagHeaderDemuxer {
     }
 
     pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.bytes_reader.get_remaining_bytes();
+        return self.bytes_reader.extract_remaining_bytes();
     }
 }

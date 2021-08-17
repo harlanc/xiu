@@ -76,7 +76,7 @@ impl ServerSession {
 
             io: Arc::clone(&net_io),
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
-            
+
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
@@ -260,14 +260,12 @@ impl ServerSession {
 
         match cmd_name.as_str() {
             "connect" => {
-                print!("connect .......");
                 self.on_connect(&transaction_id, &obj).await?;
             }
             "createStream" => {
                 self.on_create_stream(transaction_id).await?;
             }
             "deleteStream" => {
-                print!("deletestream....\n");
                 if others.len() > 0 {
                     let stream_id = match others.pop() {
                         Some(val) => match val {
@@ -276,7 +274,6 @@ impl ServerSession {
                         },
                         _ => 0.0,
                     };
-                    print!("deletestream....{}\n", stream_id);
                     self.on_delete_stream(transaction_id, &stream_id).await?;
                 }
             }
@@ -306,6 +303,11 @@ impl ServerSession {
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
+        log::info!(
+            "[ C->S ] connect and the transaction id: {}",
+            transaction_id
+        );
+
         self.connect_command_object = Some(command_obj.clone());
         let mut control_message =
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
@@ -363,6 +365,11 @@ impl ServerSession {
     }
 
     pub async fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
+        log::info!(
+            "[ C->S ] create stream and the transaction id: {}",
+            transaction_id
+        );
+
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
 
@@ -386,6 +393,12 @@ impl ServerSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
+        log::info!(
+            "[ C->S ] delete stream and the transaction id :{}, the stream id : {}",
+            transaction_id,
+            stream_id
+        );
+
         self.common
             .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
             .await?;
@@ -399,8 +412,6 @@ impl ServerSession {
                 &"".to_string(),
             )
             .await?;
-
-        print!("stream id{}", stream_id);
 
         //self.unsubscribe_from_channels().await?;
 
@@ -458,9 +469,12 @@ impl ServerSession {
             };
             break;
         }
-        print!("start {}", start.is_some());
-        print!("druation {}", duration.is_some());
-        print!("reset {}", reset.is_some());
+        log::info!(
+            "on_play, start: {}, duration: {}, reset: {}",
+            start.is_some(),
+            duration.is_some(),
+            reset.is_some()
+        );
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
