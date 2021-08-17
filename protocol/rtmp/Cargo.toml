@@ -15,8 +15,8 @@ byteorder = "1.4.2"
 bytes = "1.0.0"
 rand = "0.3"
 failure = "0.1.1"
-hmac = "0.6.2"
-sha2 = "0.7.1"
+hmac = "0.11.0"
+sha2 = "0.9"
 bytesio = "0.1.26"#{path = "../../library/bytesio/"}
 xflv = "0.0.1"#{path = "../../library/container/flv/"}
 
