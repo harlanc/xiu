@@ -7,7 +7,7 @@ use {
         bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, bytes_writer::BytesWriter,
         bytesio::BytesIO,
     },
-    hmac::{Hmac, Mac},
+    hmac::{Hmac, Mac, NewMac},
     rand,
     rand::Rng,
     sha2::Sha256,
@@ -216,11 +216,12 @@ struct DigestMsg {
 }
 
 fn make_digest(input: &[u8], key: &[u8]) -> [u8; RTMP_DIGEST_LENGTH] {
-    let mut mac = Hmac::<Sha256>::new_varkey(key).unwrap();
-    mac.input(input);
+    let mut mac = Hmac::<Sha256>::new_from_slice(key).unwrap();
 
-    let result = mac.result();
-    let array = result.code();
+    mac.update(input);
+
+    let result = mac.finalize();
+    let array = result.into_bytes();
 
     if array.len() != RTMP_DIGEST_LENGTH {
         panic!(
