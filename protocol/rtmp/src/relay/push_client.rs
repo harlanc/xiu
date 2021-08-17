@@ -58,7 +58,7 @@ impl PushClient {
 
                     tokio::spawn(async move {
                         if let Err(err) = client_session.run().await {
-                            print!(" session error {}\n", err);
+                            log::error!("client_session as push client run error: {}", err);
                         }
                     });
 
@@ -66,7 +66,7 @@ impl PushClient {
                 }
 
                 _ => {
-                    println!("other infos...");
+                    log::info!("push client receive other events");
                 }
             }
         }

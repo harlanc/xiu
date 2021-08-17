@@ -56,7 +56,7 @@ async fn handle_connection(
 
             tokio::spawn(async move {
                 if let Err(err) = flv_hanlder.run().await {
-                    print!("pull client error {}\n", err);
+                    log::error!("pull client error {}\n", err);
                 }
             });
 

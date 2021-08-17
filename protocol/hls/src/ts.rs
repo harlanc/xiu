@@ -28,8 +28,6 @@ impl Ts {
         let mut ts_file_handler = File::create(ts_file_path.clone())?;
         ts_file_handler.write_all(&data[..])?;
 
-        print!("generate ts {}", ts_file_path);
-
         Ok((ts_file_name, ts_file_path))
     }
     pub fn delete(&mut self, ts_file_name: String) {

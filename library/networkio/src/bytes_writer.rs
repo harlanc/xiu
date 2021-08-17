@@ -1,25 +1,15 @@
-use byteorder::{ByteOrder, WriteBytesExt};
-use bytes::BytesMut;
-use rand;
-use rand::Rng;
-
-use std::io::Write;
-
-use super::bytes_errors::BytesWriteError;
-
-use super::bytes_errors::BytesWriteErrorValue;
-
-use super::networkio::NetworkIO;
-
-use std::sync::Arc;
-
-use tokio::sync::Mutex;
-
-use std::time::Duration;
-
-use std::ops::Index;
-use std::ops::IndexMut;
-use tokio::time::timeout;
+use {
+    super::{
+        bytes_errors::{BytesWriteError, BytesWriteErrorValue},
+        networkio::NetworkIO,
+    },
+    byteorder::{ByteOrder, WriteBytesExt},
+    bytes::BytesMut,
+    rand,
+    rand::Rng,
+    std::{io::Write, sync::Arc, time::Duration},
+    tokio::{sync::Mutex, time::timeout},
+};
 
 pub struct BytesWriter {
     pub bytes: Vec<u8>,

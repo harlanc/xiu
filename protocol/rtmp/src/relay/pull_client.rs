@@ -50,7 +50,7 @@ impl PullClient {
 
                     tokio::spawn(async move {
                         if let Err(err) = client_session.run().await {
-                            print!(" session error {}\n", err);
+                            log::error!("client_session as pull client run error: {}", err);
                         }
                     });
 

@@ -205,7 +205,10 @@ impl ClientSession {
                     .await?
             }
             RtmpMessageData::SetPeerBandwidth { properties } => {
-                print!("{}", properties.window_size);
+                log::trace!(
+                    "process_messages SetPeerBandwidth windows size: {}",
+                    properties.window_size
+                );
                 self.on_set_peer_bandwidth().await?
             }
             RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,

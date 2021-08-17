@@ -9,7 +9,7 @@ use {
         config,
         protocol_control_messages::reader::ProtocolControlMessageReader,
         user_control_messages::reader::EventMessagesReader,
-       // utils,
+        // utils,
     },
     networkio::bytes_reader::BytesReader,
 };
@@ -31,33 +31,13 @@ impl MessageParser {
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
-                // print!(
-                //     "amf command:msg_length{}\n",
-                //     self.chunk_info.message_header.msg_length
-                // );
-
                 if self.chunk_info.message_header.msg_type_id == msg_type_id::COMMAND_AMF3 {
                     reader.read_u8()?;
                 }
                 let mut amf_reader = Amf0Reader::new(reader);
 
-                //utils::print::print(amf_reader.get_remaining_bytes());
-
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
-                // match command_name.clone(){
-                //     Amf0ValueType::UTF8String(val) =>{
-                //         print!("command name : {}\n",val);
-
-                //         if val == "deleteStream"{
-                //             let aa = 4;
-                //         }
-                //     }
-                //     _ =>{}
-                // }
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
-
-                // print!("2222222222222 command name  transction id \n");
-                // utils::print::print(amf_reader.get_remaining_bytes());
 
                 //The third value can be an object or NULL object
                 let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
@@ -77,31 +57,27 @@ impl MessageParser {
             }
 
             msg_type_id::AUDIO => {
-                if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
-                    print!(
-                        "audio:msg_length{}\n",
-                        self.chunk_info.message_header.msg_length
-                    );
-                }
+                log::trace!(
+                    "receive audio msg , msg length is{}\n",
+                    self.chunk_info.message_header.msg_length
+                );
 
                 return Ok(RtmpMessageData::AudioData {
                     data: self.chunk_info.payload.clone(),
                 });
             }
             msg_type_id::VIDEO => {
-                if config::DEBUG && ((config::DEBUG_INFO_TYPE & self.session_type) > 0) {
-                    print!(
-                        "video:msg_length{}\n",
-                        self.chunk_info.message_header.msg_length
-                    );
-                }
+                log::trace!(
+                    "receive video msg , msg length is{}\n",
+                    self.chunk_info.message_header.msg_length
+                );
                 return Ok(RtmpMessageData::VideoData {
                     data: self.chunk_info.payload.clone(),
                 });
             }
             msg_type_id::USER_CONTROL_EVENT => {
-                print!(
-                    "user control event:msg_length{}\n",
+                log::trace!(
+                    "receive user control event msg , msg length is{}\n",
                     self.chunk_info.message_header.msg_length
                 );
                 let data = EventMessagesReader::new(reader).parse_event()?;

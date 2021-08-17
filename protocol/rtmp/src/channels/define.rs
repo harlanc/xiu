@@ -1,6 +1,7 @@
 use {
     crate::session::common::SessionInfo,
     bytes::BytesMut,
+    std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
 };
 #[derive(Clone)]
@@ -23,7 +24,7 @@ pub type TransmitEventPublisher = mpsc::UnboundedSender<TransmitEvent>;
 pub type TransmitEventConsumer = mpsc::UnboundedReceiver<TransmitEvent>;
 
 type ChannelResponder<T> = oneshot::Sender<T>;
-
+#[derive(Debug)]
 pub enum ChannelEvent {
     Subscribe {
         app_name: String,
@@ -47,6 +48,13 @@ pub enum ChannelEvent {
     },
 }
 
+impl fmt::Display for ChannelEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", *self)
+    }
+}
+
+#[derive(Debug)]
 pub enum TransmitEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,
@@ -59,6 +67,13 @@ pub enum TransmitEvent {
 
     UnPublish {},
 }
+
+impl fmt::Display for TransmitEvent {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", *self)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ClientEvent {
     /*Need publish(push) a stream to other rtmp server*/

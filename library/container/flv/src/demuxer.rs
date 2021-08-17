@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use super::define::aac_packet_type;
 use super::define::avc_packet_type;
 use super::define::codec_id;

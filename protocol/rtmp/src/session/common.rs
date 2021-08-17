@@ -23,7 +23,7 @@ use {
         time::sleep,
     },
 };
-
+#[derive(Debug)]
 pub struct SessionInfo {
     pub session_id: u64,
     pub session_sub_type: SessionSubType,
@@ -136,11 +136,10 @@ impl Common {
             data: data.clone(),
         };
 
-        //print!("receive video data\n");
         match self.data_producer.send(data) {
             Ok(_) => {}
             Err(err) => {
-                print!("send video err {}\n", err);
+                log::error!("send video err: {}", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,
                 });
@@ -163,7 +162,7 @@ impl Common {
         match self.data_producer.send(data) {
             Ok(_) => {}
             Err(err) => {
-                print!("receive audio err {}\n", err);
+                log::error!("receive audio err {}\n", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendChannelDataErr,
                 });
@@ -215,8 +214,8 @@ impl Common {
         stream_name: String,
         session_id: u64,
     ) -> Result<(), SessionError> {
-        print!(
-            "subscribe info............{} {} {}\n",
+        log::info!(
+            "subscribe_from_channels, app_name: {} stream_name: {} session_id: {}\n",
             app_name,
             stream_name.clone(),
             session_id
@@ -276,7 +275,7 @@ impl Common {
             session_info: self.get_session_info(session_id),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            print!("unsubscribe_from_channels err {}\n", err)
+            log::error!("unsubscribe_from_channels err {}\n", err);
         }
 
         Ok(())
@@ -307,12 +306,10 @@ impl Common {
 
         match receiver.await {
             Ok(producer) => {
-                //print!("set producer before\n");
                 self.data_producer = producer;
-                //print!("set producer after\n");
             }
             Err(err) => {
-                print!("publish_to_channels err{}\n", err)
+                log::error!("publish_to_channels err{}\n", err);
             }
         }
         Ok(())
