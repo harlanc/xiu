@@ -1,7 +1,7 @@
 use {
     super::{define, errors::EventMessagesError},
     byteorder::BigEndian,
-    networkio::bytes_writer::AsyncBytesWriter,
+    bytesio::bytes_writer::AsyncBytesWriter,
     crate::messages::define::msg_type_id,
 };
 

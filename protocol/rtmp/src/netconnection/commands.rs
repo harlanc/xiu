@@ -2,7 +2,7 @@ use {
     super::errors::NetConnectionError,
     crate::amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
     bytes::BytesMut,
-    networkio::bytes_writer::BytesWriter,
+    bytesio::bytes_writer::BytesWriter,
     std::collections::HashMap,
 };
 

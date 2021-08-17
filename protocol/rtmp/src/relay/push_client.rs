@@ -28,7 +28,6 @@ impl PushClient {
     }
 
     pub async fn run(&mut self) -> Result<(), ClientError> {
-        println!("push client run...");
         log::info!("push client run...");
 
         let mut session_id = std::u64::MAX;
@@ -39,7 +38,7 @@ impl PushClient {
                     app_name,
                     stream_name,
                 } => {
-                    println!(
+                    log::info!(
                         "publish app_name: {} stream_name: {} address: {}",
                         app_name.clone(),
                         stream_name.clone(),

@@ -6,7 +6,7 @@ use super::pes;
 use byteorder::BigEndian;
 use byteorder::LittleEndian;
 use bytes::BytesMut;
-use networkio::bytes_writer::BytesWriter;
+use bytesio::bytes_writer::BytesWriter;
 #[derive(Debug, Clone)]
 pub struct Pmt {
     pub pid: u16,

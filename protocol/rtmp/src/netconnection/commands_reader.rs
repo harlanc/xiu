@@ -1,6 +1,6 @@
 use {
     super::errors::NetConnectionError, crate::amf0::amf0_reader::Amf0Reader,
-    networkio::bytes_reader::BytesReader,
+    bytesio::bytes_reader::BytesReader,
 };
 
 #[allow(dead_code)]

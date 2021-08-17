@@ -1,7 +1,7 @@
 use {
     failure::Fail,
     futures::channel::mpsc::SendError,
-    libflv::errors::MuxerError,
+    xflv::errors::MuxerError,
     rtmp::{
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },

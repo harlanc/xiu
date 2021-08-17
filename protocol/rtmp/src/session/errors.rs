@@ -10,7 +10,7 @@ use {
         user_control_messages::errors::EventMessagesError,
     },
     failure::{Backtrace, Fail},
-    networkio::{bytes_errors::BytesWriteError, networkio_errors::NetIOError},
+    bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
     std::fmt,
 };
 
@@ -42,7 +42,7 @@ pub enum SessionErrorValue {
     #[fail(display = "event messages error: {}\n", _0)]
     EventMessagesError(#[cause] EventMessagesError),
     #[fail(display = "net io error: {}\n", _0)]
-    NetIOError(#[cause] NetIOError),
+    BytesIOError(#[cause] BytesIOError),
     #[fail(display = "pack error: {}\n", _0)]
     PackError(#[cause] PackError),
     #[fail(display = "handshake error: {}\n", _0)]
@@ -142,10 +142,10 @@ impl From<EventMessagesError> for SessionError {
     }
 }
 
-impl From<NetIOError> for SessionError {
-    fn from(error: NetIOError) -> Self {
+impl From<BytesIOError> for SessionError {
+    fn from(error: BytesIOError) -> Self {
         SessionError {
-            value: SessionErrorValue::NetIOError(error),
+            value: SessionErrorValue::BytesIOError(error),
         }
     }
 }

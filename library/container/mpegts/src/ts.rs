@@ -8,7 +8,7 @@ use {
         pmt, utils,
     },
     bytes::{BufMut, BytesMut},
-    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+    bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
 
 pub struct TsMuxer {

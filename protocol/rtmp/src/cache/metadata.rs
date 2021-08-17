@@ -2,7 +2,7 @@ use {
     super::errors::MetadataError,
     crate::amf0::{amf0_reader::Amf0Reader, amf0_writer::Amf0Writer, Amf0ValueType},
     bytes::BytesMut,
-    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+    bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
 pub struct MetaData {
     chunk_body: BytesMut,

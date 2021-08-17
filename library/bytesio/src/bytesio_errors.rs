@@ -4,7 +4,7 @@ use std::io;
 // use tokio::time::Elapsed;
 
 #[derive(Debug, Fail)]
-pub enum NetIOErrorValue {
+pub enum BytesIOErrorValue {
     #[fail(display = "not enough bytes")]
     NotEnoughBytes,
     #[fail(display = "empty stream")]
@@ -17,20 +17,20 @@ pub enum NetIOErrorValue {
     NoneReturn,
 }
 #[derive(Debug)]
-pub struct NetIOError {
-    pub value: NetIOErrorValue,
+pub struct BytesIOError {
+    pub value: BytesIOErrorValue,
 }
 
-impl From<NetIOErrorValue> for NetIOError {
-    fn from(val: NetIOErrorValue) -> Self {
-        NetIOError { value: val }
+impl From<BytesIOErrorValue> for BytesIOError {
+    fn from(val: BytesIOErrorValue) -> Self {
+        BytesIOError { value: val }
     }
 }
 
-impl From<io::Error> for NetIOError {
+impl From<io::Error> for BytesIOError {
     fn from(error: io::Error) -> Self {
-        NetIOError {
-            value: NetIOErrorValue::IOError(error),
+        BytesIOError {
+            value: BytesIOErrorValue::IOError(error),
         }
     }
 }
@@ -43,13 +43,13 @@ impl From<io::Error> for NetIOError {
 //     }
 // }
 
-impl fmt::Display for NetIOError {
+impl fmt::Display for BytesIOError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
     }
 }
 
-impl Fail for NetIOError {
+impl Fail for BytesIOError {
     fn cause(&self) -> Option<&dyn Fail> {
         self.value.cause()
     }

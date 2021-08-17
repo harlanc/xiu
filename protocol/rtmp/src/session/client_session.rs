@@ -25,9 +25,9 @@ use {
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
     },
-    networkio::{
+    bytesio::{
         bytes_writer::{AsyncBytesWriter, BytesWriter},
-        networkio::NetworkIO,
+        bytesio::BytesIO,
     },
     std::{collections::HashMap, sync::Arc},
     tokio::{net::TcpStream, sync::Mutex},
@@ -65,7 +65,7 @@ pub enum ClientType {
     Publish,
 }
 pub struct ClientSession {
-    io: Arc<Mutex<NetworkIO>>,
+    io: Arc<Mutex<BytesIO>>,
     common: Common,
 
     handshaker: SimpleHandshakeClient,
@@ -92,7 +92,7 @@ impl ClientSession {
         event_producer: ChannelEventProducer,
         session_id: u64,
     ) -> Self {
-        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
+        let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
 
         Self {
             io: Arc::clone(&net_io),
@@ -116,35 +116,36 @@ impl ClientSession {
         loop {
             match self.state {
                 ClientSessionState::Handshake => {
-                    println!("handshake");
+                    log::info!("[C -> S] handshake...");
                     self.handshake().await?;
                     continue;
                 }
                 ClientSessionState::Connect => {
-                    println!("connect");
+                    log::info!("[C -> S] connect...");
                     self.send_connect(&(define::TRANSACTION_ID_CONNECT as f64))
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::CreateStream => {
-                    println!("CreateStream");
+                    log::info!("[C -> S] CreateStream...");
                     self.send_create_stream(&(define::TRANSACTION_ID_CREATE_STREAM as f64))
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::Play => {
+                    log::info!("[C -> S] Play...");
                     self.send_play(&0.0, &self.stream_name.clone(), &0.0, &0.0, &false)
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::PublishingContent => {
-                    println!("PublishingContent");
+                    log::info!("[C -> S] PublishingContent...");
                     self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::StartPublish => {
-                    println!("StartPublish");
+                    log::info!("[C -> S] StartPublish...");
                     self.common.send_channel_data().await?;
                 }
                 ClientSessionState::WaitStateChange => {}
@@ -173,7 +174,7 @@ impl ClientSession {
         loop {
             self.handshaker.handshake().await?;
             if self.handshaker.state == ClientHandshakeState::Finish {
-                println!("handshake finish");
+                log::info!("handshake finish");
                 break;
             }
 
@@ -449,12 +450,12 @@ impl ClientSession {
     }
 
     pub fn on_stream_is_recorded(&mut self, stream_id: &mut u32) -> Result<(), SessionError> {
-        println!("stream is recorded stream_id is {}", stream_id);
+        log::trace!("stream is recorded stream_id is {}", stream_id);
         Ok(())
     }
 
     pub fn on_stream_begin(&mut self, stream_id: &mut u32) -> Result<(), SessionError> {
-        println!("stream is begin stream_id is {}", stream_id);
+        log::trace!("stream is begin stream_id is {}", stream_id);
         Ok(())
     }
 
@@ -471,7 +472,6 @@ impl ClientSession {
         &mut self,
         obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
-        println!("on_status===");
         if let Some(Amf0ValueType::UTF8String(code_info)) = obj.get("code") {
             match &code_info[..] {
                 "NetStream.Publish.Start" => {
@@ -494,7 +494,7 @@ impl ClientSession {
                 _ => {}
             }
         }
-        println!("{}", obj.len());
+        log::trace!("{}", obj.len());
         Ok(())
     }
 }

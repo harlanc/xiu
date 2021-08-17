@@ -1,6 +1,6 @@
 use {
     failure::Fail,
-    networkio::bytes_errors::{BytesReadError, BytesWriteError},
+    bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     std::io::Error,
 };
 

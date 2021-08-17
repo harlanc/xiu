@@ -3,9 +3,9 @@ mod tests {
     use crate::errors::MediaError;
     use crate::flv2hls::Flv2HlsRemuxer;
     use bytes::BytesMut;
-    use libflv::define::FlvData;
+    use xflv::define::FlvData;
 
-    use libflv::demuxer::FlvDemuxer;
+    use xflv::demuxer::FlvDemuxer;
 
     use std::fs::File;
     use std::io::prelude::*;

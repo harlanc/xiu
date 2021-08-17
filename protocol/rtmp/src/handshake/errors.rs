@@ -1,6 +1,6 @@
 use {
     failure::{Backtrace, Fail},
-    networkio::bytes_errors::{BytesReadError, BytesWriteError},
+    bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     std::{fmt, io::Error, time::SystemTimeError},
 };
 

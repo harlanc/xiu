@@ -1,7 +1,7 @@
 use {
     super::{
         bytes_errors::{BytesWriteError, BytesWriteErrorValue},
-        networkio::NetworkIO,
+        bytesio::BytesIO,
     },
     byteorder::{ByteOrder, WriteBytesExt},
     bytes::BytesMut,
@@ -138,11 +138,11 @@ impl BytesWriter {
 
 pub struct AsyncBytesWriter {
     pub bytes_writer: BytesWriter,
-    pub io: Arc<Mutex<NetworkIO>>,
+    pub io: Arc<Mutex<BytesIO>>,
 }
 
 impl AsyncBytesWriter {
-    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             bytes_writer: BytesWriter::new(),
             io: io,

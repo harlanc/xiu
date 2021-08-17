@@ -3,11 +3,11 @@ use {
     //crate::utils::print,
     byteorder::{BigEndian, WriteBytesExt},
     bytes::BytesMut,
-    hmac::{Hmac, Mac},
-    networkio::{
+    bytesio::{
         bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, bytes_writer::BytesWriter,
-        networkio::NetworkIO,
+        bytesio::BytesIO,
     },
+    hmac::{Hmac, Mac},
     rand,
     rand::Rng,
     sha2::Sha256,
@@ -88,18 +88,8 @@ fn generate_random_bytes(buffer: &mut [u8]) {
     }
 }
 
-// pub fn new(io: NetworkIO<S>) -> Self {
-//     Self {
-//         reader: BytesReader::new(BytesMut::new()),
-//         writer: BytesWriter::new(io),
-//         c1_bytes: BytesMut::new(),
-//         c1_timestamp: 0,
-//         state: ServerHandshakeState::ReadC0C1,
-//     }
-// }
-
 impl SimpleHandshakeClient {
-    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             writer: AsyncBytesWriter::new(io),
@@ -156,7 +146,6 @@ impl SimpleHandshakeClient {
         loop {
             match self.state {
                 ClientHandshakeState::WriteC0C1 => {
-                    println!("writec0c1");
                     self.write_c0()?;
                     self.write_c1()?;
                     self.flush().await?;
@@ -165,18 +154,13 @@ impl SimpleHandshakeClient {
                 }
 
                 ClientHandshakeState::ReadS0S1S2 => {
-                    println!("ReadS0S1S2");
                     self.read_s0()?;
-                    println!("ReadS0S1S21");
                     self.read_s1()?;
-                    println!("ReadS0S1S22");
                     self.read_s2()?;
-                    println!("ReadS0S1S23");
                     self.state = ClientHandshakeState::WriteC2;
                 }
 
                 ClientHandshakeState::WriteC2 => {
-                    println!("WriteC2");
                     self.write_c2()?;
                     self.flush().await?;
                     self.state = ClientHandshakeState::Finish;
@@ -456,7 +440,7 @@ pub struct SimpleHandshakeServer {
 }
 
 impl SimpleHandshakeServer {
-    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             writer: AsyncBytesWriter::new(io),
@@ -585,7 +569,7 @@ random-data:(764-4-offset-32)bytes
 ****************************************/
 
 impl ComplexHandshakeServer {
-    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             writer: AsyncBytesWriter::new(io),
@@ -730,7 +714,7 @@ pub struct HandshakeServer {
 }
 
 impl HandshakeServer {
-    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             simple_handshaker: SimpleHandshakeServer::new(io.clone()),
             complex_handshaker: ComplexHandshakeServer::new(io),
@@ -787,10 +771,10 @@ impl HandshakeServer {
         match self.state() {
             ServerHandshakeState::Finish => match self.is_complex {
                 true => {
-                    println!("Complex handshake is successfully!!")
+                    log::info!("Complex handshake is successfully!!")
                 }
                 false => {
-                    println!("Simple handshake is successfully!!")
+                    log::info!("Simple handshake is successfully!!")
                 }
             },
             _ => {}

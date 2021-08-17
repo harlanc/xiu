@@ -72,8 +72,6 @@ impl Transmiter {
                 data = self.event_consumer.recv() =>{
                     if let Some(val) = data{
 
-                        log::info!("receive player event :{}",val);
-
                         match val{
                             TransmitEvent::Subscribe { responder,session_info } => {
 

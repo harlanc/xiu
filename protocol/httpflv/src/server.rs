@@ -20,13 +20,8 @@ async fn handle_connection(
 
     match path.find(".flv") {
         Some(index) if index > 0 => {
-            println!("{}: {}", index, path);
             let (left, _) = path.split_at(index);
-            println!("11{}: {}", index, left);
             let rv: Vec<_> = left.split("/").collect();
-            for s in rv.clone() {
-                println!("22{}: {}", index, s);
-            }
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
@@ -42,12 +37,11 @@ async fn handle_connection(
 
             tokio::spawn(async move {
                 if let Err(err) = flv_hanlder.run().await {
-                    log::error!("pull client error {}\n", err);
+                    log::error!("flv handler run error {}\n", err);
                 }
             });
 
             let mut resp = Response::new(Body::wrap_stream(http_response_data_consumer));
-
             resp.headers_mut()
                 .insert("Access-Control-Allow-Origin", "*".parse().unwrap());
 
@@ -75,8 +69,8 @@ pub async fn run(event_producer: ChannelEventProducer, port: u32) -> Result<()> 
     });
 
     let server = Server::bind(&sock_addr).serve(new_service);
-    println!("Listening on http://{}", sock_addr);
-    log::info!("Listening on http://{}", sock_addr);
+
+    log::info!("Httpflv server listening on http://{}", sock_addr);
 
     server.await?;
 

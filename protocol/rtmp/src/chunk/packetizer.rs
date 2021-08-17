@@ -5,7 +5,7 @@ use {
         errors::PackError,
     },
     byteorder::{BigEndian, LittleEndian},
-    networkio::{bytes_writer::AsyncBytesWriter, networkio::NetworkIO},
+    bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
     std::{collections::HashMap, sync::Arc},
     tokio::sync::Mutex,
 };
@@ -27,7 +27,7 @@ pub struct ChunkPacketizer {
 }
 
 impl ChunkPacketizer {
-    pub fn new(io: Arc<Mutex<NetworkIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
             //chunk_info: ChunkInfo::new(),

@@ -18,8 +18,7 @@ failure = "0.1.1"
 log = "0.4"
 env_logger = "0.9"
 
-networkio = "0.1.23"#{path = "../../library/networkio/"}
-libflv = {path = "../../library/container/flv/"}
+xflv = {path = "../../library/container/flv/"}
 hyper = { version = "0.14", features = ["full"] }
 serde_json = "1.0"
 futures-core = { version = "0.3", default-features = false }

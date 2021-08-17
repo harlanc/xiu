@@ -26,9 +26,9 @@ use {
         user_control_messages::writer::EventMessagesWriter,
     },
     bytes::BytesMut,
-    networkio::{
+    bytesio::{
         bytes_writer::{AsyncBytesWriter, BytesWriter},
-        networkio::NetworkIO,
+        bytesio::BytesIO,
     },
     std::{collections::HashMap, sync::Arc},
     tokio::{net::TcpStream, sync::Mutex},
@@ -47,7 +47,7 @@ pub struct ServerSession {
     app_name: String,
     stream_name: String,
 
-    io: Arc<Mutex<NetworkIO>>,
+    io: Arc<Mutex<BytesIO>>,
     handshaker: HandshakeServer,
 
     packetizer: ChunkPacketizer,
@@ -57,18 +57,17 @@ pub struct ServerSession {
 
     common: Common,
 
-    netio_data: BytesMut,
+    bytesio_data: BytesMut,
     need_process: bool,
 
     pub session_id: u64,
-    pub session_type: u8,
 
     connect_command_object: Option<HashMap<String, Amf0ValueType>>,
 }
 
 impl ServerSession {
     pub fn new(stream: TcpStream, event_producer: ChannelEventProducer, session_id: u64) -> Self {
-        let net_io = Arc::new(Mutex::new(NetworkIO::new(stream)));
+        let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
 
         Self {
             app_name: String::from(""),
@@ -85,9 +84,9 @@ impl ServerSession {
             common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Server),
 
             session_id: session_id,
-            netio_data: BytesMut::new(),
+            bytesio_data: BytesMut::new(),
             need_process: false,
-            session_type: 0,
+
             connect_command_object: None,
         }
     }
@@ -111,8 +110,8 @@ impl ServerSession {
     }
 
     async fn handshake(&mut self) -> Result<(), SessionError> {
-        self.netio_data = self.io.lock().await.read().await?;
-        self.handshaker.extend_data(&self.netio_data[..]);
+        self.bytesio_data = self.io.lock().await.read().await?;
+        self.handshaker.extend_data(&self.bytesio_data[..]);
         self.handshaker.handshake().await?;
 
         match self.handshaker.state() {
@@ -135,8 +134,8 @@ impl ServerSession {
 
     async fn read_parse_chunks(&mut self) -> Result<(), SessionError> {
         if !self.need_process {
-            self.netio_data = self.io.lock().await.read().await?;
-            self.unpacketizer.extend_data(&self.netio_data[..]);
+            self.bytesio_data = self.io.lock().await.read().await?;
+            self.unpacketizer.extend_data(&self.bytesio_data[..]);
         }
 
         self.need_process = false;
@@ -277,12 +276,10 @@ impl ServerSession {
                 }
             }
             "play" => {
-                self.session_type = config::SERVER_PULL;
                 self.unpacketizer.session_type = config::SERVER_PULL;
                 self.on_play(transaction_id, stream_id, others).await?;
             }
             "publish" => {
-                self.session_type = config::SERVER_PUSH;
                 self.unpacketizer.session_type = config::SERVER_PUSH;
                 self.on_publish(transaction_id, stream_id, others).await?;
             }
@@ -303,7 +300,7 @@ impl ServerSession {
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
         log::info!(
-            "[ C->S ] connect and the transaction id: {}",
+            "[ S<-C ] connect and the transaction id: {}",
             transaction_id
         );
 
@@ -365,7 +362,7 @@ impl ServerSession {
 
     pub async fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         log::info!(
-            "[ C->S ] create stream and the transaction id: {}",
+            "[ S<-C ] create stream and the transaction id: {}",
             transaction_id
         );
 
@@ -393,7 +390,7 @@ impl ServerSession {
         stream_id: &f64,
     ) -> Result<(), SessionError> {
         log::info!(
-            "[ C->S ] delete stream and the transaction id :{}, the stream id : {}",
+            "[ S<-C ] delete stream and the transaction id :{}, the stream id : {}",
             transaction_id,
             stream_id
         );

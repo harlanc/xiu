@@ -35,7 +35,7 @@ impl RtmpEventProcessor {
                     });
                 }
                 _ => {
-                    println!("other infos...");
+                    log::trace!("other infos...");
                 }
             }
         }
