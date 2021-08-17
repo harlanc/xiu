@@ -15,4 +15,7 @@ add timestamp for metadata
 ## v0.0.5
 
 support complex handshake
+## v0.0.6
+
+refactor some codes
 
