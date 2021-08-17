@@ -5,7 +5,7 @@ use {
         define::{frame_type, FlvData},
         demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
     },
-    mpegts::{
+    xmpegts::{
         define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
         ts::TsMuxer,
     },
