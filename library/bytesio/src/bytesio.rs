@@ -1,4 +1,4 @@
-use super::networkio_errors::{NetIOError, NetIOErrorValue};
+use super::bytesio_errors::{BytesIOError, BytesIOErrorValue};
 
 use bytes::Bytes;
 use bytes::BytesMut;
@@ -14,12 +14,12 @@ use futures::SinkExt;
 use tokio_util::codec::BytesCodec;
 use tokio_util::codec::Framed;
 
-pub struct NetworkIO {
+pub struct BytesIO {
     stream: Framed<TcpStream, BytesCodec>,
     //timeout: Duration,
 }
 
-impl NetworkIO {
+impl BytesIO {
     pub fn new(stream: TcpStream) -> Self {
         Self {
             stream: Framed::new(stream, BytesCodec::new()),
@@ -27,12 +27,12 @@ impl NetworkIO {
         }
     }
 
-    pub async fn write(&mut self, bytes: Bytes) -> Result<(), NetIOError> {
+    pub async fn write(&mut self, bytes: Bytes) -> Result<(), BytesIOError> {
         self.stream.send(bytes).await?;
         Ok(())
     }
 
-    pub async fn read_timeout(&mut self, duration: Duration) -> Result<BytesMut, NetIOError> {
+    pub async fn read_timeout(&mut self, duration: Duration) -> Result<BytesMut, BytesIOError> {
         let message = timeout(duration, self.stream.next()).await;
 
         match message {
@@ -43,26 +43,26 @@ impl NetworkIO {
                             return Ok(bytes);
                         }
                         Err(err) => {
-                            return Err(NetIOError {
-                                value: NetIOErrorValue::IOError(err),
+                            return Err(BytesIOError {
+                                value: BytesIOErrorValue::IOError(err),
                             })
                         }
                     }
                 } else {
-                    return Err(NetIOError {
-                        value: NetIOErrorValue::NoneReturn,
+                    return Err(BytesIOError {
+                        value: BytesIOErrorValue::NoneReturn,
                     });
                 }
             }
             Err(_) => {
-                return Err(NetIOError {
-                    value: NetIOErrorValue::TimeoutError,
+                return Err(BytesIOError {
+                    value: BytesIOErrorValue::TimeoutError,
                 })
             }
         }
     }
 
-    pub async fn read(&mut self) -> Result<BytesMut, NetIOError> {
+    pub async fn read(&mut self) -> Result<BytesMut, BytesIOError> {
         let message = self.stream.next().await;
 
         match message {
@@ -76,14 +76,14 @@ impl NetworkIO {
                     return Ok(bytes);
                 }
                 Err(err) => {
-                    return Err(NetIOError {
-                        value: NetIOErrorValue::IOError(err),
+                    return Err(BytesIOError {
+                        value: BytesIOErrorValue::IOError(err),
                     })
                 }
             },
             None => {
-                return Err(NetIOError {
-                    value: NetIOErrorValue::NoneReturn,
+                return Err(BytesIOError {
+                    value: BytesIOErrorValue::NoneReturn,
                 })
             }
         }

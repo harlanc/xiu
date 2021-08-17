@@ -2,7 +2,7 @@ use {
     super::{amf0_markers, errors::Amf0WriteErrorValue, Amf0ValueType, Amf0WriteError},
     byteorder::BigEndian,
     bytes::BytesMut,
-    networkio::bytes_writer::BytesWriter,
+    bytesio::bytes_writer::BytesWriter,
     std::collections::HashMap,
 };
 

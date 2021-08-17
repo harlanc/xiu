@@ -3,7 +3,7 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
-    libflv::define::FlvData,
+    xflv::define::FlvData,
     rtmp::channels::define::{
         ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer,
     },
@@ -108,14 +108,13 @@ impl FlvDataReceiver {
                 session_info: session_info,
                 responder: sender,
             };
-            println!("hls begin send subscribe");
+
             let rv = self.event_producer.send(subscribe_event);
             match rv {
                 Err(_) => {
                     let session_error = SessionError {
                         value: SessionErrorValue::SendChannelDataErr,
                     };
-                    println!("hls send subscribe error");
                     return Err(HlsError {
                         value: HlsErrorValue::SessionError(session_error),
                     });

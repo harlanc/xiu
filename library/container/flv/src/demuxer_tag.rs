@@ -1,7 +1,7 @@
 use {
     super::{define, errors::FlvDemuxerError},
     bytes::BytesMut,
-    networkio::bytes_reader::BytesReader,
+    bytesio::bytes_reader::BytesReader,
 };
 
 #[derive(Clone)]

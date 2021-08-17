@@ -1,6 +1,6 @@
 use {
     super::errors::ControlMessagesError, crate::messages::define::msg_type_id,
-    byteorder::BigEndian, networkio::bytes_writer::AsyncBytesWriter,
+    byteorder::BigEndian, bytesio::bytes_writer::AsyncBytesWriter,
 };
 
 pub struct ProtocolControlMessagesWriter {

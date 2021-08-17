@@ -1,8 +1,8 @@
 use failure::{Backtrace, Fail};
 use std::fmt;
 
-use networkio::bytes_errors::BytesReadError;
-use networkio::bytes_errors::BytesWriteError;
+use bytesio::bytes_errors::BytesReadError;
+use bytesio::bytes_errors::BytesWriteError;
 
 #[derive(Debug, Fail)]
 pub enum TagParseErrorValue {

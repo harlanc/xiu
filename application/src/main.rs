@@ -2,8 +2,7 @@ use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
     application::config::{config, config::Config},
-    env_logger::{Builder, Target},
-
+    //env_logger::{Builder, Target},
     hls::server as hls_server,
     httpflv::server,
 
@@ -17,7 +16,7 @@ use {
     tokio::signal,
 };
 
-use application::logger::logger;
+//use application::logger::logger;
 use hls::rtmp_event_processor::RtmpEventProcessor;
 
 #[tokio::main]
@@ -43,15 +42,15 @@ async fn main() -> Result<()> {
                 env::set_var("RUST_LOG", "info");
             }
 
-            let mut builder = Builder::from_default_env();
-            builder
-                .target(Target::Pipe(Box::new(logger::FileTarget::new(
-                    logger::Rotate::Minute,
-                    String::from("./logs"),
-                ))))
-                .init();
+            // let mut builder = Builder::from_default_env();
+            // builder
+            //     .target(Target::Pipe(Box::new(logger::FileTarget::new(
+            //         logger::Rotate::Minute,
+            //         String::from("./logs"),
+            //     ))))
+            //     .init();
 
-            //env_logger::init();
+            env_logger::init();
 
             /*run the service*/
             let mut serivce = Service::new(val);
@@ -121,7 +120,6 @@ impl Service {
                     );
                     tokio::spawn(async move {
                         if let Err(err) = push_client.run().await {
-                            //print!("push client error {}\n", err);
                             log::error!("push client error {}\n", err);
                         }
                     });
@@ -145,7 +143,6 @@ impl Service {
 
                     tokio::spawn(async move {
                         if let Err(err) = pull_client.run().await {
-                            //print!("pull client error {}\n", err);
                             log::error!("pull client error {}\n", err);
                         }
                     });

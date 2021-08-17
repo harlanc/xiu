@@ -1,7 +1,7 @@
 use {
     crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
     failure::Fail,
-    libflv::errors::FlvDemuxerError,
+    xflv::errors::FlvDemuxerError,
     std::fmt,
 };
 

@@ -2,7 +2,7 @@ use {
     super::{crc32, define::epat_pid, errors::MpegTsError, pmt},
     byteorder::{BigEndian, LittleEndian},
     bytes::BytesMut,
-    networkio::bytes_writer::BytesWriter,
+    bytesio::bytes_writer::BytesWriter,
 };
 
 #[derive(Debug, Clone)]

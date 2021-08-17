@@ -1,5 +1,5 @@
 [package]
-name = "libmpegts"
+name = "mpegts"
 description = "mpegts library."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]
@@ -16,7 +16,7 @@ bytes = "1.0.0"
 rand = "0.3"
 failure = "0.1.1"
 
-networkio = {path = "../../networkio/"}
+bytesio = {path = "../../bytesio/"}
 rtmp = {path = "../../../protocol/rtmp/"}#"0.0.4"
 tokio-util = { version = "0.6.5", features = ["codec"] }
 

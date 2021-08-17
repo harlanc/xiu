@@ -2,7 +2,7 @@ use {
     super::{define, errors},
     crate::messages::define as message_define,
     byteorder::BigEndian,
-    networkio::bytes_reader::BytesReader,
+    bytesio::bytes_reader::BytesReader,
 };
 
 pub struct EventMessagesReader {

@@ -1,7 +1,7 @@
 use {
     crate::amf0::errors::Amf0WriteError,
     failure::{Backtrace, Fail},
-    networkio::bytes_errors::{BytesReadError, BytesWriteError},
+    bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     std::fmt,
 };
 

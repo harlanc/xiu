@@ -1,7 +1,7 @@
 use super::errors::MuxerError;
 
 use byteorder::BigEndian;
-use networkio::bytes_writer::BytesWriter;
+use bytesio::bytes_writer::BytesWriter;
 
 use bytes::BytesMut;
 

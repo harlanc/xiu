@@ -5,7 +5,7 @@ use {
         errors::{MpegAacError, MpegAacErrorValue},
     },
     bytes::BytesMut,
-    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+    bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
 
 const AAC_FREQUENCE_SIZE: usize = 13;

@@ -1,7 +1,7 @@
 use {
     super::errors::ProtocolControlMessageReaderError,
     crate::messages::define::SetPeerBandwidthProperties, byteorder::BigEndian,
-    networkio::bytes_reader::BytesReader,
+    bytesio::bytes_reader::BytesReader,
 };
 
 pub struct ProtocolControlMessageReader {

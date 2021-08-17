@@ -23,7 +23,7 @@ impl RtmpServer {
         let listener = TcpListener::bind(socket_addr).await?;
 
         let mut idx = 0;
-
+        log::info!("Rtmp server listening on tcp://{}", socket_addr);
         loop {
             let (tcp_stream, _) = listener.accept().await?;
             //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
@@ -32,9 +32,8 @@ impl RtmpServer {
                 server_session::ServerSession::new(tcp_stream, self.event_producer.clone(), idx);
             tokio::spawn(async move {
                 if let Err(err) = session.run().await {
-                    log::error!(
-                        "session type: {}, id {}, session error {}\n",
-                        session.session_type,
+                    log::info!(
+                        "session id {}, session error infos {}\n",
                         session.session_id,
                         err
                     );

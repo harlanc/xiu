@@ -12,7 +12,7 @@ use super::mpeg4_aac::Mpeg4AacProcessor;
 use super::mpeg4_avc::Mpeg4AvcProcessor;
 use byteorder::BigEndian;
 use bytes::BytesMut;
-use networkio::bytes_reader::BytesReader;
+use bytesio::bytes_reader::BytesReader;
 
 /*
  ** Flv Struct **
@@ -251,14 +251,12 @@ impl FlvDemuxer {
 
         match tag_type {
             tag_type::VIDEO => {
-                //print!("flv vido payload length {}\n", body.len());
                 return Ok(Some(FlvData::Video {
                     timestamp: dts,
                     data: body,
                 }));
             }
             tag_type::AUDIO => {
-                //print!("flv audio payload length {}\n", body.len());
                 return Ok(Some(FlvData::Audio {
                     timestamp: dts,
                     data: body,

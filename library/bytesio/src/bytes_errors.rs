@@ -1,4 +1,4 @@
-use super::networkio_errors::NetIOError;
+use super::bytesio_errors::BytesIOError;
 use std::io;
 // use tokio::time::Elapsed;
 
@@ -54,7 +54,7 @@ pub enum BytesWriteErrorValue {
     #[fail(display = "io error\n")]
     IO(io::Error),
     #[fail(display = "not enough bytes to write: {}\n", _0)]
-    NetIOError(NetIOError),
+    BytesIOError(BytesIOError),
     #[fail(display = "write time out")]
     Timeout,
     #[fail(display = "outof index")]
@@ -69,10 +69,10 @@ impl From<io::Error> for BytesWriteError {
     }
 }
 
-impl From<NetIOError> for BytesWriteError {
-    fn from(error: NetIOError) -> Self {
+impl From<BytesIOError> for BytesWriteError {
+    fn from(error: BytesIOError) -> Self {
         BytesWriteError {
-            value: BytesWriteErrorValue::NetIOError(error),
+            value: BytesWriteErrorValue::BytesIOError(error),
         }
     }
 }

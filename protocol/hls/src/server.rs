@@ -21,14 +21,8 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
         let m3u8_index = path.find(".m3u8").unwrap();
 
         if m3u8_index > 0 {
-            println!("{}: {}", m3u8_index, path);
-
             let (left, _) = path.split_at(m3u8_index);
-            println!("11{}: {}", m3u8_index, left);
             let rv: Vec<_> = left.split("/").collect();
-            for s in rv.clone() {
-                println!("22{}: {}", m3u8_index, s);
-            }
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
@@ -40,14 +34,9 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
         let ts_index = path.find(".ts").unwrap();
 
         if ts_index > 0 {
-            println!("{}: {}", ts_index, path);
-
             let (left, _) = path.split_at(ts_index);
-            println!("11{}: {}", ts_index, left);
+
             let rv: Vec<_> = left.split("/").collect();
-            for s in rv.clone() {
-                println!("22{}: {}", ts_index, s);
-            }
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
@@ -89,8 +78,7 @@ pub async fn run(port: u32) -> Result<()> {
     });
 
     let server = Server::bind(&sock_addr).serve(new_service);
-    println!("Listening on http://{}", sock_addr);
-
+    log::info!("Hls server listening on http://{}", sock_addr);
     server.await?;
 
     Ok(())

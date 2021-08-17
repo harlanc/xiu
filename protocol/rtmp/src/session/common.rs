@@ -16,7 +16,7 @@ use {
         messages::define::msg_type_id,
     },
     bytes::BytesMut,
-    networkio::networkio::NetworkIO,
+    bytesio::bytesio::BytesIO,
     std::{sync::Arc, time::Duration},
     tokio::{
         sync::{mpsc, oneshot, Mutex},
@@ -40,7 +40,7 @@ pub struct Common {
 
 impl Common {
     pub fn new(
-        net_io: Arc<Mutex<NetworkIO>>,
+        net_io: Arc<Mutex<BytesIO>>,
         event_producer: ChannelEventProducer,
         session_type: SessionType,
     ) -> Self {
@@ -321,20 +321,28 @@ impl Common {
         stream_name: String,
     ) -> Result<(), SessionError> {
         let unpublish_event = ChannelEvent::UnPublish {
-            app_name,
-            stream_name,
+            app_name: app_name.clone(),
+            stream_name: stream_name.clone(),
         };
 
         let rv = self.event_producer.send(unpublish_event);
         match rv {
             Err(_) => {
-                println!("unpublish_to_channels error.");
+                log::error!(
+                    "unpublish_to_channels error.app_name: {}, stream_name: {}",
+                    app_name,
+                    stream_name
+                );
                 return Err(SessionError {
                     value: SessionErrorValue::ChannelEventSendErr,
                 });
             }
             _ => {
-                println!("unpublish_to_channels successfully.")
+                log::info!(
+                    "unpublish_to_channels successfully.app_name: {}, stream_name: {}",
+                    app_name,
+                    stream_name
+                );
             }
         }
         Ok(())

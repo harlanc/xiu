@@ -14,7 +14,7 @@ use {
         utils::print,
     },
     bytes::BytesMut,
-    libflv::muxer::{FlvMuxer, HEADER_LENGTH},
+    xflv::muxer::{FlvMuxer, HEADER_LENGTH},
     std::time::Duration,
     tokio::{
         sync::{mpsc, oneshot},
@@ -143,14 +143,13 @@ impl HttpFlv {
                 session_info: session_info,
                 responder: sender,
             };
-            println!("httpflv begin send subscribe");
+
             let rv = self.event_producer.send(subscribe_event);
             match rv {
                 Err(_) => {
                     let session_error = SessionError {
                         value: SessionErrorValue::SendChannelDataErr,
                     };
-                    println!("httpflv send subscribe error");
                     return Err(HttpFLvError {
                         value: HttpFLvErrorValue::SessionError(session_error),
                     });

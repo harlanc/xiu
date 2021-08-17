@@ -1,5 +1,5 @@
 [package]
-name = "networkio"
+name = "bytesio"
 version = "0.1.25"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"

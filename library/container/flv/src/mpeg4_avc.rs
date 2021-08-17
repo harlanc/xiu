@@ -2,7 +2,7 @@ use {
     super::{define::h264_nal_type, errors::MpegAvcError},
     byteorder::BigEndian,
     bytes::BytesMut,
-    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+    bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
     std::vec::Vec,
 };
 

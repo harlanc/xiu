@@ -1,7 +1,7 @@
 use {
     super::{define, errors::MpegTsError},
     bytes::BytesMut,
-    networkio::bytes_writer::BytesWriter,
+    bytesio::bytes_writer::BytesWriter,
 };
 
 #[derive(Debug, Clone)]
