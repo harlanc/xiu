@@ -4,13 +4,14 @@ mod tests {
     use crate::flv2hls::Flv2HlsRemuxer;
     use bytes::BytesMut;
     use libflv::define::FlvData;
-    use libflv::demuxer::FlvAudioTagDemuxer;
+
     use libflv::demuxer::FlvDemuxer;
 
     use std::fs::File;
     use std::io::prelude::*;
     use std::time::Instant;
 
+    #[allow(dead_code)]
     pub fn print(data: BytesMut) {
         print!("==========={}\n", data.len());
         let mut idx = 0;
@@ -27,7 +28,7 @@ mod tests {
 
         print!("===========\n")
     }
-
+    #[allow(dead_code)]
     pub fn print_flv_data(data: FlvData) {
         match data {
             FlvData::Audio { timestamp, data } => {
@@ -80,6 +81,7 @@ mod tests {
 
                 Err(err) => {
                     media_demuxer.flush_remaining_data()?;
+                    log::error!("readd err: {}", err);
                     break;
                 }
             }

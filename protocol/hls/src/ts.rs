@@ -1,12 +1,11 @@
-use super::errors::MediaError;
-use bytes::BytesMut;
-use networkio::bytes_writer::BytesWriter;
-use std::fs;
-use std::path;
-use std::{fs::File, io::Write};
+use {
+    super::errors::MediaError,
+    bytes::BytesMut,
+    std::{fs, fs::File, io::Write},
+};
+
 pub struct Ts {
     ts_number: u32,
-
     folder_name: String,
 }
 
@@ -31,6 +30,6 @@ impl Ts {
         Ok((ts_file_name, ts_file_path))
     }
     pub fn delete(&mut self, ts_file_name: String) {
-        fs::remove_file(ts_file_name);
+        fs::remove_file(ts_file_name).unwrap();
     }
 }

@@ -39,7 +39,5 @@ impl RtmpEventProcessor {
                 }
             }
         }
-
-        Ok(())
     }
 }

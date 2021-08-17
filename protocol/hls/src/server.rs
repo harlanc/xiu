@@ -1,25 +1,11 @@
-use std::ops::Index;
-
-use bytes::BytesMut;
-// use super::errors::ServerError;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{header, Body, Method, Request, Response, Server, StatusCode};
-type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-
-use futures_util::{stream, StreamExt};
-use networkio::bytes_writer::BytesWriter;
-use std::io;
-
-use futures::{channel::mpsc::unbounded, task::SpawnExt, SinkExt, Stream}; // 0.3.1, features = ["thread-pool"]
-
 use {
-    networkio::networkio::NetworkIO,
-    std::{sync::Arc, time::Duration},
+    hyper::{
+        service::{make_service_fn, service_fn},
+        Body, Request, Response, Server, StatusCode,
+    },
+    tokio::fs::File,
+    tokio_util::codec::{BytesCodec, FramedRead},
 };
-
-use tokio::fs::File;
-
-use tokio_util::codec::{BytesCodec, FramedRead};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, GenericError>;

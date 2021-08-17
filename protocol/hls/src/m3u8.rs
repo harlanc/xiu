@@ -1,15 +1,10 @@
-use std::{collections::VecDeque, fmt::format};
-
-use bytes::BytesMut;
-use rtmp::messages::define::msg_type_id;
-
-use super::errors::MediaError;
-use super::ts::Ts;
-use std::fs;
-use std::{fs::File, io::Write};
+use {
+    super::{errors::MediaError, ts::Ts},
+    bytes::BytesMut,
+    std::{collections::VecDeque, fs, fs::File, io::Write},
+};
 
 pub struct Segment {
-    pts: i64,
     /*ts duration*/
     duration: i64,
     discontinuity: bool,
@@ -21,7 +16,6 @@ pub struct Segment {
 
 impl Segment {
     pub fn new(
-        pts: i64,
         duration: i64,
         discontinuity: bool,
         name: String,
@@ -29,7 +23,6 @@ impl Segment {
         is_eof: bool,
     ) -> Self {
         Self {
-            pts,
             duration,
             discontinuity,
             name,
@@ -89,8 +82,6 @@ impl M3u8 {
 
     pub fn add_segment(
         &mut self,
-
-        pts: i64,
         duration: i64,
         discontinuity: bool,
         is_eof: bool,
@@ -107,7 +98,7 @@ impl M3u8 {
         self.duration = std::cmp::max(duration, self.duration);
 
         let (ts_name, ts_path) = self.ts_handler.write(ts_data)?;
-        let segment = Segment::new(pts, duration, discontinuity, ts_name, ts_path, is_eof);
+        let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof);
         self.segments.push_back(segment);
 
         Ok(())

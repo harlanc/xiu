@@ -1,10 +1,10 @@
-use super::define::h264_nal_type;
-use super::errors::MpegAvcError;
-use byteorder::BigEndian;
-use bytes::BytesMut;
-use networkio::bytes_reader::BytesReader;
-use networkio::bytes_writer::BytesWriter;
-use std::vec::Vec;
+use {
+    super::{define::h264_nal_type, errors::MpegAvcError},
+    byteorder::BigEndian,
+    bytes::BytesMut,
+    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+    std::vec::Vec,
+};
 
 const H264_START_CODE: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 
@@ -54,9 +54,8 @@ pub struct Mpeg4Avc {
     chroma_format_idc: u8,
     bit_depth_luma_minus8: u8,
     bit_depth_chroma_minus8: u8,
-
-    data: Vec<u8>, //[u8; 4 * 1024],
-    off: i32,
+    // data: Vec<u8>, //[u8; 4 * 1024],
+    // off: i32,
 }
 
 pub fn print(data: BytesMut) {
@@ -95,9 +94,6 @@ impl Mpeg4Avc {
             chroma_format_idc: 0,
             bit_depth_chroma_minus8: 0,
             bit_depth_luma_minus8: 0,
-
-            data: Vec::new(),
-            off: 0,
         }
     }
 }
@@ -195,8 +191,7 @@ impl Mpeg4AvcProcessor {
         let mut sps_pps_flag = false;
 
         while self.bytes_reader.len() > 0 {
-            let bytes_length = self.bytes_reader.len();
-            let mut size = self.get_nalu_size()?;
+            let size = self.get_nalu_size()?;
             let nalu_type = self.bytes_reader.advance_u8()? & 0x1f;
 
             match nalu_type {

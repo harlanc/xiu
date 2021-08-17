@@ -75,7 +75,7 @@ pub struct ClientSession {
 
     app_name: String,
     stream_name: String,
-    session_type: u8,
+
     session_id: u64,
 
     state: ClientSessionState,
@@ -108,7 +108,6 @@ impl ClientSession {
             client_type: client_type,
 
             state: ClientSessionState::Handshake,
-            session_type: 0,
             session_id: session_id,
         }
     }
@@ -157,8 +156,7 @@ impl ClientSession {
 
             match result {
                 UnpackResult::ChunkInfo(chunk_info) => {
-                    let mut message_parser =
-                        MessageParser::new(chunk_info.clone(), self.session_type);
+                    let mut message_parser = MessageParser::new(chunk_info.clone());
                     let mut msg = message_parser.parse()?;
                     let timestamp = chunk_info.message_header.timestamp;
 
