@@ -1,7 +1,7 @@
 use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
-    application::config::{config, config::Config},
+    xiu::config::{config, config::Config},
     //env_logger::{Builder, Target},
     hls::server as hls_server,
     httpflv::server,
