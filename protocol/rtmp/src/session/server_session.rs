@@ -148,8 +148,7 @@ impl ServerSession {
                 match rv {
                     UnpackResult::Chunks(chunks) => {
                         for chunk_info in chunks.iter() {
-                            let mut msg = MessageParser::new(chunk_info.clone(), self.session_type)
-                                .parse()?;
+                            let mut msg = MessageParser::new(chunk_info.clone()).parse()?;
 
                             let msg_stream_id = chunk_info.message_header.msg_streamd_id;
                             let timestamp = chunk_info.message_header.timestamp;

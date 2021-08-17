@@ -4,7 +4,7 @@ use {
         define,
         errors::{UnpackError, UnpackErrorValue},
     },
-    crate::{config, messages::define::msg_type_id, utils},
+    crate::messages::define::msg_type_id,
     byteorder::{BigEndian, LittleEndian},
     bytes::{BufMut, BytesMut},
     chrono::prelude::*,

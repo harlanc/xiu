@@ -6,7 +6,6 @@ use {
     crate::{
         amf0::{amf0_markers, amf0_reader::Amf0Reader},
         chunk::ChunkInfo,
-        config,
         protocol_control_messages::reader::ProtocolControlMessageReader,
         user_control_messages::reader::EventMessagesReader,
         // utils,
@@ -16,14 +15,12 @@ use {
 
 pub struct MessageParser {
     chunk_info: ChunkInfo,
-    session_type: u8,
 }
 
 impl MessageParser {
-    pub fn new(chunk_info: ChunkInfo, session_type: u8) -> Self {
+    pub fn new(chunk_info: ChunkInfo) -> Self {
         Self {
             chunk_info: chunk_info,
-            session_type: session_type,
         }
     }
     pub fn parse(&mut self) -> Result<RtmpMessageData, MessageError> {
@@ -186,7 +183,7 @@ mod tests {
                     let _ = chunk_info.message_header.msg_streamd_id;
                     let _ = chunk_info.message_header.timestamp;
 
-                    let mut message_parser = MessageParser::new(chunk_info, 15);
+                    let mut message_parser = MessageParser::new(chunk_info);
                     let _ = message_parser.parse();
                 }
                 _ => {}

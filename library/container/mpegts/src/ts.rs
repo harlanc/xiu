@@ -1,27 +1,15 @@
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
-use std::io::Write;
-
-use super::define;
-use super::define::epat_pid;
-use super::define::epes_stream_id;
-use super::define::ts;
-use super::errors::MpegTsError;
-use super::errors::MpegTsErrorValue;
-use super::pat;
-use super::pes;
-use super::pes::PesMuxer;
-use super::pmt;
-use super::utils;
-use byteorder::BigEndian;
-use bytes::BufMut;
-use bytes::Bytes;
-use bytes::BytesMut;
-use networkio::bytes_reader::BytesReader;
-use networkio::bytes_writer::BytesWriter;
-use rand::Open01;
-use rtmp::utils::print;
-use tokio::stream;
+use {
+    super::{
+        define,
+        define::{epat_pid, epes_stream_id, ts},
+        errors::{MpegTsError, MpegTsErrorValue},
+        pat, pes,
+        pes::PesMuxer,
+        pmt, utils,
+    },
+    bytes::{BufMut, BytesMut},
+    networkio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
+};
 
 pub struct TsMuxer {
     pub bytes_writer: BytesWriter,

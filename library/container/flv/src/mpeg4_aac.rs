@@ -113,8 +113,8 @@ impl Mpeg4AacProcessor {
         self.mpeg4_aac.channel_configuration = self.bits_data.read_n_bits(4)? as u8;
 
         let mut extension_audio_object_type: u8;
-        let mut extension_sampling_frequency_index: u8;
-        let mut extension_channel_configuration: u8;
+        let mut extension_sampling_frequency_index: u8 = 0;
+        let mut extension_channel_configuration: u8 = 0;
 
         if self.mpeg4_aac.profile == 5 || self.mpeg4_aac.profile == 29 {
             extension_audio_object_type = 5;
@@ -202,6 +202,13 @@ impl Mpeg4AacProcessor {
         self.bits_data
             .bits_aligment(8, mpeg4bitvec::BitVectorOpType::Read)?;
 
+        log::trace!(
+            "remove warnings: {} {} {}",
+            extension_audio_object_type,
+            extension_sampling_frequency_index,
+            extension_channel_configuration
+        );
+
         Ok(())
     }
 
@@ -268,9 +275,8 @@ impl Mpeg4AacProcessor {
     }
 
     pub fn pce_load(&mut self) -> Result<u8, MpegAacError> {
-        let i: u64;
-        let mut cpe: u64;
-        let mut tag: u64;
+        let mut cpe: u64 = 0;
+        let mut tag: u64 = 0;
         let element_instance_tag: u64;
         let object_type: u64;
         let sampling_frequency_index: u64;
@@ -370,6 +376,15 @@ impl Mpeg4AacProcessor {
         }
 
         let rv = (pce_bits_vec.write_offset + 7) / 8;
+
+        log::trace!(
+            "remove warnings: {} {} {} {} {}",
+            tag,
+            element_instance_tag,
+            object_type,
+            sampling_frequency_index,
+            cpe
+        );
 
         Ok(rv as u8)
     }

@@ -1,36 +1,27 @@
-use core::time;
-
-use byteorder::BigEndian;
-//use libflv::define::FlvDemuxerData;
-use libflv::define::FlvData;
-use libflv::demuxer::FlvAudioTagDemuxer;
-use libflv::demuxer::FlvVideoTagDemuxer;
-use libflv::muxer::HEADER_LENGTH;
-use networkio::bytes_writer::BytesWriter;
-use rtmp::amf0::amf0_writer::Amf0Writer;
-use rtmp::cache::metadata::MetaData;
-use rtmp::channels::define::ClientEvent;
-use rtmp::channels::define::ClientEventConsumer;
-use rtmp::session::common::SessionInfo;
-use rtmp::session::define::SessionSubType;
-use rtmp::session::errors::SessionError;
-use rtmp::session::errors::SessionErrorValue;
-use rtmp::utils::print;
 use {
-    bytes::BytesMut,
+    super::{
+        errors::{HlsError, HlsErrorValue},
+        flv2hls::Flv2HlsRemuxer,
+    },
+    libflv::define::FlvData,
     rtmp::channels::define::{
-        ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventProducer,
+        ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer,
+    },
+    rtmp::session::{
+        common::SessionInfo,
+        define::SessionSubType,
+        errors::{SessionError, SessionErrorValue},
     },
     std::time::Duration,
     tokio::{
-        sync::{mpsc, oneshot, Mutex},
+        sync::{mpsc, oneshot},
         time::sleep,
     },
 };
 
-use super::errors::HlsError;
-use super::errors::HlsErrorValue;
-use super::flv2hls::Flv2HlsRemuxer;
+// use super::errors::HlsError;
+// use super::errors::HlsErrorValue;
+// use super::flv2hls::Flv2HlsRemuxer;
 
 ////https://www.jianshu.com/p/d6311f03b81f
 

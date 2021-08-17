@@ -1,14 +1,9 @@
-use super::define::epat_pid;
-use super::errors::MpegTsError;
-use super::pmt;
-use bytes::BytesMut;
-use networkio::bytes_reader::BytesReader;
-use networkio::bytes_writer::BytesWriter;
-
-use byteorder::BigEndian;
-use byteorder::LittleEndian;
-
-use super::crc32;
+use {
+    super::{crc32, define::epat_pid, errors::MpegTsError, pmt},
+    byteorder::{BigEndian, LittleEndian},
+    bytes::BytesMut,
+    networkio::bytes_writer::BytesWriter,
+};
 
 #[derive(Debug, Clone)]
 pub struct Pat {

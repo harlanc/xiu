@@ -1,10 +1,8 @@
-use failure::{Backtrace, Fail};
-use std::fmt;
-
-use std::io::Error;
-
-use networkio::bytes_errors::BytesReadError;
-use networkio::bytes_errors::BytesWriteError;
+use {
+    failure::Fail,
+    networkio::bytes_errors::{BytesReadError, BytesWriteError},
+    std::io::Error,
+};
 
 #[derive(Debug, Fail)]
 pub enum MpegTsErrorValue {

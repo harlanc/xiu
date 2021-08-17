@@ -1,25 +1,11 @@
-use std::ops::Index;
-
-use bytes::BytesMut;
-// use super::errors::ServerError;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{header, Body, Method, Request, Response, Server, StatusCode};
-type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
-use super::define::HttpResponseDataConsumer;
-use super::define::HttpResponseDataProducer;
-use super::httpflv::HttpFlv;
-use futures_util::{stream, StreamExt};
-use networkio::bytes_writer::BytesWriter;
-use std::io;
-
-use futures::{channel::mpsc::unbounded, task::SpawnExt, SinkExt, Stream}; // 0.3.1, features = ["thread-pool"]
-
 use {
-    crate::rtmp::channels::define::{
-        ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventProducer,
+    super::httpflv::HttpFlv,
+    futures::channel::mpsc::unbounded,
+    hyper::{
+        service::{make_service_fn, service_fn},
+        Body, Request, Response, Server, StatusCode,
     },
-    networkio::networkio::NetworkIO,
-    std::{sync::Arc, time::Duration},
+    rtmp::channels::define::ChannelEventProducer,
 };
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;

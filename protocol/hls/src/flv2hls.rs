@@ -1,42 +1,15 @@
-use core::time;
-
-use super::define::FlvDemuxerData;
-use super::errors::MediaError;
-use super::m3u8::M3u8;
-use super::ts::Ts;
-use byteorder::BigEndian;
-use bytes::BufMut;
-use libflv::demuxer::FlvAudioTagDemuxer;
-use libflv::demuxer::FlvDemuxerAudioData;
-use libflv::demuxer::FlvDemuxerVideoData;
-use libflv::demuxer::FlvVideoTagDemuxer;
-
-use libflv::define::FlvData;
-use libflv::muxer::HEADER_LENGTH;
-use networkio::bytes_writer::BytesWriter;
-use rtmp::amf0::amf0_writer::Amf0Writer;
-use rtmp::cache::metadata::MetaData;
-use rtmp::session::common::SessionInfo;
-use rtmp::session::define::SessionSubType;
-use rtmp::session::errors::SessionError;
-use rtmp::session::errors::SessionErrorValue;
-use rtmp::utils::print;
 use {
+    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8},
     bytes::BytesMut,
-    rtmp::channels::define::{
-        ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventProducer,
+    libflv::{
+        define::{frame_type, FlvData},
+        demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
     },
-    std::time::Duration,
-    tokio::{
-        sync::{mpsc, oneshot, Mutex},
-        time::sleep,
+    libmpegts::{
+        define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
+        ts::TsMuxer,
     },
 };
-
-use libflv::define::frame_type;
-use libmpegts::define::epsi_stream_type;
-use libmpegts::define::MPEG_FLAG_IDR_FRAME;
-use libmpegts::ts::TsMuxer;
 
 pub struct Flv2HlsRemuxer {
     video_demuxer: FlvVideoTagDemuxer,
@@ -109,7 +82,7 @@ impl Flv2HlsRemuxer {
                 let video_data = self.video_demuxer.demux(timestamp, data)?;
                 flv_demux_data = FlvDemuxerData::Video { data: video_data };
             }
-            FlvData::MetaData { timestamp, data } => return Ok(()),
+            _ => return Ok(()),
         }
 
         self.process_demux_data(&flv_demux_data)?;
@@ -124,7 +97,6 @@ impl Flv2HlsRemuxer {
             discontinuity = true;
         }
         self.m3u8_handler.add_segment(
-            self.last_pts,
             self.last_dts - self.last_ts_dts,
             discontinuity,
             true,
@@ -141,9 +113,9 @@ impl Flv2HlsRemuxer {
     ) -> Result<(), MediaError> {
         self.need_new_segment = false;
 
-        let mut pid: u16 = 0;
-        let mut pts: i64 = 0;
-        let mut dts: i64 = 0;
+        let pid: u16;
+        let pts: i64;
+        let dts: i64;
         let mut flags: u16 = 0;
         let mut payload: BytesMut = BytesMut::new();
 
@@ -185,13 +157,8 @@ impl Flv2HlsRemuxer {
             }
             let data = self.ts_muxer.get_data();
 
-            self.m3u8_handler.add_segment(
-                pts,
-                dts - self.last_ts_dts,
-                discontinuity,
-                false,
-                data,
-            )?;
+            self.m3u8_handler
+                .add_segment(dts - self.last_ts_dts, discontinuity, false, data)?;
             self.m3u8_handler.refresh_playlist()?;
 
             self.ts_muxer.reset();
