@@ -11,3 +11,4 @@ Cargo.lock
 
 debug/
 target/
+.vscode/
