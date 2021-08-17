@@ -1,5 +1,5 @@
 [package]
-name = "application"
+name = "xiu"
 description = "a powerful live server by Rust ."
 version = "0.0.1"
 authors = ["HarlanC <wawacry@qq.com"]
@@ -7,15 +7,12 @@ repository = "https://github.com/harlanc/xiu"
 license = "MIT"
 readme = "README.md"
 categories = ["multimedia", "multimedia::video", 'multimedia::audio']
-keywords = ["rtmp", "video", "streaming"]
+keywords = ["rtmp", "hls", "httpflv", "video", "streaming"]
 edition = "2018"
 [dependencies]
 toml = "0.5.8"
 serde_derive = "1.0"
 serde = { version = "1.0.101", optional = true, features = ["derive"] }
-rtmp = "0.0.6"#{path = "../protocol/rtmp/"}#"0.0.4"
-httpflv = {path = "../protocol/httpflv/"}
-hls = {path = "../protocol/hls/"}
 anyhow = "^1.0"
 log = "0.4.0"
 env_logger = "0.9.0"
@@ -23,14 +20,13 @@ flexi_logger = "0.18"
 chrono = "0.4"
 failure = "0.1.1"
 
+rtmp = "0.0.6"#{path = "../../protocol/rtmp/"}#"0.0.4"
+httpflv = "0.0.1"#{path = "../../protocol/httpflv/"}
+hls = "0.0.1"#{path = "../../protocol/hls/"}
+
 [features]
 default = ["std"]
 std = [ "serde" ]
-
-# [dependencies.tokio]
-# version = "0.2.21"
-# default-features = false
-# features = ["rt-core", "stream", "sync", "time", "tcp","rt-threaded", "macros"]
 
 [dependencies.tokio]
 version = "1.4.0"
