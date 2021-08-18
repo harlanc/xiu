@@ -20,9 +20,13 @@ flexi_logger = "0.18"
 chrono = "0.4"
 failure = "0.1.1"
 
-rtmp = "0.0.6"#{path = "../../protocol/rtmp/"}#"0.0.4"
-httpflv = "0.0.1"#{path = "../../protocol/httpflv/"}
-hls = "0.0.1"#{path = "../../protocol/hls/"}
+rtmp = "0.0.7"#{path = "../../protocol/rtmp/"}#"0.0.4"
+httpflv = "0.0.2"#{path = "../../protocol/httpflv/"}
+hls = "0.0.2"#{path = "../../protocol/hls/"}
+
+# rtmp = {path = "../../protocol/rtmp/"}#"0.0.4"
+# httpflv = {path = "../../protocol/httpflv/"}
+# hls = {path = "../../protocol/hls/"}
 
 [features]
 default = ["std"]

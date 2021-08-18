@@ -32,29 +32,76 @@ use master branch
 #### Build
 
     cd ./xiu/application/xiu
-    
     cargo build
-    
 #### Run
 
     cd ./xiu/target/debug
+    ./xiu config.toml
     
-    ./application config.toml
+## Configurations
+
+##### RTMP
+    [rtmp]
+    enabled = true
+    port = 1935
+
+    # pull streams from other server node.
+    [rtmp.pull]
+    enabled = false
+    address = "192.168.0.1"
+    port = 1935
+
+    # push streams to other server node.
+    [[rtmp.push]]
+    enabled = true
+    address = "localhost"
+    port = 1936
+    [[rtmp.push]]
+    enabled = true
+    address = "192.168.0.3"
+    port = 1935
     
-#### Push
+##### HTTPFLV
+
+    [httpflv]
+    # true or false to enable or disable the feature
+    enabled = true
+    # listening port
+    port = 8081
+
+##### HLS
+    [hls]
+    # true or false to enable or disable the feature
+    enabled = true
+    # listening port
+    port = 8080
+
+##### Log
+
+    [log]
+    level = "info"
+
+    
+
+    
+## Scenarios
+
+##### Push
 
 Use OBS to push a live rtmp stream.
 
 
-#### Play
+##### Play
 
-Use ffplay to play rtmp live stream:
+Use ffplay to play rtmp/httpflv/hls live stream:
 
     ffplay -i rtmp://localhost:1935/live/test
+    ffplay -i http://localhost:8081/live/test.flv
+    ffplay -i http://localhost:8080/live/test/test.m3u8
     
-#### Relay static push
+##### Relay static push
 
-The configuration file is as follows (now only test on local machine):
+The configuration files are as follows (now only test on local machine):
 
 The configuration file of Service 1 named config.toml:
 
@@ -74,8 +121,8 @@ The configuration file of Service 2 named config_push.toml:
 
 Run the 2 services:
 
-    ./application config.toml
-    ./application config_push.toml
+    ./xiu config.toml
+    ./xiu config_push.toml
 
 
 Use Obs to push live stream to service 1, then the stream can be pushed to service 2 automatically, you can play the same live stream from both the two services:
@@ -85,9 +132,9 @@ Use Obs to push live stream to service 1, then the stream can be pushed to servi
 
 
     
-#### Relay pull
+##### Relay static pull
 
-The configuration file is as follows (now only test on local machine):
+The configuration file are as follows (now only test on local machine):
 
 The configuration file of Service 1 named config.toml:
 
@@ -108,8 +155,8 @@ The configuration file of Service 2 named config_pull.toml:
 
 Run the 2 services:
 
-    ./application config.toml
-    ./application config_pull.toml
+    ./xiu config.toml
+    ./xiu config_pull.toml
 
 Use obs to push live stream to service 1, when you play the stream from serivce 2, it will pull the stream from service 1:
 
@@ -118,3 +165,12 @@ Use obs to push live stream to service 1, when you play the stream from serivce 
 ## Star History
 
 [link](https://star-history.t9t.io/#harlanc/xiu)
+
+## Thanks
+
+ - [media_server](https://github.com/ireader/media-server.git)
+
+## Others
+
+You can open issues if have any problems. Star and pull requests are welcomed.
+ 
