@@ -1,4 +1,8 @@
 # Xiu
+
+[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
+
+
 **Xiu is a live server written by Rust.**
 
 
