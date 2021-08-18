@@ -262,9 +262,11 @@ impl ServerSession {
 
         match cmd_name.as_str() {
             "connect" => {
+                log::info!("[ S<-C ] [connect] ");
                 self.on_connect(&transaction_id, &obj).await?;
             }
             "createStream" => {
+                log::info!("[ S<-C ] [create stream] ");
                 self.on_create_stream(transaction_id).await?;
             }
             "deleteStream" => {
@@ -276,10 +278,21 @@ impl ServerSession {
                         },
                         _ => 0.0,
                     };
+                    log::info!(
+                        "[ S<-C ] [delete stream] app_name: {}, stream_name: {}",
+                        self.app_name,
+                        self.stream_name
+                    );
+
                     self.on_delete_stream(transaction_id, &stream_id).await?;
                 }
             }
             "play" => {
+                log::info!(
+                    "[ S<-C ] [play]  app_name: {}, stream_name: {}",
+                    self.app_name,
+                    self.stream_name
+                );
                 self.unpacketizer.session_type = config::SERVER_PULL;
                 self.on_play(transaction_id, stream_id, others).await?;
             }
@@ -303,24 +316,20 @@ impl ServerSession {
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
-        log::info!(
-            "[ S<-C ] connect and the transaction id: {}",
-            transaction_id
-        );
-
         self.connect_command_object = Some(command_obj.clone());
         let mut control_message =
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        log::info!("[ S->C ] [set window_acknowledgement_size]");
         control_message
             .write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)
             .await?;
+        log::info!("[ S->C ] [set set_peer_bandwidth]",);
         control_message
             .write_set_peer_bandwidth(
                 define::PEER_BANDWIDTH,
                 define::peer_bandwidth_limit_type::DYNAMIC,
             )
             .await?;
-        //control_message.write_set_chunk_size(CHUNK_SIZE).await?;
 
         let obj_encoding = command_obj.get("objectEncoding");
         let encoding = match obj_encoding {
@@ -365,11 +374,6 @@ impl ServerSession {
     }
 
     pub async fn on_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
-        log::info!(
-            "[ S<-C ] create stream and the transaction id: {}",
-            transaction_id
-        );
-
         let mut netconnection = NetConnection::new(BytesWriter::new());
         let data = netconnection.create_stream_response(transaction_id, &define::STREAM_ID)?;
 
@@ -385,6 +389,11 @@ impl ServerSession {
 
         self.packetizer.write_chunk(&mut chunk_info).await?;
 
+        log::info!(
+            "[ S->C ] [create_stream_response]  app_name: {}",
+            self.app_name,
+        );
+
         Ok(())
     }
 
@@ -393,12 +402,6 @@ impl ServerSession {
         transaction_id: &f64,
         stream_id: &f64,
     ) -> Result<(), SessionError> {
-        log::info!(
-            "[ S<-C ] delete stream and the transaction id :{}, the stream id : {}",
-            transaction_id,
-            stream_id
-        );
-
         self.common
             .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
             .await?;
@@ -414,6 +417,12 @@ impl ServerSession {
             .await?;
 
         //self.unsubscribe_from_channels().await?;
+        log::info!(
+            "[ S->C ] [delete stream success]  app_name: {}, stream_name: {}",
+            self.app_name,
+            self.stream_name
+        );
+        log::trace!("{}", stream_id);
 
         Ok(())
     }
@@ -469,15 +478,20 @@ impl ServerSession {
             };
             break;
         }
+
+        let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
+        event_messages.write_stream_begin(stream_id.clone()).await?;
         log::info!(
-            "on_play, start: {}, duration: {}, reset: {}",
+            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}",
+            self.app_name,
+            self.stream_name
+        );
+        log::trace!(
+            "{} {} {}",
             start.is_some(),
             duration.is_some(),
             reset.is_some()
         );
-
-        let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.write_stream_begin(stream_id.clone()).await?;
 
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
@@ -519,7 +533,11 @@ impl ServerSession {
         event_messages
             .write_stream_is_record(stream_id.clone())
             .await?;
-
+        log::info!(
+            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}",
+            self.app_name,
+            self.stream_name
+        );
         self.stream_name = stream_name.clone().unwrap();
         self.common
             .subscribe_from_channels(
@@ -568,6 +586,18 @@ impl ServerSession {
             }
         };
 
+        log::info!(
+            "[ S<-C ] [publish]  app_name: {}, stream_name: {}",
+            self.app_name,
+            self.stream_name
+        );
+
+        log::info!(
+            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}",
+            self.app_name,
+            self.stream_name
+        );
+
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(stream_id.clone()).await?;
 
@@ -580,6 +610,11 @@ impl ServerSession {
                 &"".to_string(),
             )
             .await?;
+        log::info!(
+            "[ S->C ] [NetStream.Publish.Start]  app_name: {}, stream_name: {}",
+            self.app_name,
+            self.stream_name
+        );
 
         self.common
             .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
