@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use {
     super::{
         common::Common,
@@ -76,7 +78,10 @@ pub struct ClientSession {
     app_name: String,
     stream_name: String,
 
-    session_id: u64,
+    /* Used to mark the subscriber's the data producer
+    in channels and delete it from map when unsubscribe
+    is called. */
+    subscriber_id: Uuid,
 
     state: ClientSessionState,
     client_type: ClientType,
@@ -90,9 +95,9 @@ impl ClientSession {
         app_name: String,
         stream_name: String,
         event_producer: ChannelEventProducer,
-        session_id: u64,
     ) -> Self {
         let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
+        let subscriber_id = Uuid::new_v4();
 
         Self {
             io: Arc::clone(&net_io),
@@ -103,12 +108,12 @@ impl ClientSession {
             packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
-            app_name: app_name,
-            stream_name: stream_name,
-            client_type: client_type,
+            app_name,
+            stream_name,
+            client_type,
 
             state: ClientSessionState::Handshake,
-            session_id: session_id,
+            subscriber_id,
         }
     }
 
@@ -480,7 +485,7 @@ impl ClientSession {
                         .subscribe_from_channels(
                             self.app_name.clone(),
                             self.stream_name.clone(),
-                            self.session_id,
+                            self.subscriber_id,
                         )
                         .await?;
                 }

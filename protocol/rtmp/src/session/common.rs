@@ -22,10 +22,11 @@ use {
         sync::{mpsc, oneshot, Mutex},
         time::sleep,
     },
+    uuid::Uuid,
 };
 #[derive(Debug)]
 pub struct SessionInfo {
-    pub session_id: u64,
+    pub subscriber_id: Uuid,
     pub session_sub_type: SessionSubType,
 }
 pub struct Common {
@@ -194,14 +195,14 @@ impl Common {
         Ok(())
     }
 
-    fn get_session_info(&mut self, session_id: u64) -> SessionInfo {
+    fn get_session_info(&mut self, sub_id: Uuid) -> SessionInfo {
         match self.session_type {
             SessionType::Client => SessionInfo {
-                session_id: session_id,
+                subscriber_id: sub_id,
                 session_sub_type: SessionSubType::Publisher,
             },
             SessionType::Server => SessionInfo {
-                session_id: session_id,
+                subscriber_id: sub_id,
                 session_sub_type: SessionSubType::Player,
             },
         }
@@ -212,13 +213,13 @@ impl Common {
         &mut self,
         app_name: String,
         stream_name: String,
-        session_id: u64,
+        sub_id: Uuid,
     ) -> Result<(), SessionError> {
         log::info!(
-            "subscribe_from_channels, app_name: {} stream_name: {} session_id: {}",
+            "subscribe_from_channels, app_name: {} stream_name: {} subscribe_id: {}",
             app_name,
             stream_name.clone(),
-            session_id
+            sub_id
         );
 
         let mut retry_count: u8 = 0;
@@ -229,7 +230,7 @@ impl Common {
             let subscribe_event = ChannelEvent::Subscribe {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
-                session_info: self.get_session_info(session_id),
+                session_info: self.get_session_info(sub_id),
                 responder: sender,
             };
             let rv = self.event_producer.send(subscribe_event);
@@ -267,12 +268,12 @@ impl Common {
         &mut self,
         app_name: String,
         stream_name: String,
-        session_id: u64,
+        sub_id: Uuid,
     ) -> Result<(), SessionError> {
         let subscribe_event = ChannelEvent::UnSubscribe {
             app_name,
             stream_name,
-            session_info: self.get_session_info(session_id),
+            session_info: self.get_session_info(sub_id),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
             log::error!("unsubscribe_from_channels err {}\n", err);
