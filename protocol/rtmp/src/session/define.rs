@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub const WINDOW_ACKNOWLEDGEMENT_SIZE: u32 = 4096;
 pub const PEER_BANDWIDTH: u32 = 4096;
 
@@ -33,4 +35,20 @@ pub enum SessionSubType {
 pub enum SessionType {
     Client,
     Server,
+}
+
+impl fmt::Display for SessionType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let client_type: String;
+
+        match self {
+            SessionType::Client => {
+                client_type = String::from("client");
+            }
+            SessionType::Server => {
+                client_type = String::from("server");
+            }
+        }
+        write!(f, "{}", client_type)
+    }
 }

@@ -93,7 +93,7 @@ impl fmt::Display for ChannelEvent {
         }
         write!(
             f,
-            "event_name: {}, app_name: {},stream_name: {}",
+            "receive event, event_name: {}, app_name: {},stream_name: {}",
             event_name, app_name_val, stream_name_val
         )
     }

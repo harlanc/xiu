@@ -151,9 +151,12 @@ impl Transmiter {
 
 
                                 for (_,v) in self.player_producers.lock().unwrap().iter() {
-                                    v.send(data.clone()).map_err(|_| ChannelError {
+                                    if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                             value: ChannelErrorValue::SendAudioError,
-                                    })?;
+                                    }){
+                                        log::error!("Transmiter send error: {}",audio_err);
+                                    }
+
                                 }
                             }
                             ChannelData::Video { timestamp, data } => {
@@ -165,9 +168,11 @@ impl Transmiter {
                                     data: data.clone(),
                                 };
                                 for (_,v) in self.player_producers.lock().unwrap().iter() {
-                                    v.send(data.clone()).map_err(|_| ChannelError {
+                                    if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendVideoError,
-                                    })?;
+                                    }){
+                                        log::error!("Transmiter send error: {}",video_err);
+                                    }
                                 }
                             }
                         }
@@ -240,7 +245,7 @@ impl ChannelsManager {
 
     pub async fn event_loop(&mut self) {
         while let Some(message) = self.channel_event_consumer.recv().await {
-            log::info!("event_loop receive event: {}", message);
+            log::info!("{}", message);
             match message {
                 ChannelEvent::Publish {
                     app_name,
@@ -472,11 +477,11 @@ impl ChannelsManager {
                         value: ChannelErrorValue::SendError,
                     })?;
                     val.remove(stream_name);
-                    log::info!(
-                        "unpublish remove stream, app_name: {},stream_name: {}",
-                        app_name,
-                        stream_name
-                    );
+                    // log::info!(
+                    //     "unpublish remove stream, app_name: {},stream_name: {}",
+                    //     app_name,
+                    //     stream_name
+                    // );
                 }
                 None => {
                     return Err(ChannelError {

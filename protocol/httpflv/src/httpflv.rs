@@ -11,15 +11,14 @@ use {
             define::SessionSubType,
             errors::{SessionError, SessionErrorValue},
         },
-        utils::print,
     },
     bytes::BytesMut,
-    xflv::muxer::{FlvMuxer, HEADER_LENGTH},
     std::time::Duration,
     tokio::{
         sync::{mpsc, oneshot},
         time::sleep,
     },
+    xflv::muxer::{FlvMuxer, HEADER_LENGTH},
 };
 
 pub struct HttpFlv {
@@ -52,24 +51,35 @@ impl HttpFlv {
     }
 
     pub async fn run(&mut self) -> Result<(), HttpFLvError> {
-        self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone(), 50)
-            .await?;
-
-        self.send_http_response_data().await?;
+        self.subscribe_from_rtmp_channels(50).await?;
+        self.send_media_stream().await?;
 
         Ok(())
     }
 
-    pub async fn send_http_response_data(&mut self) -> Result<(), HttpFLvError> {
+    pub async fn send_media_stream(&mut self) -> Result<(), HttpFLvError> {
         self.muxer.write_flv_header()?;
         self.muxer.write_previous_tag_size(0)?;
+
         self.flush_response_data()?;
+        let mut retry_count = 0;
         //write flv body
         loop {
             if let Some(data) = self.data_consumer.recv().await {
-                self.write_flv_tag(data)?;
+                if let Err(err) = self.write_flv_tag(data) {
+                    log::error!("write_flv_tag err: {}", err);
+                    retry_count += 1;
+                } else {
+                    retry_count = 0;
+                }
+            } else {
+                retry_count += 1;
+            }
+            if retry_count > 10 {
+                break;
             }
         }
+        self.unsubscribe_from_channels(50).await
     }
 
     pub fn write_flv_tag(&mut self, channel_data: ChannelData) -> Result<(), HttpFLvError> {
@@ -116,15 +126,32 @@ impl HttpFlv {
 
     pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
         let data = self.muxer.writer.extract_current_bytes();
-        print::print(data.clone());
         self.http_response_data_producer.start_send(Ok(data))?;
+
+        Ok(())
+    }
+
+    pub async fn unsubscribe_from_channels(&mut self, session_id: u64) -> Result<(), HttpFLvError> {
+        let session_info = SessionInfo {
+            session_id: session_id,
+            session_sub_type: SessionSubType::Player,
+        };
+
+        let subscribe_event = ChannelEvent::UnSubscribe {
+            app_name: self.app_name.clone(),
+            stream_name: self.stream_name.clone(),
+            session_info,
+        };
+        if let Err(err) = self.event_producer.send(subscribe_event) {
+            log::error!("unsubscribe_from_channels err {}\n", err);
+        }
+
         Ok(())
     }
 
     pub async fn subscribe_from_rtmp_channels(
         &mut self,
-        app_name: String,
-        stream_name: String,
+
         session_id: u64,
     ) -> Result<(), HttpFLvError> {
         let mut retry_count: u8 = 0;
@@ -138,8 +165,8 @@ impl HttpFlv {
             };
 
             let subscribe_event = ChannelEvent::Subscribe {
-                app_name: app_name.clone(),
-                stream_name: stream_name.clone(),
+                app_name: self.app_name.clone(),
+                stream_name: self.stream_name.clone(),
                 session_info: session_info,
                 responder: sender,
             };

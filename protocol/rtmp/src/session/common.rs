@@ -35,7 +35,7 @@ pub struct Common {
     data_producer: ChannelDataProducer,
 
     event_producer: ChannelEventProducer,
-    session_type: SessionType,
+    pub session_type: SessionType,
 }
 
 impl Common {
@@ -215,7 +215,7 @@ impl Common {
         session_id: u64,
     ) -> Result<(), SessionError> {
         log::info!(
-            "subscribe_from_channels, app_name: {} stream_name: {} session_id: {}\n",
+            "subscribe_from_channels, app_name: {} stream_name: {} session_id: {}",
             app_name,
             stream_name.clone(),
             session_id

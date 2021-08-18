@@ -59,11 +59,11 @@ async fn main() -> Result<()> {
         _ => (),
     }
 
-    log::info!("log info...");
-    log::warn!("log warn...");
-    log::error!("log err...");
-    log::trace!("log trace...");
-    log::debug!("log debug...");
+    // log::info!("log info...");
+    // log::warn!("log warn...");
+    // log::error!("log err...");
+    // log::trace!("log trace...");
+    // log::debug!("log debug...");
 
     signal::ctrl_c().await?;
     Ok(())

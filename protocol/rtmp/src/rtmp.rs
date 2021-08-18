@@ -33,10 +33,12 @@ impl RtmpServer {
             tokio::spawn(async move {
                 if let Err(err) = session.run().await {
                     log::info!(
-                        "session id {}, session error infos {}\n",
-                        session.session_id,
-                        err
+                        "session exits, session_type: {}, app_name: {}, stream_name: {}",
+                        session.common.session_type,
+                        session.app_name,
+                        session.stream_name
                     );
+                    log::trace!("session err: {}", err);
                 }
             });
 
