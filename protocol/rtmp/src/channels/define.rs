@@ -3,7 +3,6 @@ use {
     bytes::BytesMut,
     std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
-    uuid::Uuid,
 };
 #[derive(Clone)]
 pub enum ChannelData {
@@ -51,10 +50,6 @@ pub enum ChannelEvent {
 
 impl fmt::Display for ChannelEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let app_name_val: String;
-        let stream_name_val: String;
-        let event_name: String;
-        let mut subscriber_id: Uuid = Uuid::nil();
         match self {
             ChannelEvent::Subscribe {
                 app_name,
@@ -62,44 +57,45 @@ impl fmt::Display for ChannelEvent {
                 session_info,
                 responder: _,
             } => {
-                event_name = String::from("Subscribe");
-                app_name_val = app_name.clone();
-                stream_name_val = stream_name.clone();
-                subscriber_id = session_info.subscriber_id;
+                write!(
+                    f,
+                    "receive event, event_name: Subscribe, app_name: {},stream_name: {}, subscriber id: {}",
+                    app_name, stream_name, session_info.subscriber_id,
+                )
             }
             ChannelEvent::UnSubscribe {
                 app_name,
                 stream_name,
                 session_info,
             } => {
-                event_name = String::from("UnSubscribe");
-                app_name_val = app_name.clone();
-                stream_name_val = stream_name.clone();
-                subscriber_id = session_info.subscriber_id;
+                write!(
+                    f,
+                    "receive event, event_name: UnSubscribe, app_name: {},stream_name: {}, subscriber id: {}",
+                    app_name, stream_name, session_info.subscriber_id,
+                )
             }
             ChannelEvent::Publish {
                 app_name,
                 stream_name,
                 responder: _,
             } => {
-                event_name = String::from("Publish");
-                app_name_val = app_name.clone();
-                stream_name_val = stream_name.clone();
+                write!(
+                    f,
+                    "receive event, event_name: Publish, app_name: {},stream_name: {}",
+                    app_name, stream_name,
+                )
             }
             ChannelEvent::UnPublish {
                 app_name,
                 stream_name,
             } => {
-                event_name = String::from("UnPublish");
-                app_name_val = app_name.clone();
-                stream_name_val = stream_name.clone();
+                write!(
+                    f,
+                    "receive event, event_name: UnPublish, app_name: {},stream_name: {}",
+                    app_name, stream_name,
+                )
             }
         }
-        write!(
-            f,
-            "receive event, event_name: {}, app_name: {},stream_name: {}, subscriber id: {}",
-            event_name, app_name_val, stream_name_val, subscriber_id
-        )
     }
 }
 
