@@ -5,10 +5,13 @@
 [rtmp]
 enabled = true
 port = 1935
+# pull streams from other server node.
 [rtmp.pull]
 enabled = false
 address = "192.168.0.1"
 port = 1935
+port = 1935
+# push streams to other server node.
 [[rtmp.push]]
 enabled = true
 address = "localhost"
