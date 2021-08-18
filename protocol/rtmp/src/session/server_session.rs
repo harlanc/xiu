@@ -44,8 +44,8 @@ enum ServerSessionState {
 }
 
 pub struct ServerSession {
-    app_name: String,
-    stream_name: String,
+    pub app_name: String,
+    pub stream_name: String,
 
     io: Arc<Mutex<BytesIO>>,
     handshaker: HandshakeServer,
@@ -55,7 +55,7 @@ pub struct ServerSession {
 
     state: ServerSessionState,
 
-    common: Common,
+    pub common: Common,
 
     bytesio_data: BytesMut,
     need_process: bool,
