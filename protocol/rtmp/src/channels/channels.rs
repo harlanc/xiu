@@ -19,6 +19,7 @@ use {
         //time::Duration,
     },
     tokio::sync::{mpsc, mpsc::UnboundedReceiver, oneshot},
+    uuid::Uuid,
     //tokio::time::sleep,
 };
 
@@ -49,7 +50,8 @@ pub struct Transmiter {
     data_consumer: ChannelDataConsumer, //used for publisher to produce AV data
     event_consumer: TransmitEventConsumer,
 
-    player_producers: Arc<Mutex<HashMap<u64, ChannelDataProducer>>>,
+    subscriberid_to_producer: Arc<Mutex<HashMap<Uuid, ChannelDataProducer>>>,
+    
     cache: Arc<Mutex<Cache>>,
 }
 
@@ -61,7 +63,7 @@ impl Transmiter {
         Self {
             data_consumer: data_consumer,
             event_consumer: event_consumer,
-            player_producers: Arc::new(Mutex::new(HashMap::new())),
+            subscriberid_to_producer: Arc::new(Mutex::new(HashMap::new())),
             cache: Arc::new(Mutex::new(Cache::new())),
         }
     }
@@ -112,14 +114,14 @@ impl Transmiter {
                                 }
 
 
-                                let mut pro = self.player_producers.lock().unwrap();
-                                pro.insert(session_info.session_id, sender);
+                                let mut pro = self.subscriberid_to_producer.lock().unwrap();
+                                pro.insert(session_info.subscriber_id, sender);
 
                             },
                             TransmitEvent::UnSubscribe{session_info} =>{
 
-                                let mut pro = self.player_producers.lock().unwrap();
-                                pro.remove(&session_info.session_id);
+                                let mut pro = self.subscriberid_to_producer.lock().unwrap();
+                                pro.remove(&session_info.subscriber_id);
 
                             },
                             TransmitEvent::UnPublish{} => {
@@ -150,7 +152,7 @@ impl Transmiter {
                                 };
 
 
-                                for (_,v) in self.player_producers.lock().unwrap().iter() {
+                                for (_,v) in self.subscriberid_to_producer.lock().unwrap().iter() {
                                     if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                             value: ChannelErrorValue::SendAudioError,
                                     }){
@@ -167,7 +169,7 @@ impl Transmiter {
                                     timestamp: timestamp,
                                     data: data.clone(),
                                 };
-                                for (_,v) in self.player_producers.lock().unwrap().iter() {
+                                for (_,v) in self.subscriberid_to_producer.lock().unwrap().iter() {
                                     if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendVideoError,
                                     }){

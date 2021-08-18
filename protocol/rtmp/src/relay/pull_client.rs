@@ -28,8 +28,6 @@ impl PullClient {
     }
 
     pub async fn run(&mut self) -> Result<(), ClientError> {
-        let mut session_id = std::u64::MAX;
-
         loop {
             let val = self.client_event_consumer.recv().await?;
             match val {
@@ -45,7 +43,6 @@ impl PullClient {
                         app_name.clone(),
                         stream_name.clone(),
                         self.channel_event_producer.clone(),
-                        session_id,
                     );
 
                     tokio::spawn(async move {
@@ -53,8 +50,6 @@ impl PullClient {
                             log::error!("client_session as pull client run error: {}", err);
                         }
                     });
-
-                    session_id = session_id - 1;
                 }
                 _ => {}
             }

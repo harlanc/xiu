@@ -4,7 +4,7 @@ use {
     xiu::config::{config, config::Config},
     //env_logger::{Builder, Target},
     hls::server as hls_server,
-    httpflv::server,
+    httpflv::server as httpflv_server,
 
     rtmp::{
         channels::channels::ChannelsManager,
@@ -177,7 +177,7 @@ impl Service {
             let event_producer = channel.get_session_event_producer().clone();
 
             tokio::spawn(async move {
-                if let Err(err) = server::run(event_producer, port).await {
+                if let Err(err) = httpflv_server::run(event_producer, port).await {
                     //print!("push client error {}\n", err);
                     log::error!("httpflv server error: {}\n", err);
                 }

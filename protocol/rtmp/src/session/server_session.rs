@@ -32,6 +32,7 @@ use {
     },
     std::{collections::HashMap, sync::Arc},
     tokio::{net::TcpStream, sync::Mutex},
+    uuid::Uuid,
 };
 
 enum ServerSessionState {
@@ -60,15 +61,18 @@ pub struct ServerSession {
     bytesio_data: BytesMut,
     need_process: bool,
 
-    pub session_id: u64,
+    /* Used to mark the subscriber's the data producer
+    in channels and delete it from map when unsubscribe
+    is called. */
+    pub subscriber_id: Uuid,
 
     connect_command_object: Option<HashMap<String, Amf0ValueType>>,
 }
 
 impl ServerSession {
-    pub fn new(stream: TcpStream, event_producer: ChannelEventProducer, session_id: u64) -> Self {
+    pub fn new(stream: TcpStream, event_producer: ChannelEventProducer) -> Self {
         let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
-
+        let subscriber_id = Uuid::new_v4();
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
@@ -83,7 +87,7 @@ impl ServerSession {
 
             common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Server),
 
-            session_id: session_id,
+            subscriber_id,
             bytesio_data: BytesMut::new(),
             need_process: false,
 
@@ -173,7 +177,7 @@ impl ServerSession {
                     .unsubscribe_from_channels(
                         self.app_name.clone(),
                         self.stream_name.clone(),
-                        self.session_id,
+                        self.subscriber_id,
                     )
                     .await?;
                 return Err(err);
@@ -518,7 +522,11 @@ impl ServerSession {
 
         self.stream_name = stream_name.clone().unwrap();
         self.common
-            .subscribe_from_channels(self.app_name.clone(), stream_name.unwrap(), self.session_id)
+            .subscribe_from_channels(
+                self.app_name.clone(),
+                stream_name.unwrap(),
+                self.subscriber_id,
+            )
             .await?;
 
         self.state = ServerSessionState::Play;

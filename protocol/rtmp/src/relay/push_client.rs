@@ -30,7 +30,6 @@ impl PushClient {
     pub async fn run(&mut self) -> Result<(), ClientError> {
         log::info!("push client run...");
 
-        let mut session_id = std::u64::MAX;
         loop {
             let val = self.client_event_consumer.recv().await?;
             match val {
@@ -52,7 +51,6 @@ impl PushClient {
                         app_name.clone(),
                         stream_name.clone(),
                         self.channel_event_producer.clone(),
-                        session_id,
                     );
 
                     tokio::spawn(async move {
@@ -60,8 +58,6 @@ impl PushClient {
                             log::error!("client_session as push client run error: {}", err);
                         }
                     });
-
-                    session_id = session_id - 1;
                 }
 
                 _ => {

@@ -18,17 +18,20 @@ use {
         sync::{mpsc, oneshot},
         time::sleep,
     },
+    uuid::Uuid,
     xflv::muxer::{FlvMuxer, HEADER_LENGTH},
 };
 
 pub struct HttpFlv {
     app_name: String,
     stream_name: String,
+
     muxer: FlvMuxer,
+
     event_producer: ChannelEventProducer,
     data_consumer: ChannelDataConsumer,
-
     http_response_data_producer: HttpResponseDataProducer,
+    subscriber_id: Uuid,
 }
 
 impl HttpFlv {
@@ -39,6 +42,7 @@ impl HttpFlv {
         http_response_data_producer: HttpResponseDataProducer,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
+        let subscriber_id = Uuid::new_v4();
 
         Self {
             app_name,
@@ -47,11 +51,12 @@ impl HttpFlv {
             data_consumer,
             event_producer,
             http_response_data_producer,
+            subscriber_id,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpFLvError> {
-        self.subscribe_from_rtmp_channels(50).await?;
+        self.subscribe_from_rtmp_channels().await?;
         self.send_media_stream().await?;
 
         Ok(())
@@ -79,7 +84,7 @@ impl HttpFlv {
                 break;
             }
         }
-        self.unsubscribe_from_channels(50).await
+        self.unsubscribe_from_rtmp_channels().await
     }
 
     pub fn write_flv_tag(&mut self, channel_data: ChannelData) -> Result<(), HttpFLvError> {
@@ -131,9 +136,9 @@ impl HttpFlv {
         Ok(())
     }
 
-    pub async fn unsubscribe_from_channels(&mut self, session_id: u64) -> Result<(), HttpFLvError> {
+    pub async fn unsubscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
         let session_info = SessionInfo {
-            session_id: session_id,
+            subscriber_id: self.subscriber_id,
             session_sub_type: SessionSubType::Player,
         };
 
@@ -149,18 +154,14 @@ impl HttpFlv {
         Ok(())
     }
 
-    pub async fn subscribe_from_rtmp_channels(
-        &mut self,
-
-        session_id: u64,
-    ) -> Result<(), HttpFLvError> {
+    pub async fn subscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
         let mut retry_count: u8 = 0;
 
         loop {
             let (sender, receiver) = oneshot::channel();
 
             let session_info = SessionInfo {
-                session_id: session_id,
+                subscriber_id: self.subscriber_id,
                 session_sub_type: SessionSubType::Player,
             };
 

@@ -3,7 +3,6 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
-    xflv::define::FlvData,
     rtmp::channels::define::{
         ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer,
     },
@@ -17,6 +16,8 @@ use {
         sync::{mpsc, oneshot},
         time::sleep,
     },
+    uuid::Uuid,
+    xflv::define::FlvData,
 };
 
 // use super::errors::HlsError;
@@ -32,6 +33,7 @@ pub struct FlvDataReceiver {
     event_producer: ChannelEventProducer,
     data_consumer: ChannelDataConsumer,
     media_processor: Flv2HlsRemuxer,
+    subscriber_id: Uuid,
 }
 
 impl FlvDataReceiver {
@@ -43,6 +45,7 @@ impl FlvDataReceiver {
         duration: i64,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
+        let subscriber_id = Uuid::new_v4();
 
         Self {
             app_name: app_name.clone(),
@@ -51,11 +54,12 @@ impl FlvDataReceiver {
             data_consumer,
             event_producer,
             media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name),
+            subscriber_id,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), HlsError> {
-        self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone(), 50)
+        self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone())
             .await?;
         self.receive_flv_data().await?;
 
@@ -90,7 +94,6 @@ impl FlvDataReceiver {
         &mut self,
         app_name: String,
         stream_name: String,
-        session_id: u64,
     ) -> Result<(), HlsError> {
         let mut retry_count: u8 = 0;
 
@@ -98,7 +101,7 @@ impl FlvDataReceiver {
             let (sender, receiver) = oneshot::channel();
 
             let session_info = SessionInfo {
-                session_id: session_id,
+                subscriber_id: self.subscriber_id,
                 session_sub_type: SessionSubType::Player,
             };
 

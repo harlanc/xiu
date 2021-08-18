@@ -3,6 +3,7 @@ use {
     bytes::BytesMut,
     std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
+    uuid::Uuid,
 };
 #[derive(Clone)]
 pub enum ChannelData {
@@ -53,25 +54,28 @@ impl fmt::Display for ChannelEvent {
         let app_name_val: String;
         let stream_name_val: String;
         let event_name: String;
+        let mut subscriber_id: Uuid = Uuid::nil();
         match self {
             ChannelEvent::Subscribe {
                 app_name,
                 stream_name,
-                session_info: _,
+                session_info,
                 responder: _,
             } => {
                 event_name = String::from("Subscribe");
                 app_name_val = app_name.clone();
                 stream_name_val = stream_name.clone();
+                subscriber_id = session_info.subscriber_id;
             }
             ChannelEvent::UnSubscribe {
                 app_name,
                 stream_name,
-                session_info: _,
+                session_info,
             } => {
                 event_name = String::from("UnSubscribe");
                 app_name_val = app_name.clone();
                 stream_name_val = stream_name.clone();
+                subscriber_id = session_info.subscriber_id;
             }
             ChannelEvent::Publish {
                 app_name,
@@ -93,8 +97,8 @@ impl fmt::Display for ChannelEvent {
         }
         write!(
             f,
-            "receive event, event_name: {}, app_name: {},stream_name: {}",
-            event_name, app_name_val, stream_name_val
+            "receive event, event_name: {}, app_name: {},stream_name: {}, subscriber id: {}",
+            event_name, app_name_val, stream_name_val, subscriber_id
         )
     }
 }
