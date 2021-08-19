@@ -10,7 +10,6 @@ port = 1935
 enabled = false
 address = "192.168.0.1"
 port = 1935
-port = 1935
 # push streams to other server node.
 [[rtmp.push]]
 enabled = true
