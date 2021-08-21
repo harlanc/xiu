@@ -19,9 +19,14 @@ support complex handshake
 
 refactor some codes,update dependencies
 
-## v0.0.6
+## v0.0.7
 
 - Fix bugs;
 - add detail logs;
 - improve subscriber id;
+
+## v0.0.8
+
+- Fix bugs;
+
 
