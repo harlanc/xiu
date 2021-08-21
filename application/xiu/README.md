@@ -13,12 +13,6 @@
 
 
 ## Dev Environment Establish
-
-#### OS Support
-
--  CentOS 7
--  MaxOS
-
 #### Install Rust and Cargo
 
 [Document](https://doc.rust-lang.org/cargo/getting-started/installation.html)
@@ -120,7 +114,7 @@ Use ffplay to play rtmp/httpflv/hls live stream:
     
 ##### Relay static push
 
-The configuration files are as follows (now only test on local machine):
+The configuration files are as follows:
 
 The configuration file of Service 1 named config.toml:
 
@@ -153,7 +147,7 @@ Use Obs to push live stream to service 1, then the stream can be pushed to servi
     
 ##### Relay static pull
 
-The configuration file are as follows (now only test on local machine):
+The configuration file are as follows:
 
 The configuration file of Service 1 named config.toml:
 
