@@ -175,8 +175,10 @@ mod tests {
     use super::amf0_markers;
     use super::Amf0Reader;
     use super::Amf0ValueType;
+
     use bytes::BytesMut;
     use bytesio::bytes_reader::BytesReader;
+
     use std::collections::HashMap;
 
     #[test]
@@ -253,16 +255,20 @@ mod tests {
         // 00a0   65 6f 46 75 6e 63 74 69 6f 6e 00 3f f0 00 00 00  eoFunction.?....
         // 0b00   00 00 00 00 00 09                                ......
 
-        let data: [u8; 171] = [
-            2, 0, 7, 99, 111, 110, 110, 101, 99, 116, 0, 63, 240, 0, 0, 0, 0, 0, 0, 3, 0, 3, 97,
-            112, 112, 2, 0, 4, 108, 105, 118, 101, 0, 5, 116, 99, 85, 114, 108, 2, 0, 26, 114, 116,
-            109, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 58, 49, 57, 51, 53,
-            47, 108, 105, 118, 101, 0, 4, 102, 112, 97, 100, 1, 0, 0, 12, 99, 97, 112, 97, 98, 105,
-            108, 105, 116, 105, 101, 115, 0, 64, 46, 0, 0, 0, 0, 0, 0, 0, 11, 97, 117, 100, 105,
-            111, 67, 111, 100, 101, 99, 115, 0, 64, 168, 238, 0, 0, 0, 0, 0, 0, 11, 118, 105, 100,
-            101, 111, 195, 67, 111, 100, 101, 99, 115, 0, 64, 111, 128, 0, 0, 0, 0, 0, 0, 13, 118,
-            105, 100, 101, 111, 70, 117, 110, 99, 116, 105, 111, 110, 0, 63, 240, 0, 0, 0, 0, 0, 0,
-            0, 0, 9,
+        let data: [u8; 170] = [
+            0x02, 0x00, 0x07, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x04,
+            0x6c, 0x69, 0x76, 0x65, 0x00, 0x05, 0x74, 0x63, 0x55, 0x72, 0x6c, 0x02, 0x00, 0x1a,
+            0x72, 0x74, 0x6d, 0x70, 0x3a, 0x2f, 0x2f, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x68, 0x6f,
+            0x73, 0x74, 0x3a, 0x31, 0x39, 0x33, 0x35, 0x2f, 0x6c, 0x69, 0x76, 0x65, 0x00, 0x04,
+            0x66, 0x70, 0x61, 0x64, 0x01, 0x00, 0x00, 0x0c, 0x63, 0x61, 0x70, 0x61, 0x62, 0x69,
+            0x6c, 0x69, 0x74, 0x69, 0x65, 0x73, 0x00, 0x40, 0x2e, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x0b, 0x61, 0x75, 0x64, 0x69, 0x6f, 0x43, 0x6f, 0x64, 0x65, 0x63, 0x73,
+            0x00, 0x40, 0xa8, 0xee, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x76, 0x69, 0x64,
+            0x65, 0x6f, 0x43, 0x6f, 0x64, 0x65, 0x63, 0x73, 0x00, 0x40, 0x6f, 0x80, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x0d, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x46, 0x75, 0x6e, 0x63,
+            0x74, 0x69, 0x6f, 0x6e, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x09,
         ];
 
         //76 69 64 65 6f 43 6f 64 65 63 73
@@ -273,6 +279,7 @@ mod tests {
         let mut amf_reader = Amf0Reader::new(bytes_reader);
 
         let command_name = amf_reader.read_with_type(amf0_markers::STRING).unwrap();
+
         assert_eq!(
             command_name,
             Amf0ValueType::UTF8String(String::from("connect"))
@@ -282,22 +289,34 @@ mod tests {
         assert_eq!(transaction_id, Amf0ValueType::Number(1.0));
 
         let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
+        match &command_obj_raw {
+            Err(err) => {
+                println!("adfa{}", err);
+            }
+
+            _ => {}
+        }
         let mut properties = HashMap::new();
-        properties.insert(
-            String::from("app"),
-            Amf0ValueType::UTF8String(String::from("live")),
-        );
+
+        properties.insert(String::from("audioCodecs"), Amf0ValueType::Number(3191.0));
+        properties.insert(String::from("videoCodecs"), Amf0ValueType::Number(252.0));
+        properties.insert(String::from("videoFunction"), Amf0ValueType::Number(1.0));
         properties.insert(
             String::from("tcUrl"),
             Amf0ValueType::UTF8String(String::from("rtmp://localhost:1935/live")),
         );
+
+        properties.insert(
+            String::from("app"),
+            Amf0ValueType::UTF8String(String::from("live")),
+        );
+
         properties.insert(String::from("fpad"), Amf0ValueType::Boolean(false));
         properties.insert(String::from("capabilities"), Amf0ValueType::Number(15.0));
-        properties.insert(String::from("audioCodecs"), Amf0ValueType::Number(3191.0));
 
-        properties.insert(String::from("videoCodecs"), Amf0ValueType::Number(252.0));
+        // let result = amf_writer.write_any(&Amf0ValueType::Object(properties));
 
-        properties.insert(String::from("videoFunction"), Amf0ValueType::Number(1.0));
+        // print::printu8(amf_writer.get_current_bytes());
 
         assert_eq!(command_obj_raw.unwrap(), Amf0ValueType::Object(properties));
     }
