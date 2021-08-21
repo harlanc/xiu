@@ -503,7 +503,9 @@ impl SimpleHandshakeServer {
                 ServerHandshakeState::ReadC0C1 => {
                     log::info!("[ S<-C ] [simple handshake] read C0C1");
                     self.read_c0()?;
+                    log::debug!("[ S<-C ] [simple handshake] read C0");
                     self.read_c1()?;
+                    log::debug!("[ S<-C ] [simple handshake] read C1");
                     self.state = ServerHandshakeState::WriteS0S1S2;
                 }
                 ServerHandshakeState::WriteS0S1S2 => {

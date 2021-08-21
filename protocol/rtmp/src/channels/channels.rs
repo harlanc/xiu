@@ -51,7 +51,7 @@ pub struct Transmiter {
     event_consumer: TransmitEventConsumer,
 
     subscriberid_to_producer: Arc<Mutex<HashMap<Uuid, ChannelDataProducer>>>,
-    
+
     cache: Arc<Mutex<Cache>>,
 }
 
@@ -311,42 +311,27 @@ impl ChannelsManager {
         stream_name: &String,
         session_info: SessionInfo,
     ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
-        match self.channels.get_mut(app_name) {
-            Some(val) => match val.get_mut(stream_name) {
-                Some(producer) => {
-                    let (sender, receiver) = oneshot::channel();
+        if let Some(val) = self.channels.get_mut(app_name) {
+            if let Some(producer) = val.get_mut(stream_name) {
+                let (sender, receiver) = oneshot::channel();
 
-                    let event = TransmitEvent::Subscribe {
-                        responder: sender,
-                        session_info,
-                    };
-                    producer.send(event).map_err(|_| ChannelError {
-                        value: ChannelErrorValue::SendError,
-                    })?;
+                let event = TransmitEvent::Subscribe {
+                    responder: sender,
+                    session_info,
+                };
+                
+                producer.send(event).map_err(|_| ChannelError {
+                    value: ChannelErrorValue::SendError,
+                })?;
 
-                    match receiver.await {
-                        Ok(consumer) => {
-                            log::info!("subscribe get consumer successfully, app_name: {}, stream_name: {}",app_name,stream_name);
-                            return Ok(consumer);
-                        }
-                        Err(_) => {
-                            // return Err(ChannelError {
-                            //     value: ChannelErrorValue::NoStreamName,
-                            // });
-                        }
-                    }
+                if let Ok(consumer) = receiver.await {
+                    log::info!(
+                        "subscribe get consumer successfully, app_name: {}, stream_name: {}",
+                        app_name,
+                        stream_name
+                    );
+                    return Ok(consumer);
                 }
-                None => {
-                    // return Err(ChannelError {
-                    //     value: ChannelErrorValue::NoStreamName,
-                    // })
-                }
-            },
-            None => {
-
-                // return Err(ChannelError {
-                //     value: ChannelErrorValue::NoAppName,
-                // })
             }
         }
 
@@ -442,6 +427,12 @@ impl ChannelsManager {
                         app_name_clone,
                         stream_name_clone,
                         err,
+                    );
+                } else {
+                    log::info!(
+                        "transmiter exists: app_name: {}, stream_name: {}",
+                        app_name_clone,
+                        stream_name_clone
                     );
                 }
             });
