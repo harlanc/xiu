@@ -7,3 +7,7 @@ Support remux RTMP stream to httpflv stream.
 
 Some improvements.
 
+## v0.0.3
+
+Reference rtmp v0.0.8
+
