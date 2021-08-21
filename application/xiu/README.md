@@ -23,6 +23,25 @@
 
 [Document](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
+## Install and run 
+
+There are two ways to install xiu :
+ 
+ - Using cargo to install
+ - Building from source
+
+
+### Install using cargo
+
+Issue the following command to install xiu:
+
+    cargo install xiu
+Start the service with the following command:
+
+    xiu configuration_file_path/confit.toml
+    
+### Build from souce
+
 #### Clone Xiu
 
     git clone https://github.com/harlanc/xiu.git
@@ -32,10 +51,10 @@ use master branch
 #### Build
 
     cd ./xiu/application/xiu
-    cargo build
+    cargo build --release
 #### Run
 
-    cd ./xiu/target/debug
+    cd ./xiu/target/release
     ./xiu config.toml
     
 ## Configurations
