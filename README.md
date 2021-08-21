@@ -1,8 +1,4 @@
 # Xiu
-
-[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
-
-
 **Xiu is a live server written by Rust.**
 
 
@@ -17,15 +13,28 @@
 
 
 ## Dev Environment Establish
-
-#### OS Support
-
--  CentOS 7
--  MaxOS
-
 #### Install Rust and Cargo
 
 [Document](https://doc.rust-lang.org/cargo/getting-started/installation.html)
+
+## Install and run 
+
+There are two ways to install xiu :
+ 
+ - Using cargo to install
+ - Building from source
+
+
+### Install using cargo
+
+Issue the following command to install xiu:
+
+    cargo install xiu
+Start the service with the following command:
+
+    xiu configuration_file_path/confit.toml
+    
+### Build from souce
 
 #### Clone Xiu
 
@@ -36,10 +45,10 @@ use master branch
 #### Build
 
     cd ./xiu/application/xiu
-    cargo build
+    cargo build --release
 #### Run
 
-    cd ./xiu/target/debug
+    cd ./xiu/target/release
     ./xiu config.toml
     
 ## Configurations
@@ -105,7 +114,7 @@ Use ffplay to play rtmp/httpflv/hls live stream:
     
 ##### Relay static push
 
-The configuration files are as follows (now only test on local machine):
+The configuration files are as follows:
 
 The configuration file of Service 1 named config.toml:
 
@@ -138,7 +147,7 @@ Use Obs to push live stream to service 1, then the stream can be pushed to servi
     
 ##### Relay static pull
 
-The configuration file are as follows (now only test on local machine):
+The configuration file are as follows:
 
 The configuration file of Service 1 named config.toml:
 
