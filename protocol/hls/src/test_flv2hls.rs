@@ -51,8 +51,8 @@ mod tests {
         }
     }
 
-    #[test]
-
+    //#[test]
+    #[allow(dead_code)]
     fn test_flv2hls() -> Result<(), MediaError> {
         let mut file =
             File::open("/Users/zexu/github/xiu/protocol/hls/src/xgplayer_demo.flv").unwrap();
