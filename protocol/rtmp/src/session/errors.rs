@@ -9,8 +9,8 @@ use {
         protocol_control_messages::errors::ControlMessagesError,
         user_control_messages::errors::EventMessagesError,
     },
-    failure::{Backtrace, Fail},
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
+    failure::{Backtrace, Fail},
     std::fmt,
 };
 
@@ -65,6 +65,8 @@ pub enum SessionErrorValue {
 
     #[fail(display = "no app name error\n")]
     NoAppName,
+    #[fail(display = "no media data can be received now.\n")]
+    NoMediaDataReceived,
 
     #[fail(display = "session is finished.")]
     Finish,

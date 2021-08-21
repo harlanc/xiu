@@ -59,6 +59,7 @@ impl Common {
         }
     }
     pub async fn send_channel_data(&mut self) -> Result<(), SessionError> {
+        let mut retry_times = 0;
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 match data {
@@ -71,6 +72,18 @@ impl Common {
                     ChannelData::MetaData { timestamp, data } => {
                         self.send_metadata(data, timestamp).await?;
                     }
+                }
+            } else {
+                retry_times += 1;
+                log::debug!(
+                    "send_channel_data: no data receives ,retry {} times!",
+                    retry_times
+                );
+
+                if retry_times > 10 {
+                    return Err(SessionError {
+                        value: SessionErrorValue::NoMediaDataReceived,
+                    });
                 }
             }
         }
