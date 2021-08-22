@@ -1,9 +1,13 @@
 use {
     super::errors::NetConnectionError,
-    crate::amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
-    bytes::BytesMut,
-    bytesio::bytes_writer::BytesWriter,
-    std::collections::HashMap,
+    crate::{
+        amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
+        chunk::{chunk::ChunkInfo, define as chunk_define, packetizer::ChunkPacketizer},
+        messages::define as messages_define,
+    },
+    bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
+    std::{collections::HashMap, sync::Arc},
+    tokio::sync::Mutex,
 };
 
 pub struct ConnectProperties {
@@ -54,34 +58,51 @@ impl ConnectProperties {
 }
 
 pub struct NetConnection {
-    // writer: BytesWriter,
     amf0_writer: Amf0Writer,
+    packetizer: ChunkPacketizer,
 }
 
 impl NetConnection {
-    pub fn new(writer: BytesWriter) -> Self {
+    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
-            amf0_writer: Amf0Writer::new(writer),
+            amf0_writer: Amf0Writer::new(BytesWriter::new()),
+            packetizer: ChunkPacketizer::new(io),
         }
     }
 
-    pub fn connect_with_value(
+    async fn write_chunk(&mut self) -> Result<(), NetConnectionError> {
+        let data = self.amf0_writer.extract_current_bytes();
+        let mut chunk_info = ChunkInfo::new(
+            chunk_define::csid_type::COMMAND_AMF0_AMF3,
+            chunk_define::chunk_type::TYPE_0,
+            0,
+            data.len() as u32,
+            messages_define::msg_type_id::COMMAND_AMF0,
+            0,
+            data,
+        );
+
+        self.packetizer.write_chunk(&mut chunk_info).await?;
+        Ok(())
+    }
+
+    pub async fn write_connect_with_value(
         &mut self,
         transaction_id: &f64,
         properties: HashMap<String, Amf0ValueType>,
-    ) -> Result<BytesMut, NetConnectionError> {
+    ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("connect"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
         self.amf0_writer.write_object(&properties)?;
 
-        return Ok(self.amf0_writer.extract_current_bytes());
+        self.write_chunk().await
     }
-    pub fn connect(
+    pub async fn write_connect(
         &mut self,
         transaction_id: &f64,
         properties: &ConnectProperties,
-    ) -> Result<BytesMut, NetConnectionError> {
+    ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("connect"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
@@ -149,12 +170,10 @@ impl NetConnection {
             );
         }
 
-        self.amf0_writer.write_object(&properties_map)?;
-
-        return Ok(self.amf0_writer.extract_current_bytes());
+        self.write_chunk().await
     }
 
-    pub fn connect_response(
+    pub async fn write_connect_response(
         &mut self,
         transaction_id: &f64,
         fmsver: &String,
@@ -163,7 +182,7 @@ impl NetConnection {
         level: &String,
         description: &String,
         encoding: &f64,
-    ) -> Result<BytesMut, NetConnectionError> {
+    ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_result"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
@@ -201,38 +220,38 @@ impl NetConnection {
 
         self.amf0_writer.write_object(&properties_map_b)?;
 
-        return Ok(self.amf0_writer.extract_current_bytes());
+        self.write_chunk().await
     }
 
-    pub fn create_stream(&mut self, transaction_id: &f64) -> Result<BytesMut, NetConnectionError> {
+    pub async fn write_create_stream(&mut self, transaction_id: &f64) -> Result<(), NetConnectionError> {
         self.amf0_writer
             .write_string(&String::from("createStream"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
 
-        return Ok(self.amf0_writer.extract_current_bytes());
+        self.write_chunk().await
     }
 
-    pub fn create_stream_response(
+    pub async fn write_create_stream_response(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
-    ) -> Result<BytesMut, NetConnectionError> {
+    ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_result"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(stream_id)?;
 
-        return Ok(self.amf0_writer.extract_current_bytes());
+        self.write_chunk().await
     }
 
-    pub fn error(
+    pub async fn error(
         &mut self,
         transaction_id: &f64,
         code: &String,
         level: &String,
         description: &String,
-    ) -> Result<BytesMut, NetConnectionError> {
+    ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_error"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
@@ -253,6 +272,6 @@ impl NetConnection {
         );
         self.amf0_writer.write_object(&properties_map)?;
 
-        return Ok(self.amf0_writer.extract_current_bytes());
+        self.write_chunk().await
     }
 }

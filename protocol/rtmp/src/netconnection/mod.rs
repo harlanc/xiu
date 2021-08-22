@@ -1,3 +1,3 @@
-pub mod commands;
+pub mod writer;
 pub mod errors;
-pub mod commands_reader;
+pub mod reader;

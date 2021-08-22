@@ -5,7 +5,6 @@ use {
         chunk::{chunk::ChunkInfo, define as chunk_define, packetizer::ChunkPacketizer},
         messages::define as messages_define,
     },
-    bytes::BytesMut,
     bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
     std::{collections::HashMap, sync::Arc},
     tokio::sync::Mutex,
@@ -23,7 +22,9 @@ impl NetStreamWriter {
             packetizer: ChunkPacketizer::new(io),
         }
     }
-    pub async fn write_chunk(&mut self, data: BytesMut) -> Result<(), NetStreamError> {
+    async fn write_chunk(&mut self) -> Result<(), NetStreamError> {
+        let data = self.amf0_writer.extract_current_bytes();
+
         let mut chunk_info = ChunkInfo::new(
             chunk_define::csid_type::COMMAND_AMF0_AMF3,
             chunk_define::chunk_type::TYPE_0,
@@ -37,7 +38,7 @@ impl NetStreamWriter {
         self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
-    pub async fn play(
+    pub async fn write_play(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -53,12 +54,9 @@ impl NetStreamWriter {
         self.amf0_writer.write_number(duration)?;
         self.amf0_writer.write_bool(reset)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
-    pub async fn delete_stream(
+    pub async fn write_delete_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
@@ -69,13 +67,10 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(stream_id)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 
-    pub async fn close_stream(
+    pub async fn write_close_stream(
         &mut self,
         transaction_id: &f64,
         stream_id: &f64,
@@ -86,13 +81,10 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(stream_id)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 
-    pub async fn release_stream(
+    pub async fn write_release_stream(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -103,13 +95,10 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_string(stream_name)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 
-    pub async fn fcpublish(
+    pub async fn write_fcpublish(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -119,14 +108,11 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_string(stream_name)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 
     #[allow(dead_code)]
-    async fn receive_audio(
+    async fn write_receive_audio(
         &mut self,
         transaction_id: &f64,
         enable: &bool,
@@ -137,13 +123,10 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_bool(enable)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
     #[allow(dead_code)]
-    async fn receive_video(
+    async fn write_receive_video(
         &mut self,
         transaction_id: &f64,
         enable: &bool,
@@ -154,12 +137,9 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_bool(enable)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
-    pub async fn publish(
+    pub async fn write_publish(
         &mut self,
         transaction_id: &f64,
         stream_name: &String,
@@ -171,25 +151,19 @@ impl NetStreamWriter {
         self.amf0_writer.write_string(stream_name)?;
         self.amf0_writer.write_string(stream_type)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
     #[allow(dead_code)]
-    async fn seek(&mut self, transaction_id: &f64, ms: &f64) -> Result<(), NetStreamError> {
+    async fn write_seek(&mut self, transaction_id: &f64, ms: &f64) -> Result<(), NetStreamError> {
         self.amf0_writer.write_string(&String::from("seek"))?;
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(ms)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
     #[allow(dead_code)]
-    async fn pause(
+    async fn write_pause(
         &mut self,
         transaction_id: &f64,
         pause: &bool,
@@ -201,14 +175,11 @@ impl NetStreamWriter {
         self.amf0_writer.write_bool(pause)?;
         self.amf0_writer.write_number(ms)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 
     #[allow(dead_code)]
-    async fn on_bw_done(
+    async fn write_on_bw_done(
         &mut self,
         transaction_id: &f64,
         bandwidth: &f64,
@@ -218,13 +189,10 @@ impl NetStreamWriter {
         self.amf0_writer.write_null()?;
         self.amf0_writer.write_number(bandwidth)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 
-    pub async fn on_status(
+    pub async fn write_on_status(
         &mut self,
         transaction_id: &f64,
         level: &String,
@@ -252,9 +220,6 @@ impl NetStreamWriter {
 
         self.amf0_writer.write_object(&properties_map)?;
 
-        let data = self.amf0_writer.extract_current_bytes();
-        self.write_chunk(data).await?;
-
-        return Ok(());
+        self.write_chunk().await
     }
 }
