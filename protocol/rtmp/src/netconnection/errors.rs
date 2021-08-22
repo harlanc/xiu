@@ -1,5 +1,8 @@
 use {
-    crate::amf0::errors::{Amf0ReadError, Amf0WriteError},
+    crate::{
+        amf0::errors::{Amf0ReadError, Amf0WriteError},
+        chunk::errors::PackError,
+    },
     failure::{Backtrace, Fail},
     std::fmt,
 };
@@ -14,6 +17,8 @@ pub enum NetConnectionErrorValue {
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "amf0 read error: {}\n", _0)]
     Amf0ReadError(Amf0ReadError),
+    #[fail(display = "pack error\n")]
+    PackError(PackError),
 }
 
 impl From<Amf0WriteError> for NetConnectionError {
@@ -28,6 +33,14 @@ impl From<Amf0ReadError> for NetConnectionError {
     fn from(error: Amf0ReadError) -> Self {
         NetConnectionError {
             value: NetConnectionErrorValue::Amf0ReadError(error),
+        }
+    }
+}
+
+impl From<PackError> for NetConnectionError {
+    fn from(error: PackError) -> Self {
+        NetConnectionError {
+            value: NetConnectionErrorValue::PackError(error),
         }
     }
 }

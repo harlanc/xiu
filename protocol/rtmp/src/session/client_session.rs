@@ -12,25 +12,17 @@ use {
         amf0::Amf0ValueType,
         channels::define::ChannelEventProducer,
         chunk::{
-            define::{chunk_type, csid_type, CHUNK_SIZE},
-            packetizer::ChunkPacketizer,
+            define::CHUNK_SIZE,
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
-            ChunkInfo,
         },
         handshake::handshake::{ClientHandshakeState, SimpleHandshakeClient},
-        messages::{
-            define::{msg_type_id, RtmpMessageData},
-            parser::MessageParser,
-        },
-        netconnection::commands::{ConnectProperties, NetConnection},
+        messages::{define::RtmpMessageData, parser::MessageParser},
+        netconnection::writer::{ConnectProperties, NetConnection},
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
     },
-    bytesio::{
-        bytes_writer::{AsyncBytesWriter, BytesWriter},
-        bytesio::BytesIO,
-    },
+    bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
     std::{collections::HashMap, sync::Arc},
     tokio::{net::TcpStream, sync::Mutex},
 };
@@ -72,7 +64,6 @@ pub struct ClientSession {
 
     handshaker: SimpleHandshakeClient,
 
-    packetizer: ChunkPacketizer,
     unpacketizer: ChunkUnpacketizer,
 
     app_name: String,
@@ -105,7 +96,6 @@ impl ClientSession {
 
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
 
-            packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
 
             app_name,
@@ -290,7 +280,7 @@ impl ClientSession {
     pub async fn send_connect(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
         self.send_set_chunk_size().await?;
 
-        let mut netconnection = NetConnection::new(BytesWriter::new());
+        let mut netconnection = NetConnection::new(Arc::clone(&self.io));
 
         let mut properties = ConnectProperties::new_none();
 
@@ -312,37 +302,25 @@ impl ClientSession {
             }
         }
 
-        let data = netconnection.connect(transaction_id, &properties)?;
+        netconnection.write_connect(transaction_id, &properties).await?;
 
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
+        // let mut chunk_info = ChunkInfo::new(
+        //     csid_type::COMMAND_AMF0_AMF3,
+        //     chunk_type::TYPE_0,
+        //     0,
+        //     data.len() as u32,
+        //     msg_type_id::COMMAND_AMF0,
+        //     0,
+        //     data,
+        // );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        // self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
 
     pub async fn send_create_stream(&mut self, transaction_id: &f64) -> Result<(), SessionError> {
-        let mut netconnection = NetConnection::new(BytesWriter::new());
-        let data = netconnection.create_stream(transaction_id)?;
-
-        let mut chunk_info = ChunkInfo::new(
-            csid_type::COMMAND_AMF0_AMF3,
-            chunk_type::TYPE_0,
-            0,
-            data.len() as u32,
-            msg_type_id::COMMAND_AMF0,
-            0,
-            data,
-        );
-
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        let mut netconnection = NetConnection::new(Arc::clone(&self.io));
+        netconnection.write_create_stream(transaction_id).await?;
 
         Ok(())
     }
@@ -353,7 +331,9 @@ impl ClientSession {
         stream_id: &f64,
     ) -> Result<(), SessionError> {
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
-        netstream.delete_stream(transaction_id, stream_id).await?;
+        netstream
+            .write_delete_stream(transaction_id, stream_id)
+            .await?;
 
         Ok(())
     }
@@ -366,7 +346,7 @@ impl ClientSession {
     ) -> Result<(), SessionError> {
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
-            .publish(transaction_id, stream_name, stream_type)
+            .write_publish(transaction_id, stream_name, stream_type)
             .await?;
 
         Ok(())
@@ -382,7 +362,7 @@ impl ClientSession {
     ) -> Result<(), SessionError> {
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
-            .play(transaction_id, stream_name, start, duration, reset)
+            .write_play(transaction_id, stream_name, start, duration, reset)
             .await?;
 
         Ok(())
@@ -425,10 +405,10 @@ impl ClientSession {
 
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
-            .release_stream(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
+            .write_release_stream(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
             .await?;
         netstream
-            .fcpublish(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
+            .write_fcpublish(&(define::TRANSACTION_ID_CONNECT as f64), &self.stream_name)
             .await?;
 
         self.state = ClientSessionState::CreateStream;
