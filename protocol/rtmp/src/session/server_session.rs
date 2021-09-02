@@ -22,7 +22,7 @@ use {
     },
     bytes::BytesMut,
     bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
-    std::{collections::HashMap, sync::Arc},
+    std::{collections::HashMap, sync::Arc, time::Duration},
     tokio::{net::TcpStream, sync::Mutex},
     uuid::Uuid,
 };
@@ -50,7 +50,7 @@ pub struct ServerSession {
     pub common: Common,
 
     bytesio_data: BytesMut,
-    need_process: bool,
+    has_remaing_data: bool,
 
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
@@ -79,7 +79,7 @@ impl ServerSession {
 
             subscriber_id,
             bytesio_data: BytesMut::new(),
-            need_process: false,
+            has_remaing_data: false,
 
             connect_command_object: None,
         }
@@ -105,6 +105,7 @@ impl ServerSession {
 
     async fn handshake(&mut self) -> Result<(), SessionError> {
         self.bytesio_data = self.io.lock().await.read().await?;
+
         self.handshaker.extend_data(&self.bytesio_data[..]);
         self.handshaker.handshake().await?;
 
@@ -115,7 +116,7 @@ impl ServerSession {
                 let left_bytes = self.handshaker.get_remaining_bytes();
                 if left_bytes.len() > 0 {
                     self.unpacketizer.extend_data(&left_bytes[..]);
-                    self.need_process = true;
+                    self.has_remaing_data = true;
                 }
                 self.send_set_chunk_size().await?;
                 return Ok(());
@@ -127,12 +128,32 @@ impl ServerSession {
     }
 
     async fn read_parse_chunks(&mut self) -> Result<(), SessionError> {
-        if !self.need_process {
-            self.bytesio_data = self.io.lock().await.read().await?;
+        if !self.has_remaing_data {
+            match self
+                .io
+                .lock()
+                .await
+                .read_timeout(Duration::from_secs(2))
+                .await
+            {
+                Ok(data) => {
+                    self.bytesio_data = data;
+                }
+                Err(err) => {
+                    self.common
+                        .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .await?;
+
+                    return Err(SessionError {
+                        value: SessionErrorValue::BytesIOError(err),
+                    });
+                }
+            }
+
             self.unpacketizer.extend_data(&self.bytesio_data[..]);
         }
 
-        self.need_process = false;
+        self.has_remaing_data = false;
 
         loop {
             let result = self.unpacketizer.read_chunks();
