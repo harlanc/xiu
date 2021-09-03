@@ -4,6 +4,7 @@ use {
     bytes::BytesMut,
     bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
+#[derive(Clone)]
 pub struct MetaData {
     chunk_body: BytesMut,
     // values: Vec<Amf0ValueType>,
