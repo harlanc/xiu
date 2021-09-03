@@ -1,13 +1,13 @@
-# Xiu
+# XIU
+
 
 [![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
 
 
-**Xiu is a live server written by Rust.**
+Xiu is a powerful and secure live server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTPFLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using relay feature.
 
-
-## Functionalities
+## Features
 
 - [x] RTMP
   - [x] publish and play 
@@ -15,9 +15,10 @@
   - [x] relay: static pull
 - [x] HTTPFLV
 - [x] HLS
+- [ ] SRT
 
 
-## Dev Environment Establish
+## Preparation
 #### Install Rust and Cargo
 
 [Document](https://doc.rust-lang.org/cargo/getting-started/installation.html)
@@ -106,18 +107,23 @@ use master branch
 
 ##### Push
 
-Use OBS to push a live rtmp stream.
+You can use two ways:
+
+- Use OBS to push a live rtmp stream
+- Or use FFmpeg to push a rtmp stream:
+     
+        ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test110
 
 
 ##### Play
 
-Use ffplay to play rtmp/httpflv/hls live stream:
+Use ffplay to play the rtmp/httpflv/hls live stream:
 
     ffplay -i rtmp://localhost:1935/live/test
     ffplay -i http://localhost:8081/live/test.flv
     ffplay -i http://localhost:8080/live/test/test.m3u8
     
-##### Relay static push
+##### Relay - Static push
 
 The configuration files are as follows:
 
@@ -143,14 +149,14 @@ Run the 2 services:
     ./xiu config_push.toml
 
 
-Use Obs to push live stream to service 1, then the stream can be pushed to service 2 automatically, you can play the same live stream from both the two services:
+Use the above methods to push rtmp live stream to service 1, then the stream can be pushed to service 2 automatically, you can play the same live stream from both the two services:
 
     ffplay -i rtmp://localhost:1935/live/test
     ffplay -i rtmp://localhost:1936/live/test
 
 
     
-##### Relay static pull
+##### Relay - Static pull
 
 The configuration file are as follows:
 
@@ -176,7 +182,7 @@ Run the 2 services:
     ./xiu config.toml
     ./xiu config_pull.toml
 
-Use obs to push live stream to service 1, when you play the stream from serivce 2, it will pull the stream from service 1:
+Use the above methods to push live stream to service 1, when you play the stream from serivce 2, it will pull the stream from service 1:
 
     ffplay -i rtmp://localhost:1935/live/test
     ffplay -i rtmp://localhost:1936/live/test
@@ -190,5 +196,5 @@ Use obs to push live stream to service 1, when you play the stream from serivce 
 
 ## Others
 
-You can open issues if have any problems. Star and pull requests are welcomed.
+Open issues if you have any problems. Star and pull requests are welcomed.
  

@@ -1,3 +1,4 @@
 pub mod cache;
-pub mod metadata;
 pub mod errors;
+pub mod gop;
+pub mod metadata;

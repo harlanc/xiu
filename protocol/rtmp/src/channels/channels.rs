@@ -106,6 +106,15 @@ impl Transmiter {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
                                         }
+
+                                        let gop = self.cache.lock().unwrap().clone().get_gop_data();
+                                        if let Some(gop_data) = gop{
+                                            for channel_data in gop_data{
+                                                sender.send(channel_data).map_err(|_| ChannelError {
+                                                    value: ChannelErrorValue::SendError,
+                                                })?;
+                                            }
+                                        }
                                      }
                                     SessionSubType::Publisher =>{
 
@@ -319,7 +328,7 @@ impl ChannelsManager {
                     responder: sender,
                     session_info,
                 };
-                
+
                 producer.send(event).map_err(|_| ChannelError {
                     value: ChannelErrorValue::SendError,
                 })?;
