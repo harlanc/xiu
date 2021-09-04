@@ -105,6 +105,16 @@ impl BytesReader {
         Ok(val)
     }
 
+    pub fn get(&mut self, index: usize) -> Result<u8, BytesReadError> {
+        if index >= self.len() {
+            return Err(BytesReadError {
+                value: BytesReadErrorValue::IndexOutofRange,
+            });
+        }
+
+        Ok(self.buffer.get(index).unwrap().clone())
+    }
+
     pub fn len(&mut self) -> usize {
         return self.buffer.len();
     }
