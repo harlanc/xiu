@@ -549,6 +549,34 @@ mod tests {
     }
 
     // #[test]
+    // fn test_window_acknowlage_size_set_peer_bandwidth() {
+    //     let mut unpacker = ChunkUnpacketizer::new();
+
+    //     let data: [u8; 33] = [
+    //         0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    //         0x10, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0x10, 0x00, 0x02,
+    //     ];
+
+    //     unpacker.extend_data(&data[..]);
+
+    //     let rv = unpacker.read_chunk();
+
+    //     let rv2 = unpacker.read_chunk();
+
+    //     let mut body = BytesMut::new();
+    //     body.extend_from_slice(&[00, 00, 10, 00]);
+
+    //     let expected = ChunkInfo::new(2, 0, 0, 4, 1, 0, body);
+
+    //     assert_eq!(
+    //         rv.unwrap(),
+    //         UnpackResult::ChunkInfo(expected),
+    //         "not correct"
+    //     )
+    // }
+
+    // #[test]
     // fn test_on_connect() {
     //     // 0000   03 00 00 00 00 00 b1 14 00 00 00 00 02 00 07 63  ...............c
     //     // 0010   6f 6e 6e 65 63 74 00 3f f0 00 00 00 00 00 00 03  onnect.?........
@@ -580,11 +608,11 @@ mod tests {
     //     // ];
 
     //     let data: [u8; 189] = [
-    //         0x03, 
-    //         0x00, 0x00, 0x00, 
-    //         0x00, 0x00, 0xb1, 
-    //         0x14, 
-    //         0x00, 0x00, 0x00, 0x00, 
+    //         0x03,
+    //         0x00, 0x00, 0x00,
+    //         0x00, 0x00, 0xb1,
+    //         0x14,
+    //         0x00, 0x00, 0x00, 0x00,
     //         0x02, 0x00,
     //         0x07, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x00, 0x3f, 0xf0, 0x00, 0x00, 0x00,
     //         0x00, 0x00, 0x00, 0x03, 0x00, 0x03, 0x61, 0x70, 0x70, 0x02, 0x00, 0x06, 0x68, 0x61,

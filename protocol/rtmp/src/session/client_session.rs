@@ -7,7 +7,7 @@ use {
         define::SessionType,
         errors::{SessionError, SessionErrorValue},
     },
-    crate::utils::print::print,
+    //crate::utils::print::print,
     crate::{
         amf0::Amf0ValueType,
         channels::define::ChannelEventProducer,
@@ -169,8 +169,6 @@ impl ClientSession {
                 }
             }
         }
-
-        // Ok(())
     }
 
     async fn handshake(&mut self) -> Result<(), SessionError> {

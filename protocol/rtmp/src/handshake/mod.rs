@@ -1,7 +1,6 @@
 pub mod define;
 pub mod digest;
 pub mod errors;
-pub mod handshake;
 pub mod handshake_client;
 pub mod handshake_server;
 pub mod handshake_trait;

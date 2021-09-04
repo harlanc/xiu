@@ -234,7 +234,7 @@ impl ChannelsManager {
         self.event_loop().await;
     }
 
-    pub fn set_push_enabled(&mut self, enabled: bool) {
+    pub fn set_rtmp_push_enabled(&mut self, enabled: bool) {
         self.push_enabled = enabled;
     }
 
@@ -242,7 +242,7 @@ impl ChannelsManager {
         self.hls_enabled = enabled;
     }
 
-    pub fn set_pull_enabled(&mut self, enabled: bool) {
+    pub fn set_rtmp_pull_enabled(&mut self, enabled: bool) {
         self.pull_enabled = enabled;
     }
 
@@ -310,8 +310,6 @@ impl ChannelsManager {
             }
         }
     }
-
-    pub async fn data_loop(&mut self) {}
 
     //player subscribe a stream
     pub async fn subscribe(
@@ -500,9 +498,6 @@ impl ChannelsManager {
 
         Ok(())
     }
-
-    //server broadcast data to player
-    pub fn broadcast() {}
 }
 
 #[cfg(test)]

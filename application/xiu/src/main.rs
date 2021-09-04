@@ -1,7 +1,6 @@
 use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
-    xiu::config::{config, config::Config},
     //env_logger::{Builder, Target},
     hls::server as hls_server,
     httpflv::server as httpflv_server,
@@ -14,6 +13,7 @@ use {
     std::env,
     tokio,
     tokio::signal,
+    xiu::config::{config, config::Config},
 };
 
 //use application::logger::logger;
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
             if let Some(log_config_value) = &val.log {
                 env::set_var("RUST_LOG", log_config_value.level.clone());
             } else {
-                env::set_var("RUST_LOG", "info");
+            env::set_var("RUST_LOG", "info");
             }
 
             // let mut builder = Builder::from_default_env();
@@ -124,7 +124,7 @@ impl Service {
                         }
                     });
 
-                    channel.set_push_enabled(true);
+                    channel.set_rtmp_push_enabled(true);
                 }
             }
             /*static pull*/
@@ -135,6 +135,7 @@ impl Service {
                         ip = pull_cfg_value.address,
                         port = pull_cfg_value.port
                     );
+                    log::info!("start rtmp pull client from address: {}", address);
                     let mut pull_client = PullClient::new(
                         address,
                         channel.get_client_event_consumer(),
@@ -147,7 +148,7 @@ impl Service {
                         }
                     });
 
-                    channel.set_pull_enabled(true);
+                    channel.set_rtmp_pull_enabled(true);
                 }
             }
 
