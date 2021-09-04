@@ -29,4 +29,10 @@ refactor some codes,update dependencies
 
 - Fix bugs;
 
+## v0.0.9
+
+- Support cache GOP;
+- fix bugs;
+- refactor handshake mod;
+
 
