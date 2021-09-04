@@ -15,7 +15,7 @@ use {
             define::CHUNK_SIZE,
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
         },
-        handshake::handshake::{ClientHandshakeState, SimpleHandshakeClient},
+        handshake::{define::ClientHandshakeState, handshake_client::SimpleHandshakeClient},
         messages::{define::RtmpMessageData, parser::MessageParser},
         netconnection::writer::{ConnectProperties, NetConnection},
         netstream::writer::NetStreamWriter,
@@ -148,17 +148,25 @@ impl ClientSession {
 
             let data = self.io.lock().await.read().await?;
             self.unpacketizer.extend_data(&data[..]);
-            let result = self.unpacketizer.read_chunk()?;
 
-            match result {
-                UnpackResult::ChunkInfo(chunk_info) => {
-                    let mut message_parser = MessageParser::new(chunk_info.clone());
-                    let mut msg = message_parser.parse()?;
-                    let timestamp = chunk_info.message_header.timestamp;
+            loop {
+                let result = self.unpacketizer.read_chunks();
 
-                    self.process_messages(&mut msg, &timestamp).await?;
+                if let Ok(rv) = result {
+                    match rv {
+                        UnpackResult::Chunks(chunks) => {
+                            for chunk_info in chunks.iter() {
+                                let mut msg = MessageParser::new(chunk_info.clone()).parse()?;
+
+                                let timestamp = chunk_info.message_header.timestamp;
+                                self.process_messages(&mut msg, &timestamp).await?;
+                            }
+                        }
+                        _ => {}
+                    }
+                } else {
+                    break;
                 }
-                _ => {}
             }
         }
 
@@ -174,7 +182,6 @@ impl ClientSession {
             }
 
             let data = self.io.lock().await.read().await?;
-            print(data.clone());
             self.handshaker.extend_data(&data[..]);
         }
 
@@ -195,22 +202,31 @@ impl ClientSession {
                 command_object,
                 others,
             } => {
+                log::info!("[C <- S] on_amf0_command_message...");
                 self.on_amf0_command_message(command_name, transaction_id, command_object, others)
                     .await?
             }
-            RtmpMessageData::SetPeerBandwidth { properties } => {
-                log::trace!(
-                    "process_messages SetPeerBandwidth windows size: {}",
-                    properties.window_size
-                );
+            RtmpMessageData::SetPeerBandwidth { .. } => {
+                log::info!("[C <- S] on_set_peer_bandwidth...");
                 self.on_set_peer_bandwidth().await?
             }
-            RtmpMessageData::SetChunkSize { chunk_size } => self.on_set_chunk_size(chunk_size)?,
 
-            RtmpMessageData::StreamBegin { stream_id } => self.on_stream_begin(stream_id)?,
+            RtmpMessageData::WindowAcknowledgementSize { .. } => {
+                log::info!("[C <- S] on_windows_acknowledgement_size...");
+            }
+            RtmpMessageData::SetChunkSize { chunk_size } => {
+                log::info!("[C <- S] on_set_chunk_size...");
+                self.on_set_chunk_size(chunk_size)?;
+            }
+
+            RtmpMessageData::StreamBegin { stream_id } => {
+                log::info!("[C <- S] on_stream_begin...");
+                self.on_stream_begin(stream_id)?;
+            }
 
             RtmpMessageData::StreamIsRecorded { stream_id } => {
-                self.on_stream_is_recorded(stream_id)?
+                log::info!("[C <- S] on_stream_is_recorded...");
+                self.on_stream_is_recorded(stream_id)?;
             }
 
             RtmpMessageData::AudioData { data } => self.common.on_audio_data(data, timestamp)?,
@@ -250,9 +266,11 @@ impl ClientSession {
         match cmd_name.as_str() {
             "_result" => match transaction_id {
                 define::TRANSACTION_ID_CONNECT => {
+                    log::info!("[C <- S] on_result_connect...");
                     self.on_result_connect().await?;
                 }
                 define::TRANSACTION_ID_CREATE_STREAM => {
+                    log::info!("[C <- S] on_result_create_stream...");
                     self.on_result_create_stream()?;
                 }
                 _ => {}
@@ -302,7 +320,9 @@ impl ClientSession {
             }
         }
 
-        netconnection.write_connect(transaction_id, &properties).await?;
+        netconnection
+            .write_connect(transaction_id, &properties)
+            .await?;
 
         // let mut chunk_info = ChunkInfo::new(
         //     csid_type::COMMAND_AMF0_AMF3,

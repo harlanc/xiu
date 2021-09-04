@@ -169,6 +169,7 @@ impl NetConnection {
                 Amf0ValueType::Number(object_encoding),
             );
         }
+        self.amf0_writer.write_object(&properties_map)?;
 
         self.write_chunk().await
     }
@@ -223,7 +224,10 @@ impl NetConnection {
         self.write_chunk().await
     }
 
-    pub async fn write_create_stream(&mut self, transaction_id: &f64) -> Result<(), NetConnectionError> {
+    pub async fn write_create_stream(
+        &mut self,
+        transaction_id: &f64,
+    ) -> Result<(), NetConnectionError> {
         self.amf0_writer
             .write_string(&String::from("createStream"))?;
         self.amf0_writer.write_number(transaction_id)?;

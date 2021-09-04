@@ -13,7 +13,7 @@ use {
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
         },
         config,
-        handshake::handshake::{HandshakeServer, ServerHandshakeState},
+        handshake::{define::ServerHandshakeState, handshake_server::HandshakeServer},
         messages::{define::RtmpMessageData, parser::MessageParser},
         netconnection::writer::NetConnection,
         netstream::writer::NetStreamWriter,
@@ -118,6 +118,7 @@ impl ServerSession {
                     self.unpacketizer.extend_data(&left_bytes[..]);
                     self.has_remaing_data = true;
                 }
+                log::info!("[ S->C ] [send_set_chunk_size] ");
                 self.send_set_chunk_size().await?;
                 return Ok(());
             }
@@ -334,6 +335,7 @@ impl ServerSession {
         control_message
             .write_window_acknowledgement_size(define::WINDOW_ACKNOWLEDGEMENT_SIZE)
             .await?;
+
         log::info!("[ S->C ] [set set_peer_bandwidth]",);
         control_message
             .write_set_peer_bandwidth(
@@ -359,6 +361,7 @@ impl ServerSession {
         };
 
         let mut netconnection = NetConnection::new(Arc::clone(&self.io));
+        log::info!("[ S->C ] [set connect_response]",);
         netconnection
             .write_connect_response(
                 &transaction_id,
