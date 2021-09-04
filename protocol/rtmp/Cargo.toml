@@ -20,7 +20,7 @@ sha2 = "0.9"
 uuid = { version = "0.6.5", features = ["v4"] }
 
 bytesio = "0.1.27"#{path = "../../library/bytesio/"}
-xflv = "0.0.1"#{path = "../../library/container/flv/"}
+xflv = "0.0.2"#{path = "../../library/container/flv/"}
 
 #bytesio = {path = "../../library/bytesio/"}
 
