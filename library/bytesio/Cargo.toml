@@ -1,6 +1,6 @@
 [package]
 name = "bytesio"
-version = "0.1.26"
+version = "0.1.27"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"
 description = "a network io library using tokio."
@@ -17,11 +17,6 @@ failure = "0.1.1"
 tokio-util = { version = "0.6.5", features = ["codec"] }
 futures = "0.3.5"
 tokio-stream = { version = "0.1" }
-
-# [dependencies.tokio]
-# version = "0.2.21"
-# default-features = false
-# features = ["rt-core", "stream", "sync", "time", "tcp"]
 
 [dependencies.tokio]
 version = "1.4.0"
