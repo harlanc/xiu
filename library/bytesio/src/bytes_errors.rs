@@ -13,6 +13,8 @@ pub enum BytesReadErrorValue {
     EmptyStream,
     #[fail(display = "io error: {}\n", _0)]
     IO(#[cause] io::Error),
+    #[fail(display = "index out of range")]
+    IndexOutofRange,
     // #[fail(display = "elapsed: {}\n", _0)]
     // TimeoutError(#[cause] Elapsed),
 }

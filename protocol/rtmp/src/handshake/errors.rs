@@ -1,6 +1,6 @@
 use {
-    failure::{Backtrace, Fail},
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
+    failure::{Backtrace, Fail},
     std::{fmt, io::Error, time::SystemTimeError},
 };
 
@@ -12,6 +12,8 @@ pub enum HandshakeErrorValue {
     BytesWriteError(BytesWriteError),
     #[fail(display = "system time error: {}\n", _0)]
     SysTimeError(SystemTimeError),
+    #[fail(display = "digest error: {}\n", _0)]
+    DigestError(DigestError),
     #[fail(display = "Digest not found error\n")]
     DigestNotFound,
     #[fail(display = "s0 version not correct error\n")]
@@ -63,6 +65,14 @@ impl From<SystemTimeError> for HandshakeError {
     }
 }
 
+impl From<DigestError> for HandshakeError {
+    fn from(error: DigestError) -> Self {
+        HandshakeError {
+            value: HandshakeErrorValue::DigestError(error),
+        }
+    }
+}
+
 impl fmt::Display for HandshakeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
@@ -70,6 +80,47 @@ impl fmt::Display for HandshakeError {
 }
 
 impl Fail for HandshakeError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
+#[derive(Debug)]
+pub struct DigestError {
+    pub value: DigestErrorValue,
+}
+
+#[derive(Debug, Fail)]
+pub enum DigestErrorValue {
+    #[fail(display = "bytes read error: {}\n", _0)]
+    BytesReadError(BytesReadError),
+    #[fail(display = "digest length not correct\n")]
+    DigestLengthNotCorrect,
+    #[fail(display = "cannot generate digest\n")]
+    CannotGenerate,
+    #[fail(display = "unknow schema\n")]
+    UnknowSchema,
+}
+
+impl From<BytesReadError> for DigestError {
+    fn from(error: BytesReadError) -> Self {
+        DigestError {
+            value: DigestErrorValue::BytesReadError(error),
+        }
+    }
+}
+
+impl fmt::Display for DigestError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for DigestError {
     fn cause(&self) -> Option<&dyn Fail> {
         self.value.cause()
     }
