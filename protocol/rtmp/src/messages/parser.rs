@@ -36,6 +36,13 @@ impl MessageParser {
                 let command_name = amf_reader.read_with_type(amf0_markers::STRING)?;
                 let transaction_id = amf_reader.read_with_type(amf0_markers::NUMBER)?;
 
+                // match command_name.clone() {
+                //     Amf0ValueType::UTF8String(val) => {
+                //         log::info!("command_name:{}", val);
+                //     }
+                //     _ => {}
+                // }
+
                 //The third value can be an object or NULL object
                 let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
                 let command_obj = match command_obj_raw {
