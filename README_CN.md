@@ -197,5 +197,5 @@ Xiu是用纯rust开发的一款强大和安全的流媒体服务器，目前支�
 
 ## 其它
 
-个人能力和精力有限，非常欢迎热爱音视频流媒体和Rust的攻城狮们关注此项目，提bug，发pull request。微信号：harlancc
+有任何问题请在issues提问，欢迎star和提pull request。微信号：harlancc
  
