@@ -4,6 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
 
+[中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
 Xiu is a powerful and secure live server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTPFLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using relay feature.
 
