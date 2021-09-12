@@ -6,7 +6,7 @@
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
-Xiu is a powerful and secure live server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTPFLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using relay feature.
+Xiu is a simple and secure live server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTPFLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using relay feature.
 
 ## Features
 
