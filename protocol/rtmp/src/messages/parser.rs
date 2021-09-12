@@ -23,8 +23,8 @@ impl MessageParser {
             chunk_info: chunk_info,
         }
     }
-    pub fn parse(&mut self) -> Result<RtmpMessageData, MessageError> {
-        let mut reader = BytesReader::new(self.chunk_info.payload.clone());
+    pub fn parse(self) -> Result<RtmpMessageData, MessageError> {
+        let mut reader = BytesReader::new(self.chunk_info.payload);
 
         match self.chunk_info.message_header.msg_type_id {
             msg_type_id::COMMAND_AMF0 | msg_type_id::COMMAND_AMF3 => {
@@ -67,7 +67,7 @@ impl MessageParser {
                 );
 
                 return Ok(RtmpMessageData::AudioData {
-                    data: self.chunk_info.payload.clone(),
+                    data: reader.extract_remaining_bytes(),
                 });
             }
             msg_type_id::VIDEO => {
@@ -76,7 +76,7 @@ impl MessageParser {
                     self.chunk_info.message_header.msg_length
                 );
                 return Ok(RtmpMessageData::VideoData {
-                    data: self.chunk_info.payload.clone(),
+                    data: reader.extract_remaining_bytes(),
                 });
             }
             msg_type_id::USER_CONTROL_EVENT => {
@@ -122,7 +122,7 @@ impl MessageParser {
             msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
                 //let values = Amf0Reader::new(reader).read_all()?;
                 return Ok(RtmpMessageData::AmfData {
-                    raw_data: self.chunk_info.payload.clone(),
+                    raw_data: reader.extract_remaining_bytes(),
                 });
             }
 

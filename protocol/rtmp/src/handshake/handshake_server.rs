@@ -317,7 +317,7 @@ impl HandshakeServer {
                         //println!("Complex handshake is successfully!!")
                     }
                     Err(err) => {
-                        log::error!("complex handshake failed.. err:{}", err);
+                        log::warn!("complex handshake failed.. err:{}", err);
                         self.is_complex = false;
                         let data = self.saved_data.clone();
                         self.extend_data(&data[..]);

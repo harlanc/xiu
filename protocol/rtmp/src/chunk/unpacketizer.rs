@@ -81,10 +81,9 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_chunks(&mut self) -> Result<UnpackResult, UnpackError> {
-        let dt = Local::now();
         log::trace!(
             "read chunks begin, current time: {}, and read state: {}",
-            dt.timestamp_nanos(),
+            Local::now().timestamp_nanos(),
             f(&self.chunk_read_state)
         );
 
@@ -115,7 +114,7 @@ impl ChunkUnpacketizer {
 
         log::trace!(
             "read chunks end, current time: {}, and read state: {}",
-            dt.timestamp_nanos(),
+            Local::now().timestamp_nanos(),
             f(&self.chunk_read_state)
         );
 
@@ -139,10 +138,9 @@ impl ChunkUnpacketizer {
     pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
         let mut result: UnpackResult = UnpackResult::Empty;
 
-        let dt: DateTime<Local> = Local::now();
         log::trace!(
             "read chunk begin, current time: {}, and read state: {}, and chunk index: {}",
-            dt.timestamp_nanos(),
+            Local::now().timestamp_nanos(),
             f(&self.chunk_read_state),
             self.chunk_index,
         );
@@ -164,7 +162,7 @@ impl ChunkUnpacketizer {
 
         log::trace!(
             "read chunk end, current time: {}, and read state: {}, and chunk index: {}",
-            dt.timestamp_nanos(),
+            Local::now().timestamp_nanos(),
             f(&self.chunk_read_state),
             self.chunk_index,
         );
