@@ -5,7 +5,7 @@
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
 
 
-Xiu是用纯rust开发的一款强大和安全的流媒体服务器，目前支持流行的流媒体协议包括RTMP/HLS/HTTPFLV（将来有可能支持其它协议），可以单点部署，也可以用relay功能来部署集群。
+Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支持流行的流媒体协议包括RTMP/HLS/HTTPFLV（将来有可能支持其它协议），可以单点部署，也可以用relay功能来部署集群。
 
 ## 功能
 
