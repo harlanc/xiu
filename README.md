@@ -3,6 +3,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
+[![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/jz2pMPNY)
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
