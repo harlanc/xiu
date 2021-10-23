@@ -3,6 +3,9 @@
 
 [![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
+[![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/gS5wBRtpcB)
+![wechat](https://img.shields.io/:微信-harlancc-blue.svg)
+![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
 
 
 Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支持流行的流媒体协议包括RTMP/HLS/HTTPFLV（将来有可能支持其它协议），可以单点部署，也可以用relay功能来部署集群。

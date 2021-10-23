@@ -3,7 +3,9 @@
 
 [![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
-[![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/jz2pMPNY)
+[![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/gS5wBRtpcB)
+![wechat](https://img.shields.io/:微信-harlancc-blue.svg)
+![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
