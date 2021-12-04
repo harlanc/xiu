@@ -17,7 +17,7 @@ failure = "0.1.1"
 log = "0.4"
 uuid = { version = "0.6.5", features = ["v4"] }
 
-xflv = "0.0.2"#{path = "../../library/container/flv/"}
+xflv = "0.0.3"#{path = "../../library/container/flv/"}
 rtmp = "0.0.9"#{path = "../rtmp/"}#"0.0.4"
 # xflv = {path = "../../library/container/flv/"}
 # rtmp = {path = "../rtmp/"}#"0.0.4"
