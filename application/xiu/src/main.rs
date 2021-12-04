@@ -216,6 +216,7 @@ impl Service {
                     log::error!("hls server error: {}\n", err);
                 }
             });
+            channel.set_hls_enabled(true);
         }
 
         Ok(())
