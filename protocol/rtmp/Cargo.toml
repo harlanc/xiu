@@ -1,7 +1,7 @@
 [package]
 name = "rtmp"
 description = "rtmp library."
-version = "0.0.9"
+version = "0.0.10"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -20,7 +20,7 @@ sha2 = "0.9"
 uuid = { version = "0.6.5", features = ["v4"] }
 
 bytesio = "0.1.27"#{path = "../../library/bytesio/"}
-xflv = "0.0.2"#{path = "../../library/container/flv/"}
+xflv = "0.0.3"#{path = "../../library/container/flv/"}
 
 #bytesio = {path = "../../library/bytesio/"}
 
