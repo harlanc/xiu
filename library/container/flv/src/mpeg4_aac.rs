@@ -82,10 +82,10 @@ impl Mpeg4AacProcessor {
     }
 
     pub fn audio_specific_config_load(&mut self) -> Result<(), MpegAacError> {
-        let byte_0 = self.bytes_reader.advance_u8()?;
+        let byte_0 = self.bytes_reader.read_u8()?;
         self.mpeg4_aac.profile = (byte_0 >> 3) & 0x1F;
 
-        let byte_1 = self.bytes_reader.advance_u8()?;
+        let byte_1 = self.bytes_reader.read_u8()?;
         self.mpeg4_aac.sampling_frequency_index = ((byte_0 & 0x07) << 1) | ((byte_1 >> 7) & 0x01);
         self.mpeg4_aac.channel_configuration = (byte_1 >> 3) & 0x0F;
         self.mpeg4_aac.channels = self.mpeg4_aac.channel_configuration;
@@ -93,11 +93,11 @@ impl Mpeg4AacProcessor {
             AAC_FREQUENCE[self.mpeg4_aac.sampling_frequency_index as usize];
 
         // if self.bytes_reader.len() > 2 {
-        //     return self.audio_specific_config_load2();
+            //return self.audio_specific_config_load2();
         // }
 
-        self.bytes_reader.read_u8()?;
-        self.bytes_reader.read_u8()?;
+        // self.bytes_reader.read_u8()?;
+        // self.bytes_reader.read_u8()?;
 
         self.bytes_reader.extract_remaining_bytes();
 
