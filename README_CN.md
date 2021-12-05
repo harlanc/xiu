@@ -42,7 +42,7 @@ Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支�
     
 执行下面的命令来启动服务:
 
-    xiu configuration_file_path/confit.toml
+    xiu configuration_file_path/config.toml
     
 ### 源码编译安装
 
@@ -128,7 +128,7 @@ Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支�
 
 可以用任何推流软件或者命令工具来推RTMP流，比如使用OBS或者用ffmpeg命令行：
 
-    ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test110
+    ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test
 
 
 ##### 播放
