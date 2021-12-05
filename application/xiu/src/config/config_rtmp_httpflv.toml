@@ -1,0 +1,20 @@
+#live server configurations
+#######################################
+#   RTMP configurations(stand-alone)  #
+#######################################
+[rtmp]
+enabled = true
+port = 1935
+
+########################################
+# HTTPFLV configurations               #
+########################################
+[httpflv]
+enabled = true
+port = 8081
+
+#######################################
+#   LOG configurations                #
+#######################################
+[log]
+level = "info"
