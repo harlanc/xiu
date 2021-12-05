@@ -103,6 +103,19 @@ use master branch
 
     [log]
     level = "info"
+    
+### Configuration examples
+
+I edit some configuration files under the following path which can be used directly:
+
+    xiu/application/xiu/src/config
+
+It contains the following 4 files:
+
+    config_rtmp.toml //enable rtmp only
+    config_rtmp_hls.toml //enable rtmp and hls
+    config_rtmp_httpflv.toml //enable rtmp and httpflv
+    config_rtmp_httpflv_hls.toml //enable all the 3 protocols
 
     
 

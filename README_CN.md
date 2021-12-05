@@ -107,6 +107,18 @@ Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支�
     [log]
     level = "info"
 
+### 一些配置的例子
+
+有一些现成的配置文件放在下面的目录：
+
+    xiu/application/xiu/src/config
+
+包括4个配置文件：
+
+    config_rtmp.toml //只打开rtmp
+    config_rtmp_hls.toml //打开 rtmp 和 hls
+    config_rtmp_httpflv.toml //打开 rtmp 和 httpflv
+    config_rtmp_httpflv_hls.toml //打开所有的 3 个协议
     
 
     

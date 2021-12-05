@@ -1,0 +1,13 @@
+#live server configurations
+##########################
+#   RTMP configurations  #
+##########################
+[rtmp]
+enabled = true
+port = 1935
+
+##########################
+#   LOG configurations   #
+##########################
+[log]
+level = "info"
