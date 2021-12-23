@@ -104,6 +104,18 @@ impl M3u8 {
         Ok(())
     }
 
+    pub fn clear(&mut self) -> Result<(), MediaError> {
+        //clear ts
+        for segment in &self.segments {
+            self.ts_handler.delete(segment.path.clone());
+        }
+        //clear m3u8
+        let m3u8_path = format!("{}/{}", self.m3u8_folder, self.m3u8_name);
+        fs::remove_file(m3u8_path)?;
+
+        Ok(())
+    }
+
     pub fn generate_m3u8_header(&mut self) -> Result<(), MediaError> {
         self.is_header_generated = true;
 

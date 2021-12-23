@@ -67,6 +67,8 @@ impl FlvDataReceiver {
     }
 
     pub async fn receive_flv_data(&mut self) -> Result<(), HlsError> {
+        let mut retry_count = 0;
+
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 let flv_data: FlvData;
@@ -80,10 +82,23 @@ impl FlvDataReceiver {
                     }
                     _ => continue,
                 }
-
+                retry_count = 0;
                 self.media_processor.process_flv_data(flv_data)?;
+            } else {
+                sleep(Duration::from_millis(100)).await;
+                retry_count += 1;
+            }
+            //When rtmp stream is interupted here we retry 10 times.
+            //maybe have a better way to judge the stream status.
+            //will do an optimization in the future.
+            //todo
+            if retry_count > 10 {
+                break;
             }
         }
+
+        self.media_processor.clear_files()?;
+        self.unsubscribe_from_rtmp_channels().await
     }
 
     pub fn flush_response_data(&mut self) -> Result<(), HlsError> {
@@ -144,6 +159,24 @@ impl FlvDataReceiver {
 
             sleep(Duration::from_millis(800)).await;
             retry_count = retry_count + 1;
+        }
+
+        Ok(())
+    }
+
+    pub async fn unsubscribe_from_rtmp_channels(&mut self) -> Result<(), HlsError> {
+        let session_info = SessionInfo {
+            subscriber_id: self.subscriber_id,
+            session_sub_type: SessionSubType::Player,
+        };
+
+        let subscribe_event = ChannelEvent::UnSubscribe {
+            app_name: self.app_name.clone(),
+            stream_name: self.stream_name.clone(),
+            session_info,
+        };
+        if let Err(err) = self.event_producer.send(subscribe_event) {
+            log::error!("unsubscribe_from_channels err {}\n", err);
         }
 
         Ok(())
