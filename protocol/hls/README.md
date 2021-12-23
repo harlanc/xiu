@@ -13,3 +13,10 @@ Reference xmpegts version v0.0.2
 ## v0.0.4
 
 Reference rtmp version v0.0.8
+
+
+## v0.0.8
+
+- fix #16
+- clear ts ans m3u8 files when the rtmp streasm is interupted.
+

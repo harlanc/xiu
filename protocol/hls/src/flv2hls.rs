@@ -177,4 +177,8 @@ impl Flv2HlsRemuxer {
 
         Ok(())
     }
+
+    pub fn clear_files(&mut self) -> Result<(), MediaError> {
+        self.m3u8_handler.clear()
+    }
 }
