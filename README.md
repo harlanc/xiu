@@ -1,4 +1,7 @@
-# XIU
+
+
+
+![](https://user-images.githubusercontent.com/10411078/149528881-52b6343a-2600-4064-80e8-064c60f96aff.png)
 
 
 [![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
@@ -6,6 +9,8 @@
 [![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/gS5wBRtpcB)
 ![wechat](https://img.shields.io/:微信-harlancc-blue.svg)
 ![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
+
+# XIU
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
