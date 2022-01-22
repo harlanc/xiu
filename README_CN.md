@@ -1,14 +1,27 @@
-# XIU
+<p align="center" width="100%">
+    <img width="38%" src="https://user-images.githubusercontent.com/10411078/149529602-7dcbaf26-55cd-4588-8989-206b76d32f07.png">
+</p>
 
 
-[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
+![XIU](https://img.shields.io/:XIU-blue.svg)[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
+[![crates.io](https://img.shields.io/crates/d/xiu.svg)](https://crates.io/crates/xiu)
+![RTMP](https://img.shields.io/:RTMP-blue.svg)[![crates.io](https://img.shields.io/crates/v/rtmp.svg)](https://crates.io/crates/rtmp)
+[![crates.io](https://img.shields.io/crates/d/rtmp.svg)](https://crates.io/crates/rtmp)
+![HTTPFLV](https://img.shields.io/:HTTPFLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/httpflv.svg)](https://crates.io/crates/httpflv)
+[![crates.io](https://img.shields.io/crates/d/httpflv.svg)](https://crates.io/crates/httpflv)
+![HLS](https://img.shields.io/:HLS-blue.svg)[![crates.io](https://img.shields.io/crates/v/hls.svg)](https://crates.io/crates/hls)
+[![crates.io](https://img.shields.io/crates/d/hls.svg)](https://crates.io/crates/hls)
+![FLV](https://img.shields.io/:FLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/xflv.svg)](https://crates.io/crates/xflv)
+[![crates.io](https://img.shields.io/crates/d/xflv.svg)](https://crates.io/crates/xflv)
+![MPEGTS](https://img.shields.io/:MPEGTS-blue.svg)[![crates.io](https://img.shields.io/crates/v/xmpegts.svg)](https://crates.io/crates/xmpegts)
+[![crates.io](https://img.shields.io/crates/d/xmpegts.svg)](https://crates.io/crates/xmpegts)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
 [![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/gS5wBRtpcB)
 ![wechat](https://img.shields.io/:微信-harlancc-blue.svg)
 ![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
 
 
-Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支持流行的流媒体协议包括RTMP/HLS/HTTPFLV（将来有可能支持其它协议），可以单点部署，也可以用relay功能来部署集群。
+XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持流行的三大流媒体协议包括RTMP/HLS/HTTPFLV（将来有可能支持其它协议），可以单点部署，也可以用relay功能来部署集群。
 
 ## 功能
 
@@ -18,7 +31,6 @@ Xiu是用纯rust开发的一款简单和安全的流媒体服务器，目前支�
 - [x] HTTPFLV
 - [x] HLS
 - [ ] SRT
-
 
 ## 准备工作
 #### 安装 Rust and Cargo

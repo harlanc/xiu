@@ -6,8 +6,18 @@
 </p>
 
 
-
-[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
+![XIU](https://img.shields.io/:XIU-blue.svg)[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
+[![crates.io](https://img.shields.io/crates/d/xiu.svg)](https://crates.io/crates/xiu)
+![RTMP](https://img.shields.io/:RTMP-blue.svg)[![crates.io](https://img.shields.io/crates/v/rtmp.svg)](https://crates.io/crates/rtmp)
+[![crates.io](https://img.shields.io/crates/d/rtmp.svg)](https://crates.io/crates/rtmp)
+![HTTPFLV](https://img.shields.io/:HTTPFLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/httpflv.svg)](https://crates.io/crates/httpflv)
+[![crates.io](https://img.shields.io/crates/d/httpflv.svg)](https://crates.io/crates/httpflv)
+![HLS](https://img.shields.io/:HLS-blue.svg)[![crates.io](https://img.shields.io/crates/v/hls.svg)](https://crates.io/crates/hls)
+[![crates.io](https://img.shields.io/crates/d/hls.svg)](https://crates.io/crates/hls)
+![FLV](https://img.shields.io/:FLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/xflv.svg)](https://crates.io/crates/xflv)
+[![crates.io](https://img.shields.io/crates/d/xflv.svg)](https://crates.io/crates/xflv)
+![MPEGTS](https://img.shields.io/:MPEGTS-blue.svg)[![crates.io](https://img.shields.io/crates/v/xmpegts.svg)](https://crates.io/crates/xmpegts)
+[![crates.io](https://img.shields.io/crates/d/xmpegts.svg)](https://crates.io/crates/xmpegts)
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
 [![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/gS5wBRtpcB)
 ![wechat](https://img.shields.io/:微信-harlancc-blue.svg)
@@ -17,7 +27,7 @@
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
-Xiu is a simple and secure live server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTPFLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using relay feature.
+Xiu is a simple and secure live media server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTP-FLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using the relay feature.
 
 ## Features
 
@@ -28,7 +38,6 @@ Xiu is a simple and secure live server written by pure Rust, it now supports pop
 - [x] HTTPFLV
 - [x] HLS
 - [ ] SRT
-
 
 ## Preparation
 #### Install Rust and Cargo
