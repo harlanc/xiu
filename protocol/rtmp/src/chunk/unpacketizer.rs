@@ -418,8 +418,7 @@ impl ChunkUnpacketizer {
             }
             1 => {
                 if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp =
-                        self.current_message_header().timestamp - 0xFFFFFF + extended_timestamp;
+                    self.current_message_header().timestamp += (extended_timestamp - 0xFFFFFF);
                 } else {
                     self.current_message_header().timestamp +=
                         self.current_message_header().timestamp_delta;
