@@ -21,8 +21,8 @@ chrono = "0.4"
 failure = "0.1.1"
 
 rtmp = "0.0.12"#{path = "../../protocol/rtmp/"}#"0.0.4"
-httpflv = "0.0.5"#{path = "../../protocol/httpflv/"}
-hls = "0.0.8"#{path = "../../protocol/hls/"}
+httpflv = "0.0.6"#{path = "../../protocol/httpflv/"}
+hls = "0.0.9"#{path = "../../protocol/hls/"}
 
 # rtmp = {path = "../../protocol/rtmp/"}#"0.0.4"
 # httpflv = {path = "../../protocol/httpflv/"}
