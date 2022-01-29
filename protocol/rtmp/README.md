@@ -35,7 +35,7 @@ refactor some codes,update dependencies
 - fix bugs;
 - refactor handshake mod;
 
-## v0.0.11
+## v0.0.12
 
 - Fix overflow error.[#17]
 
