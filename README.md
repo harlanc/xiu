@@ -230,5 +230,5 @@ Use the above methods to push live stream to service 1, when you play the stream
 
 ## Others
 
-Open issues if you have any problems. Star and pull requests are welcomed.
+Open issues if you have any problems. Star and pull requests are welcomed. Your stars can make this project go faster and further.
  

@@ -224,5 +224,5 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
 ## 其它
 
-有任何问题请在issues提问，欢迎star和提pull request。微信号：harlancc
+有任何问题请在issues提问，欢迎star和提pull request。你的关注可以让此项目走的更快更远。
  
