@@ -155,8 +155,8 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 
 - add introductions and example codes in doc
 
-# IN THE END
+# In the end
 
-Star the project if you like and this can make this project go faster and further.
+Star the project if you like and which can make it go faster and further.
 
 
