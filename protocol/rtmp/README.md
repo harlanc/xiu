@@ -155,8 +155,10 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 
 - add introductions and example codes in doc
 
-# In the end
+## v0.0.14
 
-Star the project if you like and which can make it go faster and further.
+- fix handshake error.[#23]
+
+
 
 
