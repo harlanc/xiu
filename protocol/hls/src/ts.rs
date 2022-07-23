@@ -24,10 +24,10 @@ impl Ts {
     pub fn write(&mut self, data: BytesMut, partial: bool) -> Result<(String, String), MediaError> {
         let ts_file_name = format!(
             "{}{}.ts",
-            self.ts_number,
+            self.ts_number.clone(),
             if partial {
                 self.pts_number += 1;
-                format!("{}.", self.pts_number)
+                format!(".{}", self.pts_number)
             } else {
                 self.pts_number = 0;
                 self.ts_number += 1;

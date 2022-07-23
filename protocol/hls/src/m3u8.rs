@@ -12,6 +12,7 @@ pub struct Segment {
     name: String,
     path: String,
     is_eof: bool,
+    is_partial: bool,
 }
 
 impl Segment {
@@ -21,6 +22,7 @@ impl Segment {
         name: String,
         path: String,
         is_eof: bool,
+        is_partial: bool,
     ) -> Self {
         Self {
             duration,
@@ -28,6 +30,7 @@ impl Segment {
             name,
             path,
             is_eof,
+            is_partial,
         }
     }
 }
@@ -67,7 +70,7 @@ impl M3u8 {
         let m3u8_folder = format!("./{}/{}", app_name, stream_name);
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
         Self {
-            version: 3,
+            version: 6,
             sequence_no: 0,
             duration,
             is_live: true,
@@ -100,7 +103,7 @@ impl M3u8 {
         self.duration = std::cmp::max(duration, self.duration);
 
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, false)?;
-        let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof);
+        let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof, false);
         self.segments.push_back(segment);
 
         Ok(())
@@ -115,6 +118,9 @@ impl M3u8 {
         let cur_partial_seg = self.partial_segments.len();
 
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, true)?;
+        let segment = Segment::new(duration, false, ts_name, ts_path, false, true);
+        self.segments.push_back(segment);
+
         Ok(())
     }
 
@@ -144,6 +150,11 @@ impl M3u8 {
         self.m3u8_header += format!("#EXT-X-VERSION:{}\n", self.version).as_str();
         self.m3u8_header +=
             format!("#EXT-X-TARGETDURATION:{}\n", (self.duration + 999) / 1000).as_str();
+        self.m3u8_header += format!(
+            "#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,PART-HOLD-BACK={}\n",
+            1.5
+        )
+        .as_str();
         self.m3u8_header += format!("#EXT-X-MEDIA-SEQUENCE:{}\n", self.sequence_no).as_str();
         self.m3u8_header += playlist_type;
         self.m3u8_header += allow_cache;
@@ -159,12 +170,21 @@ impl M3u8 {
             if segment.discontinuity {
                 m3u8_content += "#EXT-X-DISCONTINUITY\n";
             }
-            m3u8_content += format!(
-                "#EXTINF:{:.3}\n{}\n",
-                segment.duration as f64 / 1000.0,
-                segment.name
-            )
-            .as_str();
+            if segment.is_partial {
+                m3u8_content += format!(
+                    "#EXT-X-PART:DURATION={:.3},URI=\"{}\"\n",
+                    segment.duration as f64 / 1000.0,
+                    segment.name
+                )
+                .as_str();
+            } else {
+                m3u8_content += format!(
+                    "#EXTINF:{:.3}\n{}\n",
+                    segment.duration as f64 / 1000.0,
+                    segment.name
+                )
+                .as_str();
+            }
 
             if segment.is_eof {
                 m3u8_content += "#EXT-X-ENDLIST\n";

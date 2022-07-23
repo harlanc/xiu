@@ -148,7 +148,7 @@ impl Flv2HlsRemuxer {
                     flags = MPEG_FLAG_IDR_FRAME;
                     if dts - self.last_ts_dts >= self.duration * 1000 {
                         self.need_new_segment = true;
-                    } else if self.last_ts_dts >= self.partial_seg_duration {
+                    } else if dts - self.last_partial_ts_dts >= self.partial_seg_duration {
                         self.need_new_partial_segment = true;
                     }
                 }
@@ -175,6 +175,7 @@ impl Flv2HlsRemuxer {
 
             self.m3u8_handler
                 .add_partial_segment(dts - self.last_partial_ts_dts, d)?;
+            self.m3u8_handler.refresh_playlist()?;
 
             self.last_partial_ts_dts = dts;
         }
