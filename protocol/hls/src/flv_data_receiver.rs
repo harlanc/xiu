@@ -2,6 +2,7 @@ use {
     super::{
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
+        hls_event_manager::HlsEventProducer,
     },
     rtmp::channels::define::{
         ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer,
@@ -29,7 +30,6 @@ use {
 pub struct FlvDataReceiver {
     app_name: String,
     stream_name: String,
-
     event_producer: ChannelEventProducer,
     data_consumer: ChannelDataConsumer,
     media_processor: Flv2HlsRemuxer,
@@ -41,6 +41,7 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
         event_producer: ChannelEventProducer,
+        hls_event_tx: HlsEventProducer,
 
         duration: i64,
     ) -> Self {
@@ -53,7 +54,13 @@ impl FlvDataReceiver {
 
             data_consumer,
             event_producer,
-            media_processor: Flv2HlsRemuxer::new(duration, 500, app_name, stream_name),
+            media_processor: Flv2HlsRemuxer::new(
+                hls_event_tx,
+                duration,
+                500,
+                app_name,
+                stream_name,
+            ),
             subscriber_id,
         }
     }

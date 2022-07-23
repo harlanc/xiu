@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
@@ -17,6 +18,7 @@ use {
 };
 
 //use application::logger::logger;
+use hls::hls_event_manager::HlsEventManager;
 use hls::rtmp_event_processor::RtmpEventProcessor;
 
 #[tokio::main]
@@ -39,7 +41,7 @@ async fn main() -> Result<()> {
             if let Some(log_config_value) = &val.log {
                 env::set_var("RUST_LOG", log_config_value.level.clone());
             } else {
-            env::set_var("RUST_LOG", "info");
+                env::set_var("RUST_LOG", "info");
             }
 
             // let mut builder = Builder::from_default_env();
@@ -196,10 +198,16 @@ impl Service {
                 return Ok(());
             }
 
+            let hls_manager = HlsEventManager::new();
+            let hls_dispatch = hls_manager.setup_dispatch_channel();
+
             let event_producer = channel.get_session_event_producer().clone();
-            let cient_event_consumer = channel.get_client_event_consumer();
-            let mut rtmp_event_processor =
-                RtmpEventProcessor::new(cient_event_consumer, event_producer);
+            let client_event_consumer = channel.get_client_event_consumer();
+            let mut rtmp_event_processor = RtmpEventProcessor::new(
+                client_event_consumer,
+                event_producer,
+                hls_dispatch.clone(),
+            );
 
             tokio::spawn(async move {
                 if let Err(err) = rtmp_event_processor.run().await {
@@ -211,7 +219,7 @@ impl Service {
             let port = hls_cfg_value.port;
 
             tokio::spawn(async move {
-                if let Err(err) = hls_server::run(port).await {
+                if let Err(err) = hls_server::run(port, hls_dispatch.clone()).await {
                     //print!("push client error {}\n", err);
                     log::error!("hls server error: {}\n", err);
                 }

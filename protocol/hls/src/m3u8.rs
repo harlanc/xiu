@@ -1,5 +1,5 @@
 use {
-    super::{errors::MediaError, ts::Ts},
+    super::{errors::MediaError, hls_event_manager::HlsEventProducer, ts::Ts},
     bytes::BytesMut,
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
@@ -36,6 +36,7 @@ impl Segment {
 }
 
 pub struct M3u8 {
+    hls_event_tx: HlsEventProducer,
     version: u16,
     sequence_no: u64,
     /*What duration should media files be?
@@ -61,6 +62,7 @@ pub struct M3u8 {
 
 impl M3u8 {
     pub fn new(
+        hls_event_tx: HlsEventProducer,
         duration: i64,
         live_ts_count: usize,
         name: String,
@@ -70,6 +72,7 @@ impl M3u8 {
         let m3u8_folder = format!("./{}/{}", app_name, stream_name);
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
         Self {
+            hls_event_tx: hls_event_tx.clone(),
             version: 6,
             sequence_no: 0,
             duration,

@@ -23,11 +23,11 @@ rtmp = "0.0.14"#{path = "../rtmp/"}#"0.0.4"
 # rtmp = {path = "../rtmp/"}#"0.0.4"
 xmpegts = "0.0.3"#{path = "../../library/container/mpegts/"}
 
-
+url = "2.2.2"
 hyper = { version = "0.14", features = ["full"] }
 tokio-util = { version = "0.6.5", features = ["codec"] }
 
 [dependencies.tokio]
-version = "1.4.0"
+version = "1.20.0"
 default-features = false
 features = ["full"]

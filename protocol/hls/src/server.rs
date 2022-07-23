@@ -1,8 +1,11 @@
+use crate::hls_event_manager::DispatchEventProducer;
 use {
+    super::hls_event_manager::HlsEventManager,
     hyper::{
         service::{make_service_fn, service_fn},
         Body, Request, Response, Server, StatusCode,
     },
+    std::collections::HashMap,
     tokio::fs::File,
     tokio_util::codec::{BytesCodec, FramedRead},
 };
@@ -13,6 +16,15 @@ static NOTFOUND: &[u8] = b"Not Found";
 
 async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
     let path = req.uri().path();
+    let directives = req
+        .uri()
+        .query()
+        .map(|v| {
+            url::form_urlencoded::parse(v.as_bytes())
+                .into_owned()
+                .collect()
+        })
+        .unwrap_or_else(HashMap::new);
 
     let mut file_path: String = String::from("");
 
@@ -77,7 +89,7 @@ async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
     Ok(not_found())
 }
 
-pub async fn run(port: u32) -> Result<()> {
+pub async fn run(port: u32, hls_dispatch: DispatchEventProducer) -> Result<()> {
     let listen_address = format!("0.0.0.0:{}", port);
     let sock_addr = listen_address.parse().unwrap();
 

@@ -1,5 +1,7 @@
 use {
-    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8},
+    super::{
+        define::FlvDemuxerData, errors::MediaError, hls_event_manager::HlsEventProducer, m3u8::M3u8,
+    },
     bytes::BytesMut,
     xflv::{
         define::{frame_type, FlvData},
@@ -37,6 +39,7 @@ pub struct Flv2HlsRemuxer {
 
 impl Flv2HlsRemuxer {
     pub fn new(
+        hls_event_tx: HlsEventProducer,
         duration: i64,
         partial_seg_duration: i64,
         app_name: String,
@@ -74,6 +77,7 @@ impl Flv2HlsRemuxer {
             audio_pid,
 
             m3u8_handler: M3u8::new(
+                hls_event_tx,
                 duration,
                 6,
                 m3u8_name,
