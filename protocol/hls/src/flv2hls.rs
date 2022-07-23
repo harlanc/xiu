@@ -18,13 +18,16 @@ pub struct Flv2HlsRemuxer {
     ts_muxer: TsMuxer,
 
     last_ts_dts: i64,
+    last_partial_ts_dts: i64,
     last_ts_pts: i64,
 
     last_dts: i64,
     last_pts: i64,
 
     duration: i64,
+    partial_seg_duration: i64,
     need_new_segment: bool,
+    need_new_partial_segment: bool,
 
     video_pid: u16,
     audio_pid: u16,
@@ -33,7 +36,12 @@ pub struct Flv2HlsRemuxer {
 }
 
 impl Flv2HlsRemuxer {
-    pub fn new(duration: i64, app_name: String, stream_name: String) -> Self {
+    pub fn new(
+        duration: i64,
+        partial_seg_duration: i64,
+        app_name: String,
+        stream_name: String,
+    ) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
@@ -51,13 +59,16 @@ impl Flv2HlsRemuxer {
             ts_muxer,
 
             last_ts_dts: 0,
+            last_partial_ts_dts: 0,
             last_ts_pts: 0,
 
             last_dts: 0,
             last_pts: 0,
 
             duration,
+            partial_seg_duration,
             need_new_segment: false,
+            need_new_partial_segment: false,
 
             video_pid,
             audio_pid,
@@ -114,6 +125,7 @@ impl Flv2HlsRemuxer {
         flv_demux_data: &FlvDemuxerData,
     ) -> Result<(), MediaError> {
         self.need_new_segment = false;
+        self.need_new_partial_segment = false;
 
         let pid: u16;
         let pts: i64;
@@ -136,6 +148,8 @@ impl Flv2HlsRemuxer {
                     flags = MPEG_FLAG_IDR_FRAME;
                     if dts - self.last_ts_dts >= self.duration * 1000 {
                         self.need_new_segment = true;
+                    } else if self.last_ts_dts >= self.partial_seg_duration {
+                        self.need_new_partial_segment = true;
                     }
                 }
             }
@@ -150,6 +164,19 @@ impl Flv2HlsRemuxer {
                 payload.extend_from_slice(&data.data[..]);
             }
             _ => return Ok(()),
+        }
+
+        if self.need_new_partial_segment {
+            println!("nnps?: {}", self.need_new_partial_segment)
+        }
+
+        if self.need_new_partial_segment {
+            let d = self.ts_muxer.get_data();
+
+            self.m3u8_handler
+                .add_partial_segment(dts - self.last_partial_ts_dts, d)?;
+
+            self.last_partial_ts_dts = dts;
         }
 
         if self.need_new_segment {

@@ -6,6 +6,7 @@ use {
 
 pub struct Ts {
     ts_number: u32,
+    pts_number: u32,
     folder_name: String,
 }
 
@@ -16,13 +17,24 @@ impl Ts {
 
         Self {
             ts_number: 0,
+            pts_number: 0,
             folder_name,
         }
     }
-    pub fn write(&mut self, data: BytesMut) -> Result<(String, String), MediaError> {
-        let ts_file_name = format!("{}.ts", self.ts_number);
+    pub fn write(&mut self, data: BytesMut, partial: bool) -> Result<(String, String), MediaError> {
+        let ts_file_name = format!(
+            "{}{}.ts",
+            self.ts_number,
+            if partial {
+                self.pts_number += 1;
+                format!("{}.", self.pts_number)
+            } else {
+                self.pts_number = 0;
+                self.ts_number += 1;
+                String::from("")
+            },
+        );
         let ts_file_path = format!("{}/{}", self.folder_name, ts_file_name);
-        self.ts_number += 1;
 
         let mut ts_file_handler = File::create(ts_file_path.clone())?;
         ts_file_handler.write_all(&data[..])?;

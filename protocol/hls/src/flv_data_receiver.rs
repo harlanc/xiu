@@ -53,7 +53,7 @@ impl FlvDataReceiver {
 
             data_consumer,
             event_producer,
-            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name),
+            media_processor: Flv2HlsRemuxer::new(duration, 500, app_name, stream_name),
             subscriber_id,
         }
     }

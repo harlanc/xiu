@@ -22,7 +22,7 @@ failure = "0.1.1"
 
 rtmp = "0.0.14"#{path = "../../protocol/rtmp/"}#"0.0.4"
 httpflv = "0.0.7"#{path = "../../protocol/httpflv/"}
-hls = "0.0.10"#{path = "../../protocol/hls/"}
+hls = {path = "../../protocol/hls/"}
 
 # rtmp = {path = "../../protocol/rtmp/"}#"0.0.4"
 # httpflv = {path = "../../protocol/httpflv/"}

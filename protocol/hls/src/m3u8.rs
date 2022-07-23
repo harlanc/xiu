@@ -46,6 +46,7 @@ pub struct M3u8 {
     live_ts_count: usize,
 
     segments: VecDeque<Segment>,
+    partial_segments: VecDeque<Segment>,
     is_header_generated: bool,
 
     m3u8_header: String,
@@ -72,6 +73,7 @@ impl M3u8 {
             is_live: true,
             live_ts_count,
             segments: VecDeque::new(),
+            partial_segments: VecDeque::new(),
             is_header_generated: false,
             m3u8_folder,
             m3u8_header: String::new(),
@@ -97,10 +99,22 @@ impl M3u8 {
 
         self.duration = std::cmp::max(duration, self.duration);
 
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data)?;
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data, false)?;
         let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof);
         self.segments.push_back(segment);
 
+        Ok(())
+    }
+
+    pub fn add_partial_segment(
+        &mut self,
+        duration: i64,
+        ts_data: BytesMut,
+    ) -> Result<(), MediaError> {
+        let cur_seg = self.segments.len();
+        let cur_partial_seg = self.partial_segments.len();
+
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data, true)?;
         Ok(())
     }
 

@@ -37,12 +37,14 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
             let (left, _) = path.split_at(ts_index);
 
             let rv: Vec<_> = left.split("/").collect();
+            println!("{:?}", rv);
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
             let ts_name = String::from(rv[3]);
 
             file_path = format!("./{}/{}/{}.ts", app_name, stream_name, ts_name);
+            println!("{}", file_path)
         }
     }
 
@@ -63,7 +65,13 @@ async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
     if let Ok(file) = File::open(filename).await {
         let stream = FramedRead::new(file, BytesCodec::new());
         let body = Body::wrap_stream(stream);
-        return Ok(Response::new(body));
+        let r = Response::builder()
+            .status(200)
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Access-Control-Allow-Methods", "*")
+            .header("Access-Control-Allow-Headers", "*")
+            .body(body);
+        return Ok(r.unwrap());
     }
 
     Ok(not_found())
