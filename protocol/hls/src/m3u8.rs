@@ -1,3 +1,7 @@
+use std::{ops::Add, sync::Arc};
+
+use crate::hls_event_manager::{HlsEventConsumer, M3u8Consumer, M3u8Event};
+
 use {
     super::{
         errors::MediaError,
@@ -39,10 +43,14 @@ impl Segment {
     }
 }
 
+pub struct M3u8PlaylistResponse {
+    pub sequence_no: u64,
+}
+
 pub struct M3u8 {
     hls_event_tx: HlsEventProducer,
     version: u16,
-    sequence_no: u64,
+    sequence_no: Arc<u64>,
     /*What duration should media files be?
     A duration of 10 seconds of media per file seems to strike a reasonable balance for most broadcast content.
     http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8*/
@@ -75,10 +83,11 @@ impl M3u8 {
     ) -> Self {
         let m3u8_folder = format!("./{}/{}", app_name, stream_name);
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
+
         Self {
             hls_event_tx: hls_event_tx.clone(),
             version: 6,
-            sequence_no: 0,
+            sequence_no: Arc::new(0),
             duration,
             is_live: true,
             live_ts_count,
@@ -90,6 +99,22 @@ impl M3u8 {
             m3u8_name: name,
             ts_handler: Ts::new(app_name, stream_name),
         }
+    }
+
+    pub fn setup_m3u8_listener(&self, mut m3u8_consumer: M3u8Consumer) {
+        let seq = Arc::clone(&self.sequence_no);
+
+        tokio::spawn(async move {
+            while let Some(cmd) = m3u8_consumer.recv().await {
+                use M3u8Event::*;
+                match cmd {
+                    RequestPlaylist { channel: c } => {
+                        c.send(M3u8PlaylistResponse { sequence_no: *seq })
+                            .unwrap_or_default();
+                    }
+                }
+            }
+        });
     }
 
     pub fn add_segment(
@@ -104,7 +129,7 @@ impl M3u8 {
         if self.is_live && segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
             self.ts_handler.delete(segment.path);
-            self.sequence_no += 1;
+            self.sequence_no.add(1);
         }
 
         self.duration = std::cmp::max(duration, self.duration);
@@ -205,9 +230,11 @@ impl M3u8 {
         file_handler.write(m3u8_content.as_bytes())?;
 
         if broadcast_new_msn {
-            self.hls_event_tx.send(HlsEvent::HlsSequenceIncr {
-                sequence: self.sequence_no,
-            });
+            self.hls_event_tx
+                .send(HlsEvent::HlsSequenceIncr {
+                    sequence: *self.sequence_no,
+                })
+                .unwrap_or_default();
         }
 
         Ok(m3u8_content)

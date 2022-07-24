@@ -1,3 +1,5 @@
+use crate::hls_event_manager::M3u8Consumer;
+
 use {
     super::{
         define::FlvDemuxerData, errors::MediaError, hls_event_manager::HlsEventProducer, m3u8::M3u8,
@@ -40,6 +42,7 @@ pub struct Flv2HlsRemuxer {
 impl Flv2HlsRemuxer {
     pub fn new(
         hls_event_tx: HlsEventProducer,
+        m3u8_consumer: M3u8Consumer,
         duration: i64,
         partial_seg_duration: i64,
         app_name: String,
@@ -54,6 +57,17 @@ impl Flv2HlsRemuxer {
             .unwrap();
 
         let m3u8_name = format!("{}.m3u8", stream_name);
+
+        let m3u8_handler = M3u8::new(
+            hls_event_tx,
+            duration,
+            6,
+            m3u8_name,
+            app_name.clone(),
+            stream_name.clone(),
+        );
+
+        m3u8_handler.setup_m3u8_listener(m3u8_consumer);
 
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
@@ -76,14 +90,7 @@ impl Flv2HlsRemuxer {
             video_pid,
             audio_pid,
 
-            m3u8_handler: M3u8::new(
-                hls_event_tx,
-                duration,
-                6,
-                m3u8_name,
-                app_name.clone(),
-                stream_name.clone(),
-            ),
+            m3u8_handler: m3u8_handler,
         }
     }
 

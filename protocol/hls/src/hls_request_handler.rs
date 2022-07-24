@@ -6,10 +6,13 @@ use std::{
 };
 
 use hyper::{service::Service, Body, Request, Response, StatusCode};
-use tokio::fs::File;
+use tokio::{fs::File, sync::oneshot};
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-use crate::hls_event_manager::{HlsEvent, StpMap};
+use crate::{
+    hls_event_manager::{HlsEvent, M3u8Event, StpMap},
+    m3u8::M3u8PlaylistResponse,
+};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 static NOTFOUND: &[u8] = b"Not Found";
@@ -87,11 +90,29 @@ impl Service<Request<Body>> for HlsHandler {
 
                     if stream_event_channel.is_none() {
                         return Box::pin(async { Ok(not_found()) });
-                    } else if let Some((tx, _rx)) = stream_event_channel {
+                    } else if let Some((tx, _rx, m3u8_prod)) = stream_event_channel {
                         let mut rc = tx.clone().subscribe();
+                        let mut mp = m3u8_prod.clone();
 
+                        let fp = format!("./{}/{}/{}.m3u8", app_name, stream_name, stream_name);
                         return Box::pin(async move {
-                            let mut fp = String::from("");
+                            let (resp_tx, resp_rx) = oneshot::channel();
+
+                            let q = M3u8Event::RequestPlaylist { channel: resp_tx };
+
+                            mp.send(q).await;
+
+                            let M3u8PlaylistResponse { sequence_no: seq } = resp_rx.await.unwrap();
+
+                            if seq > msn_u {
+                                // sequence already exists
+                                return simple_file_send(fp.as_str()).await;
+                            }
+
+                            if msn_u > seq + 2 {
+                                // sequence too far in future
+                                return Ok(bad_request());
+                            }
 
                             loop {
                                 let m = rc.recv().await;
@@ -101,10 +122,6 @@ impl Service<Request<Body>> for HlsHandler {
                                         continue;
                                     };
 
-                                    fp = format!(
-                                        "./{}/{}/{}.m3u8",
-                                        app_name, stream_name, stream_name
-                                    );
                                     break;
                                 } else {
                                     continue;

@@ -43,13 +43,14 @@ impl RtmpEventProcessor {
 
                     self.hls_manager_dispatcher.send(m).await;
 
-                    let stream_channel_producer: HlsEventProducer = resp_rx.await.unwrap();
+                    let (stream_channel_producer, m3u8_consumer) = resp_rx.await.unwrap();
 
                     let mut rtmp_subscriber = FlvDataReceiver::new(
                         app_name,
                         stream_name,
                         self.event_producer.clone(),
                         stream_channel_producer,
+                        m3u8_consumer,
                         5,
                     );
 

@@ -1,3 +1,5 @@
+use crate::hls_event_manager::M3u8Consumer;
+
 use {
     super::{
         errors::{HlsError, HlsErrorValue},
@@ -42,6 +44,7 @@ impl FlvDataReceiver {
         stream_name: String,
         event_producer: ChannelEventProducer,
         hls_event_tx: HlsEventProducer,
+        m3u8_consumer: M3u8Consumer,
 
         duration: i64,
     ) -> Self {
@@ -56,6 +59,7 @@ impl FlvDataReceiver {
             event_producer,
             media_processor: Flv2HlsRemuxer::new(
                 hls_event_tx,
+                m3u8_consumer,
                 duration,
                 500,
                 app_name,
