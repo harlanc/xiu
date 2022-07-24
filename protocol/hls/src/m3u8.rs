@@ -1,5 +1,9 @@
 use {
-    super::{errors::MediaError, hls_event_manager::HlsEventProducer, ts::Ts},
+    super::{
+        errors::MediaError,
+        hls_event_manager::{HlsEvent, HlsEventProducer},
+        ts::Ts,
+    },
     bytes::BytesMut,
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
@@ -165,7 +169,7 @@ impl M3u8 {
         Ok(())
     }
 
-    pub fn refresh_playlist(&mut self) -> Result<String, MediaError> {
+    pub fn refresh_playlist(&mut self, broadcast_new_msn: bool) -> Result<String, MediaError> {
         self.generate_m3u8_header()?;
 
         let mut m3u8_content = self.m3u8_header.clone();
@@ -199,6 +203,12 @@ impl M3u8 {
 
         let mut file_handler = File::create(m3u8_path).unwrap();
         file_handler.write(m3u8_content.as_bytes())?;
+
+        if broadcast_new_msn {
+            self.hls_event_tx.send(HlsEvent::HlsSequenceIncr {
+                sequence: self.sequence_no,
+            });
+        }
 
         Ok(m3u8_content)
     }

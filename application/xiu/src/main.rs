@@ -219,7 +219,7 @@ impl Service {
             let port = hls_cfg_value.port;
 
             tokio::spawn(async move {
-                if let Err(err) = hls_server::run(port, hls_dispatch.clone()).await {
+                if let Err(err) = hls_server::run(port, hls_manager).await {
                     //print!("push client error {}\n", err);
                     log::error!("hls server error: {}\n", err);
                 }

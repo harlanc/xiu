@@ -119,7 +119,7 @@ impl Flv2HlsRemuxer {
             true,
             data,
         )?;
-        self.m3u8_handler.refresh_playlist()?;
+        self.m3u8_handler.refresh_playlist(false)?;
 
         Ok(())
     }
@@ -179,7 +179,7 @@ impl Flv2HlsRemuxer {
 
             self.m3u8_handler
                 .add_partial_segment(dts - self.last_partial_ts_dts, d)?;
-            self.m3u8_handler.refresh_playlist()?;
+            self.m3u8_handler.refresh_playlist(false)?;
 
             self.last_partial_ts_dts = dts;
         }
@@ -193,7 +193,7 @@ impl Flv2HlsRemuxer {
 
             self.m3u8_handler
                 .add_segment(dts - self.last_ts_dts, discontinuity, false, data)?;
-            self.m3u8_handler.refresh_playlist()?;
+            self.m3u8_handler.refresh_playlist(true)?;
 
             self.ts_muxer.reset();
             self.last_ts_dts = dts;
