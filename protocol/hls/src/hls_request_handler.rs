@@ -9,7 +9,7 @@ use hyper::{service::Service, Body, Request, Response, StatusCode};
 use tokio::fs::File;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-use crate::hls_event_manager::StpMap;
+use crate::hls_event_manager::{HlsEvent, StpMap};
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 static NOTFOUND: &[u8] = b"Not Found";
@@ -68,8 +68,17 @@ impl Service<Request<Body>> for HlsHandler {
                 let app_name = String::from(rv[1]);
                 let stream_name = String::from(rv[2]);
 
-                if let Some(msn) = directives.get("_HLS_msn") {
+                println!("msn: {:?}", msn);
+                if let Some(msn_s) = msn {
                     // Client wants us to hold the request until media segment number msn is generated
+
+                    let msn_ur: Result<u64, _> = msn_s.parse();
+
+                    if msn_ur.is_err() {
+                        return Box::pin(async { Ok(bad_request()) });
+                    }
+
+                    let msn_u = msn_ur.unwrap();
 
                     // TODO: unsafe
                     let hm_read = self.stp_map.read().unwrap();
@@ -82,15 +91,27 @@ impl Service<Request<Body>> for HlsHandler {
                         let mut rc = tx.clone().subscribe();
 
                         return Box::pin(async move {
+                            let mut fp = String::from("");
+
                             loop {
                                 let m = rc.recv().await;
-                                file_path =
-                                    format!("./{}/{}/{}.m3u8", app_name, stream_name, stream_name);
 
-                                break;
+                                if let Ok(HlsEvent::HlsSequenceIncr { sequence: seq }) = m {
+                                    if seq != msn_u {
+                                        continue;
+                                    };
+
+                                    fp = format!(
+                                        "./{}/{}/{}.m3u8",
+                                        app_name, stream_name, stream_name
+                                    );
+                                    break;
+                                } else {
+                                    continue;
+                                }
                             }
 
-                            simple_file_send(file_path.as_str()).await
+                            simple_file_send(fp.as_str()).await
                         });
                     }
                 }
@@ -105,14 +126,12 @@ impl Service<Request<Body>> for HlsHandler {
                 let (left, _) = path.split_at(ts_index);
 
                 let rv: Vec<_> = left.split("/").collect();
-                println!("{:?}", rv);
 
                 let app_name = String::from(rv[1]);
                 let stream_name = String::from(rv[2]);
                 let ts_name = String::from(rv[3]);
 
                 file_path = format!("./{}/{}/{}.ts", app_name, stream_name, ts_name);
-                println!("{}", file_path);
             }
         }
         let f = async move { simple_file_send(file_path.as_str()).await };
