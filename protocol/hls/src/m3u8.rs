@@ -1,4 +1,7 @@
-use std::{ops::Add, sync::Arc};
+use std::{
+    ops::Add,
+    sync::{Arc, RwLock},
+};
 
 use crate::hls_event_manager::{HlsEventConsumer, M3u8Consumer, M3u8Event};
 
@@ -12,6 +15,13 @@ use {
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
 
+#[derive(Clone)]
+pub struct PartialSegment {
+    duration: i64,
+    name: String,
+}
+
+#[derive(Clone)]
 pub struct Segment {
     /*ts duration*/
     duration: i64,
@@ -20,7 +30,10 @@ pub struct Segment {
     name: String,
     path: String,
     is_eof: bool,
-    is_partial: bool,
+    is_complete: bool,
+
+    // LLHLS partial segments
+    partials: Vec<PartialSegment>,
 }
 
 impl Segment {
@@ -30,7 +43,7 @@ impl Segment {
         name: String,
         path: String,
         is_eof: bool,
-        is_partial: bool,
+        is_complete: bool,
     ) -> Self {
         Self {
             duration,
@@ -38,8 +51,17 @@ impl Segment {
             name,
             path,
             is_eof,
-            is_partial,
+            is_complete,
+            partials: vec![],
         }
+    }
+
+    pub fn set_complete(&mut self) {
+        self.is_complete = true;
+    }
+
+    pub fn add_partial(&mut self, seg: PartialSegment) {
+        self.partials.push(seg);
     }
 }
 
@@ -50,7 +72,7 @@ pub struct M3u8PlaylistResponse {
 pub struct M3u8 {
     hls_event_tx: HlsEventProducer,
     version: u16,
-    sequence_no: Arc<u64>,
+    sequence_no: Arc<RwLock<u64>>,
     /*What duration should media files be?
     A duration of 10 seconds of media per file seems to strike a reasonable balance for most broadcast content.
     http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8*/
@@ -62,7 +84,6 @@ pub struct M3u8 {
     live_ts_count: usize,
 
     segments: VecDeque<Segment>,
-    partial_segments: VecDeque<Segment>,
     is_header_generated: bool,
 
     m3u8_header: String,
@@ -87,12 +108,11 @@ impl M3u8 {
         Self {
             hls_event_tx: hls_event_tx.clone(),
             version: 6,
-            sequence_no: Arc::new(0),
+            sequence_no: Arc::new(RwLock::new(0)),
             duration,
             is_live: true,
             live_ts_count,
             segments: VecDeque::new(),
-            partial_segments: VecDeque::new(),
             is_header_generated: false,
             m3u8_folder,
             m3u8_header: String::new(),
@@ -109,8 +129,10 @@ impl M3u8 {
                 use M3u8Event::*;
                 match cmd {
                     RequestPlaylist { channel: c } => {
-                        c.send(M3u8PlaylistResponse { sequence_no: *seq })
-                            .unwrap_or_default();
+                        c.send(M3u8PlaylistResponse {
+                            sequence_no: *seq.read().unwrap(),
+                        })
+                        .unwrap_or_default();
                     }
                 }
             }
@@ -128,15 +150,19 @@ impl M3u8 {
 
         if self.is_live && segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
-            self.ts_handler.delete(segment.path);
-            self.sequence_no.add(1);
+            // self.ts_handler.delete(segment.path);
         }
+
+        let mut s = self.sequence_no.write().unwrap();
+        *s += 1;
 
         self.duration = std::cmp::max(duration, self.duration);
 
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data, false)?;
-        let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof, false);
-        self.segments.push_back(segment);
+        self.ts_handler.write(ts_data, false)?;
+        // let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof, false);
+        self.segments.back_mut().unwrap().set_complete();
+
+        // self.segments.push_back(segment);
 
         Ok(())
     }
@@ -146,12 +172,48 @@ impl M3u8 {
         duration: i64,
         ts_data: BytesMut,
     ) -> Result<(), MediaError> {
-        let cur_seg = self.segments.len();
-        let cur_partial_seg = self.partial_segments.len();
-
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, true)?;
-        let segment = Segment::new(duration, false, ts_name, ts_path, false, true);
-        self.segments.push_back(segment);
+
+        let cur_seg = self.segments.back_mut();
+
+        match cur_seg {
+            None
+            | Some(Segment {
+                is_complete: true, ..
+            }) => {
+                // needs new segment
+
+                let mut seg = Segment::new(
+                    duration,
+                    false,
+                    format!("{}.ts", self.sequence_no.read().unwrap()),
+                    ts_path,
+                    false,
+                    false,
+                );
+
+                let partial = PartialSegment {
+                    duration,
+                    name: ts_name.to_owned(),
+                };
+
+                seg.add_partial(partial);
+
+                &self.segments.push_back(seg);
+            }
+            Some(seg) => {
+                // add partial to existing segment
+
+                let partial = PartialSegment {
+                    duration,
+                    name: ts_name.to_owned(),
+                };
+
+                println!("partial add {}", &partial.name);
+
+                seg.add_partial(partial);
+            }
+        }
 
         Ok(())
     }
@@ -187,7 +249,11 @@ impl M3u8 {
             1.5
         )
         .as_str();
-        self.m3u8_header += format!("#EXT-X-MEDIA-SEQUENCE:{}\n", self.sequence_no).as_str();
+        self.m3u8_header += format!(
+            "#EXT-X-MEDIA-SEQUENCE:{}\n",
+            self.sequence_no.read().unwrap()
+        )
+        .as_str();
         self.m3u8_header += playlist_type;
         self.m3u8_header += allow_cache;
 
@@ -202,16 +268,18 @@ impl M3u8 {
             if segment.discontinuity {
                 m3u8_content += "#EXT-X-DISCONTINUITY\n";
             }
-            if segment.is_partial {
-                m3u8_content += format!(
-                    "#EXT-X-PART:DURATION={:.3},URI=\"{}\"\n",
-                    segment.duration as f64 / 1000.0,
-                    segment.name
-                )
-                .as_str();
+            if !segment.is_complete {
+                for partial in &segment.partials {
+                    m3u8_content += format!(
+                        "#EXT-X-PART:DURATION={:.3},URI=\"{}\"\n",
+                        partial.duration as f64 / 1000.0,
+                        partial.name
+                    )
+                    .as_str();
+                }
             } else {
                 m3u8_content += format!(
-                    "#EXTINF:{:.3}\n{}\n",
+                    "#EXTINF:{:.3},\n{}\n",
                     segment.duration as f64 / 1000.0,
                     segment.name
                 )
@@ -232,7 +300,7 @@ impl M3u8 {
         if broadcast_new_msn {
             self.hls_event_tx
                 .send(HlsEvent::HlsSequenceIncr {
-                    sequence: *self.sequence_no,
+                    sequence: *self.sequence_no.read().unwrap(),
                 })
                 .unwrap_or_default();
         }

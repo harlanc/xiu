@@ -61,7 +61,7 @@ impl FlvDataReceiver {
                 hls_event_tx,
                 m3u8_consumer,
                 duration,
-                500,
+                1000,
                 app_name,
                 stream_name,
             ),
