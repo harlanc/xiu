@@ -70,11 +70,11 @@ impl Service<Request<Body>> for HlsHandler {
                 let app_name = String::from(rv[1]);
                 let stream_name = String::from(rv[2]);
 
-                println!("msn: {:?}", msn);
                 if let Some(msn_s) = msn {
                     // Client wants us to hold the request until media segment number msn is generated
 
-                    let msn_ur: Result<u64, _> = msn_s.parse();
+                    let msn_ur: Result<u32, _> = msn_s.parse();
+                    let msn_p: u32 = part.unwrap_or(&"0".to_owned()).parse().unwrap();
 
                     if msn_ur.is_err() {
                         return Box::pin(async { Ok(bad_request()) });
@@ -101,29 +101,51 @@ impl Service<Request<Body>> for HlsHandler {
 
                             mp.send(q).await;
 
-                            let M3u8PlaylistResponse { sequence_no: seq } = resp_rx.await.unwrap();
+                            let M3u8PlaylistResponse {
+                                sequence_no: _seq,
+                                ts_number: tsn,
+                                pts_number: ptsn,
+                            } = resp_rx.await.unwrap();
 
-                            if seq > msn_u {
-                                // sequence already exists
+                            println!(
+                                "S_tsn: {} R_tsn: {}, S_ptsn: {}, R_ptsn: {}",
+                                tsn, msn_u, ptsn, msn_p
+                            );
+
+                            if tsn > msn_u || (tsn >= msn_u && (msn_p < 1 || msn_p <= ptsn)) {
+                                // segment already exists
                                 return simple_file_send(fp.as_str()).await;
                             }
 
-                            // if msn_u > seq + 2 {
-                            //     // sequence too far in future
-                            //     return Ok(bad_request());
-                            // }
+                            if msn_u > tsn + 2 {
+                                // sequence too far in future
+                                return Ok(bad_request());
+                            }
 
                             loop {
                                 let m = rc.recv().await;
 
-                                if let Ok(HlsEvent::HlsSequenceIncr { sequence: seq }) = m {
-                                    if seq != msn_u {
-                                        continue;
-                                    };
+                                match m {
+                                    Ok(HlsEvent::HlsSequenceIncr { sequence: seq }) => {
+                                        if seq != msn_u {
+                                            continue;
+                                        };
 
-                                    break;
-                                } else {
-                                    continue;
+                                        break;
+                                    }
+                                    Ok(HlsEvent::HlsPartialSegIncr {
+                                        parent_seg_num,
+                                        partial_seg_num,
+                                    }) => {
+                                        if msn_p < 1 {
+                                            continue;
+                                        } else if partial_seg_num >= msn_p
+                                            && parent_seg_num == msn_u
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    _ => continue,
                                 }
                             }
 

@@ -57,7 +57,8 @@ impl Segment {
         }
     }
 
-    pub fn set_complete(&mut self) {
+    pub fn set_complete(&mut self, duration: i64) {
+        self.duration = duration;
         self.is_complete = true;
     }
 
@@ -68,6 +69,8 @@ impl Segment {
 
 pub struct M3u8PlaylistResponse {
     pub sequence_no: u64,
+    pub ts_number: u32,
+    pub pts_number: u32,
 }
 
 pub struct M3u8 {
@@ -124,6 +127,8 @@ impl M3u8 {
 
     pub fn setup_m3u8_listener(&self, mut m3u8_consumer: M3u8Consumer) {
         let seq = Arc::clone(&self.sequence_no);
+        let tsn = Arc::clone(&self.ts_handler.ts_number);
+        let ptsn = Arc::clone(&self.ts_handler.pts_number);
 
         tokio::spawn(async move {
             while let Some(cmd) = m3u8_consumer.recv().await {
@@ -132,6 +137,8 @@ impl M3u8 {
                     RequestPlaylist { channel: c } => {
                         c.send(M3u8PlaylistResponse {
                             sequence_no: *seq.read().unwrap(),
+                            ts_number: *tsn.read().unwrap(),
+                            pts_number: *ptsn.read().unwrap(),
                         })
                         .unwrap_or_default();
                     }
@@ -151,17 +158,16 @@ impl M3u8 {
 
         if self.is_live && segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
-            // self.ts_handler.delete(segment.path);
+            self.ts_handler.delete(segment.path);
+            let mut s = self.sequence_no.write().unwrap();
+            *s += 1;
         }
-
-        let mut s = self.sequence_no.write().unwrap();
-        *s += 1;
 
         self.duration = std::cmp::max(duration, self.duration);
 
         self.ts_handler.write(ts_data, false)?;
         // let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof, false);
-        self.segments.back_mut().unwrap().set_complete();
+        self.segments.back_mut().unwrap().set_complete(duration);
 
         // self.segments.push_back(segment);
 
@@ -174,7 +180,7 @@ impl M3u8 {
         ts_data: BytesMut,
         independent: bool,
     ) -> Result<(), MediaError> {
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data, true)?;
+        let (ts_name, ts_path, ts_num) = self.ts_handler.write(ts_data, true)?;
 
         let cur_seg = self.segments.back_mut();
 
@@ -188,7 +194,7 @@ impl M3u8 {
                 let mut seg = Segment::new(
                     duration,
                     false,
-                    format!("{}.ts", self.sequence_no.read().unwrap()),
+                    format!("{}.ts", ts_num),
                     ts_path,
                     false,
                     false,
@@ -212,8 +218,6 @@ impl M3u8 {
                     name: ts_name.to_owned(),
                     independent,
                 };
-
-                println!("partial add {}", &partial.name);
 
                 seg.add_partial(partial);
             }
@@ -309,7 +313,14 @@ impl M3u8 {
         if broadcast_new_msn {
             self.hls_event_tx
                 .send(HlsEvent::HlsSequenceIncr {
-                    sequence: *self.sequence_no.read().unwrap(),
+                    sequence: *self.ts_handler.ts_number.read().unwrap(),
+                })
+                .unwrap_or_default();
+        } else {
+            self.hls_event_tx
+                .send(HlsEvent::HlsPartialSegIncr {
+                    parent_seg_num: *self.ts_handler.ts_number.read().unwrap(),
+                    partial_seg_num: *self.ts_handler.pts_number.read().unwrap(),
                 })
                 .unwrap_or_default();
         }

@@ -204,8 +204,6 @@ impl Flv2HlsRemuxer {
         if self.need_new_partial_segment {
             let d = self.partial_ts_muxer.get_data();
 
-            println!(" f: {}", flags);
-
             self.m3u8_handler.add_partial_segment(
                 dts - self.last_partial_ts_dts,
                 d,

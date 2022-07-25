@@ -27,7 +27,13 @@ pub type M3u8Consumer = mpsc::Receiver<M3u8Event>;
 #[derive(Debug, Clone)]
 pub enum HlsEvent {
     Init {},
-    HlsSequenceIncr { sequence: u64 },
+    HlsSequenceIncr {
+        sequence: u32,
+    },
+    HlsPartialSegIncr {
+        parent_seg_num: u32,
+        partial_seg_num: u32,
+    },
 }
 
 pub type HlsEventProducer = broadcast::Sender<HlsEvent>;
