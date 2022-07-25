@@ -24,6 +24,7 @@ pub struct PartialSegment {
 
 #[derive(Clone)]
 pub struct Segment {
+    seq: u32,
     /*ts duration*/
     duration: i64,
     discontinuity: bool,
@@ -39,6 +40,7 @@ pub struct Segment {
 
 impl Segment {
     pub fn new(
+        seq: u32,
         duration: i64,
         discontinuity: bool,
         name: String,
@@ -47,6 +49,7 @@ impl Segment {
         is_complete: bool,
     ) -> Self {
         Self {
+            seq,
             duration,
             discontinuity,
             name,
@@ -192,6 +195,7 @@ impl M3u8 {
                 // needs new segment
 
                 let mut seg = Segment::new(
+                    ts_num,
                     duration,
                     false,
                     format!("{}.ts", ts_num),
@@ -290,6 +294,12 @@ impl M3u8 {
                     )
                     .as_str();
                 }
+
+                m3u8_content += format!(
+                    "#EXT-X-PRELOAD-HINT:TYPE=PART,URI=\"{}\"\n",
+                    format!("{}.{}.ts", segment.seq, &segment.partials.len() + 1)
+                )
+                .as_str();
             } else {
                 m3u8_content += format!(
                     "#EXTINF:{:.3},\n{}\n",

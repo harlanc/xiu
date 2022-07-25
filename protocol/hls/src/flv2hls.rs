@@ -179,11 +179,13 @@ impl Flv2HlsRemuxer {
                 if data.frame_type == frame_type::KEY_FRAME {
                     flags = MPEG_FLAG_IDR_FRAME;
                     self.segment_has_idr = true;
+
+                    if dts - self.last_ts_dts >= self.duration * 1000 {
+                        self.need_new_segment = true;
+                    }
                 }
 
-                if dts - self.last_ts_dts >= self.duration * 1000 {
-                    self.need_new_segment = true;
-                } else if dts - self.last_partial_ts_dts >= self.partial_seg_duration {
+                if dts - self.last_partial_ts_dts >= self.partial_seg_duration {
                     self.need_new_partial_segment = true;
                 }
             }
@@ -201,22 +203,6 @@ impl Flv2HlsRemuxer {
             _ => return Ok(()),
         }
 
-        if self.need_new_partial_segment {
-            let d = self.partial_ts_muxer.get_data();
-
-            self.m3u8_handler.add_partial_segment(
-                dts - self.last_partial_ts_dts,
-                d,
-                self.segment_has_idr,
-            )?;
-            self.m3u8_handler.refresh_playlist(false)?;
-
-            self.partial_ts_muxer.reset();
-            self.last_partial_ts_dts = dts;
-            self.need_new_partial_segment = false;
-            self.segment_has_idr = false;
-        }
-
         if self.need_new_segment {
             let mut discontinuity: bool = false;
             if dts > self.last_ts_dts + 15 * 1000 {
@@ -232,6 +218,20 @@ impl Flv2HlsRemuxer {
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
             self.need_new_segment = false;
+            self.segment_has_idr = false;
+        } else if self.need_new_partial_segment {
+            let d = self.partial_ts_muxer.get_data();
+
+            self.m3u8_handler.add_partial_segment(
+                dts - self.last_partial_ts_dts,
+                d,
+                self.segment_has_idr,
+            )?;
+            self.m3u8_handler.refresh_playlist(false)?;
+
+            self.partial_ts_muxer.reset();
+            self.last_partial_ts_dts = dts;
+            self.need_new_partial_segment = false;
             self.segment_has_idr = false;
         }
 
