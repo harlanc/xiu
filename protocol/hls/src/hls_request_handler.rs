@@ -14,7 +14,6 @@ use crate::{
     m3u8::M3u8PlaylistResponse,
 };
 
-type GenericError = Box<dyn std::error::Error + Send + Sync>;
 static NOTFOUND: &[u8] = b"Not Found";
 
 pub struct HlsHandler {
@@ -109,10 +108,10 @@ impl Service<Request<Body>> for HlsHandler {
                                 return simple_file_send(fp.as_str()).await;
                             }
 
-                            if msn_u > seq + 2 {
-                                // sequence too far in future
-                                return Ok(bad_request());
-                            }
+                            // if msn_u > seq + 2 {
+                            //     // sequence too far in future
+                            //     return Ok(bad_request());
+                            // }
 
                             loop {
                                 let m = rc.recv().await;

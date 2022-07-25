@@ -19,6 +19,7 @@ use {
 pub struct PartialSegment {
     duration: i64,
     name: String,
+    independent: bool,
 }
 
 #[derive(Clone)]
@@ -171,6 +172,7 @@ impl M3u8 {
         &mut self,
         duration: i64,
         ts_data: BytesMut,
+        independent: bool,
     ) -> Result<(), MediaError> {
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, true)?;
 
@@ -195,6 +197,7 @@ impl M3u8 {
                 let partial = PartialSegment {
                     duration,
                     name: ts_name.to_owned(),
+                    independent,
                 };
 
                 seg.add_partial(partial);
@@ -207,6 +210,7 @@ impl M3u8 {
                 let partial = PartialSegment {
                     duration,
                     name: ts_name.to_owned(),
+                    independent,
                 };
 
                 println!("partial add {}", &partial.name);
@@ -271,9 +275,14 @@ impl M3u8 {
             if !segment.is_complete {
                 for partial in &segment.partials {
                     m3u8_content += format!(
-                        "#EXT-X-PART:DURATION={:.3},URI=\"{}\"\n",
+                        "#EXT-X-PART:DURATION={:.3},URI=\"{}\"{}\n",
                         partial.duration as f64 / 1000.0,
-                        partial.name
+                        partial.name,
+                        if partial.independent {
+                            ",INDEPENDENT=YES"
+                        } else {
+                            ""
+                        }
                     )
                     .as_str();
                 }

@@ -33,9 +33,13 @@ pub struct Flv2HlsRemuxer {
     partial_seg_duration: i64,
     need_new_segment: bool,
     need_new_partial_segment: bool,
+    segment_has_idr: bool,
 
     video_pid: u16,
     audio_pid: u16,
+
+    p_video_pid: u16,
+    p_audio_pid: u16,
 
     m3u8_handler: M3u8,
 }
@@ -58,10 +62,10 @@ impl Flv2HlsRemuxer {
             .unwrap();
 
         let mut partial_ts_muxer = TsMuxer::new();
-        let audio_pid = partial_ts_muxer
+        let p_audio_pid = partial_ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
             .unwrap();
-        let video_pid = partial_ts_muxer
+        let p_video_pid = partial_ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
             .unwrap();
 
@@ -96,9 +100,13 @@ impl Flv2HlsRemuxer {
             partial_seg_duration,
             need_new_segment: false,
             need_new_partial_segment: false,
+            segment_has_idr: false,
 
             video_pid,
             audio_pid,
+
+            p_video_pid,
+            p_audio_pid,
 
             m3u8_handler: m3u8_handler,
         }
@@ -149,6 +157,7 @@ impl Flv2HlsRemuxer {
         self.need_new_partial_segment = false;
 
         let pid: u16;
+        let p_pid: u16;
         let pts: i64;
         let dts: i64;
         let mut flags: u16 = 0;
@@ -163,13 +172,17 @@ impl Flv2HlsRemuxer {
                 pts = data.pts;
                 dts = data.dts;
                 pid = self.video_pid;
+                p_pid = self.video_pid;
+
                 payload.extend_from_slice(&data.data[..]);
 
                 if data.frame_type == frame_type::KEY_FRAME {
                     flags = MPEG_FLAG_IDR_FRAME;
-                    if dts - self.last_ts_dts >= self.duration * 1000 {
-                        self.need_new_segment = true;
-                    }
+                    self.segment_has_idr = true;
+                }
+
+                if dts - self.last_ts_dts >= self.duration * 1000 {
+                    self.need_new_segment = true;
                 } else if dts - self.last_partial_ts_dts >= self.partial_seg_duration {
                     self.need_new_partial_segment = true;
                 }
@@ -182,25 +195,28 @@ impl Flv2HlsRemuxer {
                 pts = data.pts;
                 dts = data.dts;
                 pid = self.audio_pid;
+                p_pid = self.audio_pid;
                 payload.extend_from_slice(&data.data[..]);
             }
             _ => return Ok(()),
         }
 
         if self.need_new_partial_segment {
-            println!("nnps?: {}", self.need_new_partial_segment)
-        }
-
-        if self.need_new_partial_segment {
             let d = self.partial_ts_muxer.get_data();
 
-            self.m3u8_handler
-                .add_partial_segment(dts - self.last_partial_ts_dts, d)?;
+            println!(" f: {}", flags);
+
+            self.m3u8_handler.add_partial_segment(
+                dts - self.last_partial_ts_dts,
+                d,
+                self.segment_has_idr,
+            )?;
             self.m3u8_handler.refresh_playlist(false)?;
 
             self.partial_ts_muxer.reset();
             self.last_partial_ts_dts = dts;
             self.need_new_partial_segment = false;
+            self.segment_has_idr = false;
         }
 
         if self.need_new_segment {
@@ -218,6 +234,7 @@ impl Flv2HlsRemuxer {
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
             self.need_new_segment = false;
+            self.segment_has_idr = false;
         }
 
         self.last_dts = dts;
@@ -227,7 +244,7 @@ impl Flv2HlsRemuxer {
             .write(pid, pts * 90, dts * 90, flags, payload.clone())?;
 
         self.partial_ts_muxer
-            .write(pid, pts * 90, dts * 90, flags, payload)?;
+            .write(p_pid, pts * 90, dts * 90, flags, payload)?;
 
         Ok(())
     }
