@@ -324,6 +324,12 @@ impl ServerSession {
     }
 
     fn on_set_chunk_size(&mut self, chunk_size: usize) -> Result<(), SessionError> {
+        log::info!(
+            "[ S<-C ] [set chunk size]  app_name: {}, stream_name: {}, chunk size: {}",
+            self.app_name,
+            self.stream_name,
+            chunk_size
+        );
         self.unpacketizer.update_max_chunk_size(chunk_size);
         Ok(())
     }

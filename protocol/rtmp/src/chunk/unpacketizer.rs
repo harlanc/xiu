@@ -9,7 +9,7 @@ use {
     bytes::{BufMut, BytesMut},
     bytesio::bytes_reader::BytesReader,
     chrono::prelude::*,
-    std::{cmp::min, collections::HashMap, vec::Vec},
+    std::{cmp::min, collections::HashMap, fmt, vec::Vec},
 };
 
 #[derive(Eq, PartialEq, Debug)]
@@ -30,6 +30,28 @@ enum ChunkReadState {
     ReadExtendedTimestamp = 3,
     ReadMessagePayload = 4,
     Finish = 5,
+}
+
+impl fmt::Display for ChunkReadState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ChunkReadState::ReadBasicHeader => {
+                write!(f, "ReadBasicHeader",)
+            }
+            ChunkReadState::ReadMessageHeader => {
+                write!(f, "ReadMessageHeader",)
+            }
+            ChunkReadState::ReadExtendedTimestamp => {
+                write!(f, "ReadExtendedTimestamp",)
+            }
+            ChunkReadState::ReadMessagePayload => {
+                write!(f, "ReadMessagePayload",)
+            }
+            ChunkReadState::Finish => {
+                write!(f, "Finish",)
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -74,9 +96,18 @@ impl ChunkUnpacketizer {
 
     pub fn extend_data(&mut self, data: &[u8]) {
         self.reader.extend_from_slice(data);
+        log::trace!(
+            "extend_data length: {}: content:{:X?}",
+            self.reader.len(),
+            self.reader
+                .get_remaining_bytes()
+                .split_to(self.reader.len())
+                .to_vec()
+        );
     }
 
     pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
+        log::trace!("update max chunk size: {}", chunk_size);
         self.max_chunk_size = chunk_size;
     }
 
@@ -171,6 +202,14 @@ impl ChunkUnpacketizer {
         // Ok(UnpackResult::Success)
     }
 
+    pub fn print_current_basic_header(&mut self) {
+        log::trace!(
+            "print_current_basic_header, format id: {},csid: {}",
+            self.current_chunk_info.basic_header.chunk_stream_id,
+            self.current_chunk_info.basic_header.format
+        );
+    }
+
     /******************************************************************
      * 5.3.1.1. Chunk Basic Header
      * The Chunk Basic Header encodes the chunk stream ID and the chunk
@@ -243,14 +282,21 @@ impl ChunkUnpacketizer {
 
         //todo
         if csid != self.current_chunk_info.basic_header.chunk_stream_id {
+            log::trace!(
+                "read_basic_header, chunk stream id update, new: {}, old:{}",
+                csid,
+                self.current_chunk_info.basic_header.chunk_stream_id
+            );
             if let Some(header) = self.chunk_headers.get_mut(&csid) {
                 self.current_chunk_info.basic_header = header.basic_header.clone();
                 self.current_chunk_info.message_header = header.message_header.clone();
+                self.print_current_basic_header();
             }
         }
 
         self.current_chunk_info.basic_header.chunk_stream_id = csid;
         self.current_chunk_info.basic_header.format = format_id;
+        self.print_current_basic_header();
 
         self.chunk_read_state = ChunkReadState::ReadMessageHeader;
 
@@ -261,6 +307,18 @@ impl ChunkUnpacketizer {
 
     fn current_message_header(&mut self) -> &mut ChunkMessageHeader {
         &mut self.current_chunk_info.message_header
+    }
+
+    fn print_current_message_header(&self, state: ChunkReadState) {
+        log::trace!(
+            "print_current_basic_header state {}, timestamp:{}, timestamp delta:{}, msg length: {},msg type id: {}, msg stream id:{}",
+            state,
+            self.current_chunk_info.message_header.timestamp,
+            self.current_chunk_info.message_header.timestamp_delta,
+            self.current_chunk_info.message_header.msg_length,
+            self.current_chunk_info.message_header.msg_type_id,
+            self.current_chunk_info.message_header.msg_streamd_id
+        );
     }
 
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
@@ -399,6 +457,7 @@ impl ChunkUnpacketizer {
         }
 
         self.chunk_read_state = ChunkReadState::ReadExtendedTimestamp;
+        self.print_current_message_header(ChunkReadState::ReadMessageHeader);
 
         Ok(UnpackResult::Success)
     }
@@ -438,6 +497,7 @@ impl ChunkUnpacketizer {
         }
 
         self.chunk_read_state = ChunkReadState::ReadMessagePayload;
+        self.print_current_message_header(ChunkReadState::ReadExtendedTimestamp);
 
         Ok(UnpackResult::Success)
     }
