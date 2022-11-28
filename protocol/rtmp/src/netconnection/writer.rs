@@ -195,7 +195,7 @@ impl NetConnection {
         );
         properties_map_a.insert(
             String::from("capabilities"),
-            Amf0ValueType::Number(capabilities.clone()),
+            Amf0ValueType::Number(*capabilities),
         );
 
         self.amf0_writer.write_object(&properties_map_a)?;
@@ -216,7 +216,7 @@ impl NetConnection {
         );
         properties_map_b.insert(
             String::from("objectEncoding"),
-            Amf0ValueType::Number(encoding.clone()),
+            Amf0ValueType::Number(*encoding),
         );
 
         self.amf0_writer.write_object(&properties_map_b)?;

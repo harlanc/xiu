@@ -20,7 +20,7 @@ impl PullClient {
         producer: ChannelEventProducer,
     ) -> Self {
         Self {
-            address: address,
+            address,
 
             client_event_consumer: consumer,
             channel_event_producer: producer,

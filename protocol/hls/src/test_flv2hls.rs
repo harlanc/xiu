@@ -13,40 +13,40 @@ mod tests {
 
     #[allow(dead_code)]
     pub fn print(data: BytesMut) {
-        print!("==========={}\n", data.len());
+        println!("==========={}", data.len());
         let mut idx = 0;
         for i in data {
             print!("{:02X} ", i);
-            idx = idx + 1;
+            idx += 1;
             match idx % 16 {
                 0 => {
-                    print!("\n")
+                    println!()
                 }
                 _ => {}
             }
         }
 
-        print!("===========\n")
+        println!("===========")
     }
     #[allow(dead_code)]
     pub fn print_flv_data(data: FlvData) {
         match data {
             FlvData::Audio { timestamp, data } => {
-                print! {"==audio data begin==\n"};
-                print! {"timestamp: {}\n",timestamp};
-                print! {"data :\n"};
+                println! {"==audio data begin=="};
+                println! {"timestamp: {}",timestamp};
+                println! {"data :"};
                 print(data);
-                print! {"==audio data end==\n"};
+                println! {"==audio data end=="};
             }
             FlvData::Video { timestamp, data } => {
-                print! {"==video data begin==\n"};
-                print! {"timestamp: {}\n",timestamp};
-                print! {"data :\n"};
+                println! {"==video data begin=="};
+                println! {"timestamp: {}",timestamp};
+                println! {"data :"};
                 print(data);
-                print! {"==video data end==\n"};
+                println! {"==video data end=="};
             }
             _ => {
-                print!("not video or audio \n")
+                println!("not video or audio ")
             }
         }
     }

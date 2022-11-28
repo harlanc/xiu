@@ -30,9 +30,9 @@ pub struct ChunkMessageHeader {
 impl ChunkMessageHeader {
     pub fn new(timestamp: u32, msg_length: u32, msg_type_id: u8, msg_stream_id: u32) -> Self {
         Self {
-            timestamp: timestamp,
-            msg_length: msg_length,
-            msg_type_id: msg_type_id,
+            timestamp,
+            msg_length,
+            msg_type_id,
             msg_streamd_id: msg_stream_id,
             timestamp_delta: 0,
             is_extended_timestamp: false,
@@ -84,7 +84,7 @@ impl ChunkInfo {
                 msg_type_id,
                 msg_stream_id,
             ),
-            payload: payload,
+            payload,
         }
     }
 

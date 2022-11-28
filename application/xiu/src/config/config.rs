@@ -85,6 +85,6 @@ fn test_toml_parse() {
                 None => {}
             }
         }
-        Err(err) => print!("======{}\n", err),
+        Err(err) => println!("======{}", err),
     }
 }

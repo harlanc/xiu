@@ -76,10 +76,10 @@ impl MetaData {
             break;
         }
 
-        return true;
+        true
     }
 
     pub fn get_chunk_body(&self) -> BytesMut {
-        return self.chunk_body.clone();
+        self.chunk_body.clone()
     }
 }

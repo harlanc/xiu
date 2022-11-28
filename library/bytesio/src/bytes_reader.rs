@@ -112,18 +112,18 @@ impl BytesReader {
             });
         }
 
-        Ok(self.buffer.get(index).unwrap().clone())
+        Ok(*self.buffer.get(index).unwrap())
     }
 
     pub fn len(&mut self) -> usize {
-        return self.buffer.len();
+        self.buffer.len()
     }
 
     pub fn extract_remaining_bytes(&mut self) -> BytesMut {
-        return self.buffer.split_to(self.buffer.len());
+        self.buffer.split_to(self.buffer.len())
     }
     pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.buffer.clone();
+        self.buffer.clone()
     }
 }
 
@@ -157,7 +157,7 @@ mod tests {
 
     impl RefStruct {
         pub fn new(reader: Rc<RefCell<BytesReader>>) -> Self {
-            Self { reader: reader }
+            Self { reader }
         }
 
         // pub fn read_u8(&mut self) -> u8 {

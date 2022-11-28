@@ -9,9 +9,9 @@ pub mod peer_bandwidth_limit_type {
     pub const DYNAMIC: u8 = 2;
 }
 
-pub const FMSVER: &'static str = "FMS/3,0,1,123";
+pub const FMSVER: &str = "FMS/3,0,1,123";
 pub const CAPABILITIES: f64 = 31.0;
-pub const LEVEL: &'static str = "status";
+pub const LEVEL: &str = "status";
 
 pub const OBJENCODING_AMF0: f64 = 0.0;
 pub const OBJENCODING_AMF3: f64 = 3.0;
@@ -22,9 +22,9 @@ pub const TRANSACTION_ID_CONNECT: u8 = 1;
 pub const TRANSACTION_ID_CREATE_STREAM: u8 = 2;
 
 //pub mod
-pub const RTMP_LEVEL_WARNING: &'static str = "warning";
-pub const RTMP_LEVEL_STATUS: &'static str = "status";
-pub const RTMP_LEVEL_ERROR: &'static str = "error\n";
+pub const RTMP_LEVEL_WARNING: &str = "warning";
+pub const RTMP_LEVEL_STATUS: &str = "status";
+pub const RTMP_LEVEL_ERROR: &str = "error\n";
 //session subscribe type
 #[derive(Debug)]
 pub enum SessionSubType {

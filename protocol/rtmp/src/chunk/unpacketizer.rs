@@ -129,7 +129,7 @@ impl ChunkUnpacketizer {
             match self.read_chunk() {
                 Ok(chunk) => match chunk {
                     UnpackResult::ChunkInfo(chunk_info) => {
-                        let msg_type_id = chunk_info.message_header.msg_type_id.clone();
+                        let msg_type_id = chunk_info.message_header.msg_type_id;
                         chunks.push(chunk_info);
 
                         //if the chunk_size is changed, then break and update chunk_size
@@ -149,12 +149,12 @@ impl ChunkUnpacketizer {
             f(&self.chunk_read_state)
         );
 
-        if chunks.len() > 0 {
-            return Ok(UnpackResult::Chunks(chunks));
+        if !chunks.is_empty() {
+            Ok(UnpackResult::Chunks(chunks))
         } else {
-            return Err(UnpackError {
+            Err(UnpackError {
                 value: UnpackErrorValue::EmptyChunks,
-            });
+            })
         }
     }
 
@@ -176,7 +176,7 @@ impl ChunkUnpacketizer {
             self.chunk_index,
         );
 
-        self.chunk_index = self.chunk_index + 1;
+        self.chunk_index += 1;
 
         loop {
             result = match self.chunk_read_state {
@@ -197,7 +197,7 @@ impl ChunkUnpacketizer {
             f(&self.chunk_read_state),
             self.chunk_index,
         );
-        return Ok(result);
+        Ok(result)
 
         // Ok(UnpackResult::Success)
     }

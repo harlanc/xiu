@@ -54,7 +54,7 @@ impl TsMuxer {
     }
 
     pub fn get_data(&mut self) -> BytesMut {
-        return self.bytes_writer.extract_current_bytes();
+        self.bytes_writer.extract_current_bytes()
     }
 
     pub fn write(
@@ -143,10 +143,10 @@ impl TsMuxer {
         self.bytes_writer
             .write_u8(0x40 | ((pid >> 8) as u8 & 0x1F))?; //1
 
-        self.bytes_writer.write_u8(pid as u8 & 0xFF)?; //2
+        self.bytes_writer.write_u8(pid as u8)?; //2
 
         self.bytes_writer
-            .write_u8(0x10 | (continuity_counter & 0xFF))?;
+            .write_u8(0x10 | continuity_counter)?;
 
         /*adaption field control*/
         self.bytes_writer.write_u8(0x00)?; //4
@@ -163,7 +163,7 @@ impl TsMuxer {
     //2.4.3.6 PES packet P35
     pub fn write_pes(&mut self, payload: BytesMut) -> Result<(), MpegTsError> {
         let mut is_start: bool = true;
-        let mut payload_reader = BytesReader::new(payload.clone());
+        let mut payload_reader = BytesReader::new(payload);
 
         while payload_reader.len() > 0 {
             //write pes header
@@ -228,7 +228,7 @@ impl TsMuxer {
         ts_header.write_u8(0x47)?; //0
 
         /*PID 13 bits*/
-        ts_header.write_u8(0x00 | ((stream_data.pid >> 8) as u8 & 0x1F))?; //1
+        ts_header.write_u8((stream_data.pid >> 8) as u8 & 0x1F)?; //1
         ts_header.write_u8((stream_data.pid & 0xFF) as u8)?; //2
 
         /*continuity counter 4 bits*/
@@ -290,7 +290,7 @@ impl TsMuxer {
 
         let ts_header_length = ts_header.len();
         let mut stuffing_length = define::TS_PACKET_SIZE as i32
-            - (ts_header_length + pes_header_length + payload_data_length.clone()) as i32;
+            - (ts_header_length + pes_header_length + payload_data_length) as i32;
 
         if stuffing_length > 0 {
             if (ts_header.get(3).unwrap() & 0x20) > 0 {
@@ -337,13 +337,13 @@ impl TsMuxer {
             pmt_index += 1;
         }
 
-        return Err(MpegTsError {
+        Err(MpegTsError {
             value: MpegTsErrorValue::StreamNotFound,
-        });
+        })
     }
 
     pub fn add_stream(&mut self, codecid: u8, extra_data: BytesMut) -> Result<u16, MpegTsError> {
-        if 0 == self.pat.pmt.len() {
+        if self.pat.pmt.is_empty() {
             self.add_program(1, BytesMut::new())?;
         }
 
@@ -378,7 +378,7 @@ impl TsMuxer {
             cur_stream.stream_id = epes_stream_id::PES_SID_PRIVATE_1;
         }
 
-        if extra_data.len() > 0 {
+        if !extra_data.is_empty() {
             cur_stream.esinfo.put(extra_data);
         }
 
@@ -413,7 +413,7 @@ impl TsMuxer {
         cur_pmt.continuity_counter = 0;
         cur_pmt.pcr_pid = 0x1FFF;
 
-        if info.len() > 0 {
+        if !info.is_empty() {
             cur_pmt.program_info.put(&info[..]);
         }
 

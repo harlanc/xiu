@@ -146,7 +146,7 @@ impl Common {
         timestamp: &u32,
     ) -> Result<(), SessionError> {
         let data = ChannelData::Video {
-            timestamp: timestamp.clone(),
+            timestamp: *timestamp,
             data: data.clone(),
         };
 
@@ -169,7 +169,7 @@ impl Common {
         timestamp: &u32,
     ) -> Result<(), SessionError> {
         let data = ChannelData::Audio {
-            timestamp: timestamp.clone(),
+            timestamp: *timestamp,
             data: data.clone(),
         };
 
@@ -192,7 +192,7 @@ impl Common {
         timestamp: &u32,
     ) -> Result<(), SessionError> {
         let data = ChannelData::MetaData {
-            timestamp: timestamp.clone(),
+            timestamp: *timestamp,
             data: body.clone(),
         };
 
@@ -271,7 +271,7 @@ impl Common {
             }
 
             sleep(Duration::from_millis(800)).await;
-            retry_count = retry_count + 1;
+            retry_count += 1;
         }
 
         Ok(())

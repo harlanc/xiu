@@ -12,7 +12,7 @@ pub struct Amf0Writer {
 
 impl Amf0Writer {
     pub fn new(writer: BytesWriter) -> Self {
-        Self { writer: writer }
+        Self { writer }
     }
     pub fn write_anys(&mut self, values: &Vec<Amf0ValueType>) -> Result<(), Amf0WriteError> {
         for val in values {
@@ -23,24 +23,24 @@ impl Amf0Writer {
     }
     pub fn write_any(&mut self, value: &Amf0ValueType) -> Result<(), Amf0WriteError> {
         match *value {
-            Amf0ValueType::Boolean(ref val) => self.write_bool(&val),
+            Amf0ValueType::Boolean(ref val) => self.write_bool(val),
             Amf0ValueType::Null => self.write_null(),
-            Amf0ValueType::Number(ref val) => self.write_number(&val),
-            Amf0ValueType::UTF8String(ref val) => self.write_string(&val),
-            Amf0ValueType::Object(ref val) => self.write_object(&val),
+            Amf0ValueType::Number(ref val) => self.write_number(val),
+            Amf0ValueType::UTF8String(ref val) => self.write_string(val),
+            Amf0ValueType::Object(ref val) => self.write_object(val),
             _ => Ok(()),
         }
     }
 
     pub fn write_number(&mut self, value: &f64) -> Result<(), Amf0WriteError> {
         self.writer.write_u8(amf0_markers::NUMBER)?;
-        self.writer.write_f64::<BigEndian>(value.clone())?;
+        self.writer.write_f64::<BigEndian>(*value)?;
         Ok(())
     }
 
     pub fn write_bool(&mut self, value: &bool) -> Result<(), Amf0WriteError> {
         self.writer.write_u8(amf0_markers::BOOLEAN)?;
-        self.writer.write_u8(value.clone() as u8)?;
+        self.writer.write_u8(*value as u8)?;
         Ok(())
     }
 

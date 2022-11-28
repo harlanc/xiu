@@ -126,7 +126,7 @@ impl M3u8 {
             allow_cache = "#EXT-X-ALLOW-CACHE:YES\n";
         }
 
-        self.m3u8_header = format!("#EXTM3U\n");
+        self.m3u8_header = "#EXTM3U\n".to_string();
         self.m3u8_header += format!("#EXT-X-VERSION:{}\n", self.version).as_str();
         self.m3u8_header +=
             format!("#EXT-X-TARGETDURATION:{}\n", (self.duration + 999) / 1000).as_str();
