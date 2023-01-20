@@ -12,7 +12,7 @@ pub struct EventMessagesWriter {
 
 impl EventMessagesWriter {
     pub fn new(writer: AsyncBytesWriter) -> Self {
-        Self { writer: writer }
+        Self { writer }
     }
     fn write_control_message_header(&mut self, len: u32) -> Result<(), EventMessagesError> {
         //0 1 2 3 4 5 6 7
@@ -20,7 +20,7 @@ impl EventMessagesWriter {
         //|fmt|  cs id  |
         //+-+-+-+-+-+-+-+-+
         // 0x0     0x02
-        self.writer.write_u8(0x0 << 6 | 0x02)?; //fmt 0 and csid 2
+        self.writer.write_u8(0x02)?; //fmt 0 and csid 2
         self.writer.write_u24::<BigEndian>(0)?; //timestamp 3 bytes and value 0
         self.writer.write_u24::<BigEndian>(len)?; //msg length
         self.writer.write_u8(msg_type_id::USER_CONTROL_EVENT)?; //msg type id

@@ -56,7 +56,7 @@ impl FileTarget {
                 );
             }
         }
-        return file_name;
+        file_name
     }
 }
 
@@ -122,7 +122,7 @@ mod tests {
         );
 
         println!("{}\n", newdate);
-        print!("{}\n", cur_number);
+        println!("{}", cur_number);
     }
 
     use crate::logger::logger;

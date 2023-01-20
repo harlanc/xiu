@@ -44,7 +44,7 @@ pub fn gen_crc32(crc: u32, buffer: BytesMut) -> u32 {
         let c = result >> 8;
         result = b ^ c;
     }
-    return result;
+    result
 }
 
 #[cfg(test)]

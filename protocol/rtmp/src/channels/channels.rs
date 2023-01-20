@@ -61,8 +61,8 @@ impl Transmiter {
         event_consumer: UnboundedReceiver<TransmitEvent>,
     ) -> Self {
         Self {
-            data_consumer: data_consumer,
-            event_consumer: event_consumer,
+            data_consumer,
+            event_consumer,
             subscriberid_to_producer: Arc::new(Mutex::new(HashMap::new())),
             cache: Arc::new(Mutex::new(Cache::new())),
         }
@@ -156,7 +156,7 @@ impl Transmiter {
                                 self.cache.lock().unwrap().save_audio_seq(data.clone(),timestamp)?;
 
                                 let data = ChannelData::Audio {
-                                    timestamp: timestamp,
+                                    timestamp,
                                     data: data.clone(),
                                 };
 
@@ -175,7 +175,7 @@ impl Transmiter {
                                 self.cache.lock().unwrap().save_video_seq(data.clone(),timestamp)?;
 
                                 let data = ChannelData::Video {
-                                    timestamp: timestamp,
+                                    timestamp,
                                     data: data.clone(),
                                 };
                                 for (_,v) in self.subscriberid_to_producer.lock().unwrap().iter() {
@@ -247,11 +247,11 @@ impl ChannelsManager {
     }
 
     pub fn get_session_event_producer(&mut self) -> ChannelEventProducer {
-        return self.channel_event_producer.clone();
+        self.channel_event_producer.clone()
     }
 
     pub fn get_client_event_consumer(&mut self) -> ClientEventConsumer {
-        return self.client_event_producer.subscribe();
+        self.client_event_producer.subscribe()
     }
 
     pub async fn event_loop(&mut self) {
@@ -362,9 +362,9 @@ impl ChannelsManager {
                 })?;
         }
 
-        return Err(ChannelError {
+        Err(ChannelError {
             value: ChannelErrorValue::NoAppOrStreamName,
-        });
+        })
     }
 
     pub fn unsubscribe(
@@ -460,11 +460,11 @@ impl ChannelsManager {
                     })?;
             }
 
-            return Ok(data_publisher);
+            Ok(data_publisher)
         } else {
-            return Err(ChannelError {
+            Err(ChannelError {
                 value: ChannelErrorValue::NoAppName,
-            });
+            })
         }
     }
 

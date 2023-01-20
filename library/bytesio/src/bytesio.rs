@@ -61,16 +61,16 @@ impl BytesIO {
         match message {
             Some(data) => match data {
                 Ok(bytes) => {
-                    return Ok(bytes);
+                    Ok(bytes)
                 }
                 Err(err) => {
-                    return Err(BytesIOError {
+                    Err(BytesIOError {
                         value: BytesIOErrorValue::IOError(err),
                     })
                 }
             },
             None => {
-                return Err(BytesIOError {
+                Err(BytesIOError {
                     value: BytesIOErrorValue::NoneReturn,
                 })
             }

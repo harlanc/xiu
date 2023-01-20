@@ -36,7 +36,7 @@ impl Cache {
 
     pub fn get_metadata(&self) -> Option<ChannelData> {
         let data = self.metadata.get_chunk_body();
-        if data.len() > 0 {
+        if !data.is_empty() {
             Some(ChannelData::MetaData {
                 timestamp: self.metadata_timestamp,
                 data,
@@ -71,7 +71,7 @@ impl Cache {
     }
 
     pub fn get_audio_seq(&self) -> Option<ChannelData> {
-        if self.audio_seq.len() > 0 {
+        if !self.audio_seq.is_empty() {
             return Some(ChannelData::Audio {
                 timestamp: self.audio_timestamp,
                 data: self.audio_seq.clone(),
@@ -81,7 +81,7 @@ impl Cache {
     }
 
     pub fn get_video_seq(&self) -> Option<ChannelData> {
-        if self.video_seq.len() > 0 {
+        if !self.video_seq.is_empty() {
             return Some(ChannelData::Video {
                 timestamp: self.video_timestamp,
                 data: self.video_seq.clone(),

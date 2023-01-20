@@ -30,7 +30,7 @@ impl DigestProcessor {
         }
 
         let digest = self.generate_and_validate(SchemaVersion::Schema1)?;
-        return Ok((digest, SchemaVersion::Schema1));
+        Ok((digest, SchemaVersion::Schema1))
     }
 
     pub fn generate_and_fill_digest(&mut self) -> Result<Vec<u8>, DigestError> {
@@ -134,8 +134,8 @@ impl DigestProcessor {
             return Ok(digest_data);
         }
 
-        return Err(DigestError {
+        Err(DigestError {
             value: DigestErrorValue::CannotGenerate,
-        });
+        })
     }
 }

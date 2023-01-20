@@ -166,7 +166,7 @@ impl THandshakeServer for SimpleHandshakeServer {
     fn write_s1(&mut self) -> Result<(), HandshakeError> {
         self.writer.write_u32::<BigEndian>(utils::current_time())?;
 
-        let timestamp = self.c1_timestamp.clone();
+        let timestamp = self.c1_timestamp;
         self.writer.write_u32::<BigEndian>(timestamp)?;
 
         self.writer
@@ -296,9 +296,9 @@ impl HandshakeServer {
 
     pub fn state(&mut self) -> ServerHandshakeState {
         if self.is_complex {
-            return self.complex_handshaker.state;
+            self.complex_handshaker.state
         } else {
-            return self.simple_handshaker.state;
+            self.simple_handshaker.state
         }
     }
 

@@ -75,7 +75,7 @@ impl Mpeg4BitVec {
                 break;
             }
             self.data.push((mut_data & 0x01) > 0);
-            mut_data = mut_data >> 1;
+            mut_data >>= 1;
 
             self.write_offset += 1;
         }
@@ -154,7 +154,7 @@ mod tests {
             print!("{} ", v);
         }
 
-        print!("\n");
+        println!();
 
         bit_vec.pop();
 

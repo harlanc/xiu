@@ -119,7 +119,7 @@ impl ServerSession {
                 self.state = ServerSessionState::ReadChunk;
 
                 let left_bytes = self.handshaker.get_remaining_bytes();
-                if left_bytes.len() > 0 {
+                if !left_bytes.is_empty() {
                     self.unpacketizer.extend_data(&left_bytes[..]);
                     self.has_remaing_data = true;
                 }
@@ -235,7 +235,7 @@ impl ServerSession {
                 .await?
             }
             RtmpMessageData::SetChunkSize { chunk_size } => {
-                self.on_set_chunk_size(chunk_size.clone() as usize)?;
+                self.on_set_chunk_size(*chunk_size as usize)?;
             }
             RtmpMessageData::AudioData { data } => {
                 self.common.on_audio_data(data, timestamp)?;
@@ -280,14 +280,14 @@ impl ServerSession {
         match cmd_name.as_str() {
             "connect" => {
                 log::info!("[ S<-C ] [connect] ");
-                self.on_connect(&transaction_id, &obj).await?;
+                self.on_connect(transaction_id, obj).await?;
             }
             "createStream" => {
                 log::info!("[ S<-C ] [create stream] ");
                 self.on_create_stream(transaction_id).await?;
             }
             "deleteStream" => {
-                if others.len() > 0 {
+                if !others.is_empty() {
                     let stream_id = match others.pop() {
                         Some(val) => match val {
                             Amf0ValueType::Number(streamid) => streamid,
@@ -375,7 +375,7 @@ impl ServerSession {
         log::info!("[ S->C ] [set connect_response]",);
         netconnection
             .write_connect_response(
-                &transaction_id,
+                transaction_id,
                 &define::FMSVER.to_string(),
                 &define::CAPABILITIES,
                 &String::from("NetConnection.Connect.Success"),
@@ -449,7 +449,7 @@ impl ServerSession {
             if index >= length {
                 break;
             }
-            index = index + 1;
+            index += 1;
             stream_name = match other_values.remove(0) {
                 Amf0ValueType::UTF8String(val) => Some(val),
                 _ => None,
@@ -458,7 +458,7 @@ impl ServerSession {
             if index >= length {
                 break;
             }
-            index = index + 1;
+            index += 1;
             start = match other_values.remove(0) {
                 Amf0ValueType::Number(val) => Some(val),
                 _ => None,
@@ -467,7 +467,7 @@ impl ServerSession {
             if index >= length {
                 break;
             }
-            index = index + 1;
+            index += 1;
             duration = match other_values.remove(0) {
                 Amf0ValueType::Number(val) => Some(val),
                 _ => None,
@@ -485,7 +485,7 @@ impl ServerSession {
         }
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.write_stream_begin(stream_id.clone()).await?;
+        event_messages.write_stream_begin(*stream_id).await?;
         log::info!(
             "[ S->C ] [stream begin]  app_name: {}, stream_name: {}",
             self.app_name,
@@ -536,7 +536,7 @@ impl ServerSession {
             .await?;
 
         event_messages
-            .write_stream_is_record(stream_id.clone())
+            .write_stream_is_record(*stream_id)
             .await?;
         log::info!(
             "[ S->C ] [stream is record]  app_name: {}, stream_name: {}",
@@ -604,7 +604,7 @@ impl ServerSession {
         );
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
-        event_messages.write_stream_begin(stream_id.clone()).await?;
+        event_messages.write_stream_begin(*stream_id).await?;
 
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
         netstream
