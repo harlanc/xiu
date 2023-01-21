@@ -1,9 +1,7 @@
-use super::errors::MuxerError;
-
-use byteorder::BigEndian;
-use bytesio::bytes_writer::BytesWriter;
-
-use bytes::BytesMut;
+use {
+    super::errors::MuxerError, byteorder::BigEndian, bytes::BytesMut,
+    bytesio::bytes_writer::BytesWriter,
+};
 
 const FLV_HEADER: [u8; 9] = [
     0x46, // 'F'

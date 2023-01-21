@@ -1,6 +1,6 @@
 use {
-    failure::{Backtrace, Fail},
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
+    failure::{Backtrace, Fail},
     std::{
         fmt, {io, string},
     },

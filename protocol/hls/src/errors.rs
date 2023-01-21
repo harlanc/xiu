@@ -1,12 +1,12 @@
 use {
-    failure::Fail,
-    xflv::errors::FlvDemuxerError,
-    xmpegts::errors::MpegTsError,
+    failure::{Backtrace, Fail},
     rtmp::{
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
     std::fmt,
     tokio::sync::broadcast::error::RecvError,
+    xflv::errors::FlvDemuxerError,
+    xmpegts::errors::MpegTsError,
 };
 
 #[derive(Debug)]
@@ -28,19 +28,18 @@ pub struct MediaError {
 pub enum MediaErrorValue {
     #[fail(display = "server error")]
     Error,
-    #[fail(display = "session error")]
-    SessionError(SessionError),
-    #[fail(display = "amf write error")]
-    Amf0WriteError(Amf0WriteError),
-    #[fail(display = "metadata error")]
-    MetadataError(MetadataError),
-    #[fail(display = "flv demuxer error")]
-    FlvDemuxerError(FlvDemuxerError),
-    #[fail(display = "mpegts error")]
-    MpegTsError(MpegTsError),
-
-    #[fail(display = "write file error")]
-    IOError(std::io::Error),
+    #[fail(display = "session error:{}\n", _0)]
+    SessionError(#[cause] SessionError),
+    #[fail(display = "amf write error:{}\n", _0)]
+    Amf0WriteError(#[cause] Amf0WriteError),
+    #[fail(display = "metadata error:{}\n", _0)]
+    MetadataError(#[cause] MetadataError),
+    #[fail(display = "flv demuxer error:{}\n", _0)]
+    FlvDemuxerError(#[cause] FlvDemuxerError),
+    #[fail(display = "mpegts error:{}\n", _0)]
+    MpegTsError(#[cause] MpegTsError),
+    #[fail(display = "write file error:{}\n", _0)]
+    IOError(#[cause] std::io::Error),
 }
 
 impl From<SessionError> for MediaError {
@@ -97,27 +96,36 @@ impl fmt::Display for MediaError {
     }
 }
 
+impl Fail for MediaError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
 pub struct HlsError {
     pub value: HlsErrorValue,
 }
 
 #[derive(Debug, Fail)]
 pub enum HlsErrorValue {
-    #[fail(display = "server error")]
+    #[fail(display = "hls error")]
     Error,
-    #[fail(display = "session error")]
-    SessionError(SessionError),
-    #[fail(display = "amf write error")]
-    Amf0WriteError(Amf0WriteError),
-    #[fail(display = "metadata error")]
-    MetadataError(MetadataError),
-    #[fail(display = "flv demuxer error")]
-    FlvDemuxerError(FlvDemuxerError),
-    #[fail(display = "media error")]
-    MediaError(MediaError),
-
-    #[fail(display = "receive error\n")]
-    RecvError(RecvError),
+    #[fail(display = "session error:{}\n", _0)]
+    SessionError(#[cause] SessionError),
+    #[fail(display = "amf write error:{}\n", _0)]
+    Amf0WriteError(#[cause] Amf0WriteError),
+    #[fail(display = "metadata error:{}\n", _0)]
+    MetadataError(#[cause] MetadataError),
+    #[fail(display = "flv demuxer error:{}\n", _0)]
+    FlvDemuxerError(#[cause] FlvDemuxerError),
+    #[fail(display = "media error:{}\n", _0)]
+    MediaError(#[cause] MediaError),
+    #[fail(display = "receive error:{}\n", _0)]
+    RecvError(#[cause] RecvError),
 }
 impl From<RecvError> for HlsError {
     fn from(error: RecvError) -> Self {
@@ -172,27 +180,3 @@ impl fmt::Display for HlsError {
         fmt::Display::fmt(&self.value, f)
     }
 }
-// #[derive(Debug, Fail)]
-// pub struct TsError {
-//     pub value: TsErrorValue,
-// }
-
-// impl fmt::Display for TsError {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         fmt::Display::fmt(&self.value, f)
-//     }
-// }
-
-// #[derive(Debug, Fail)]
-// pub enum TsErrorValue {
-//     #[fail(display = "write file error")]
-//     IOError(std::io::Error),
-// }
-
-// impl From<std::io::Error> for TsError {
-//     fn from(error: std::io::Error) -> Self {
-//         TsError {
-//             value: TsErrorValue::IOError(error),
-//         }
-//     }
-// }

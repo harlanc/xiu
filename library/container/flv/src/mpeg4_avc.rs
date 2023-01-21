@@ -138,7 +138,6 @@ impl Mpeg4AvcProcessor {
         self.mpeg4_avc.level = self.bytes_reader.read_u8()?;
         /*nalu length*/
         self.mpeg4_avc.nalu_length = self.bytes_reader.read_u8()? & 0x03 + 1;
-
         /*number of SPS NALUs */
         self.mpeg4_avc.nb_sps = self.bytes_reader.read_u8()? & 0x1F;
 
@@ -161,7 +160,6 @@ impl Mpeg4AvcProcessor {
                 .sps_annexb_data
                 .write(&self.mpeg4_avc.sps[i].data[..])?;
         }
-
         /*number of PPS NALUs*/
         self.mpeg4_avc.nb_pps = self.bytes_reader.read_u8()?;
 
@@ -183,6 +181,8 @@ impl Mpeg4AvcProcessor {
                 .pps_annexb_data
                 .write(&self.mpeg4_avc.pps[i].data[..])?;
         }
+        /*clear the left bytes*/
+        self.bytes_reader.extract_remaining_bytes();
 
         Ok(())
     }
@@ -216,8 +216,6 @@ impl Mpeg4AvcProcessor {
             self.bytes_writer.write(&H264_START_CODE)?;
             let data = self.bytes_reader.read_bytes(size as usize)?;
             self.bytes_writer.write(&data[..])?;
-
-            //print(self.bytes_writer.get_current_bytes());
         }
 
         Ok(())

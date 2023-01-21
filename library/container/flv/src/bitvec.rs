@@ -1,7 +1,8 @@
-use super::errors::MpegAacError;
-use super::errors::MpegAacErrorValue;
-use bitvec::prelude::*;
-use bytes::BytesMut;
+use {
+    super::errors::{MpegAacError, MpegErrorValue},
+    bitvec::prelude::*,
+    bytes::BytesMut,
+};
 
 pub enum BitVectorOpType {
     Read,
@@ -38,7 +39,7 @@ impl Mpeg4BitVec {
 
         if n > bit_length {
             return Err(MpegAacError {
-                value: MpegAacErrorValue::NotEnoughBitsToRead,
+                value: MpegErrorValue::NotEnoughBitsToRead,
             });
         }
         let mut result: u64 = 0;

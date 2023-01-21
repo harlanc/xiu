@@ -61,19 +61,14 @@ pub enum ClientType {
 pub struct ClientSession {
     io: Arc<Mutex<BytesIO>>,
     common: Common,
-
     handshaker: SimpleHandshakeClient,
-
     unpacketizer: ChunkUnpacketizer,
-
     app_name: String,
     stream_name: String,
-
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
     is called. */
     subscriber_id: Uuid,
-
     state: ClientSessionState,
     client_type: ClientType,
 }
@@ -93,15 +88,11 @@ impl ClientSession {
         Self {
             io: Arc::clone(&net_io),
             common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Client),
-
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
-
             unpacketizer: ChunkUnpacketizer::new(),
-
             app_name,
             stream_name,
             client_type,
-
             state: ClientSessionState::Handshake,
             subscriber_id,
         }
@@ -208,7 +199,6 @@ impl ClientSession {
                 log::info!("[C <- S] on_set_peer_bandwidth...");
                 self.on_set_peer_bandwidth().await?
             }
-
             RtmpMessageData::WindowAcknowledgementSize { .. } => {
                 log::info!("[C <- S] on_windows_acknowledgement_size...");
             }
@@ -216,19 +206,15 @@ impl ClientSession {
                 log::info!("[C <- S] on_set_chunk_size...");
                 self.on_set_chunk_size(chunk_size)?;
             }
-
             RtmpMessageData::StreamBegin { stream_id } => {
                 log::info!("[C <- S] on_stream_begin...");
                 self.on_stream_begin(stream_id)?;
             }
-
             RtmpMessageData::StreamIsRecorded { stream_id } => {
                 log::info!("[C <- S] on_stream_is_recorded...");
                 self.on_stream_is_recorded(stream_id)?;
             }
-
             RtmpMessageData::AudioData { data } => self.common.on_audio_data(data, timestamp)?,
-
             RtmpMessageData::VideoData { data } => self.common.on_video_data(data, timestamp)?,
 
             _ => {}
@@ -297,7 +283,6 @@ impl ClientSession {
         self.send_set_chunk_size().await?;
 
         let mut netconnection = NetConnection::new(Arc::clone(&self.io));
-
         let mut properties = ConnectProperties::new_none();
 
         let url = format!("rtmp://localhost:1935/{app_name}", app_name = self.app_name);
@@ -322,17 +307,6 @@ impl ClientSession {
             .write_connect(transaction_id, &properties)
             .await?;
 
-        // let mut chunk_info = ChunkInfo::new(
-        //     csid_type::COMMAND_AMF0_AMF3,
-        //     chunk_type::TYPE_0,
-        //     0,
-        //     data.len() as u32,
-        //     msg_type_id::COMMAND_AMF0,
-        //     0,
-        //     data,
-        // );
-
-        // self.packetizer.write_chunk(&mut chunk_info).await?;
         Ok(())
     }
 

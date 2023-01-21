@@ -1,8 +1,8 @@
-use failure::{Backtrace, Fail};
-use std::fmt;
-
-use bytesio::bytes_errors::BytesReadError;
-use bytesio::bytes_errors::BytesWriteError;
+use {
+    bytesio::bytes_errors::{BytesReadError, BytesWriteError},
+    failure::{Backtrace, Fail},
+    std::fmt,
+};
 
 #[derive(Debug, Fail)]
 pub enum TagParseErrorValue {
@@ -77,14 +77,14 @@ pub struct FlvDemuxerError {
 pub enum DemuxerErrorValue {
     // #[fail(display = "server error")]
     // Error,
-    #[fail(display = "bytes write error")]
-    BytesWriteError(BytesWriteError),
-    #[fail(display = "bytes read error\n")]
-    BytesReadError(BytesReadError),
-    #[fail(display = "mpeg avc error\n")]
-    MpegAvcError(MpegAvcError),
-    #[fail(display = "mpeg aac error\n")]
-    MpegAacError(MpegAacError),
+    #[fail(display = "bytes write error:{}\n", _0)]
+    BytesWriteError(#[cause] BytesWriteError),
+    #[fail(display = "bytes read error:{}\n", _0)]
+    BytesReadError(#[cause] BytesReadError),
+    #[fail(display = "mpeg avc error:{}\n", _0)]
+    MpegAvcError(#[cause] MpegAvcError),
+    #[fail(display = "mpeg aac error:{}\n", _0)]
+    MpegAacError(#[cause] MpegAacError),
 }
 
 impl From<BytesWriteError> for FlvDemuxerError {
@@ -125,29 +125,36 @@ impl fmt::Display for FlvDemuxerError {
     }
 }
 
+impl Fail for FlvDemuxerError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
 #[derive(Debug, Fail)]
-pub enum MpegAacErrorValue {
-    #[fail(display = "bytes read error\n")]
-    BytesReadError(BytesReadError),
-
-    #[fail(display = "bytes write error\n")]
-    BytesWriteError(BytesWriteError),
-
+pub enum MpegErrorValue {
+    #[fail(display = "bytes read error:{}\n", _0)]
+    BytesReadError(#[cause] BytesReadError),
+    #[fail(display = "bytes write error:{}\n", _0)]
+    BytesWriteError(#[cause] BytesWriteError),
     #[fail(display = "there is not enough bits to read\n")]
     NotEnoughBitsToRead,
-
     #[fail(display = "should not come here\n")]
     ShouldNotComeHere,
 }
 #[derive(Debug)]
 pub struct MpegAvcError {
-    pub value: MpegAacErrorValue,
+    pub value: MpegErrorValue,
 }
 
 impl From<BytesReadError> for MpegAvcError {
     fn from(error: BytesReadError) -> Self {
         MpegAvcError {
-            value: MpegAacErrorValue::BytesReadError(error),
+            value: MpegErrorValue::BytesReadError(error),
         }
     }
 }
@@ -155,20 +162,36 @@ impl From<BytesReadError> for MpegAvcError {
 impl From<BytesWriteError> for MpegAvcError {
     fn from(error: BytesWriteError) -> Self {
         MpegAvcError {
-            value: MpegAacErrorValue::BytesWriteError(error),
+            value: MpegErrorValue::BytesWriteError(error),
         }
+    }
+}
+
+impl fmt::Display for MpegAvcError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for MpegAvcError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }
 
 #[derive(Debug)]
 pub struct MpegAacError {
-    pub value: MpegAacErrorValue,
+    pub value: MpegErrorValue,
 }
 
 impl From<BytesReadError> for MpegAacError {
     fn from(error: BytesReadError) -> Self {
         MpegAacError {
-            value: MpegAacErrorValue::BytesReadError(error),
+            value: MpegErrorValue::BytesReadError(error),
         }
     }
 }
@@ -176,8 +199,24 @@ impl From<BytesReadError> for MpegAacError {
 impl From<BytesWriteError> for MpegAacError {
     fn from(error: BytesWriteError) -> Self {
         MpegAacError {
-            value: MpegAacErrorValue::BytesWriteError(error),
+            value: MpegErrorValue::BytesWriteError(error),
         }
+    }
+}
+
+impl fmt::Display for MpegAacError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for MpegAacError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }
 

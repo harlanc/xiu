@@ -39,24 +39,17 @@ enum ServerSessionState {
 pub struct ServerSession {
     pub app_name: String,
     pub stream_name: String,
-
     io: Arc<Mutex<BytesIO>>,
     handshaker: HandshakeServer,
-
     unpacketizer: ChunkUnpacketizer,
-
     state: ServerSessionState,
-
     pub common: Common,
-
     bytesio_data: BytesMut,
     has_remaing_data: bool,
-
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
     is called. */
     pub subscriber_id: Uuid,
-
     connect_command_object: Option<HashMap<String, Amf0ValueType>>,
 }
 
@@ -67,20 +60,14 @@ impl ServerSession {
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
-
             io: Arc::clone(&net_io),
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
-
             unpacketizer: ChunkUnpacketizer::new(),
-
             state: ServerSessionState::Handshake,
-
             common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Server),
-
             subscriber_id,
             bytesio_data: BytesMut::new(),
             has_remaing_data: false,
-
             connect_command_object: None,
         }
     }

@@ -5,6 +5,7 @@ use {
 };
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct Pes {
     pub program_number: u16,
     pub pid: u16,
