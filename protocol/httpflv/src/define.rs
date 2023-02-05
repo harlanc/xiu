@@ -1,8 +1,7 @@
-use {bytes::BytesMut, std::io};
-
-use futures::channel::mpsc::UnboundedReceiver;
-use futures::channel::mpsc::UnboundedSender;
-
+use {
+    futures::channel::mpsc::{UnboundedReceiver, UnboundedSender},
+    {bytes::BytesMut, std::io},
+};
 pub mod tag_type {
     pub const AUDIO: u8 = 8;
     pub const VIDEO: u8 = 9;

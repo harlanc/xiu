@@ -1,5 +1,4 @@
-use xflv::demuxer::FlvDemuxerAudioData;
-use xflv::demuxer::FlvDemuxerVideoData;
+use xflv::demuxer::{FlvDemuxerAudioData, FlvDemuxerVideoData};
 
 pub const HLS_DURATION: u8 = 10;
 

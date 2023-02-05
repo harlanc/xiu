@@ -8,8 +8,8 @@ use {
 #[derive(Debug, Clone)]
 pub struct Pat {
     transport_stream_id: u16,
-    version_number: u8,     //5bits
-    continuity_counter: u8, //s4 bits
+    version_number: u8, //5bits
+    //continuity_counter: u8, //s4 bits
 
     //pub pmt_count: usize,
     pub pmt: Vec<pmt::Pmt>,
@@ -20,7 +20,7 @@ impl Pat {
         Self {
             transport_stream_id: 1,
             version_number: 0,
-            continuity_counter: 0,
+            //continuity_counter: 0,
             //pmt_count: 0,
             pmt: Vec::new(),
         }

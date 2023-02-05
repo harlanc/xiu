@@ -1,8 +1,7 @@
-use super::errors::HlsError;
-use super::flv_data_receiver::FlvDataReceiver;
-use rtmp::channels::define::ChannelEventProducer;
-use rtmp::channels::define::ClientEvent;
-use rtmp::channels::define::ClientEventConsumer;
+use {
+    super::{errors::HlsError, flv_data_receiver::FlvDataReceiver},
+    rtmp::channels::define::{ChannelEventProducer, ClientEvent, ClientEventConsumer},
+};
 
 pub struct RtmpEventProcessor {
     client_event_consumer: ClientEventConsumer,

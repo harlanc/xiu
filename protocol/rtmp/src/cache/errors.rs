@@ -1,8 +1,8 @@
 use {
     crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
-    failure::Fail,
-    xflv::errors::FlvDemuxerError,
+    failure::{Backtrace, Fail},
     std::fmt,
+    xflv::errors::FlvDemuxerError,
 };
 
 #[derive(Debug, Fail)]
@@ -58,5 +58,21 @@ impl From<Amf0WriteError> for MetadataError {
         MetadataError {
             value: MetadataErrorValue::Amf0WriteError(error),
         }
+    }
+}
+
+impl Fail for MetadataError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
+    }
+}
+
+impl fmt::Display for MetadataError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
     }
 }

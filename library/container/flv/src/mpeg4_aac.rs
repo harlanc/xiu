@@ -2,7 +2,7 @@ use {
     super::{
         bitvec as mpeg4bitvec,
         bitvec::Mpeg4BitVec,
-        errors::{MpegAacError, MpegAacErrorValue},
+        errors::{MpegAacError, MpegErrorValue},
     },
     bytes::BytesMut,
     bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
@@ -41,24 +41,6 @@ impl Mpeg4Aac {
         }
     }
 }
-
-// pub struct Mpeg4Bits {
-//     data: BytesMut,
-//     size: usize,
-//     bits: usize,
-//     error: u32,
-// }
-
-// impl Mpeg4Bits {
-//     pub fn default() -> Self {
-//         Self {
-//             data: BytesMut::new(),
-//             size: 0,
-//             bits: 0,
-//             error: 0,
-//         }
-//     }
-// }
 
 pub struct Mpeg4AacProcessor {
     pub bytes_reader: BytesReader,
@@ -153,7 +135,7 @@ impl Mpeg4AacProcessor {
                 match ep_config {
                     2 | 3 => {
                         return Err(MpegAacError {
-                            value: MpegAacErrorValue::ShouldNotComeHere,
+                            value: MpegErrorValue::ShouldNotComeHere,
                         });
                     }
 

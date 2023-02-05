@@ -1,6 +1,7 @@
 use {
-    failure::Fail,
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
+    failure::{Backtrace, Fail},
+    std::fmt,
     std::io::Error,
 };
 
@@ -53,5 +54,21 @@ impl From<Error> for MpegTsError {
         MpegTsError {
             value: MpegTsErrorValue::IOError(error),
         }
+    }
+}
+
+impl fmt::Display for MpegTsError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for MpegTsError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }

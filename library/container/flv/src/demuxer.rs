@@ -1,18 +1,15 @@
-use super::define::aac_packet_type;
-use super::define::avc_packet_type;
-use super::define::codec_id;
-use super::define::sound_format;
-use super::define::tag_type;
-use super::define::FlvData;
-
-use super::demuxer_tag::AudioTagHeaderDemuxer;
-use super::demuxer_tag::VideoTagHeaderDemuxer;
-use super::errors::FlvDemuxerError;
-use super::mpeg4_aac::Mpeg4AacProcessor;
-use super::mpeg4_avc::Mpeg4AvcProcessor;
-use byteorder::BigEndian;
-use bytes::BytesMut;
-use bytesio::bytes_reader::BytesReader;
+use {
+    super::{
+        define::{aac_packet_type, avc_packet_type, codec_id, sound_format, tag_type, FlvData},
+        demuxer_tag::{AudioTagHeaderDemuxer, VideoTagHeaderDemuxer},
+        errors::FlvDemuxerError,
+        mpeg4_aac::Mpeg4AacProcessor,
+        mpeg4_avc::Mpeg4AvcProcessor,
+    },
+    byteorder::BigEndian,
+    bytes::BytesMut,
+    bytesio::bytes_reader::BytesReader,
+};
 
 /*
  ** Flv Struct **
