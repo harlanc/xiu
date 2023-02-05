@@ -59,7 +59,7 @@ impl BytesWriter {
     }
 
     pub fn get(&mut self, position: usize) -> Option<&u8> {
-        return self.bytes.get(position);
+        self.bytes.get(position)
     }
 
     pub fn write_u16<T: ByteOrder>(&mut self, bytes: u16) -> Result<(), BytesWriteError> {
@@ -145,7 +145,7 @@ impl AsyncBytesWriter {
     pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
         Self {
             bytes_writer: BytesWriter::new(),
-            io: io,
+            io,
         }
     }
 
@@ -258,8 +258,8 @@ mod tests {
 
         let val = ((pts << 1) & 0xFE) as u8;
 
-        print!("======={}=======\n", pts << 1);
-        print!("======={}=======\n", val);
+        println!("======={}=======", pts << 1);
+        println!("======={}=======", val);
     }
 
     #[test]
@@ -268,19 +268,19 @@ mod tests {
         let pts: i64 = 1627702096;
 
         let b9 = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
-        print!("=======b9{}=======\n", b9);
+        println!("=======b9{}=======", b9);
 
-        let b10 = (pts >> 22) as u8 & 0xFF; /* PTS 22-29 */
-        print!("=======b10{}=======\n", b10);
+        let b10 = (pts >> 22) as u8; /* PTS 22-29 */
+        println!("=======b10{}=======", b10);
 
         let b11 = ((pts >> 14) & 0xFE) as u8 /* PTS 15-21 */ | 0x01; /* marker_bit */
-        print!("=======b11{}=======\n", b11);
+        println!("=======b11{}=======", b11);
 
-        let b12 = (pts >> 7) as u8 & 0xFF; /* PTS 7-14 */
-        print!("=======b12{}=======\n", b12);
+        let b12 = (pts >> 7) as u8; /* PTS 7-14 */
+        println!("=======b12{}=======", b12);
 
         let b13 = ((pts << 1) & 0xFE) as u8 /* PTS 0-6 */ | 0x01; /* marker_bit */
-        print!("=======b13{}=======\n", b13);
+        println!("=======b13{}=======", b13);
     }
 
     #[test]
@@ -289,7 +289,7 @@ mod tests {
         let pts: i64 = 1627702096;
 
         let b12 = ((pts & 0x7fff) << 1) | 1; /* PTS 7-14 */
-        print!("=======b12{}=======\n", b12 >> 8 as u8);
-        print!("=======b13{}=======\n", b12 as u8);
+        println!("=======b12{}=======", b12 >> 8_u8);
+        println!("=======b13{}=======", b12 as u8);
     }
 }

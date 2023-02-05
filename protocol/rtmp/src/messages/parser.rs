@@ -20,7 +20,7 @@ pub struct MessageParser {
 impl MessageParser {
     pub fn new(chunk_info: ChunkInfo) -> Self {
         Self {
-            chunk_info: chunk_info,
+            chunk_info,
         }
     }
     pub fn parse(self) -> Result<RtmpMessageData, MessageError> {
@@ -53,8 +53,8 @@ impl MessageParser {
                 let others = amf_reader.read_all()?;
 
                 return Ok(RtmpMessageData::Amf0Command {
-                    command_name: command_name,
-                    transaction_id: transaction_id,
+                    command_name,
+                    transaction_id,
                     command_object: command_obj,
                     others,
                 });
@@ -90,33 +90,33 @@ impl MessageParser {
             msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
                 return Ok(RtmpMessageData::SetChunkSize {
-                    chunk_size: chunk_size,
+                    chunk_size,
                 });
             }
             msg_type_id::ABORT => {
                 let chunk_stream_id =
                     ProtocolControlMessageReader::new(reader).read_abort_message()?;
                 return Ok(RtmpMessageData::AbortMessage {
-                    chunk_stream_id: chunk_stream_id,
+                    chunk_stream_id,
                 });
             }
             msg_type_id::ACKNOWLEDGEMENT => {
                 let sequence_number =
                     ProtocolControlMessageReader::new(reader).read_acknowledgement()?;
                 return Ok(RtmpMessageData::Acknowledgement {
-                    sequence_number: sequence_number,
+                    sequence_number,
                 });
             }
             msg_type_id::WIN_ACKNOWLEDGEMENT_SIZE => {
                 let size =
                     ProtocolControlMessageReader::new(reader).read_window_acknowledgement_size()?;
-                return Ok(RtmpMessageData::WindowAcknowledgementSize { size: size });
+                return Ok(RtmpMessageData::WindowAcknowledgementSize { size });
             }
             msg_type_id::SET_PEER_BANDWIDTH => {
                 let properties =
                     ProtocolControlMessageReader::new(reader).read_set_peer_bandwidth()?;
                 return Ok(RtmpMessageData::SetPeerBandwidth {
-                    properties: properties,
+                    properties,
                 });
             }
             msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
@@ -136,9 +136,9 @@ impl MessageParser {
                 });
             }
         }
-        return Err(MessageError {
+        Err(MessageError {
             value: MessageErrorValue::UnknowMessageType,
-        });
+        })
     }
 }
 
@@ -190,7 +190,7 @@ mod tests {
                     let _ = chunk_info.message_header.msg_streamd_id;
                     let _ = chunk_info.message_header.timestamp;
 
-                    let mut message_parser = MessageParser::new(chunk_info);
+                    let message_parser = MessageParser::new(chunk_info);
                     let _ = message_parser.parse();
                 }
                 _ => {}

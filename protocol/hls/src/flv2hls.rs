@@ -66,8 +66,8 @@ impl Flv2HlsRemuxer {
                 duration,
                 6,
                 m3u8_name,
-                app_name.clone(),
-                stream_name.clone(),
+                app_name,
+                stream_name,
             ),
         }
     }

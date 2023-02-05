@@ -119,7 +119,7 @@ impl FlvDataReceiver {
             let subscribe_event = ChannelEvent::Subscribe {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
-                session_info: session_info,
+                session_info,
                 responder: sender,
             };
 
@@ -154,7 +154,7 @@ impl FlvDataReceiver {
             }
 
             sleep(Duration::from_millis(800)).await;
-            retry_count = retry_count + 1;
+            retry_count += 1;
         }
 
         Ok(())

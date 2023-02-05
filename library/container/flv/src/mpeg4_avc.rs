@@ -59,20 +59,20 @@ pub struct Mpeg4Avc {
 }
 
 pub fn print(data: BytesMut) {
-    print!("==========={}\n", data.len());
+    println!("==========={}", data.len());
     let mut idx = 0;
     for i in data {
         print!("{:02X} ", i);
-        idx = idx + 1;
+        idx += 1;
         match idx % 16 {
             0 => {
-                print!("\n")
+                println!()
             }
             _ => {}
         }
     }
 
-    print!("===========\n")
+    println!("===========")
 }
 
 impl Mpeg4Avc {
@@ -137,7 +137,8 @@ impl Mpeg4AvcProcessor {
         /*avc level*/
         self.mpeg4_avc.level = self.bytes_reader.read_u8()?;
         /*nalu length*/
-        self.mpeg4_avc.nalu_length = self.bytes_reader.read_u8()? & 0x03 + 1;
+        self.mpeg4_avc.nalu_length = (self.bytes_reader.read_u8()? & 0x03) + 1;
+
         /*number of SPS NALUs */
         self.mpeg4_avc.nb_sps = self.bytes_reader.read_u8()? & 0x1F;
 

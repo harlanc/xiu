@@ -101,11 +101,11 @@ impl AudioTagHeaderDemuxer {
             _ => {}
         }
 
-        return Ok(self.tag.clone());
+        Ok(self.tag.clone())
     }
 
     pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.bytes_reader.extract_remaining_bytes();
+        self.bytes_reader.extract_remaining_bytes()
     }
 }
 #[derive(Clone)]
@@ -182,10 +182,10 @@ impl VideoTagHeaderDemuxer {
             }
         }
 
-        return Ok(self.tag.clone());
+        Ok(self.tag.clone())
     }
 
     pub fn get_remaining_bytes(&mut self) -> BytesMut {
-        return self.bytes_reader.extract_remaining_bytes();
+        self.bytes_reader.extract_remaining_bytes()
     }
 }

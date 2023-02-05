@@ -209,24 +209,21 @@ impl Mpeg4AacProcessor {
                 self.bits_data.read_n_bits(2)?;
                 self.bits_data.read_n_bits(1)?;
             }
+        } else if self.bits_data.read_n_bits(1)? > 0 {
+            self.bits_data.read_n_bits(2)?;
         } else {
-            if self.bits_data.read_n_bits(1)? > 0 {
-                self.bits_data.read_n_bits(2)?;
-            } else {
-                self.bits_data.read_n_bits(2)?;
-            }
+            self.bits_data.read_n_bits(2)?;
         }
 
         Ok(())
     }
     pub fn ga_specific_config_load(&mut self) -> Result<(), MpegAacError> {
-        let extension_flag: u64;
         self.bits_data.read_n_bits(1)?;
 
         if self.bits_data.read_n_bits(1)? > 0 {
             self.bits_data.read_n_bits(14)?;
         }
-        extension_flag = self.bits_data.read_n_bits(1)?;
+        let extension_flag: u64 = self.bits_data.read_n_bits(1)?;
 
         if 0 == self.mpeg4_aac.channel_configuration {
             self.pce_load()?;
@@ -259,38 +256,29 @@ impl Mpeg4AacProcessor {
     pub fn pce_load(&mut self) -> Result<u8, MpegAacError> {
         let mut cpe: u64 = 0;
         let mut tag: u64 = 0;
-        let element_instance_tag: u64;
-        let object_type: u64;
-        let sampling_frequency_index: u64;
-        let num_front_channel_elements: u64;
-        let num_side_channel_elements: u64;
-        let num_back_channel_elements: u64;
-        let num_lfe_channel_elements: u64;
-        let num_assoc_data_elements: u64;
-        let num_valid_cc_elements: u64;
-        let comment_field_bytes: u64;
 
         let mut pce_bits_vec = Mpeg4BitVec::new();
         pce_bits_vec.extend_from_bytesmut(self.mpeg4_aac.pce.clone());
 
         self.mpeg4_aac.channels = 0;
 
-        element_instance_tag =
+        let element_instance_tag: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
-        object_type = mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 2)?;
-        sampling_frequency_index =
-            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
-        num_front_channel_elements =
-            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
-        num_side_channel_elements =
-            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
-        num_back_channel_elements =
-            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
-        num_lfe_channel_elements =
+        let object_type: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 2)?;
-        num_assoc_data_elements =
+        let sampling_frequency_index: u64 =
+            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
+        let num_front_channel_elements: u64 =
+            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
+        let num_side_channel_elements: u64 =
+            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
+        let num_back_channel_elements: u64 =
+            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
+        let num_lfe_channel_elements: u64 =
+            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 2)?;
+        let num_assoc_data_elements: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 3)?;
-        num_valid_cc_elements =
+        let num_valid_cc_elements: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
 
         for _ in 0..3 {
@@ -350,7 +338,7 @@ impl Mpeg4AacProcessor {
         self.bits_data
             .bits_aligment(8, mpeg4bitvec::BitVectorOpType::Read)?;
 
-        comment_field_bytes =
+        let comment_field_bytes: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 8)?;
 
         for _ in 0..comment_field_bytes {

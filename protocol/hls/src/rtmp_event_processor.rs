@@ -29,7 +29,7 @@ impl RtmpEventProcessor {
 
                     tokio::spawn(async move {
                         if let Err(err) = rtmp_subscriber.run().await {
-                            print!("hls handler run error {}\n", err);
+                            println!("hls handler run error {}", err);
                         }
                     });
                 }

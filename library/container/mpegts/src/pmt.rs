@@ -85,7 +85,7 @@ impl PmtMuxer {
 
         /*section_length*/
         self.bytes_writer
-            .write_u16::<BigEndian>(0xB000 | (tmp_bytes_writer.len() as u16) + 4)?;
+            .write_u16::<BigEndian>(0xB000 | ((tmp_bytes_writer.len() as u16) + 4))?;
 
         self.bytes_writer
             .write(&tmp_bytes_writer.extract_current_bytes()[..])?;

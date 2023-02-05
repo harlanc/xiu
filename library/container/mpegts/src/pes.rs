@@ -111,13 +111,13 @@ impl PesMuxer {
             let b9 = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((stream_data.pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
             self.bytes_writer.write_u8(b9)?; //9
 
-            let b10 = (stream_data.pts >> 22) as u8 & 0xFF; /* PTS 22-29 */
+            let b10 = (stream_data.pts >> 22) as u8; /* PTS 22-29 */
             self.bytes_writer.write_u8(b10)?; //10
 
             let b11 = ((stream_data.pts >> 14) & 0xFE) as u8 /* PTS 15-21 */ | 0x01; /* marker_bit */
             self.bytes_writer.write_u8(b11)?; //11
 
-            let b12 = (stream_data.pts >> 7) as u8 & 0xFF; /* PTS 7-14 */
+            let b12 = (stream_data.pts >> 7) as u8; /* PTS 7-14 */
             self.bytes_writer.write_u8(b12)?; //12
 
             let b13 = ((stream_data.pts << 1) & 0xFE) as u8 /* PTS 0-6 */ | 0x01; /* marker_bit */
@@ -129,13 +129,13 @@ impl PesMuxer {
             let b14 = 0x10 /* 0001 */ | (((stream_data.dts >> 30) & 0x07) << 1) as u8 /* DTS 30-32 */ | 0x01 /* marker_bit */;
             self.bytes_writer.write_u8(b14)?;
 
-            let b15 = (stream_data.dts >> 22) as u8 & 0xFF; /* DTS 22-29 */
+            let b15 = (stream_data.dts >> 22) as u8; /* DTS 22-29 */
             self.bytes_writer.write_u8(b15)?;
 
             let b16 =  ((stream_data.dts >> 14) & 0xFE) as u8 /* DTS 15-21 */ | 0x01 /* marker_bit */;
             self.bytes_writer.write_u8(b16)?;
 
-            let b17 = (stream_data.dts >> 7) as u8 & 0xFF; /* DTS 7-14 */
+            let b17 = (stream_data.dts >> 7) as u8; /* DTS 7-14 */
             self.bytes_writer.write_u8(b17)?;
 
             let b18 = ((stream_data.dts << 1) as u8 & 0xFE) /* DTS 0-6 */ | 0x01 /* marker_bit */;
@@ -158,9 +158,9 @@ impl PesMuxer {
             self.bytes_writer.write_u8_at(5, 0x00)?;
         } else {
             self.bytes_writer
-                .write_u8_at(4, (pes_payload_length >> 8) as u8 & 0xFF)?;
+                .write_u8_at(4, (pes_payload_length >> 8) as u8)?;
             self.bytes_writer
-                .write_u8_at(5, (pes_payload_length) as u8 & 0xFF)?;
+                .write_u8_at(5, (pes_payload_length) as u8)?;
         }
 
         Ok(())

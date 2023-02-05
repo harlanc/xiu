@@ -236,7 +236,7 @@ impl ClientSession {
         };
 
         let transaction_id = match transaction_id {
-            Amf0ValueType::Number(number) => number.clone() as u8,
+            Amf0ValueType::Number(number) => *number as u8,
             _ => 0,
         };
 
@@ -422,7 +422,7 @@ impl ClientSession {
 
     pub fn on_set_chunk_size(&mut self, chunk_size: &mut u32) -> Result<(), SessionError> {
         self.unpacketizer
-            .update_max_chunk_size(chunk_size.clone() as usize);
+            .update_max_chunk_size(*chunk_size as usize);
         Ok(())
     }
 

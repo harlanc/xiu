@@ -3,7 +3,7 @@ pub enum SchemaVersion {
     Schema1,
     Unknown,
 }
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum ClientHandshakeState {
     WriteC0C1,
     ReadS0S1S2,
@@ -25,8 +25,8 @@ pub const RTMP_SERVER_VERSION: [u8; 4] = [0x0D, 0x0E, 0x0A, 0x0D];
 pub const RTMP_CLIENT_VERSION: [u8; 4] = [0x0C, 0x00, 0x0D, 0x0E];
 
 pub const RTMP_DIGEST_LENGTH: usize = 32;
-pub const RTMP_SERVER_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Media Server 001";
-pub const RTMP_CLIENT_KEY_FIRST_HALF: &'static str = "Genuine Adobe Flash Player 001";
+pub const RTMP_SERVER_KEY_FIRST_HALF: &str = "Genuine Adobe Flash Media Server 001";
+pub const RTMP_CLIENT_KEY_FIRST_HALF: &str = "Genuine Adobe Flash Player 001";
 
 pub const RTMP_SERVER_KEY: [u8; 68] = [
     0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20, 0x41, 0x64, 0x6f, 0x62, 0x65, 0x20, 0x46, 0x6c,

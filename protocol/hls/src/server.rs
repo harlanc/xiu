@@ -22,7 +22,7 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
 
         if m3u8_index > 0 {
             let (left, _) = path.split_at(m3u8_index);
-            let rv: Vec<_> = left.split("/").collect();
+            let rv: Vec<_> = left.split('/').collect();
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
@@ -36,7 +36,7 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
         if ts_index > 0 {
             let (left, _) = path.split_at(ts_index);
 
-            let rv: Vec<_> = left.split("/").collect();
+            let rv: Vec<_> = left.split('/').collect();
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
@@ -46,7 +46,7 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
         }
     }
 
-    return simple_file_send(file_path.as_str()).await;
+    simple_file_send(file_path.as_str()).await
 }
 
 /// HTTP status code 404
@@ -74,7 +74,7 @@ pub async fn run(port: u32) -> Result<()> {
     let sock_addr = listen_address.parse().unwrap();
 
     let new_service = make_service_fn(move |_| async {
-        Ok::<_, GenericError>(service_fn(move |req| handle_connection(req)))
+        Ok::<_, GenericError>(service_fn(handle_connection))
     });
 
     let server = Server::bind(&sock_addr).serve(new_service);

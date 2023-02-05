@@ -21,7 +21,7 @@ async fn handle_connection(
     match path.find(".flv") {
         Some(index) if index > 0 => {
             let (left, _) = path.split_at(index);
-            let rv: Vec<_> = left.split("/").collect();
+            let rv: Vec<_> = left.split('/').collect();
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);

@@ -73,7 +73,7 @@ impl ChunkPacketizer {
             self.writer.write_u8(fmt << 6 | 1)?;
             self.writer.write_u16::<BigEndian>((csid - 64) as u16)?;
         } else if csid >= 64 {
-            self.writer.write_u8(fmt << 6 | 0)?;
+            self.writer.write_u8(fmt << 6)?;
             self.writer.write_u8((csid - 64) as u8)?;
         } else {
             self.writer.write_u8(fmt << 6 | csid as u8)?;
