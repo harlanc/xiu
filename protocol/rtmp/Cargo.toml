@@ -23,7 +23,7 @@ log = "0.4"
 chrono = "0.4"
 
 bytesio = "0.1.27"
-xflv = "1.0.0"
+xflv = "0.1.0"
 #bytesio = {path = "../../library/bytesio/"}
 #xflv = { path = "../../library/container/flv/" }
 

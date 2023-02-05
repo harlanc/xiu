@@ -134,7 +134,7 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 - add introductions and example codes in doc
 ## v0.0.14
 - fix handshake error.[#23]
-## v1.0.0
+## v0.1.0
 - Fix error chain.
 
 

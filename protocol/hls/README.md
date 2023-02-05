@@ -10,7 +10,7 @@ Reference rtmp version v0.0.8
 ## v0.0.8
 - fix #16
 - clear ts ans m3u8 files when the rtmp streasm is interupted.
-## v1.0.0
+## v0.1.0
 - Fix the error chain.
 
 
