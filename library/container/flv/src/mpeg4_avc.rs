@@ -137,7 +137,7 @@ impl Mpeg4AvcProcessor {
         /*avc level*/
         self.mpeg4_avc.level = self.bytes_reader.read_u8()?;
         /*nalu length*/
-        self.mpeg4_avc.nalu_length = self.bytes_reader.read_u8()? & (0x03 + 1);
+        self.mpeg4_avc.nalu_length = (self.bytes_reader.read_u8()? & 0x03) + 1;
 
         /*number of SPS NALUs */
         self.mpeg4_avc.nb_sps = self.bytes_reader.read_u8()? & 0x1F;

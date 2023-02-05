@@ -1,8 +1,8 @@
 use {
     super::{define, errors::EventMessagesError},
+    crate::messages::define::msg_type_id,
     byteorder::BigEndian,
     bytesio::bytes_writer::AsyncBytesWriter,
-    crate::messages::define::msg_type_id,
 };
 
 pub struct EventMessagesWriter {
@@ -20,7 +20,8 @@ impl EventMessagesWriter {
         //|fmt|  cs id  |
         //+-+-+-+-+-+-+-+-+
         // 0x0     0x02
-        self.writer.write_u8(0x02)?; //fmt 0 and csid 2
+
+        self.writer.write_u8(0x02)?; //fmt 0 and csid 2 //0x0 << 6 | 0x02
         self.writer.write_u24::<BigEndian>(0)?; //timestamp 3 bytes and value 0
         self.writer.write_u24::<BigEndian>(len)?; //msg length
         self.writer.write_u8(msg_type_id::USER_CONTROL_EVENT)?; //msg type id

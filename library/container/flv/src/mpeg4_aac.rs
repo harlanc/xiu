@@ -93,7 +93,7 @@ impl Mpeg4AacProcessor {
             AAC_FREQUENCE[self.mpeg4_aac.sampling_frequency_index as usize];
 
         // if self.bytes_reader.len() > 2 {
-            //return self.audio_specific_config_load2();
+        //return self.audio_specific_config_load2();
         // }
 
         // self.bytes_reader.read_u8()?;
@@ -236,7 +236,6 @@ impl Mpeg4AacProcessor {
         Ok(())
     }
     pub fn ga_specific_config_load(&mut self) -> Result<(), MpegAacError> {
-        
         self.bits_data.read_n_bits(1)?;
 
         if self.bits_data.read_n_bits(1)? > 0 {
@@ -275,16 +274,6 @@ impl Mpeg4AacProcessor {
     pub fn pce_load(&mut self) -> Result<u8, MpegAacError> {
         let mut cpe: u64 = 0;
         let mut tag: u64 = 0;
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
 
         let mut pce_bits_vec = Mpeg4BitVec::new();
         pce_bits_vec.extend_from_bytesmut(self.mpeg4_aac.pce.clone());
@@ -293,7 +282,8 @@ impl Mpeg4AacProcessor {
 
         let element_instance_tag: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
-        let object_type: u64 = mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 2)?;
+        let object_type: u64 =
+            mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 2)?;
         let sampling_frequency_index: u64 =
             mpeg4bitvec::mpeg4_bits_copy(&mut pce_bits_vec, &mut self.bits_data, 4)?;
         let num_front_channel_elements: u64 =
@@ -413,7 +403,7 @@ impl Mpeg4AacProcessor {
         let id = 0; // 0-MPEG4/1-MPEG2
         let len = (self.bytes_reader.len() + 7) as u32;
         self.bytes_writer.write_u8(0xFF)?; //0
-        self.bytes_writer.write_u8(0xF0 /* 12-syncword */ | (id << 3) /*2-layer*/ | 0x01 /*1-protection_absent*/)?; //1
+        self.bytes_writer.write_u8(0xF0 /* 12-syncword */ | (id << 3)/*1-ID*/ | (0x00 << 2) /*2-layer*/ | 0x01 /*1-protection_absent*/)?; //1
 
         let profile = self.mpeg4_aac.profile;
         let sampling_frequency_index = self.mpeg4_aac.sampling_frequency_index;

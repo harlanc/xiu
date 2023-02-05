@@ -22,7 +22,7 @@ impl ProtocolControlMessagesWriter {
         //|fmt|  cs id  |
         //+-+-+-+-+-+-+-+-+
         // 0x0     0x02
-        self.writer.write_u8(0x02)?; //fmt 0 and csid 2
+        self.writer.write_u8(0x02)?; //fmt 0 and csid 2 //0x0 << 6 | 0x02
         self.writer.write_u24::<BigEndian>(0)?; //timestamp 3 bytes and value 0
         self.writer.write_u24::<BigEndian>(len)?; //msg length
         self.writer.write_u8(msg_type_id)?; //msg type id
