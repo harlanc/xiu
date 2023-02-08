@@ -17,7 +17,10 @@ pub struct FileTarget {
 
 impl FileTarget {
     pub fn new(rotate: Rotate, path: String) -> Self {
-        fs::create_dir_all(path.clone()).unwrap();
+        if let Err(err) = fs::create_dir_all(path.clone()) {
+            println!("cannot create folder: {}, err: {}", path, err);
+        }
+
         Self {
             rotate,
             path,
@@ -30,7 +33,7 @@ impl FileTarget {
         match self.rotate {
             Rotate::Day => {
                 file_name = format!(
-                    "{}-{:02}-{:02} 00:00:00",
+                    "{}{:02}{:02}0000",
                     local_time.year(),
                     local_time.month(),
                     local_time.day(),
@@ -38,7 +41,7 @@ impl FileTarget {
             }
             Rotate::Hour => {
                 file_name = format!(
-                    "{}-{:02}-{:02} {:02}:00:00",
+                    "{}{:02}{:02}{:02}00",
                     local_time.year(),
                     local_time.month(),
                     local_time.day(),
@@ -47,7 +50,7 @@ impl FileTarget {
             }
             Rotate::Minute => {
                 file_name = format!(
-                    "{}-{:02}-{:02} {:02}:{:02}:00",
+                    "{}{:02}{:02}{:02}{:02}",
                     local_time.year(),
                     local_time.month(),
                     local_time.day(),
@@ -63,10 +66,19 @@ impl FileTarget {
 impl io::Write for FileTarget {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let file_name = self.get_log_file_name();
-        let full_path = format!("{}/{}", self.path, file_name);
+        let full_path = format!("{}/{}.log", self.path, file_name);
+        println!("file_name: {}", full_path);
 
         if !Path::new(&full_path).exists() {
-            self.cur_file_handler = Some(File::create(full_path).unwrap());
+            match File::create(full_path) {
+                Ok(file) => {
+                    self.cur_file_handler = Some(file);
+                }
+                Err(err) => {
+                    println!("file create error: {}", err);
+                    return Err(err);
+                }
+            }
         }
 
         if let Some(file_handler) = &mut self.cur_file_handler {
@@ -127,6 +139,7 @@ mod tests {
 
     use crate::logger::logger;
     use env_logger::{Builder, Env, Target};
+    use std::env;
 
     #[test]
     fn test_log() {
@@ -137,14 +150,16 @@ mod tests {
 
         // Create the channel for the log messages
 
+        let p = env::current_dir().unwrap();
+        println!("cur path: {}", p.into_os_string().into_string().unwrap());
+
         Builder::from_env(env)
             // The Sender of the channel is given to the logger
             // A wrapper is needed, because the `Sender` itself doesn't implement `std::io::Write`.
-            .target(Target::Pipe(Box::new(logger::FileTarget {
-                rotate: logger::Rotate::Minute,
-                path: String::from("./logs"),
-                cur_file_handler: None,
-            })))
+            .target(Target::Pipe(Box::new(logger::FileTarget::new(
+                logger::Rotate::Minute,
+                String::from("./logs"),
+            ))))
             .init();
 
         log::trace!("some trace log");
