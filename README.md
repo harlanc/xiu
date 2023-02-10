@@ -27,7 +27,7 @@
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
-Xiu is a simple and secure live media server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTP-FLV (and maybe other protocols in the future), you can deploy it as a stand-alone server or a cluster using the relay feature.
+Xiu is a simple and secure live media server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTP-FLV, you can deploy it as a stand-alone server or a cluster using the relay feature.
 
 ## Features
 
@@ -57,9 +57,21 @@ There are two ways to install xiu :
 Issue the following command to install xiu:
 
     cargo install xiu
-Start the service with the following command:
+Start the service with the following command to get help:
 
-    xiu configuration_file_path/config.toml
+    xiu -h
+    A secure and easy to use live media server, hope you love it!!!
+
+    Usage: xiu [OPTIONS] <--config <path>|--rtmp <port>>
+
+    Options:
+      -c, --config <path>   Specify the xiu server configuration file path.
+      -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
+      -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
+      -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
+      -l, --log <level>     Specify the log level. [possible values: trace, debug, info, warn, error, debug]
+      -h, --help            Print help
+      -V, --version         Print version
     
 ### Build from souce
 
@@ -76,9 +88,24 @@ use master branch
 #### Run
 
     cd ./xiu/target/release
-    ./xiu config.toml
+    ./xiu -h
     
-## Configurations
+## CLI
+
+#### Instructions
+
+You can use command line to configure the xiu server easily. You can specify to configure xiu using configuration file or from the command lines.
+
+##### Configure using configuation file
+
+    xiu -c configuration_file_path
+
+##### using command line
+
+    xiu -r 1935 -f 8080 -s 8081 -l info
+
+
+#### How to Configure the configuration file
 
 ##### RTMP
     [rtmp]

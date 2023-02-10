@@ -512,7 +512,7 @@ checksum = "856b5cb0902c2b6d65d5fd97dfa30f9b70c7538e770b98eab5ed52d8db923e01"
 
 [[package]]
 name = "hls"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "byteorder",
  "bytes",
@@ -529,9 +529,9 @@ dependencies = [
 
 [[package]]
 name = "hls"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94541323e5770cd9534cdeb4702978936827d9f5170da9bb7d17b9375842da99"
+checksum = "d9df6827ca8b8f73a351b9ad110c1220e02cac5335cb435e963d1c7baf675442"
 dependencies = [
  "byteorder",
  "bytes",
@@ -592,7 +592,7 @@ checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 
 [[package]]
 name = "httpflv"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "byteorder",
  "bytes",
@@ -608,9 +608,9 @@ dependencies = [
 
 [[package]]
 name = "httpflv"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26c84d3228c974246ef506a79059d0143b656858ec17688d7a84295e8aa1e932"
+checksum = "2baf55481291db7607ad63b5e9c9243885db1cf46d0f1917c3563dde77b7b595"
 dependencies = [
  "byteorder",
  "bytes",
@@ -1553,15 +1553,15 @@ dependencies = [
 
 [[package]]
 name = "xiu"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "chrono",
  "clap",
  "env_logger",
  "failure",
- "hls 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "httpflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hls 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "httpflv 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",

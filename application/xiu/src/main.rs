@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
         .bin_name("xiu")
         .version("0.3.0")
         .author("HarlanC <harlanc@foxmail.com>")
-        .about("A live media server, hope you love it!!!")
+        .about("A secure and easy to use live media server, hope you love it!!!")
         .arg(
             Arg::new("config_file_path")
                 .long("config")
@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
                 .long("rtmp")
                 .short('r')
                 .value_name("port")
-                .help("Specify the RTMP listening port.")
+                .help("Specify the RTMP listening port.(e.g.:1935)")
                 .value_parser(value_parser!(usize)),
         )
         .arg(
@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
                 .long("httpflv")
                 .short('f')
                 .value_name("port")
-                .help("Specify the HTTP-FLV listening port.")
+                .help("Specify the HTTP-FLV listening port.(e.g.:8080)")
                 .value_parser(value_parser!(usize))
                 .conflicts_with("config_file_path"),
         )
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
                 .long("hls")
                 .short('s')
                 .value_name("port")
-                .help("Specify the HLS listening port.")
+                .help("Specify the HLS listening port.(e.g.:8081)")
                 .value_parser(value_parser!(usize))
                 .conflicts_with("config_file_path"),
         )

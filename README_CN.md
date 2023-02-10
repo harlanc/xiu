@@ -21,7 +21,7 @@
 ![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
 
 
-XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持流行的三大流媒体协议包括RTMP/HLS/HTTPFLV（将来有可能支持其它协议），可以单点部署，也可以用relay功能来部署集群。
+XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持流行的三大流媒体协议包括RTMP/HLS/HTTPFLV，可以单点部署，也可以用relay功能来部署集群。
 
 ## 功能
 
@@ -52,9 +52,22 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
     cargo install xiu
     
-执行下面的命令来启动服务:
+执行下面的命令来查看帮助信息:
 
-    xiu configuration_file_path/config.toml
+    xiu -h
+ 
+    A secure and easy to use live media server, hope you love it!!!
+
+    Usage: xiu [OPTIONS] <--config <path>|--rtmp <port>>
+
+    Options:
+      -c, --config <path>   Specify the xiu server configuration file path.
+      -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
+      -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
+      -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
+      -l, --log <level>     Specify the log level. [possible values: trace, debug, info, warn, error, debug]
+      -h, --help            Print help
+      -V, --version         Print version
     
 ### 源码编译安装
 
@@ -63,9 +76,7 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     git clone https://github.com/harlanc/xiu.git
  Checkout最新发布的版本代码：
  
-        git checkout tags/<tag_name> -b <branch_name>
-    
-
+    git checkout tags/<tag_name> -b <branch_name>
     
 #### 编译
 
@@ -74,9 +85,24 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 #### 运行
 
     cd ./xiu/target/release
-    ./xiu config.toml
+    ./xiu -h
     
-## 配置
+## CLI
+
+#### 说明
+
+可以使用配置文件或者在命令行对服务进行配置。比如：
+
+##### 通过配置文件进行配置
+
+    xiu -c configuration_file_path
+
+##### 通过命令行
+
+    xiu -r 1935 -f 8080 -s 8081 -l info
+
+
+#### 配置文件说明
 
 ##### RTMP
     [rtmp]
