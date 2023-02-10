@@ -12,5 +12,7 @@ Reference rtmp version v0.0.8
 - clear ts ans m3u8 files when the rtmp streasm is interupted.
 ## v0.1.0
 - Fix the error chain.
+## v0.1.1
+Change the listening port type.
 
 

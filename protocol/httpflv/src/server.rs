@@ -55,7 +55,7 @@ async fn handle_connection(
     }
 }
 
-pub async fn run(event_producer: ChannelEventProducer, port: u32) -> Result<()> {
+pub async fn run(event_producer: ChannelEventProducer, port: usize) -> Result<()> {
     let listen_address = format!("0.0.0.0:{}", port);
     let sock_addr = listen_address.parse().unwrap();
 

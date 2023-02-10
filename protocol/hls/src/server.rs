@@ -69,13 +69,12 @@ async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
     Ok(not_found())
 }
 
-pub async fn run(port: u32) -> Result<()> {
+pub async fn run(port: usize) -> Result<()> {
     let listen_address = format!("0.0.0.0:{}", port);
     let sock_addr = listen_address.parse().unwrap();
 
-    let new_service = make_service_fn(move |_| async {
-        Ok::<_, GenericError>(service_fn(handle_connection))
-    });
+    let new_service =
+        make_service_fn(move |_| async { Ok::<_, GenericError>(service_fn(handle_connection)) });
 
     let server = Server::bind(&sock_addr).serve(new_service);
     log::info!("Hls server listening on http://{}", sock_addr);
