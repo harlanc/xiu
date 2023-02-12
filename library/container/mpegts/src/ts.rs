@@ -27,6 +27,11 @@ pub struct TsMuxer {
     packet_number: usize,
 }
 
+impl Default for TsMuxer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl TsMuxer {
     pub fn new() -> Self {
         Self {
@@ -38,7 +43,7 @@ impl TsMuxer {
             pat_period: 0,
             pcr_period: 80 * 90,
             pcr_clock: 0,
-            pat: pat::Pat::default(),
+            pat: pat::Pat::new(),
             cur_pmt_index: 0,
             cur_stream_index: 0,
             packet_number: 0,
@@ -164,7 +169,7 @@ impl TsMuxer {
         let mut is_start: bool = true;
         let mut payload_reader = BytesReader::new(payload);
 
-        while payload_reader.len() > 0 {
+        while !payload_reader.is_empty() {
             //write pes header
             let mut pes_muxer = PesMuxer::new();
             if is_start {
@@ -255,12 +260,11 @@ impl TsMuxer {
                     /*adaption field flags*/
                     ts_header.or_u8_at(5, define::AF_FLAG_PCR)?;
 
-                    let pcr: i64;
-                    if define::PTS_NO_VALUE == stream_data.dts {
-                        pcr = stream_data.pts;
+                    let pcr = if define::PTS_NO_VALUE == stream_data.dts {
+                        stream_data.pts
                     } else {
-                        pcr = stream_data.dts;
-                    }
+                        stream_data.dts
+                    };
                     let mut pcr_result: BytesWriter = BytesWriter::new();
                     utils::pcr_write(&mut pcr_result, pcr * 300)?;
                     ts_header.write(&pcr_result.extract_current_bytes()[..])?;
@@ -320,10 +324,10 @@ impl TsMuxer {
     }
 
     pub fn find_stream(&mut self, pid: u16) -> Result<(), MpegTsError> {
-        let mut pmt_index: usize = 0;
+        // let mut pmt_index: usize = 0;
         let mut stream_index: usize = 0;
 
-        for pmt in self.pat.pmt.iter_mut() {
+        for (pmt_index, pmt) in self.pat.pmt.iter_mut().enumerate() {
             for stream in pmt.streams.iter_mut() {
                 if stream.pid == pid {
                     self.cur_pmt_index = pmt_index;
@@ -333,8 +337,20 @@ impl TsMuxer {
                 }
                 stream_index += 1;
             }
-            pmt_index += 1;
         }
+
+        // for pmt in self.pat.pmt.iter_mut() {
+        //     for stream in pmt.streams.iter_mut() {
+        //         if stream.pid == pid {
+        //             self.cur_pmt_index = pmt_index;
+        //             self.cur_stream_index = stream_index;
+
+        //             return Ok(());
+        //         }
+        //         stream_index += 1;
+        //     }
+        //     pmt_index += 1;
+        // }
 
         Err(MpegTsError {
             value: MpegTsErrorValue::StreamNotFound,
@@ -363,7 +379,7 @@ impl TsMuxer {
             });
         }
 
-        let mut cur_stream = pes::Pes::default(); //&mut pmt.streams[pmt.stream_count];
+        let mut cur_stream = pes::Pes::new(); //&mut pmt.streams[pmt.stream_count];
 
         cur_stream.codec_id = codecid;
         cur_stream.pid = self.pid;
@@ -403,7 +419,7 @@ impl TsMuxer {
                 value: MpegTsErrorValue::PmtCountExeceed,
             });
         }
-        let mut cur_pmt = pmt::Pmt::default(); //&mut self.pat.pmt[self.pat.pmt_count];
+        let mut cur_pmt = pmt::Pmt::new(); //&mut self.pat.pmt[self.pat.pmt_count];
 
         cur_pmt.pid = self.pid;
         self.pid += 1;

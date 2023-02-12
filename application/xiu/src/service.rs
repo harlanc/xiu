@@ -1,12 +1,12 @@
 use {
-    super::config::config::Config,
+    super::config::Config,
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
     hls::rtmp_event_processor::RtmpEventProcessor,
     hls::server as hls_server,
     httpflv::server as httpflv_server,
     rtmp::{
-        channels::channels::ChannelsManager,
+        channels::ChannelsManager,
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },

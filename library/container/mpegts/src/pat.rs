@@ -15,8 +15,14 @@ pub struct Pat {
     pub pmt: Vec<pmt::Pmt>,
 }
 
+impl Default for Pat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Pat {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             transport_stream_id: 1,
             version_number: 0,
@@ -28,6 +34,12 @@ impl Pat {
 }
 pub struct PatMuxer {
     pub bytes_writer: BytesWriter,
+}
+
+impl Default for PatMuxer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 //ITU-T H.222.0
 impl PatMuxer {
@@ -60,8 +72,7 @@ impl PatMuxer {
             self.bytes_writer
                 .write_u16::<BigEndian>(ele.program_number)?;
             /*PID*/
-            self.bytes_writer
-                .write_u16::<BigEndian>(0xE000 | ele.pid)?;
+            self.bytes_writer.write_u16::<BigEndian>(0xE000 | ele.pid)?;
         }
 
         /*crc32*/

@@ -13,8 +13,14 @@ pub struct Sps {
     pub data: BytesMut,
 }
 
+impl Default for Sps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Sps {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             size: 0,
             data: BytesMut::new(),
@@ -26,8 +32,14 @@ pub struct Pps {
     pub data: BytesMut,
 }
 
+impl Default for Pps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Pps {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             size: 0,
             data: BytesMut::new(),
@@ -64,19 +76,22 @@ pub fn print(data: BytesMut) {
     for i in data {
         print!("{i:02X} ");
         idx += 1;
-        match idx % 16 {
-            0 => {
-                println!()
-            }
-            _ => {}
+        if idx % 16 == 0 {
+            println!()
         }
     }
 
     println!("===========")
 }
 
+impl Default for Mpeg4Avc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mpeg4Avc {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             profile: 0,
             compatibility: 0,
@@ -104,12 +119,18 @@ pub struct Mpeg4AvcProcessor {
     pub mpeg4_avc: Mpeg4Avc,
 }
 
+impl Default for Mpeg4AvcProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mpeg4AvcProcessor {
     pub fn new() -> Self {
         Self {
             bytes_reader: BytesReader::new(BytesMut::new()),
             bytes_writer: BytesWriter::new(),
-            mpeg4_avc: Mpeg4Avc::default(),
+            mpeg4_avc: Mpeg4Avc::new(),
         }
     }
 
@@ -191,7 +212,7 @@ impl Mpeg4AvcProcessor {
     pub fn h264_mp4toannexb(&mut self) -> Result<(), MpegAvcError> {
         let mut sps_pps_flag = false;
 
-        while self.bytes_reader.len() > 0 {
+        while !self.bytes_reader.is_empty() {
             let size = self.get_nalu_size()?;
             let nalu_type = self.bytes_reader.advance_u8()? & 0x1f;
 

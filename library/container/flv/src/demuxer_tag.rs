@@ -94,11 +94,8 @@ impl AudioTagHeaderDemuxer {
         self.tag.sound_size = (flags >> 1) & 0x01;
         self.tag.sound_type = flags & 0x01;
 
-        match self.tag.sound_format {
-            define::sound_format::AAC => {
-                self.tag.aac_packet_type = self.bytes_reader.read_u8()?;
-            }
-            _ => {}
+        if self.tag.sound_format == define::sound_format::AAC {
+            self.tag.aac_packet_type = self.bytes_reader.read_u8()?;
         }
 
         Ok(self.tag.clone())

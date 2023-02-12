@@ -17,6 +17,12 @@ pub struct Mpeg4BitVec {
     pub write_offset: usize,
 }
 
+impl Default for Mpeg4BitVec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mpeg4BitVec {
     pub fn new() -> Self {
         Self {
@@ -109,8 +115,11 @@ impl Mpeg4BitVec {
         Ok(())
     }
 
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.data.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -193,8 +202,8 @@ mod tests {
 
         v.push(false);
 
-        assert_eq!(v.pop().unwrap(), false, "not success");
+        assert!(!v.pop().unwrap());
 
-        assert_eq!(v.pop().unwrap(), true, "not success");
+        assert!(v.pop().unwrap());
     }
 }

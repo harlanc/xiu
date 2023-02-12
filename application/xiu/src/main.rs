@@ -4,12 +4,8 @@ use {
     clap::{value_parser, Arg, ArgGroup, Command},
     env_logger_extend::logger::{Logger, Rotate},
     std::{env, str::FromStr},
-    tokio,
     tokio::signal,
-    xiu::{
-        config::{config, config::Config},
-        service::Service,
-    },
+    xiu::{config, config::Config, service::Service},
 };
 
 #[tokio::main]

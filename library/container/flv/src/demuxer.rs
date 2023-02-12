@@ -74,8 +74,14 @@ pub struct FlvDemuxerAudioData {
     pub data: BytesMut,
 }
 
+impl Default for FlvDemuxerAudioData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlvDemuxerAudioData {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             has_data: false,
             sound_format: 0,
@@ -95,8 +101,14 @@ pub struct FlvDemuxerVideoData {
     pub data: BytesMut,
 }
 
+impl Default for FlvDemuxerVideoData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlvDemuxerVideoData {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             has_data: false,
             codec_id: 0,
@@ -107,9 +119,14 @@ impl FlvDemuxerVideoData {
         }
     }
 }
-
 pub struct FlvVideoTagDemuxer {
     avc_processor: Mpeg4AvcProcessor,
+}
+
+impl Default for FlvVideoTagDemuxer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FlvVideoTagDemuxer {
@@ -130,11 +147,11 @@ impl FlvVideoTagDemuxer {
 
         self.avc_processor.extend_data(remaining_bytes);
 
-        match header.codec_id {
-            codec_id::FLV_VIDEO_H264 => match header.avc_packet_type {
+        if header.codec_id == codec_id::FLV_VIDEO_H264 {
+            match header.avc_packet_type {
                 avc_packet_type::AVC_SEQHDR => {
                     self.avc_processor.decoder_configuration_record_load()?;
-                    return Ok(FlvDemuxerVideoData::default());
+                    return Ok(FlvDemuxerVideoData::new());
                 }
                 avc_packet_type::AVC_NALU => {
                     self.avc_processor.h264_mp4toannexb()?;
@@ -151,17 +168,21 @@ impl FlvVideoTagDemuxer {
                     return Ok(video_data);
                 }
                 _ => {}
-            },
-
-            _ => {}
+            }
         }
 
-        Ok(FlvDemuxerVideoData::default())
+        Ok(FlvDemuxerVideoData::new())
     }
 }
 
 pub struct FlvAudioTagDemuxer {
     aac_processor: Mpeg4AacProcessor,
+}
+
+impl Default for FlvAudioTagDemuxer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FlvAudioTagDemuxer {
@@ -182,11 +203,11 @@ impl FlvAudioTagDemuxer {
 
         self.aac_processor.extend_data(remaining_bytes);
 
-        match header.sound_format {
-            sound_format::AAC => match header.aac_packet_type {
+        if header.sound_format == sound_format::AAC {
+            match header.aac_packet_type {
                 aac_packet_type::AAC_SEQHDR => {
                     self.aac_processor.audio_specific_config_load()?;
-                    return Ok(FlvDemuxerAudioData::default());
+                    return Ok(FlvDemuxerAudioData::new());
                 }
                 aac_packet_type::AAC_RAW => {
                     self.aac_processor.adts_save()?;
@@ -202,10 +223,10 @@ impl FlvAudioTagDemuxer {
                     return Ok(audio_data);
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
-        Ok(FlvDemuxerAudioData::default())
+
+        Ok(FlvDemuxerAudioData::new())
     }
 }
 

@@ -266,14 +266,14 @@ impl ChunkUnpacketizer {
 
         match csid {
             0 => {
-                if self.reader.len() < 1 {
+                if self.reader.is_empty() {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;
                 csid += self.reader.read_u8()? as u32;
             }
             1 => {
-                if self.reader.len() < 1 {
+                if self.reader.is_empty() {
                     return Ok(UnpackResult::NotEnoughBytes);
                 }
                 csid = 64;

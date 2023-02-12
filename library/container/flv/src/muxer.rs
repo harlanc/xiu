@@ -16,6 +16,12 @@ pub struct FlvMuxer {
     pub writer: BytesWriter,
 }
 
+impl Default for FlvMuxer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlvMuxer {
     pub fn new() -> Self {
         Self {

@@ -33,7 +33,7 @@ impl Amf0Reader {
         Ok(results)
     }
     pub fn read_any(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
-        if self.reader.len() == 0 {
+        if self.reader.is_empty() {
             return Ok(Amf0ValueType::END);
         }
         let markers = self.reader.read_u8()?;

@@ -24,8 +24,14 @@ pub struct Pes {
     es_rate: u32,
 }
 
+impl Default for Pes {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Pes {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             program_number: 0,
             pid: 0,
@@ -50,6 +56,12 @@ pub struct PesMuxer {
     pub bytes_writer: BytesWriter,
 }
 
+impl Default for PesMuxer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PesMuxer {
     pub fn new() -> Self {
         Self {
@@ -59,6 +71,10 @@ impl PesMuxer {
 
     pub fn len(&self) -> usize {
         self.bytes_writer.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     //http://dvdnav.mplayerhq.hu/dvdinfo/pes-hdr.html

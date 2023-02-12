@@ -105,7 +105,7 @@ impl BytesReader {
         Ok(val)
     }
 
-    pub fn get(&mut self, index: usize) -> Result<u8, BytesReadError> {
+    pub fn get(&self, index: usize) -> Result<u8, BytesReadError> {
         if index >= self.len() {
             return Err(BytesReadError {
                 value: BytesReadErrorValue::IndexOutofRange,
@@ -115,14 +115,18 @@ impl BytesReader {
         Ok(*self.buffer.get(index).unwrap())
     }
 
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.buffer.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn extract_remaining_bytes(&mut self) -> BytesMut {
         self.buffer.split_to(self.buffer.len())
     }
-    pub fn get_remaining_bytes(&mut self) -> BytesMut {
+    pub fn get_remaining_bytes(&self) -> BytesMut {
         self.buffer.clone()
     }
 }

@@ -15,6 +15,12 @@ pub struct BytesWriter {
     pub bytes: Vec<u8>,
 }
 
+impl Default for BytesWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BytesWriter {
     pub fn new() -> Self {
         Self { bytes: Vec::new() }
@@ -84,15 +90,15 @@ impl BytesWriter {
     }
 
     pub fn write(&mut self, buf: &[u8]) -> Result<(), BytesWriteError> {
-        self.bytes.write(buf)?;
+        self.bytes.write_all(buf)?;
         Ok(())
     }
 
     pub fn prepend(&mut self, buf: &[u8]) -> Result<(), BytesWriteError> {
         let tmp_bytes = self.bytes.clone();
         self.bytes.clear();
-        self.bytes.write(buf)?;
-        self.bytes.write(tmp_bytes.as_slice())?;
+        self.bytes.write_all(buf)?;
+        self.bytes.write_all(tmp_bytes.as_slice())?;
         Ok(())
     }
 
@@ -133,6 +139,10 @@ impl BytesWriter {
 
     pub fn len(&self) -> usize {
         self.bytes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -242,11 +252,8 @@ mod tests {
 
         let rv = v.write(&FLV_HEADER);
 
-        match rv {
-            Ok(val) => {
-                print!("{val} ");
-            }
-            _ => {}
+        if let Ok(val) = rv {
+            print!("{val} ");
         }
 
         assert_eq!(10, v.len());

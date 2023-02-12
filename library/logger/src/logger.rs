@@ -39,37 +39,35 @@ impl FromStr for Rotate {
 
 fn get_log_file_name(rotate: Rotate) -> String {
     let local_time: DateTime<Local> = Local::now();
-    let file_name: String;
     match rotate {
         Rotate::Day => {
-            file_name = format!(
+            format!(
                 "{}{:02}{:02}0000",
                 local_time.year(),
                 local_time.month(),
                 local_time.day(),
-            );
+            )
         }
         Rotate::Hour => {
-            file_name = format!(
+            format!(
                 "{}{:02}{:02}{:02}00",
                 local_time.year(),
                 local_time.month(),
                 local_time.day(),
                 local_time.hour(),
-            );
+            )
         }
         Rotate::Minute => {
-            file_name = format!(
+            format!(
                 "{}{:02}{:02}{:02}{:02}",
                 local_time.year(),
                 local_time.month(),
                 local_time.day(),
                 local_time.hour(),
                 local_time.minute()
-            );
+            )
         }
     }
-    file_name
 }
 
 pub fn gen_log_file(rotate: Rotate, path: String) -> Result<File> {
