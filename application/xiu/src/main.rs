@@ -10,7 +10,7 @@ use {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let log_levels = vec!["trace", "debug", "info", "warn", "error", "debug"];
+    let log_levels = vec!["trace", "debug", "info", "warn", "error"];
 
     let mut cmd = Command::new("XIU")
         .bin_name("xiu")
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
                 .long("rtmp")
                 .short('r')
                 .value_name("port")
-                .help("Specify the RTMP listening port.(e.g.:1935)")
+                .help("Specify the rtmp listening port.(e.g.:1935)")
                 .value_parser(value_parser!(usize)),
         )
         .arg(
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
                 .long("httpflv")
                 .short('f')
                 .value_name("port")
-                .help("Specify the HTTP-FLV listening port.(e.g.:8080)")
+                .help("Specify the http-flv listening port.(e.g.:8080)")
                 .value_parser(value_parser!(usize))
                 .conflicts_with("config_file_path"),
         )
@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
                 .long("hls")
                 .short('s')
                 .value_name("port")
-                .help("Specify the HLS listening port.(e.g.:8081)")
+                .help("Specify the hls listening port.(e.g.:8081)")
                 .value_parser(value_parser!(usize))
                 .conflicts_with("config_file_path"),
         )
