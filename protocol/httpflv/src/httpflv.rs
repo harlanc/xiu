@@ -106,7 +106,7 @@ impl HttpFlv {
             }
 
             ChannelData::MetaData { timestamp, data } => {
-                let mut metadata = MetaData::default();
+                let mut metadata = MetaData::new();
                 metadata.save(data);
                 let data = metadata.remove_set_data_frame()?;
 

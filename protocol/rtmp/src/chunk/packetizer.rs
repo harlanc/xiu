@@ -1,8 +1,7 @@
 use {
     super::{
-        chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
-        define::CHUNK_SIZE,
-        errors::PackError,
+        define::CHUNK_SIZE, errors::PackError, ChunkBasicHeader, ChunkHeader, ChunkInfo,
+        ChunkMessageHeader,
     },
     byteorder::{BigEndian, LittleEndian},
     bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
@@ -42,29 +41,24 @@ impl ChunkPacketizer {
             .csid_2_chunk_header
             .get_mut(&chunk_info.basic_header.chunk_stream_id);
 
-        match pre_header {
-            Some(val) => {
-                let cur_msg_header = &mut chunk_info.message_header;
-                let pre_msg_header = &val.message_header;
+        if let Some(val) = pre_header {
+            let cur_msg_header = &mut chunk_info.message_header;
+            let pre_msg_header = &val.message_header;
 
-                if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
-                    chunk_info.basic_header.format = 1;
-                    cur_msg_header.timestamp -= pre_msg_header.timestamp;
+            if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
+                chunk_info.basic_header.format = 1;
+                cur_msg_header.timestamp -= pre_msg_header.timestamp;
 
-                    if cur_msg_header.msg_type_id == pre_msg_header.msg_type_id
-                        && cur_msg_header.msg_length == pre_msg_header.msg_length
-                    {
-                        chunk_info.basic_header.format = 2;
-                        if chunk_info.message_header.timestamp == pre_msg_header.timestamp {
-                            chunk_info.basic_header.format = 3;
-                        }
+                if cur_msg_header.msg_type_id == pre_msg_header.msg_type_id
+                    && cur_msg_header.msg_length == pre_msg_header.msg_length
+                {
+                    chunk_info.basic_header.format = 2;
+                    if chunk_info.message_header.timestamp == pre_msg_header.timestamp {
+                        chunk_info.basic_header.format = 3;
                     }
                 }
             }
-
-            None => {}
         }
-
         Ok(PackResult::Success)
     }
 

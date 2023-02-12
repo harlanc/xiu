@@ -289,13 +289,11 @@ mod tests {
         assert_eq!(transaction_id, Amf0ValueType::Number(1.0));
 
         let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
-        match &command_obj_raw {
-            Err(err) => {
-                println!("adfa{err}");
-            }
 
-            _ => {}
+        if let Err(err) = &command_obj_raw {
+            println!("adfa{err}");
         }
+
         let mut properties = HashMap::new();
 
         properties.insert(String::from("audioCodecs"), Amf0ValueType::Number(3191.0));

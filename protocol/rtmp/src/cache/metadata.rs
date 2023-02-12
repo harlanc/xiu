@@ -10,8 +10,14 @@ pub struct MetaData {
     // values: Vec<Amf0ValueType>,
 }
 
+impl Default for MetaData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetaData {
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             chunk_body: BytesMut::new(),
             //values: Vec::new(),
@@ -47,33 +53,30 @@ impl MetaData {
             Err(_) => return false,
         }
 
-        loop {
-            if values.len() < 2 {
+        if values.len() < 2 {
+            return false;
+        }
+
+        match values.remove(0) {
+            Amf0ValueType::UTF8String(str) => {
+                if str != "@setDataFrame" {
+                    return false;
+                }
+            }
+            _ => {
                 return false;
             }
+        }
 
-            match values.remove(0) {
-                Amf0ValueType::UTF8String(str) => {
-                    if str != "@setDataFrame" {
-                        return false;
-                    }
-                }
-                _ => {
+        match values.remove(0) {
+            Amf0ValueType::UTF8String(str) => {
+                if str != "onMetaData" {
                     return false;
                 }
             }
-
-            match values.remove(0) {
-                Amf0ValueType::UTF8String(str) => {
-                    if str != "onMetaData" {
-                        return false;
-                    }
-                }
-                _ => {
-                    return false;
-                }
+            _ => {
+                return false;
             }
-            break;
         }
 
         true

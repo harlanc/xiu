@@ -19,9 +19,7 @@ pub struct MessageParser {
 
 impl MessageParser {
     pub fn new(chunk_info: ChunkInfo) -> Self {
-        Self {
-            chunk_info,
-        }
+        Self { chunk_info }
     }
     pub fn parse(self) -> Result<RtmpMessageData, MessageError> {
         let mut reader = BytesReader::new(self.chunk_info.payload);
@@ -89,23 +87,17 @@ impl MessageParser {
             }
             msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
-                return Ok(RtmpMessageData::SetChunkSize {
-                    chunk_size,
-                });
+                return Ok(RtmpMessageData::SetChunkSize { chunk_size });
             }
             msg_type_id::ABORT => {
                 let chunk_stream_id =
                     ProtocolControlMessageReader::new(reader).read_abort_message()?;
-                return Ok(RtmpMessageData::AbortMessage {
-                    chunk_stream_id,
-                });
+                return Ok(RtmpMessageData::AbortMessage { chunk_stream_id });
             }
             msg_type_id::ACKNOWLEDGEMENT => {
                 let sequence_number =
                     ProtocolControlMessageReader::new(reader).read_acknowledgement()?;
-                return Ok(RtmpMessageData::Acknowledgement {
-                    sequence_number,
-                });
+                return Ok(RtmpMessageData::Acknowledgement { sequence_number });
             }
             msg_type_id::WIN_ACKNOWLEDGEMENT_SIZE => {
                 let size =
@@ -115,9 +107,7 @@ impl MessageParser {
             msg_type_id::SET_PEER_BANDWIDTH => {
                 let properties =
                     ProtocolControlMessageReader::new(reader).read_set_peer_bandwidth()?;
-                return Ok(RtmpMessageData::SetPeerBandwidth {
-                    properties,
-                });
+                return Ok(RtmpMessageData::SetPeerBandwidth { properties });
             }
             msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
                 //let values = Amf0Reader::new(reader).read_all()?;
@@ -185,15 +175,12 @@ mod tests {
                 }
             };
 
-            match rv {
-                UnpackResult::ChunkInfo(chunk_info) => {
-                    let _ = chunk_info.message_header.msg_streamd_id;
-                    let _ = chunk_info.message_header.timestamp;
+            if let UnpackResult::ChunkInfo(chunk_info) = rv {
+                let _ = chunk_info.message_header.msg_streamd_id;
+                let _ = chunk_info.message_header.timestamp;
 
-                    let message_parser = MessageParser::new(chunk_info);
-                    let _ = message_parser.parse();
-                }
-                _ => {}
+                let message_parser = MessageParser::new(chunk_info);
+                let _ = message_parser.parse();
             }
         }
     }

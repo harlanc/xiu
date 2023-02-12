@@ -5,11 +5,8 @@ pub fn print(data: BytesMut) {
     for i in data {
         print!("{i:02X} ");
         idx += 1;
-        match idx % 16 {
-            0 => {
-                println!()
-            }
-            _ => {}
+        if idx % 16 == 0 {
+            println!()
         }
     }
 
@@ -22,11 +19,8 @@ pub fn printu8(data: BytesMut) {
     for i in data {
         print!("{i} ");
         idx += 1;
-        match idx % 16 {
-            0 => {
-                println!()
-            }
-            _ => {}
+        if idx % 16 == 0 {
+            println!()
         }
     }
 
@@ -35,14 +29,12 @@ pub fn printu8(data: BytesMut) {
 
 pub fn print_array(data: &[u8], len: usize) {
     let mut idx = 0;
-    for i in 0..len {
-        print!("{:02X} ", data[i]);
+
+    for item in data.iter().take(len) {
+        print!("{item:02X} ");
         idx += 1;
-        match idx % 16 {
-            0 => {
-                println!()
-            }
-            _ => {}
+        if idx % 16 == 0 {
+            println!()
         }
     }
 }

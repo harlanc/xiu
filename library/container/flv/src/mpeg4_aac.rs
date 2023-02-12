@@ -385,7 +385,9 @@ impl Mpeg4AacProcessor {
         let id = 0; // 0-MPEG4/1-MPEG2
         let len = (self.bytes_reader.len() + 7) as u32;
         self.bytes_writer.write_u8(0xFF)?; //0
-        self.bytes_writer.write_u8(0xF0 /* 12-syncword */ | (id << 3)/*1-ID*/ | (0x00 << 2) /*2-layer*/ | 0x01 /*1-protection_absent*/)?; //1
+        self.bytes_writer.write_u8(
+            0xF0 /* 12-syncword */ | (id << 3)/*1-ID*/| 0x01, /*1-protection_absent*/
+        )?; //1
 
         let profile = self.mpeg4_aac.profile;
         let sampling_frequency_index = self.mpeg4_aac.sampling_frequency_index;

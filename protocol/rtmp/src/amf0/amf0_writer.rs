@@ -100,4 +100,7 @@ impl Amf0Writer {
     pub fn len(&self) -> usize {
         self.writer.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }

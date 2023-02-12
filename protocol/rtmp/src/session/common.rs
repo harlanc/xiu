@@ -247,13 +247,11 @@ impl Common {
                 responder: sender,
             };
             let rv = self.event_producer.send(subscribe_event);
-            match rv {
-                Err(_) => {
-                    return Err(SessionError {
-                        value: SessionErrorValue::ChannelEventSendErr,
-                    })
-                }
-                _ => {}
+
+            if rv.is_err() {
+                return Err(SessionError {
+                    value: SessionErrorValue::ChannelEventSendErr,
+                });
             }
 
             match receiver.await {
@@ -309,13 +307,10 @@ impl Common {
         };
 
         let rv = self.event_producer.send(publish_event);
-        match rv {
-            Err(_) => {
-                return Err(SessionError {
-                    value: SessionErrorValue::ChannelEventSendErr,
-                })
-            }
-            _ => {}
+        if rv.is_err() {
+            return Err(SessionError {
+                value: SessionErrorValue::ChannelEventSendErr,
+            });
         }
 
         match receiver.await {

@@ -39,16 +39,10 @@ pub enum SessionType {
 
 impl fmt::Display for SessionType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let client_type: String;
-
-        match self {
-            SessionType::Client => {
-                client_type = String::from("client");
-            }
-            SessionType::Server => {
-                client_type = String::from("server");
-            }
-        }
+        let client_type = match self {
+            SessionType::Client => String::from("client"),
+            SessionType::Server => String::from("server"),
+        };
         write!(f, "{client_type}")
     }
 }

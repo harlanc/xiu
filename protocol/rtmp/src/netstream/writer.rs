@@ -2,7 +2,7 @@ use {
     super::errors::NetStreamError,
     crate::{
         amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
-        chunk::{chunk::ChunkInfo, define as chunk_define, packetizer::ChunkPacketizer},
+        chunk::{define as chunk_define, packetizer::ChunkPacketizer, ChunkInfo},
         messages::define as messages_define,
     },
     bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
@@ -195,9 +195,9 @@ impl NetStreamWriter {
     pub async fn write_on_status(
         &mut self,
         transaction_id: &f64,
-        level: &String,
-        code: &String,
-        description: &String,
+        level: &str,
+        code: &str,
+        description: &str,
     ) -> Result<(), NetStreamError> {
         self.amf0_writer.write_string(&String::from("onStatus"))?;
         self.amf0_writer.write_number(transaction_id)?;
@@ -207,15 +207,15 @@ impl NetStreamWriter {
 
         properties_map.insert(
             String::from("level"),
-            Amf0ValueType::UTF8String(level.clone()),
+            Amf0ValueType::UTF8String(level.to_owned()),
         );
         properties_map.insert(
             String::from("code"),
-            Amf0ValueType::UTF8String(code.clone()),
+            Amf0ValueType::UTF8String(code.to_owned()),
         );
         properties_map.insert(
             String::from("description"),
-            Amf0ValueType::UTF8String(description.clone()),
+            Amf0ValueType::UTF8String(description.to_owned()),
         );
 
         self.amf0_writer.write_object(&properties_map)?;

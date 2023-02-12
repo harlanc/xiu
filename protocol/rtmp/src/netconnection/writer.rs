@@ -2,7 +2,7 @@ use {
     super::errors::NetConnectionError,
     crate::{
         amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
-        chunk::{chunk::ChunkInfo, define as chunk_define, packetizer::ChunkPacketizer},
+        chunk::{define as chunk_define, packetizer::ChunkPacketizer, ChunkInfo},
         messages::define as messages_define,
     },
     bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
@@ -173,15 +173,15 @@ impl NetConnection {
 
         self.write_chunk().await
     }
-
+    #[allow(clippy::too_many_arguments)]
     pub async fn write_connect_response(
         &mut self,
         transaction_id: &f64,
-        fmsver: &String,
+        fmsver: &str,
         capabilities: &f64,
-        code: &String,
-        level: &String,
-        description: &String,
+        code: &str,
+        level: &str,
+        description: &str,
         encoding: &f64,
     ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_result"))?;
@@ -191,7 +191,7 @@ impl NetConnection {
 
         properties_map_a.insert(
             String::from("fmsVer"),
-            Amf0ValueType::UTF8String(fmsver.clone()),
+            Amf0ValueType::UTF8String(fmsver.to_owned()),
         );
         properties_map_a.insert(
             String::from("capabilities"),
@@ -204,15 +204,15 @@ impl NetConnection {
 
         properties_map_b.insert(
             String::from("level"),
-            Amf0ValueType::UTF8String(level.clone()),
+            Amf0ValueType::UTF8String(level.to_owned()),
         );
         properties_map_b.insert(
             String::from("code"),
-            Amf0ValueType::UTF8String(code.clone()),
+            Amf0ValueType::UTF8String(code.to_owned()),
         );
         properties_map_b.insert(
             String::from("description"),
-            Amf0ValueType::UTF8String(description.clone()),
+            Amf0ValueType::UTF8String(description.to_owned()),
         );
         properties_map_b.insert(
             String::from("objectEncoding"),
@@ -252,9 +252,9 @@ impl NetConnection {
     pub async fn error(
         &mut self,
         transaction_id: &f64,
-        code: &String,
-        level: &String,
-        description: &String,
+        code: &str,
+        level: &str,
+        description: &str,
     ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("_error"))?;
         self.amf0_writer.write_number(transaction_id)?;
@@ -264,15 +264,15 @@ impl NetConnection {
 
         properties_map.insert(
             String::from("level"),
-            Amf0ValueType::UTF8String(level.clone()),
+            Amf0ValueType::UTF8String(level.to_owned()),
         );
         properties_map.insert(
             String::from("code"),
-            Amf0ValueType::UTF8String(code.clone()),
+            Amf0ValueType::UTF8String(code.to_owned()),
         );
         properties_map.insert(
             String::from("description"),
-            Amf0ValueType::UTF8String(description.clone()),
+            Amf0ValueType::UTF8String(description.to_owned()),
         );
         self.amf0_writer.write_object(&properties_map)?;
 

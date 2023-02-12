@@ -1,8 +1,8 @@
 use {
     super::{
-        chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader},
         define,
         errors::{UnpackError, UnpackErrorValue},
+        ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader,
     },
     crate::messages::define::msg_type_id,
     byteorder::{BigEndian, LittleEndian},
@@ -80,6 +80,12 @@ pub struct ChunkUnpacketizer {
     pub session_type: u8,
 }
 
+impl Default for ChunkUnpacketizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ChunkUnpacketizer {
     pub fn new() -> Self {
         Self {
@@ -125,21 +131,18 @@ impl ChunkUnpacketizer {
 
         let mut chunks: Vec<ChunkInfo> = Vec::new();
 
-        loop {
-            match self.read_chunk() {
-                Ok(chunk) => match chunk {
-                    UnpackResult::ChunkInfo(chunk_info) => {
-                        let msg_type_id = chunk_info.message_header.msg_type_id;
-                        chunks.push(chunk_info);
+        while let Ok(chunk) = self.read_chunk() {
+            match chunk {
+                UnpackResult::ChunkInfo(chunk_info) => {
+                    let msg_type_id = chunk_info.message_header.msg_type_id;
+                    chunks.push(chunk_info);
 
-                        //if the chunk_size is changed, then break and update chunk_size
-                        if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
-                            break;
-                        }
+                    //if the chunk_size is changed, then break and update chunk_size
+                    if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
+                        break;
                     }
-                    _ => continue,
-                },
-                Err(_) => break,
+                }
+                _ => continue,
             }
         }
 
@@ -581,10 +584,10 @@ mod tests {
 
         let data: [u8; 16] = [
             //
-            02, //|format+csid|
+            2, //|format+csid|
             00, 00, 00, //timestamp
-            00, 00, 04, //msg_length
-            01, //msg_type_id
+            00, 00, 4, //msg_length
+            1, //msg_type_id
             00, 00, 00, 00, //msg_stream_id
             00, 00, 10, 00, //body
         ];

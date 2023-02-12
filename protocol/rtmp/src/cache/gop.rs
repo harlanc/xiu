@@ -5,6 +5,12 @@ pub struct Gop {
     datas: Vec<ChannelData>,
 }
 
+impl Default for Gop {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Gop {
     pub fn new() -> Self {
         Self { datas: Vec::new() }
@@ -24,5 +30,9 @@ impl Gop {
 
     pub fn len(&self) -> usize {
         self.datas.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

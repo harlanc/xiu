@@ -144,16 +144,13 @@ impl ClientSession {
                 let result = self.unpacketizer.read_chunks();
 
                 if let Ok(rv) = result {
-                    match rv {
-                        UnpackResult::Chunks(chunks) => {
-                            for chunk_info in chunks.iter() {
-                                let mut msg = MessageParser::new(chunk_info.clone()).parse()?;
+                    if let UnpackResult::Chunks(chunks) = rv {
+                        for chunk_info in chunks.iter() {
+                            let mut msg = MessageParser::new(chunk_info.clone()).parse()?;
 
-                                let timestamp = chunk_info.message_header.timestamp;
-                                self.process_messages(&mut msg, &timestamp).await?;
-                            }
+                            let timestamp = chunk_info.message_header.timestamp;
+                            self.process_messages(&mut msg, &timestamp).await?;
                         }
-                        _ => {}
                     }
                 } else {
                     break;
