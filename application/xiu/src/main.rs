@@ -2,11 +2,15 @@ use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
     clap::{value_parser, Arg, ArgGroup, Command},
-    std::env,
+    env_logger_extend::logger::{Logger, Rotate},
+    std::{env, str::FromStr},
     tokio,
     tokio::signal,
-    xiu::config::{config, config::Config},
-    xiu::service::Service,
+    xiu::{
+        config::{config, config::Config},
+        // logger::logger::{Logger, Rotate},
+        service::Service,
+    },
 };
 
 #[tokio::main]
@@ -106,12 +110,25 @@ async fn main() -> Result<()> {
     };
 
     /*set log level*/
-    if let Some(log_config_value) = &config.log {
-        env::set_var("RUST_LOG", log_config_value.level.clone());
+
+    let logger = if let Some(log_config_value) = &config.log {
+        let (rotate, path) = if let Some(file_info) = &log_config_value.file {
+            if file_info.enabled {
+                (
+                    Some(Rotate::from_str(&file_info.rotate).unwrap()),
+                    Some(file_info.path.clone()),
+                )
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
+        Logger::new(&log_config_value.level, rotate, path)?
     } else {
-        env::set_var("RUST_LOG", "info");
-    }
-    env_logger::init();
+        Logger::new(&String::from("info"), None, None)?
+    };
+
     /*run the service*/
     let mut serivce = Service::new(config);
     serivce.run().await?;
@@ -123,5 +140,6 @@ async fn main() -> Result<()> {
     // log::debug!("log debug...");
 
     signal::ctrl_c().await?;
+    logger.stop();
     Ok(())
 }

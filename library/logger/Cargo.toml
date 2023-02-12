@@ -1,0 +1,20 @@
+[package]
+name = "env_logger_extend"
+version = "0.1.0"
+authors = ["HarlanC <wawacry@qq.com>"]
+edition = "2018"
+description = "a logger library."
+license = "MIT"
+repository = "https://github.com/harlanc/xiu"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "^1.0"
+env_logger = "0.9.3"
+job_scheduler = "1.2.1"
+chrono = "0.4"
+failure = "0.1.1"
+log = "0.4.0"
+
+

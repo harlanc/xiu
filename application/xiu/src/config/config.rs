@@ -39,7 +39,10 @@ impl Config {
             });
         }
 
-        let log_config = Some(LogConfig { level: log_level });
+        let log_config = Some(LogConfig {
+            level: log_level,
+            file: None,
+        });
 
         Self {
             rtmp: rtmp_config,
@@ -93,6 +96,14 @@ pub enum LogLevel {
 #[derive(Debug, Deserialize, Clone)]
 pub struct LogConfig {
     pub level: String,
+    pub file: Option<LogFile>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LogFile {
+    pub enabled: bool,
+    pub rotate: String,
+    pub path: String,
 }
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {

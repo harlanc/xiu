@@ -39,3 +39,7 @@ port = 8080
 ##########################
 [log]
 level = "info"
+[log.file]
+enabled = true
+rotate = "minute" #day hour minute
+path = "./logs"

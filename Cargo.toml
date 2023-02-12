@@ -6,5 +6,6 @@ members = [
   "library/bytesio",
   "application/xiu",
   "library/container/flv",
-  "library/container/mpegts"
+  "library/container/mpegts",
+  "library/logger",
 ]
