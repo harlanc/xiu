@@ -161,7 +161,7 @@ impl M3u8 {
         let m3u8_path = format!("{}/{}", self.m3u8_folder, self.m3u8_name);
 
         let mut file_handler = File::create(m3u8_path).unwrap();
-        file_handler.write(m3u8_content.as_bytes())?;
+        file_handler.write_all(m3u8_content.as_bytes())?;
 
         Ok(m3u8_content)
     }

@@ -173,16 +173,14 @@ impl HttpFlv {
             };
 
             let rv = self.event_producer.send(subscribe_event);
-            match rv {
-                Err(_) => {
-                    let session_error = SessionError {
-                        value: SessionErrorValue::SendChannelDataErr,
-                    };
-                    return Err(HttpFLvError {
-                        value: HttpFLvErrorValue::SessionError(session_error),
-                    });
-                }
-                _ => {}
+
+            if rv.is_err() {
+                let session_error = SessionError {
+                    value: SessionErrorValue::SendChannelDataErr,
+                };
+                return Err(HttpFLvError {
+                    value: HttpFLvErrorValue::SessionError(session_error),
+                });
             }
 
             match receiver.await {

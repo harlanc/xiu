@@ -18,11 +18,8 @@ mod tests {
         for i in data {
             print!("{i:02X} ");
             idx += 1;
-            match idx % 16 {
-                0 => {
-                    println!()
-                }
-                _ => {}
+            if idx % 16 == 0 {
+                println!()
             }
         }
 
