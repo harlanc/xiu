@@ -328,6 +328,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger_extend"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0304c03ff485f4c0cf0d6971ebf1331c3cf430509dc571fa2f2395e30f0d39b"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "env_logger",
+ "failure",
+ "job_scheduler",
+ "log",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1629,7 +1643,7 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
- "env_logger_extend",
+ "env_logger_extend 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure",
  "hls 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "httpflv 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

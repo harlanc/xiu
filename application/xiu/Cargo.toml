@@ -21,10 +21,11 @@ clap = "4.1.4"
 rtmp = "0.1.0"    #{path = "../../protocol/rtmp/"}#"0.0.4"
 httpflv = "0.1.1" #{path = "../../protocol/httpflv/"}
 hls = "0.1.1"     #{path = "../../protocol/hls/"}
+env_logger_extend = "0.1.0"
 # rtmp = { path = "../../protocol/rtmp/" }       #"0.0.4"
 # httpflv = { path = "../../protocol/httpflv/" }
 # hls = { path = "../../protocol/hls/" }
-env_logger_extend = {path = "../../library/logger/"}
+# env_logger_extend = {path = "../../library/logger/"}
 
 [features]
 default = ["std"]
