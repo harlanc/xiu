@@ -49,6 +49,6 @@ impl fmt::Display for SessionType {
                 client_type = String::from("server");
             }
         }
-        write!(f, "{}", client_type)
+        write!(f, "{client_type}")
     }
 }

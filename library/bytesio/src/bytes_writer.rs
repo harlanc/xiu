@@ -244,7 +244,7 @@ mod tests {
 
         match rv {
             Ok(val) => {
-                print!("{} ", val);
+                print!("{val} ");
             }
             _ => {}
         }
@@ -259,7 +259,7 @@ mod tests {
         let val = ((pts << 1) & 0xFE) as u8;
 
         println!("======={}=======", pts << 1);
-        println!("======={}=======", val);
+        println!("======={val}=======");
     }
 
     #[test]
@@ -268,19 +268,19 @@ mod tests {
         let pts: i64 = 1627702096;
 
         let b9 = ((flags >> 2) & 0x30)/* 0011/0010 */ | (((pts >> 30) & 0x07) << 1) as u8 /* PTS 30-32 */ | 0x01 /* marker_bit */;
-        println!("=======b9{}=======", b9);
+        println!("=======b9{b9}=======");
 
         let b10 = (pts >> 22) as u8; /* PTS 22-29 */
-        println!("=======b10{}=======", b10);
+        println!("=======b10{b10}=======");
 
         let b11 = ((pts >> 14) & 0xFE) as u8 /* PTS 15-21 */ | 0x01; /* marker_bit */
-        println!("=======b11{}=======", b11);
+        println!("=======b11{b11}=======");
 
         let b12 = (pts >> 7) as u8; /* PTS 7-14 */
-        println!("=======b12{}=======", b12);
+        println!("=======b12{b12}=======");
 
         let b13 = ((pts << 1) & 0xFE) as u8 /* PTS 0-6 */ | 0x01; /* marker_bit */
-        println!("=======b13{}=======", b13);
+        println!("=======b13{b13}=======");
     }
 
     #[test]

@@ -19,12 +19,10 @@ impl FileTarget {
 impl io::Write for FileTarget {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match self.cur_file_handler.lock().unwrap().write(buf) {
-            Ok(rv) => {
-                return Ok(rv);
-            }
+            Ok(rv) => Ok(rv),
             Err(err) => {
-                println!("write err {}", err);
-                return Ok(0);
+                println!("write err {err}");
+                Ok(0)
             }
         }
     }
@@ -61,8 +59,8 @@ mod tests {
             dt.minute()
         );
 
-        println!("{}\n", newdate);
-        println!("{}", cur_number);
+        println!("{newdate}");
+        println!("{cur_number}");
     }
 
     use job_scheduler::{Job, JobScheduler};
@@ -81,7 +79,7 @@ mod tests {
                 dt.hour(),
                 dt.minute()
             );
-            println!("time number: {}", cur_number);
+            println!("time number: {cur_number}");
         }));
 
         loop {

@@ -62,7 +62,7 @@ pub fn print(data: BytesMut) {
     println!("==========={}", data.len());
     let mut idx = 0;
     for i in data {
-        print!("{:02X} ", i);
+        print!("{i:02X} ");
         idx += 1;
         match idx % 16 {
             0 => {

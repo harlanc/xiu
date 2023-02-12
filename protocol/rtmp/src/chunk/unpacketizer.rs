@@ -258,7 +258,7 @@ impl ChunkUnpacketizer {
     pub fn read_basic_header(&mut self) -> Result<UnpackResult, UnpackError> {
         let byte = self.reader.read_u8()?;
 
-        let format_id = ((byte >> 6) & 0b00000011) as u8;
+        let format_id = (byte >> 6) & 0b00000011;
         let mut csid = (byte & 0b00111111) as u32;
 
         match csid {

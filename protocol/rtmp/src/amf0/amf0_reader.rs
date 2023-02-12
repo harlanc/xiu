@@ -291,7 +291,7 @@ mod tests {
         let command_obj_raw = amf_reader.read_with_type(amf0_markers::OBJECT);
         match &command_obj_raw {
             Err(err) => {
-                println!("adfa{}", err);
+                println!("adfa{err}");
             }
 
             _ => {}

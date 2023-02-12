@@ -97,7 +97,7 @@ impl Service {
             }
 
             let listen_port = rtmp_cfg_value.port;
-            let address = format!("0.0.0.0:{port}", port = listen_port);
+            let address = format!("0.0.0.0:{listen_port}");
 
             let mut rtmp_server = RtmpServer::new(address, producer);
             tokio::spawn(async move {

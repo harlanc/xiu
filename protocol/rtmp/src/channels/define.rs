@@ -81,8 +81,7 @@ impl fmt::Display for ChannelEvent {
             } => {
                 write!(
                     f,
-                    "receive event, event_name: Publish, app_name: {},stream_name: {}",
-                    app_name, stream_name,
+                    "receive event, event_name: Publish, app_name: {app_name},stream_name: {stream_name}",
                 )
             }
             ChannelEvent::UnPublish {
@@ -91,8 +90,7 @@ impl fmt::Display for ChannelEvent {
             } => {
                 write!(
                     f,
-                    "receive event, event_name: UnPublish, app_name: {},stream_name: {}",
-                    app_name, stream_name,
+                    "receive event, event_name: UnPublish, app_name: {app_name},stream_name: {stream_name}",
                 )
             }
         }

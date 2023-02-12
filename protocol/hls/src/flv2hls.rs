@@ -42,7 +42,7 @@ impl Flv2HlsRemuxer {
             .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
             .unwrap();
 
-        let m3u8_name = format!("{}.m3u8", stream_name);
+        let m3u8_name = format!("{stream_name}.m3u8");
 
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
@@ -62,13 +62,7 @@ impl Flv2HlsRemuxer {
             video_pid,
             audio_pid,
 
-            m3u8_handler: M3u8::new(
-                duration,
-                6,
-                m3u8_name,
-                app_name,
-                stream_name,
-            ),
+            m3u8_handler: M3u8::new(duration, 6, m3u8_name, app_name, stream_name),
         }
     }
 

@@ -84,7 +84,7 @@ async fn main() -> Result<()> {
         match config {
             Ok(val) => val,
             Err(err) => {
-                println!("{}: {}", path, err);
+                println!("{path}: {err}");
                 return Ok(());
             }
         }

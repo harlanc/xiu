@@ -63,7 +63,7 @@ impl M3u8 {
         app_name: String,
         stream_name: String,
     ) -> Self {
-        let m3u8_folder = format!("./{}/{}", app_name, stream_name);
+        let m3u8_folder = format!("./{app_name}/{stream_name}");
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
         Self {
             version: 3,

@@ -145,8 +145,7 @@ impl TsMuxer {
 
         self.bytes_writer.write_u8(pid as u8)?; //2
 
-        self.bytes_writer
-            .write_u8(0x10 | continuity_counter)?;
+        self.bytes_writer.write_u8(0x10 | continuity_counter)?;
 
         /*adaption field control*/
         self.bytes_writer.write_u8(0x00)?; //4
@@ -232,7 +231,7 @@ impl TsMuxer {
         ts_header.write_u8((stream_data.pid & 0xFF) as u8)?; //2
 
         /*continuity counter 4 bits*/
-        ts_header.write_u8(0x10 | (stream_data.continuity_counter & 0x0F) as u8)?; //3
+        ts_header.write_u8(0x10 | (stream_data.continuity_counter & 0x0F))?; //3
         stream_data.continuity_counter = (stream_data.continuity_counter + 1) % 16;
 
         if is_start {

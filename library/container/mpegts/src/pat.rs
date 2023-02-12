@@ -61,7 +61,7 @@ impl PatMuxer {
                 .write_u16::<BigEndian>(ele.program_number)?;
             /*PID*/
             self.bytes_writer
-                .write_u16::<BigEndian>(0xE000 | (ele.pid as u16))?;
+                .write_u16::<BigEndian>(0xE000 | ele.pid)?;
         }
 
         /*crc32*/

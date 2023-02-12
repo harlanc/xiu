@@ -27,7 +27,7 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
 
-            file_path = format!("./{}/{}/{}.m3u8", app_name, stream_name, stream_name);
+            file_path = format!("./{app_name}/{stream_name}/{stream_name}.m3u8");
         }
     } else if path.ends_with(".ts") {
         //http://127.0.0.1/app_name/stream_name/ts_name.m3u8
@@ -42,7 +42,7 @@ async fn handle_connection(req: Request<Body>) -> Result<Response<Body>> {
             let stream_name = String::from(rv[2]);
             let ts_name = String::from(rv[3]);
 
-            file_path = format!("./{}/{}/{}.ts", app_name, stream_name, ts_name);
+            file_path = format!("./{app_name}/{stream_name}/{ts_name}.ts");
         }
     }
 
@@ -70,7 +70,7 @@ async fn simple_file_send(filename: &str) -> Result<Response<Body>> {
 }
 
 pub async fn run(port: usize) -> Result<()> {
-    let listen_address = format!("0.0.0.0:{}", port);
+    let listen_address = format!("0.0.0.0:{port}");
     let sock_addr = listen_address.parse().unwrap();
 
     let new_service =

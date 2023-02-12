@@ -74,7 +74,7 @@ fn get_log_file_name(rotate: Rotate) -> String {
 
 pub fn gen_log_file(rotate: Rotate, path: String) -> Result<File> {
     let file_name = get_log_file_name(rotate);
-    let full_path = format!("{}/{}.log", path, file_name);
+    let full_path = format!("{path}/{file_name}.log");
     // println!("file_name: {}", full_path);
     if !Path::new(&full_path).exists() {
         //println!("create file : {}", full_path);
@@ -112,7 +112,7 @@ pub fn gen_log_file_thread_run(
                 dt.hour(),
                 dt.minute()
             );
-            println!("time number: {}", cur_number);
+            println!("time number: {cur_number}");
 
             match gen_log_file(rotate.to_owned(), path.to_owned()) {
                 Ok(file) => {
@@ -120,7 +120,7 @@ pub fn gen_log_file_thread_run(
                     *state = file;
                 }
                 Err(err) => {
-                    println!("gen_log_file err : {}", err);
+                    println!("gen_log_file err : {err}");
                 }
             }
         }));
@@ -153,11 +153,11 @@ impl Logger {
             // Normally using a pipe as a target would mean a value of false, but this forces it to be true.
             .write_style_or("MY_LOG_STYLE", "always");
 
-        let path_val = path.unwrap().clone();
-        let rotate_val = rotate.unwrap().clone();
+        let path_val = path.unwrap();
+        let rotate_val = rotate.unwrap();
 
         if let Err(err) = fs::create_dir_all(path_val.clone()) {
-            println!("cannot create folder: {}, err: {}", path_val, err);
+            println!("cannot create folder: {path_val}, err: {err}");
         }
         let file = gen_log_file(rotate_val.clone(), path_val.clone())?;
         let target = FileTarget::new(file)?;
@@ -178,7 +178,7 @@ impl Logger {
     pub fn stop(&self) {
         if let Some(sender) = &self.close_sender {
             if let Err(err) = sender.send(true) {
-                println!("Logger close err :{}", err);
+                println!("Logger close err :{err}");
             }
         }
     }
@@ -221,14 +221,12 @@ mod tests {
     fn test_write_file() {
         match OpenOptions::new().append(true).open("abc.txt") {
             Ok(mut file) => {
-                if let Err(err) = file.write_all(&[
-                    'h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 'o' as u8,
-                ]) {
-                    println!("file write_all: {}", err);
+                if let Err(err) = file.write_all(&[b'h', b'e', b'l', b'l', b'o', b'o']) {
+                    println!("file write_all: {err}");
                 }
             }
             Err(err) => {
-                println!("file create: {}", err);
+                println!("file create: {err}");
             }
         }
     }
