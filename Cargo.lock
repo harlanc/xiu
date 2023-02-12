@@ -229,6 +229,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cron"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab00a636277f7ea5d8dd92ac7a5099fc9a46e5327bba84d3640b41ae127eada9"
+dependencies = [
+ "chrono",
+ "error-chain",
+ "nom",
+]
+
+[[package]]
 name = "crypto-mac"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -305,6 +316,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger_extend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "env_logger",
+ "failure",
+ "job_scheduler",
+ "log",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -323,6 +346,15 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "error-chain"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9435d864e017c3c6afeac1654189b06cdb491cf2ff73dbf0d73b0f292f42ff8"
+dependencies = [
+ "backtrace",
 ]
 
 [[package]]
@@ -465,6 +497,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "getrandom"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
+dependencies = [
+ "cfg-if 1.0.0",
+ "libc",
+ "wasi 0.11.0+wasi-snapshot-preview1",
+]
+
+[[package]]
 name = "gimli"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -522,7 +565,7 @@ dependencies = [
  "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tokio-util 0.6.10",
- "uuid",
+ "uuid 0.6.5",
  "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "xmpegts 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -541,7 +584,7 @@ dependencies = [
  "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tokio-util 0.6.10",
- "uuid",
+ "uuid 0.6.5",
  "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "xmpegts 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -602,7 +645,7 @@ dependencies = [
  "log",
  "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
- "uuid",
+ "uuid 0.6.5",
  "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -620,7 +663,7 @@ dependencies = [
  "log",
  "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
- "uuid",
+ "uuid 0.6.5",
  "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -717,6 +760,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4217ad341ebadf8d8e724e264f13e593e0648f5b3e94b3896a5df283be015ecc"
 
 [[package]]
+name = "job_scheduler"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51f368c9c76dde2282714ae32dc274b79c27527a0c06c816f6dda048904d0d7c"
+dependencies = [
+ "chrono",
+ "cron",
+ "uuid 0.8.2",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -790,6 +844,15 @@ dependencies = [
  "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys 0.42.0",
+]
+
+[[package]]
+name = "nom"
+version = "4.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c349f68f25f596b9f44cf0e7c69752a5c633b0550c3ff849518bfba0233774a"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -995,7 +1058,7 @@ dependencies = [
  "sha2",
  "tokio",
  "tokio-util 0.6.10",
- "uuid",
+ "uuid 0.6.5",
  "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1016,7 +1079,7 @@ dependencies = [
  "sha2",
  "tokio",
  "tokio-util 0.6.10",
- "uuid",
+ "uuid 0.6.5",
  "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1326,6 +1389,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1556,9 +1628,8 @@ name = "xiu"
 version = "0.3.0"
 dependencies = [
  "anyhow",
- "chrono",
  "clap",
- "env_logger",
+ "env_logger_extend",
  "failure",
  "hls 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "httpflv 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",

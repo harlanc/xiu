@@ -40,6 +40,7 @@ port = 8080
 [log]
 level = "info"
 [log.file]
+# write log to file or not（Writing logs to file or console cannot be satisfied at the same time）.
 enabled = true
-rotate = "minute" #day hour minute
+rotate = "hour" #[day,hour,minute]
 path = "./logs"

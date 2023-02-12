@@ -110,7 +110,6 @@ async fn main() -> Result<()> {
     };
 
     /*set log level*/
-
     let logger = if let Some(log_config_value) = &config.log {
         let (rotate, path) = if let Some(file_info) = &log_config_value.file {
             if file_info.enabled {

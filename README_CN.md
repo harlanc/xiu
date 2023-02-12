@@ -144,6 +144,13 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
     [log]
     level = "info"
+    [log.file]
+    # 打开或者关闭输出日志到文件（注意：输出日志到控制台和文件只能2选1）.
+    enabled = true
+    # set the rotate
+    rotate = "hour" #[day,hour,minute]
+    # set the path where the logs are saved
+    path = "./logs"
 
 ### 一些配置的例子
 

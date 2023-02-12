@@ -75,13 +75,12 @@ fn get_log_file_name(rotate: Rotate) -> String {
 pub fn gen_log_file(rotate: Rotate, path: String) -> Result<File> {
     let file_name = get_log_file_name(rotate);
     let full_path = format!("{}/{}.log", path, file_name);
-    println!("file_name: {}", full_path);
-
+    // println!("file_name: {}", full_path);
     if !Path::new(&full_path).exists() {
-        println!("create file : {}", full_path);
+        //println!("create file : {}", full_path);
         Ok(File::create(full_path)?)
     } else {
-        println!("open file : {}", full_path);
+        //println!("open file : {}", full_path);
         let file = OpenOptions::new().append(true).open(full_path)?;
         Ok(file)
     }

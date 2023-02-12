@@ -147,6 +147,13 @@ You can use command line to configure the xiu server easily. You can specify to 
 
     [log]
     level = "info"
+    [log.file]
+    # write log to file or not（Writing logs to file or console cannot be satisfied at the same time）.
+    enabled = true
+    # set the rotate
+    rotate = "hour" #[day,hour,minute]
+    # set the path where the logs are saved
+    path = "./logs"
     
 ### Configuration examples
 
