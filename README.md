@@ -27,7 +27,7 @@
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
-Xiu is a simple and secure live media server written by pure Rust, it now supports popular live protocols like RTMP/HLS/HTTP-FLV, you can deploy it as a stand-alone server or a cluster using the relay feature.
+Xiu is a simple,high performance and secure live media server written in pure Rust, it now supports popular live protocols like RTMP/HLS/HTTP-FLV, you can deploy it as a stand-alone server or a cluster using the relay feature.
 
 ## Features
 - [x] Support multiple platforms(Linux/MacOS/Windows).
@@ -37,7 +37,7 @@ stand-alone server or cluster(RTMP relay).
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP).
 - [x] Supports configuring the service using command line or a configuration file.
 - [ ] Support HTTP API/Notifications.
-  - [ ] Support querying stream info and so on.
+  - [ ] Support querying stream/machine information and so on.
   - [ ] Support notify stream status.
 - [ ] Support token authentications.
 - [ ] Support RTSP.
