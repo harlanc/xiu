@@ -31,16 +31,16 @@ Xiu is a simple and secure live media server written by pure Rust, it now suppor
 
 ## Features
 - [x] Support multiple platforms(Linux/MacOS/Windows).
-- [x] A RTMP server which can receive rtmp streams as a 
+- [x] Support RTMP which can receive rtmp streams as a 
 stand-alone server or cluster(RTMP relay).
    - [x] Support GOP cache.
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP).
 - [x] Supports configuring the service using command line or a configuration file.
-- [] Support HTTP API/Notifications.
-  - [] Support querying stream info and so on.
-  - [] Support notify stream status.
-- [] Support token authentications.
-- [] Support RTSP.
+- [ ] Support HTTP API/Notifications.
+  - [ ] Support querying stream info and so on.
+  - [ ] Support notify stream status.
+- [ ] Support token authentications.
+- [ ] Support RTSP.
 
 ## Preparation
 #### Install Rust and Cargo
