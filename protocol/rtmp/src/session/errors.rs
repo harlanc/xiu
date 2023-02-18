@@ -54,10 +54,10 @@ pub enum SessionErrorValue {
     Amf0ValueTypeNotCorrect,
     #[fail(display = "channel event send error\n")]
     ChannelEventSendErr,
-    #[fail(display = "none channel data sender error\n")]
-    NoneChannelDataSender,
-    #[fail(display = "none channel data receiver error\n")]
-    NoneChannelDataReceiver,
+    #[fail(display = "none channel data producer error\n")]
+    NoneChannelDataProducer,
+    #[fail(display = "none channel data consumer error\n")]
+    NoneChannelDataConsumer,
     #[fail(display = "send channel data error\n")]
     SendChannelDataErr,
     #[fail(display = "subscribe count limit is reached.\n")]

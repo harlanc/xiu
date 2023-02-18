@@ -33,6 +33,7 @@ enum ServerSessionState {
     // OnConnect,
     // OnCreateStream,
     //Publish,
+    DeleteStream,
     Play,
 }
 
@@ -83,6 +84,9 @@ impl ServerSession {
                 }
                 ServerSessionState::Play => {
                     self.play().await?;
+                }
+                ServerSessionState::DeleteStream => {
+                    return Ok(());
                 }
             }
         }
@@ -280,6 +284,7 @@ impl ServerSession {
                     );
 
                     self.on_delete_stream(transaction_id, &stream_id).await?;
+                    self.state = ServerSessionState::DeleteStream;
                 }
             }
             "play" => {

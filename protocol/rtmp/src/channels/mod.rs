@@ -46,7 +46,6 @@ pub struct Transmiter {
     event_consumer: TransmitEventConsumer,
 
     subscriberid_to_producer: Arc<Mutex<HashMap<Uuid, ChannelDataProducer>>>,
-
     cache: Arc<Mutex<Cache>>,
 }
 
@@ -54,12 +53,13 @@ impl Transmiter {
     fn new(
         data_consumer: UnboundedReceiver<ChannelData>,
         event_consumer: UnboundedReceiver<TransmitEvent>,
+        gop_num: usize,
     ) -> Self {
         Self {
             data_consumer,
             event_consumer,
             subscriberid_to_producer: Arc::new(Mutex::new(HashMap::new())),
-            cache: Arc::new(Mutex::new(Cache::new())),
+            cache: Arc::new(Mutex::new(Cache::new(gop_num))),
         }
     }
 
@@ -102,12 +102,14 @@ impl Transmiter {
                                             })?;
                                         }
 
-                                        let gop = self.cache.lock().unwrap().clone().get_gop_data();
-                                        if let Some(gop_data) = gop{
-                                            for channel_data in gop_data{
-                                                sender.send(channel_data).map_err(|_| ChannelError {
-                                                    value: ChannelErrorValue::SendError,
-                                                })?;
+                                        let gops = self.cache.lock().unwrap().clone().get_gops_data();
+                                        if let Some(gops_data) = gops{
+                                            for gop in gops_data{
+                                                for channel_data in gop.get_frame_data(){
+                                                    sender.send(channel_data).map_err(|_| ChannelError {
+                                                        value: ChannelErrorValue::SendError,
+                                                    })?;
+                                                }
                                             }
                                         }
                                      }
@@ -205,8 +207,9 @@ pub struct ChannelsManager {
     channel_event_producer: ChannelEventProducer,
     //client_event_producer: client_event_producer
     client_event_producer: ClientEventProducer,
-    push_enabled: bool,
-    pull_enabled: bool,
+    rtmp_push_enabled: bool,
+    rtmp_pull_enabled: bool,
+    rtmp_gop_num: usize,
     hls_enabled: bool,
 }
 
@@ -226,8 +229,9 @@ impl ChannelsManager {
             channel_event_consumer: event_consumer,
             channel_event_producer: event_producer,
             client_event_producer: client_producer,
-            push_enabled: false,
-            pull_enabled: false,
+            rtmp_push_enabled: false,
+            rtmp_pull_enabled: false,
+            rtmp_gop_num: 1,
             hls_enabled: false,
         }
     }
@@ -236,15 +240,19 @@ impl ChannelsManager {
     }
 
     pub fn set_rtmp_push_enabled(&mut self, enabled: bool) {
-        self.push_enabled = enabled;
+        self.rtmp_push_enabled = enabled;
+    }
+
+    pub fn set_rtmp_pull_enabled(&mut self, enabled: bool) {
+        self.rtmp_pull_enabled = enabled;
+    }
+
+    pub fn set_rtmp_gop_num(&mut self, gop_num: usize) {
+        self.rtmp_gop_num = gop_num;
     }
 
     pub fn set_hls_enabled(&mut self, enabled: bool) {
         self.hls_enabled = enabled;
-    }
-
-    pub fn set_rtmp_pull_enabled(&mut self, enabled: bool) {
-        self.pull_enabled = enabled;
     }
 
     pub fn get_session_event_producer(&mut self) -> ChannelEventProducer {
@@ -283,7 +291,12 @@ impl ChannelsManager {
                     stream_name,
                 } => {
                     if let Err(err) = self.unpublish(&app_name, &stream_name) {
-                        log::error!("event_loop Unpublish err: {}\n", err);
+                        log::error!(
+                            "event_loop Unpublish err: {} with app name: {} stream name :{}\n",
+                            err,
+                            app_name,
+                            stream_name
+                        );
                     }
                 }
                 ChannelEvent::Subscribe {
@@ -347,7 +360,7 @@ impl ChannelsManager {
             }
         }
 
-        if self.pull_enabled {
+        if self.rtmp_pull_enabled {
             log::info!(
                 "subscribe: try to pull stream, app_name: {}, stream_name: {}",
                 app_name,
@@ -426,7 +439,7 @@ impl ChannelsManager {
             let (event_publisher, event_consumer) = mpsc::unbounded_channel();
             let (data_publisher, data_consumer) = mpsc::unbounded_channel();
 
-            let mut transmiter = Transmiter::new(data_consumer, event_consumer);
+            let mut transmiter = Transmiter::new(data_consumer, event_consumer, self.rtmp_gop_num);
 
             let app_name_clone = app_name.clone();
             let stream_name_clone = stream_name.clone();
@@ -450,7 +463,7 @@ impl ChannelsManager {
 
             stream_map.insert(stream_name.clone(), event_publisher);
 
-            if self.push_enabled || self.hls_enabled {
+            if self.rtmp_push_enabled || self.hls_enabled {
                 let client_event = ClientEvent::Publish {
                     app_name: app_name.clone(),
                     stream_name: stream_name.clone(),
@@ -481,11 +494,11 @@ impl ChannelsManager {
                         value: ChannelErrorValue::SendError,
                     })?;
                     val.remove(stream_name);
-                    // log::info!(
-                    //     "unpublish remove stream, app_name: {},stream_name: {}",
-                    //     app_name,
-                    //     stream_name
-                    // );
+                    log::info!(
+                        "unpublish remove stream, app_name: {},stream_name: {}",
+                        app_name,
+                        stream_name
+                    );
                 }
                 None => {
                     return Err(ChannelError {

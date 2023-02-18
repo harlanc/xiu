@@ -42,6 +42,13 @@ impl Service {
                 return Ok(());
             }
 
+            let gop_num = if let Some(gop_num_val) = rtmp_cfg_value.gop_num {
+                gop_num_val
+            } else {
+                1
+            };
+
+            channel.set_rtmp_gop_num(gop_num);
             let producer = channel.get_session_event_producer();
 
             /*static push */

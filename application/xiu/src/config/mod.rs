@@ -19,6 +19,7 @@ impl Config {
         if rtmp_port > 0 {
             rtmp_config = Some(RtmpConfig {
                 enabled: true,
+                gop_num: Some(1),
                 port: rtmp_port,
                 pull: None,
                 push: None,
@@ -59,6 +60,7 @@ impl Config {
 pub struct RtmpConfig {
     pub enabled: bool,
     pub port: usize,
+    pub gop_num: Option<usize>,
     pub pull: Option<RtmpPullConfig>,
     pub push: Option<Vec<RtmpPushConfig>>,
 }

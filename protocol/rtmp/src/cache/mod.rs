@@ -3,10 +3,12 @@ pub mod gop;
 pub mod metadata;
 
 use {
+    self::gop::Gops,
     crate::channels::define::ChannelData,
     bytes::BytesMut,
     errors::CacheError,
     gop::Gop,
+    std::collections::VecDeque,
     xflv::{define, demuxer_tag},
 };
 #[derive(Clone)]
@@ -17,17 +19,17 @@ pub struct Cache {
     video_timestamp: u32,
     audio_seq: BytesMut,
     audio_timestamp: u32,
-    gop: Gop,
+    gops: Gops,
 }
 
 impl Default for Cache {
     fn default() -> Self {
-        Self::new()
+        Self::new(1)
     }
 }
 
 impl Cache {
-    pub fn new() -> Self {
+    pub fn new(gop_num: usize) -> Self {
         Self {
             metadata: metadata::MetaData::new(),
             metadata_timestamp: 0,
@@ -35,7 +37,7 @@ impl Cache {
             video_timestamp: 0,
             audio_seq: BytesMut::new(),
             audio_timestamp: 0,
-            gop: Gop::new(),
+            gops: Gops::new(gop_num),
         }
     }
 
@@ -69,7 +71,7 @@ impl Cache {
             timestamp,
             data: chunk_body.clone(),
         };
-        self.gop.save_gop_data(channel_data, false);
+        self.gops.save_frame_data(channel_data, false);
 
         if tag.sound_format == define::sound_format::AAC
             && tag.aac_packet_type == define::aac_packet_type::AAC_SEQHDR
@@ -114,7 +116,7 @@ impl Cache {
             data: chunk_body.clone(),
         };
         let is_key_frame = tag.frame_type == define::frame_type::KEY_FRAME;
-        self.gop.save_gop_data(channel_data, is_key_frame);
+        self.gops.save_frame_data(channel_data, is_key_frame);
 
         if is_key_frame && tag.avc_packet_type == define::avc_packet_type::AVC_SEQHDR {
             self.video_seq = chunk_body;
@@ -124,9 +126,9 @@ impl Cache {
         Ok(())
     }
 
-    pub fn get_gop_data(self) -> Option<Vec<ChannelData>> {
-        if !self.gop.is_empty() {
-            Some(self.gop.get_gop_data())
+    pub fn get_gops_data(self) -> Option<VecDeque<Gop>> {
+        if self.gops.setted() {
+            Some(self.gops.get_gops())
         } else {
             None
         }
