@@ -35,7 +35,7 @@ Xiu is a simple,high performance and secure live media server written in pure Ru
 stand-alone server or cluster(RTMP relay).
    - [x] Support GOP cache.
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP).
-- [x] Supports configuring the service using command line or a configuration file.
+- [x] Support configuring the service using command line or a configuration file.
 - [ ] Support HTTP API/Notifications.
   - [ ] Support querying stream/machine information and so on.
   - [ ] Support notify stream status.
@@ -99,11 +99,11 @@ use master branch
 
 You can use command line to configure the xiu server easily. You can specify to configure xiu using configuration file or from the command lines.
 
-##### Configure using configuation file
+##### Configure using file
 
     xiu -c configuration_file_path
 
-##### using command line
+##### Configure using command line
 
     xiu -r 1935 -f 8080 -s 8081 -l info
 
