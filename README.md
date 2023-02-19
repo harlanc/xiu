@@ -31,7 +31,7 @@ Xiu is a simple,high performance and secure live media server written in pure Ru
 
 ## Features
 - [x] Support multiple platforms(Linux/MacOS/Windows).
-- [x] Support RTMP which can receive rtmp streams as a 
+- [x] Support RTMP as a 
 stand-alone server or cluster(RTMP relay).
    - [x] Support GOP cache.
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP).
