@@ -14,14 +14,14 @@ pub enum ChannelData {
 pub type ChannelDataProducer = mpsc::UnboundedSender<ChannelData>;
 pub type ChannelDataConsumer = mpsc::UnboundedReceiver<ChannelData>;
 
-pub type ClientEventProducer = broadcast::Sender<ClientEvent>;
-pub type ClientEventConsumer = broadcast::Receiver<ClientEvent>;
-
 pub type ChannelEventProducer = mpsc::UnboundedSender<ChannelEvent>;
 pub type ChannelEventConsumer = mpsc::UnboundedReceiver<ChannelEvent>;
 
-pub type TransmitEventPublisher = mpsc::UnboundedSender<TransmitEvent>;
-pub type TransmitEventConsumer = mpsc::UnboundedReceiver<TransmitEvent>;
+pub type ClientEventProducer = broadcast::Sender<ClientEvent>;
+pub type ClientEventConsumer = broadcast::Receiver<ClientEvent>;
+
+pub type TransmitterEventPublisher = mpsc::UnboundedSender<TransmitterEvent>;
+pub type TransmitterEventConsumer = mpsc::UnboundedReceiver<TransmitterEvent>;
 
 type ChannelResponder<T> = oneshot::Sender<T>;
 #[derive(Debug)]
@@ -98,20 +98,18 @@ impl fmt::Display for ChannelEvent {
 }
 
 #[derive(Debug)]
-pub enum TransmitEvent {
+pub enum TransmitterEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,
         session_info: SessionInfo,
     },
-
     UnSubscribe {
         session_info: SessionInfo,
     },
-
     UnPublish {},
 }
 
-impl fmt::Display for TransmitEvent {
+impl fmt::Display for TransmitterEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", *self)
     }
