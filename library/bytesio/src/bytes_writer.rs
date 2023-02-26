@@ -125,7 +125,7 @@ impl BytesWriter {
         self.bytes.clear();
     }
 
-    pub fn get_current_bytes(&mut self) -> BytesMut {
+    pub fn get_current_bytes(&self) -> BytesMut {
         let mut rv_data = BytesMut::new();
         rv_data.extend_from_slice(&self.bytes[..]);
         rv_data

@@ -17,6 +17,7 @@ failure = "0.1.1"
 tokio-util = { version = "0.6.5", features = ["codec"] }
 futures = "0.3.5"
 tokio-stream = { version = "0.1" }
+log = "0.4"
 
 [dependencies.tokio]
 version = "1.4.0"
