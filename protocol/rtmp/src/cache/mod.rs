@@ -33,7 +33,7 @@ impl Drop for Cache {
 }
 
 impl Cache {
-    pub fn new(gop_num: usize) -> Self {
+    pub fn new(app_name: String, stream_name: String, gop_num: usize) -> Self {
         let mut cache = Cache {
             metadata: metadata::MetaData::new(),
             metadata_timestamp: 0,
@@ -42,7 +42,7 @@ impl Cache {
             audio_seq: BytesMut::new(),
             audio_timestamp: 0,
             gops: Gops::new(gop_num),
-            av_statistics: AvStatistics::new(),
+            av_statistics: AvStatistics::new(app_name, stream_name),
         };
         cache.av_statistics.start();
         cache

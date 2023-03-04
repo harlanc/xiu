@@ -28,6 +28,18 @@ pub struct AudioInfo {
 }
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct StreamStatistics {
+    pub app_name: String,
+    pub stream_name: String,
     pub video: VideoInfo,
     pub audio: AudioInfo,
+}
+
+impl StreamStatistics {
+    pub fn new(app_name: String, stream_name: String) -> Self {
+        Self {
+            app_name,
+            stream_name,
+            ..Default::default()
+        }
+    }
 }

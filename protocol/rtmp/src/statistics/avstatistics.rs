@@ -30,21 +30,15 @@ pub struct AvStatistics {
     pub sender: Sender<bool>,
 }
 
-impl Default for AvStatistics {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl AvStatistics {
-    pub fn new() -> Self {
+    pub fn new(app_name: String, stream_name: String) -> Self {
         let (s, _): (Sender<bool>, Receiver<bool>) = mpsc::channel(1);
         Self {
             video_bytes: Arc::new(Mutex::new(0.0)),
             audio_bytes: Arc::new(Mutex::new(0.0)),
             frame_count: Arc::new(Mutex::new(0)),
             gop_frame_count: Arc::new(Mutex::new(0)),
-            stream_statistics: Arc::new(Mutex::new(StreamStatistics::default())),
+            stream_statistics: Arc::new(Mutex::new(StreamStatistics::new(app_name, stream_name))),
             sender: s,
         }
     }

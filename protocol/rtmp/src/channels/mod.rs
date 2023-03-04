@@ -49,6 +49,8 @@ pub struct Transmitter {
 
 impl Transmitter {
     fn new(
+        app_name: String,
+        stream_name: String,
         data_consumer: UnboundedReceiver<ChannelData>,
         event_consumer: UnboundedReceiver<TransmitterEvent>,
         gop_num: usize,
@@ -57,7 +59,7 @@ impl Transmitter {
             data_consumer,
             event_consumer,
             subscriberid_to_producer: HashMap::new(),
-            cache: Cache::new(gop_num),
+            cache: Cache::new(app_name, stream_name, gop_num),
         }
     }
 
@@ -412,8 +414,13 @@ impl ChannelsManager {
             let (event_publisher, event_consumer) = mpsc::unbounded_channel();
             let (data_publisher, data_consumer) = mpsc::unbounded_channel();
 
-            let mut transmitter =
-                Transmitter::new(data_consumer, event_consumer, self.rtmp_gop_num);
+            let mut transmitter = Transmitter::new(
+                app_name.clone(),
+                stream_name.clone(),
+                data_consumer,
+                event_consumer,
+                self.rtmp_gop_num,
+            );
 
             let app_name_clone = app_name.clone();
             let stream_name_clone = stream_name.clone();
