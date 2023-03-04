@@ -1,6 +1,8 @@
 use {
+    bytesio::bits_errors::BitError,
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     failure::{Backtrace, Fail},
+    h264::errors::H264Error,
     std::fmt,
 };
 
@@ -141,10 +143,16 @@ pub enum MpegErrorValue {
     BytesReadError(#[cause] BytesReadError),
     #[fail(display = "bytes write error:{}\n", _0)]
     BytesWriteError(#[cause] BytesWriteError),
+    #[fail(display = "bits error:{}\n", _0)]
+    BitError(#[cause] BitError),
+    #[fail(display = "h264 error:{}\n", _0)]
+    H264Error(#[cause] H264Error),
     #[fail(display = "there is not enough bits to read\n")]
     NotEnoughBitsToRead,
     #[fail(display = "should not come here\n")]
     ShouldNotComeHere,
+    #[fail(display = "the sps nal unit type is not correct\n")]
+    SPSNalunitTypeNotCorrect,
 }
 #[derive(Debug)]
 pub struct MpegAvcError {
@@ -163,6 +171,14 @@ impl From<BytesWriteError> for MpegAvcError {
     fn from(error: BytesWriteError) -> Self {
         MpegAvcError {
             value: MpegErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl From<H264Error> for MpegAvcError {
+    fn from(error: H264Error) -> Self {
+        MpegAvcError {
+            value: MpegErrorValue::H264Error(error),
         }
     }
 }
@@ -200,6 +216,14 @@ impl From<BytesWriteError> for MpegAacError {
     fn from(error: BytesWriteError) -> Self {
         MpegAacError {
             value: MpegErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl From<BitError> for MpegAacError {
+    fn from(error: BitError) -> Self {
+        MpegAacError {
+            value: MpegErrorValue::BitError(error),
         }
     }
 }

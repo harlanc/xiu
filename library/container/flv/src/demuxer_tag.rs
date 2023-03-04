@@ -4,7 +4,7 @@ use {
     bytesio::bytes_reader::BytesReader,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AudioTagHeader {
     /*
         SoundFormat: UB[4]
@@ -94,7 +94,7 @@ impl AudioTagHeaderDemuxer {
         self.tag.sound_size = (flags >> 1) & 0x01;
         self.tag.sound_type = flags & 0x01;
 
-        if self.tag.sound_format == define::sound_format::AAC {
+        if self.tag.sound_format == define::SoundFormat::AAC as u8 {
             self.tag.aac_packet_type = self.bytes_reader.read_u8()?;
         }
 
@@ -123,6 +123,7 @@ pub struct VideoTagHeader {
         5: On2 VP6 with alpha channel
         6: Screen video version 2
         7: AVC
+        12: HEVC
     */
     pub codec_id: u8,
     /*
@@ -164,8 +165,8 @@ impl VideoTagHeaderDemuxer {
         self.tag.frame_type = flags >> 4;
         self.tag.codec_id = flags & 0x0f;
 
-        if self.tag.codec_id == define::codec_id::FLV_VIDEO_H264
-            || self.tag.codec_id == define::codec_id::FLV_VIDEO_H265
+        if self.tag.codec_id == define::AvcCodecId::H264 as u8
+            || self.tag.codec_id == define::AvcCodecId::HEVC as u8
         {
             self.tag.avc_packet_type = self.bytes_reader.read_u8()?;
             self.tag.composition_time = 0;

@@ -1,10 +1,7 @@
 use {
-    super::bits_errors::BitError,
-    super::bytes_errors::{BytesReadError, BytesReadErrorValue},
+    super::bits_errors::{BitError, BitErrorValue},
     super::bytes_reader::BytesReader,
-    byteorder::{ByteOrder, ReadBytesExt},
-    bytes::{BufMut, BytesMut},
-    std::io::Cursor,
+    bytes::BytesMut,
 };
 
 pub struct BitsReader {
@@ -32,6 +29,17 @@ impl BitsReader {
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn read_byte(&mut self) -> Result<u8, BitError> {
+        if self.cur_bit_left != 0 {
+            return Err(BitError {
+                value: BitErrorValue::CannotReadByte,
+            });
+        }
+
+        let byte = self.reader.read_u8()?;
+        Ok(byte)
     }
 
     pub fn read_bit(&mut self) -> Result<u8, BitError> {
@@ -104,9 +112,14 @@ mod tests {
         bytes_reader.extend_from_slice(&[data_0]);
         let data_1 = 7u8;
         bytes_reader.extend_from_slice(&[data_1]);
+        bytes_reader.extend_from_slice(&[0b00000010]);
 
         let mut bit_reader = BitsReader::new(bytes_reader);
         assert!(bit_reader.read_n_bits(16).unwrap() == 0x207);
+
+        assert!(bit_reader.read_n_bits(5).unwrap() == 0);
+
+        assert!(bit_reader.read_n_bits(3).unwrap() == 2);
     }
 
     #[test]

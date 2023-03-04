@@ -7,8 +7,8 @@ use {
         cache::metadata::MetaData,
         channels::define::{ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer},
         session::{
-            common::SessionInfo,
-            define::SessionSubType,
+            common::SubscriberInfo,
+            define::SubscribeType,
             errors::{SessionError, SessionErrorValue},
         },
     },
@@ -137,15 +137,15 @@ impl HttpFlv {
     }
 
     pub async fn unsubscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
-        let session_info = SessionInfo {
-            subscriber_id: self.subscriber_id,
-            session_sub_type: SessionSubType::Player,
+        let sub_info = SubscriberInfo {
+            id: self.subscriber_id,
+            sub_type: SubscribeType::PlayerHttpFlv,
         };
 
         let subscribe_event = ChannelEvent::UnSubscribe {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
-            session_info,
+            info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
             log::error!("unsubscribe_from_channels err {}\n", err);
@@ -160,15 +160,15 @@ impl HttpFlv {
         loop {
             let (sender, receiver) = oneshot::channel();
 
-            let session_info = SessionInfo {
-                subscriber_id: self.subscriber_id,
-                session_sub_type: SessionSubType::Player,
+            let sub_info = SubscriberInfo {
+                id: self.subscriber_id,
+                sub_type: SubscribeType::PlayerHttpFlv,
             };
 
             let subscribe_event = ChannelEvent::Subscribe {
                 app_name: self.app_name.clone(),
                 stream_name: self.stream_name.clone(),
-                session_info,
+                info: sub_info,
                 responder: sender,
             };
 

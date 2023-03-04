@@ -1,6 +1,6 @@
 use {
     super::{
-        define::{SessionSubType, SessionType},
+        define::{SessionType, SubscribeType},
         errors::{SessionError, SessionErrorValue},
     },
     crate::{
@@ -25,9 +25,9 @@ use {
     uuid::Uuid,
 };
 #[derive(Debug)]
-pub struct SessionInfo {
-    pub subscriber_id: Uuid,
-    pub session_sub_type: SessionSubType,
+pub struct SubscriberInfo {
+    pub id: Uuid,
+    pub sub_type: SubscribeType,
 }
 pub struct Common {
     packetizer: ChunkPacketizer,
@@ -208,15 +208,15 @@ impl Common {
         Ok(())
     }
 
-    fn get_session_info(&mut self, sub_id: Uuid) -> SessionInfo {
+    fn get_subscriber_info(&mut self, sub_id: Uuid) -> SubscriberInfo {
         match self.session_type {
-            SessionType::Client => SessionInfo {
-                subscriber_id: sub_id,
-                session_sub_type: SessionSubType::Publisher,
+            SessionType::Client => SubscriberInfo {
+                id: sub_id,
+                sub_type: SubscribeType::PublisherRtmp,
             },
-            SessionType::Server => SessionInfo {
-                subscriber_id: sub_id,
-                session_sub_type: SessionSubType::Player,
+            SessionType::Server => SubscriberInfo {
+                id: sub_id,
+                sub_type: SubscribeType::PlayerRtmp,
             },
         }
     }
@@ -243,7 +243,7 @@ impl Common {
             let subscribe_event = ChannelEvent::Subscribe {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
-                session_info: self.get_session_info(sub_id),
+                info: self.get_subscriber_info(sub_id),
                 responder: sender,
             };
             let rv = self.event_producer.send(subscribe_event);
@@ -284,7 +284,7 @@ impl Common {
         let subscribe_event = ChannelEvent::UnSubscribe {
             app_name,
             stream_name,
-            session_info: self.get_session_info(sub_id),
+            info: self.get_subscriber_info(sub_id),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
             log::error!("unsubscribe_from_channels err {}\n", err);
@@ -294,6 +294,7 @@ impl Common {
     }
 
     /*Begin to receive stream data from RTMP push client or RTMP relay push client*/
+    //receive stream data from remote client and produce
     pub async fn publish_to_channels(
         &mut self,
         app_name: String,
@@ -329,6 +330,11 @@ impl Common {
         app_name: String,
         stream_name: String,
     ) -> Result<(), SessionError> {
+        log::info!(
+            "unpublish_to_channels, app_name:{}, stream_name:{}",
+            app_name,
+            stream_name
+        );
         let unpublish_event = ChannelEvent::UnPublish {
             app_name: app_name.clone(),
             stream_name: stream_name.clone(),

@@ -57,6 +57,8 @@ impl MetaData {
             return false;
         }
 
+        log::info!("metadata: {:?}",values);
+
         match values.remove(0) {
             Amf0ValueType::UTF8String(str) => {
                 if str != "@setDataFrame" {

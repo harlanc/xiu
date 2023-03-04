@@ -1,0 +1,14 @@
+[package]
+name = "h264"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+byteorder = "1.4.2"
+bytes = "1.0.0"
+log = "0.4"
+#bytesio = "0.1.27"#{path = "../../bytesio/"}
+bytesio = { path = "../../bytesio/" }
+failure = "0.1.1"

@@ -1,3 +1,5 @@
+use serde::Serialize;
+use std::cmp::Eq;
 use std::fmt;
 
 pub const WINDOW_ACKNOWLEDGEMENT_SIZE: u32 = 4096;
@@ -26,10 +28,12 @@ pub const RTMP_LEVEL_WARNING: &str = "warning";
 pub const RTMP_LEVEL_STATUS: &str = "status";
 pub const RTMP_LEVEL_ERROR: &str = "error\n";
 //session subscribe type
-#[derive(Debug)]
-pub enum SessionSubType {
-    Player,
-    Publisher,
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum SubscribeType {
+    PlayerRtmp,
+    PlayerHttpFlv,
+    PlayerHls,
+    PublisherRtmp,
 }
 
 pub enum SessionType {

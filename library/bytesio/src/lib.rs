@@ -4,7 +4,7 @@ extern crate failure;
 
 pub mod bits_errors;
 pub mod bits_reader;
-pub mod bits_wirter;
+pub mod bits_writer;
 pub mod bytes_errors;
 pub mod bytes_reader;
 pub mod bytes_writer;

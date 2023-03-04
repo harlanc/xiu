@@ -1,16 +1,26 @@
 use {
     crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
+    bytesio::bytes_errors::BytesReadError,
     failure::{Backtrace, Fail},
+    h264::errors::H264Error,
     std::fmt,
-    xflv::errors::FlvDemuxerError,
+    xflv::errors::{FlvDemuxerError, MpegAacError, MpegAvcError},
 };
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
     #[fail(display = "cache tag parse error\n")]
     DemuxerError(FlvDemuxerError),
+    #[fail(display = "mpeg aac error\n")]
+    MpegAacError(MpegAacError),
+    #[fail(display = "mpeg avc error\n")]
+    MpegAvcError(MpegAvcError),
     #[fail(display = "pack error\n")]
     PackError(PackError),
+    #[fail(display = "read bytes error\n")]
+    BytesReadError(BytesReadError),
+    #[fail(display = "h264 error\n")]
+    H264Error(H264Error),
 }
 
 impl fmt::Display for CacheError {
@@ -27,6 +37,38 @@ impl From<FlvDemuxerError> for CacheError {
     fn from(error: FlvDemuxerError) -> Self {
         CacheError {
             value: CacheErrorValue::DemuxerError(error),
+        }
+    }
+}
+
+impl From<H264Error> for CacheError {
+    fn from(error: H264Error) -> Self {
+        CacheError {
+            value: CacheErrorValue::H264Error(error),
+        }
+    }
+}
+
+impl From<MpegAacError> for CacheError {
+    fn from(error: MpegAacError) -> Self {
+        CacheError {
+            value: CacheErrorValue::MpegAacError(error),
+        }
+    }
+}
+
+impl From<MpegAvcError> for CacheError {
+    fn from(error: MpegAvcError) -> Self {
+        CacheError {
+            value: CacheErrorValue::MpegAvcError(error),
+        }
+    }
+}
+
+impl From<BytesReadError> for CacheError {
+    fn from(error: BytesReadError) -> Self {
+        CacheError {
+            value: CacheErrorValue::BytesReadError(error),
         }
     }
 }

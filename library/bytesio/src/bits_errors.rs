@@ -2,8 +2,6 @@ use super::bytes_errors::BytesReadError;
 use super::bytes_errors::BytesWriteError;
 use failure::{Backtrace, Fail};
 use std::fmt;
-use std::io;
-// use tokio::time::Elapsed;
 
 #[derive(Debug, Fail)]
 pub enum BitErrorValue {
@@ -15,6 +13,8 @@ pub enum BitErrorValue {
     TooBig,
     #[fail(display = "cannot write the whole 8 bits\n")]
     CannotWrite8Bit,
+    #[fail(display = "cannot read byte\n")]
+    CannotReadByte,
 }
 #[derive(Debug)]
 pub struct BitError {

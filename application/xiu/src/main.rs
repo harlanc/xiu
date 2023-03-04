@@ -8,8 +8,33 @@ use {
     xiu::{config, config::Config, service::Service},
 };
 
+// pub fn panic_handler_generate_coredump() {
+//     let default_panic = std::panic::take_hook();
+
+//     std::panic::set_hook(Box::new(move |panic_info| {
+//         default_panic(panic_info);
+
+//         let pid = std::process::id();
+
+//         use libc::kill;
+//         use libc::SIGABRT;
+
+//         use std::convert::TryInto;
+//         unsafe { kill(pid.try_into().unwrap(), SIGABRT) };
+//     }));
+// }
+use std::panic;
+
 #[tokio::main]
 async fn main() -> Result<()> {
+
+    panic::set_hook(Box::new(|panic_info| {
+        if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            println!("panic occurred: {s:?}");
+        } else {
+            println!("panic occurred");
+        }
+    }));
     let log_levels = vec!["trace", "debug", "info", "warn", "error"];
 
     let mut cmd = Command::new("XIU")

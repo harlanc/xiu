@@ -74,22 +74,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
-
-[[package]]
-name = "bitvec"
-version = "0.20.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7774144344a4faa177370406a7ff5f1da24303817368584c6206c8303eb07848"
-dependencies = [
- "funty",
- "radium",
- "tap",
- "wyz",
-]
 
 [[package]]
 name = "block-buffer"
@@ -126,22 +120,7 @@ dependencies = [
  "bytes",
  "failure",
  "futures",
- "rand 0.3.23",
- "tokio",
- "tokio-stream",
- "tokio-util 0.6.10",
-]
-
-[[package]]
-name = "bytesio"
-version = "0.1.27"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e1c0b65c6b4b7e2fe247256d2a33a69d9a318fd9546d2d1f0e05dce8a63d8ac"
-dependencies = [
- "byteorder",
- "bytes",
- "failure",
- "futures",
+ "log",
  "rand 0.3.23",
  "tokio",
  "tokio-stream",
@@ -176,7 +155,8 @@ dependencies = [
  "js-sys",
  "num-integer",
  "num-traits",
- "time",
+ "serde",
+ "time 0.1.44",
  "wasm-bindgen",
  "winapi",
 ]
@@ -294,6 +274,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0808e1bd8671fb44a113a14e13497557533369847788fa2ae912b6ebfce9fa8"
+dependencies = [
+ "darling_core",
+ "darling_macro",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "001d80444f28e193f30c2f293455da62dcf9a6b29918a4253152ae2b1de592cb"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b36230598a2d5de7ec1c6f51f72d8a99a9208daff41de2084d06e3fd3ea56685"
+dependencies = [
+ "darling_core",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -318,20 +333,6 @@ dependencies = [
 [[package]]
 name = "env_logger_extend"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "env_logger",
- "failure",
- "job_scheduler",
- "log",
-]
-
-[[package]]
-name = "env_logger_extend"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0304c03ff485f4c0cf0d6971ebf1331c3cf430509dc571fa2f2395e30f0d39b"
 dependencies = [
  "anyhow",
  "chrono",
@@ -404,12 +405,6 @@ name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
-
-[[package]]
-name = "funty"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed34cd105917e91daa4da6b3728c47b068749d6a62c59811f06ed2ac71d9da7"
 
 [[package]]
 name = "futures"
@@ -547,6 +542,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "h264"
+version = "0.1.0"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "bytesio",
+ "failure",
+ "log",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -568,39 +574,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "856b5cb0902c2b6d65d5fd97dfa30f9b70c7538e770b98eab5ed52d8db923e01"
 
 [[package]]
-name = "hls"
-version = "0.1.1"
-dependencies = [
- "byteorder",
- "bytes",
- "failure",
- "hyper",
- "log",
- "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio",
- "tokio-util 0.6.10",
- "uuid 0.6.5",
- "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "xmpegts 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hls"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9df6827ca8b8f73a351b9ad110c1220e02cac5335cb435e963d1c7baf675442"
 dependencies = [
  "byteorder",
  "bytes",
  "failure",
  "hyper",
  "log",
- "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rtmp",
  "tokio",
  "tokio-util 0.6.10",
  "uuid 0.6.5",
- "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "xmpegts 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xflv",
+ "xmpegts",
 ]
 
 [[package]]
@@ -657,28 +650,10 @@ dependencies = [
  "futures",
  "hyper",
  "log",
- "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rtmp",
  "tokio",
  "uuid 0.6.5",
- "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "httpflv"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2baf55481291db7607ad63b5e9c9243885db1cf46d0f1917c3563dde77b7b595"
-dependencies = [
- "byteorder",
- "bytes",
- "failure",
- "futures",
- "hyper",
- "log",
- "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio",
- "uuid 0.6.5",
- "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xflv",
 ]
 
 [[package]]
@@ -736,6 +711,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ident_case"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
+
+[[package]]
 name = "indexmap"
 version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -743,6 +724,7 @@ checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
  "hashbrown",
+ "serde",
 ]
 
 [[package]]
@@ -795,9 +777,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.137"
+version = "0.2.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc7fcc620a3bff7cdd7a365be3376c97191aeaccc2a603e600951e452615bf89"
+checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
 name = "link-cplusplus"
@@ -979,12 +961,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "radium"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
-
-[[package]]
 name = "rand"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1063,38 +1039,21 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio",
  "chrono",
  "failure",
+ "h264",
  "hmac",
  "log",
  "rand 0.3.23",
+ "serde",
+ "serde_json",
+ "serde_with",
  "sha2",
  "tokio",
  "tokio-util 0.6.10",
  "uuid 0.6.5",
- "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rtmp"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa22f95a65c45e505c0e5768aa469e8d0d34fb433a1de7991678774f6cb119f5"
-dependencies = [
- "byteorder",
- "bytes",
- "bytesio 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "chrono",
- "failure",
- "hmac",
- "log",
- "rand 0.3.23",
- "sha2",
- "tokio",
- "tokio-util 0.6.10",
- "uuid 0.6.5",
- "xflv 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xflv",
 ]
 
 [[package]]
@@ -1116,6 +1075,12 @@ dependencies = [
  "linux-raw-sys",
  "windows-sys 0.45.0",
 ]
+
+[[package]]
+name = "ryu"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b4b9743ed687d4b4bcedf9ff5eaa7398495ae14e61cba0a295704edbc7decde"
 
 [[package]]
 name = "scopeguard"
@@ -1144,6 +1109,45 @@ version = "1.0.147"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f1d362ca8fc9c3e3a7484440752472d68a6caa98f1ab81d99b5dfe517cec852"
 dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.93"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cad406b69c91885b5107daf2c29572f6c8cdb3c66826821e286c533490c0bc76"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_with"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30d904179146de381af4c93d3af6ca4984b3152db687dacb9c3c35e86f39809c"
+dependencies = [
+ "base64",
+ "chrono",
+ "hex",
+ "indexmap",
+ "serde",
+ "serde_json",
+ "serde_with_macros",
+ "time 0.3.19",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1966009f3c05f095697c537312f5415d1e3ed31ce0a56942bac4c771c5c335e"
+dependencies = [
+ "darling",
  "proc-macro2",
  "quote",
  "syn",
@@ -1232,12 +1236,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tap"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
 name = "termcolor"
 version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1255,6 +1253,33 @@ dependencies = [
  "libc",
  "wasi 0.10.0+wasi-snapshot-preview1",
  "winapi",
+]
+
+[[package]]
+name = "time"
+version = "0.3.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53250a3b3fed8ff8fd988587d8925d26a83ac3845d9e03b220b37f34c2b8d6c2"
+dependencies = [
+ "itoa",
+ "serde",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
+
+[[package]]
+name = "time-macros"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a460aeb8de6dcb0f381e1ee05f1cd56fcf5a5f6eb8187ff3d8f0b11078d38b7c"
+dependencies = [
+ "time-core",
 ]
 
 [[package]]
@@ -1606,35 +1631,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "447660ad36a13288b1db4d4248e857b510e8c3a225c822ba4fb748c0aafecffd"
 
 [[package]]
-name = "wyz"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85e60b0d1b5f99db2556934e21937020776a5d31520bf169e851ac44e6420214"
-
-[[package]]
 name = "xflv"
 version = "0.1.0"
 dependencies = [
- "bitvec",
  "byteorder",
  "bytes",
- "bytesio 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio",
  "failure",
+ "h264",
  "log",
-]
-
-[[package]]
-name = "xflv"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c646bc4a1f7531563ad49ee9cb53496645fe60dcd9bfddc2f17a2c41e25ce47c"
-dependencies = [
- "bitvec",
- "byteorder",
- "bytes",
- "bytesio 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "failure",
- "log",
+ "serde",
 ]
 
 [[package]]
@@ -1643,12 +1649,13 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
- "env_logger_extend 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger_extend",
  "failure",
- "hls 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "httpflv 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hls",
+ "httpflv",
+ "libc",
  "log",
- "rtmp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rtmp",
  "serde",
  "serde_derive",
  "tokio",
@@ -1661,18 +1668,6 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
- "failure",
-]
-
-[[package]]
-name = "xmpegts"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a5b198cb6465d80215e1a1353471328448d75717adee4626b3da1baebf16246"
-dependencies = [
- "byteorder",
- "bytes",
- "bytesio 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio",
  "failure",
 ]

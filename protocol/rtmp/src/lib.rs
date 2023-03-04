@@ -1,9 +1,9 @@
 extern crate byteorder;
 extern crate bytes;
+extern crate bytesio;
 extern crate chrono;
 extern crate failure;
 extern crate hmac;
-extern crate bytesio;
 extern crate rand;
 extern crate sha2;
 extern crate tokio;
@@ -21,5 +21,6 @@ pub mod protocol_control_messages;
 pub mod relay;
 pub mod rtmp;
 pub mod session;
+pub mod statistics;
 pub mod user_control_messages;
 pub mod utils;

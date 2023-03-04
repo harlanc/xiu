@@ -7,5 +7,6 @@ members = [
   "application/xiu",
   "library/container/flv",
   "library/container/mpegts",
+  "library/codec/h264",
   "library/logger",
 ]

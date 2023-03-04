@@ -17,15 +17,17 @@ anyhow = "^1.0"
 log = "0.4.0"
 failure = "0.1.1"
 clap = "4.1.4"
+libc = "0.2.139"
 
-rtmp = "0.1.0"    #{path = "../../protocol/rtmp/"}#"0.0.4"
-httpflv = "0.1.1" #{path = "../../protocol/httpflv/"}
-hls = "0.1.1"     #{path = "../../protocol/hls/"}
-env_logger_extend = "0.1.0"
-# rtmp = { path = "../../protocol/rtmp/" }       #"0.0.4"
-# httpflv = { path = "../../protocol/httpflv/" }
-# hls = { path = "../../protocol/hls/" }
-# env_logger_extend = {path = "../../library/logger/"}
+# rtmp = "0.1.0"    #{path = "../../protocol/rtmp/"}#"0.0.4"
+# httpflv = "0.1.1" #{path = "../../protocol/httpflv/"}
+# hls = "0.1.1"     #{path = "../../protocol/hls/"}
+# env_logger_extend = "0.1.0"
+rtmp = { path = "../../protocol/rtmp/" }               #"0.0.4"
+httpflv = { path = "../../protocol/httpflv/" }
+hls = { path = "../../protocol/hls/" }
+env_logger_extend = { path = "../../library/logger/" }
+
 
 [features]
 default = ["std"]

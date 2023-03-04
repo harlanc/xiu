@@ -1,6 +1,6 @@
 use {
     super::{
-        define::{aac_packet_type, avc_packet_type, codec_id, sound_format, tag_type, FlvData},
+        define::{aac_packet_type, avc_packet_type, tag_type, AvcCodecId, FlvData, SoundFormat},
         demuxer_tag::{AudioTagHeaderDemuxer, VideoTagHeaderDemuxer},
         errors::FlvDemuxerError,
         mpeg4_aac::Mpeg4AacProcessor,
@@ -147,7 +147,7 @@ impl FlvVideoTagDemuxer {
 
         self.avc_processor.extend_data(remaining_bytes);
 
-        if header.codec_id == codec_id::FLV_VIDEO_H264 {
+        if header.codec_id == AvcCodecId::H264 as u8 {
             match header.avc_packet_type {
                 avc_packet_type::AVC_SEQHDR => {
                     self.avc_processor.decoder_configuration_record_load()?;
@@ -158,7 +158,7 @@ impl FlvVideoTagDemuxer {
 
                     let video_data = FlvDemuxerVideoData {
                         has_data: true,
-                        codec_id: codec_id::FLV_VIDEO_H264,
+                        codec_id: AvcCodecId::H264 as u8,
                         pts: timestamp as i64 + cts as i64,
                         dts: timestamp as i64,
                         frame_type: header.frame_type,
@@ -203,7 +203,7 @@ impl FlvAudioTagDemuxer {
 
         self.aac_processor.extend_data(remaining_bytes);
 
-        if header.sound_format == sound_format::AAC {
+        if header.sound_format == SoundFormat::AAC as u8 {
             match header.aac_packet_type {
                 aac_packet_type::AAC_SEQHDR => {
                     self.aac_processor.audio_specific_config_load()?;

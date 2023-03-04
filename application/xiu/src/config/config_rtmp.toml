@@ -11,3 +11,4 @@ port = 1935
 ##########################
 [log]
 level = "info"
+#level = "trace"

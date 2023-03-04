@@ -1,5 +1,5 @@
 use {
-    crate::session::common::SessionInfo,
+    crate::session::common::SubscriberInfo,
     bytes::BytesMut,
     std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
@@ -20,7 +20,7 @@ pub type ChannelEventConsumer = mpsc::UnboundedReceiver<ChannelEvent>;
 pub type ClientEventProducer = broadcast::Sender<ClientEvent>;
 pub type ClientEventConsumer = broadcast::Receiver<ClientEvent>;
 
-pub type TransmitterEventPublisher = mpsc::UnboundedSender<TransmitterEvent>;
+pub type TransmitterEventProducer = mpsc::UnboundedSender<TransmitterEvent>;
 pub type TransmitterEventConsumer = mpsc::UnboundedReceiver<TransmitterEvent>;
 
 type ChannelResponder<T> = oneshot::Sender<T>;
@@ -29,13 +29,13 @@ pub enum ChannelEvent {
     Subscribe {
         app_name: String,
         stream_name: String,
-        session_info: SessionInfo,
+        info: SubscriberInfo,
         responder: ChannelResponder<ChannelDataConsumer>,
     },
     UnSubscribe {
         app_name: String,
         stream_name: String,
-        session_info: SessionInfo,
+        info: SubscriberInfo,
     },
     Publish {
         app_name: String,
@@ -54,24 +54,24 @@ impl fmt::Display for ChannelEvent {
             ChannelEvent::Subscribe {
                 app_name,
                 stream_name,
-                session_info,
+                info,
                 responder: _,
             } => {
                 write!(
                     f,
                     "receive event, event_name: Subscribe, app_name: {},stream_name: {}, subscriber id: {}",
-                    app_name, stream_name, session_info.subscriber_id,
+                    app_name, stream_name, info.id,
                 )
             }
             ChannelEvent::UnSubscribe {
                 app_name,
                 stream_name,
-                session_info,
+                info,
             } => {
                 write!(
                     f,
                     "receive event, event_name: UnSubscribe, app_name: {},stream_name: {}, subscriber id: {}",
-                    app_name, stream_name, session_info.subscriber_id,
+                    app_name, stream_name, info.id,
                 )
             }
             ChannelEvent::Publish {
@@ -101,10 +101,10 @@ impl fmt::Display for ChannelEvent {
 pub enum TransmitterEvent {
     Subscribe {
         responder: ChannelResponder<ChannelDataConsumer>,
-        session_info: SessionInfo,
+        info: SubscriberInfo,
     },
     UnSubscribe {
-        session_info: SessionInfo,
+        info: SubscriberInfo,
     },
     UnPublish {},
 }

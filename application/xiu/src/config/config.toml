@@ -5,6 +5,7 @@
 [rtmp]
 enabled = true
 port = 1935
+gop_num = 0
 # pull streams from other server node.
 [rtmp.pull]
 enabled = false
@@ -41,6 +42,6 @@ port = 8080
 level = "info"
 [log.file]
 # write log to file or not（Writing logs to file or console cannot be satisfied at the same time）.
-enabled = true
+enabled = false
 rotate = "hour" #[day,hour,minute]
 path = "./logs"

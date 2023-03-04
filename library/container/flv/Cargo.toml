@@ -14,6 +14,8 @@ edition = "2018"
 byteorder = "1.4.2"
 bytes = "1.0.0"
 failure = "0.1.1"
-bitvec = "0.20"
-bytesio = "0.1.27"#{path = "../../bytesio/"}
+serde = { version = "1.0", features = ["derive", "rc"] }
+#bytesio = "0.1.27"#{path = "../../bytesio/"}
+bytesio = { path = "../../bytesio/" }
+h264 = { path = "../../codec/h264/" }
 log = "0.4"

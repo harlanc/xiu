@@ -1,12 +1,9 @@
 use {
-    super::bits_errors::BitError,
-    super::bits_errors::BitErrorValue,
-    super::bytes_errors::{BytesReadError, BytesReadErrorValue},
-    super::bytes_writer::BytesWriter,
-    byteorder::{ByteOrder, ReadBytesExt},
-    bytes::{BufMut, BytesMut},
-    std::collections::VecDeque,
-    std::io::Cursor,
+    super::{
+        bits_errors::{BitError, BitErrorValue},
+        bytes_writer::BytesWriter,
+    },
+    bytes::BytesMut,
 };
 
 pub struct BitsWriter {
@@ -29,7 +26,7 @@ impl BitsWriter {
         Ok(())
     }
 
-    fn write_bit(&mut self, b: u8) -> Result<(), BitError> {
+    pub fn write_bit(&mut self, b: u8) -> Result<(), BitError> {
         self.cur_byte |= b << (7 - self.cur_bit_num);
         self.cur_bit_num += 1;
 
@@ -42,7 +39,7 @@ impl BitsWriter {
         Ok(())
     }
 
-    fn write_8bit(&mut self, b: u8) -> Result<(), BitError> {
+    pub fn write_8bit(&mut self, b: u8) -> Result<(), BitError> {
         if self.cur_bit_num != 0 {
             return Err(BitError {
                 value: BitErrorValue::CannotWrite8Bit,
@@ -132,7 +129,7 @@ mod tests {
 
     use super::BitsWriter;
     use super::BytesWriter;
-    use bytes::BytesMut;
+    
 
     #[test]
     fn test_write_bit() {
@@ -193,7 +190,7 @@ mod tests {
         bit_writer.write_bit(1).unwrap();
         bit_writer.write_bit(0).unwrap();
 
-        bit_writer.bits_aligment_8();
+        bit_writer.bits_aligment_8().unwrap();
 
         let byte = bit_writer.get_current_bytes();
         assert!(byte.to_vec()[0] == 0xC0); //0x11000000

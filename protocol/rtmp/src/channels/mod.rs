@@ -1,13 +1,15 @@
+//use super::statistics::SubscriberStatistics;
+
 pub mod define;
 pub mod errors;
 
 use {
     crate::cache::Cache,
-    crate::session::{common::SessionInfo, define::SessionSubType},
+    crate::session::{common::SubscriberInfo, define::SubscribeType},
     define::{
         ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventConsumer,
         ChannelEventProducer, ClientEvent, ClientEventConsumer, ClientEventProducer,
-        TransmitterEvent, TransmitterEventConsumer, TransmitterEventPublisher,
+        TransmitterEvent, TransmitterEventConsumer, TransmitterEventProducer,
     },
     errors::{ChannelError, ChannelErrorValue},
     std::collections::HashMap,
@@ -63,121 +65,101 @@ impl Transmitter {
         loop {
             tokio::select! {
                 data = self.event_consumer.recv() =>{
-                    if let Some(val) = data{
-
-                        match val{
-                            TransmitterEvent::Subscribe { responder,session_info } => {
-
-                                let ( sender, receiver) = mpsc::unbounded_channel();
+                    if let Some(val) = data {
+                        match val {
+                            TransmitterEvent::Subscribe {
+                                responder,
+                                info,
+                            } => {
+                                let (sender, receiver) = mpsc::unbounded_channel();
                                 responder.send(receiver).map_err(|_| ChannelError {
                                     value: ChannelErrorValue::SendError,
                                 })?;
 
-                                match session_info.session_sub_type {
-                                    SessionSubType::Player=>{
-
-                                        let meta_body = self.cache.get_metadata();
-                                        if let Some(meta_body_data) = meta_body{
+                                match info.sub_type {
+                                    SubscribeType::PlayerRtmp
+                                    | SubscribeType::PlayerHttpFlv
+                                    | SubscribeType::PlayerHls => {
+                                        if let Some(meta_body_data) = self.cache.get_metadata() {
                                             sender.send(meta_body_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
-
                                         }
-
-                                        let audio_seq = self.cache.get_audio_seq();
-                                        if let Some(audio_seq_data) = audio_seq{
+                                        if let Some(audio_seq_data) = self.cache.get_audio_seq() {
                                             sender.send(audio_seq_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
                                         }
-
-                                        let video_seq = self.cache.get_video_seq();
-                                        if let Some(video_seq_data) = video_seq{
+                                        if let Some(video_seq_data) = self.cache.get_video_seq() {
                                             sender.send(video_seq_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
                                         }
-
-                                        let gops = self.cache.clone().get_gops_data();
-                                        if let Some(gops_data) = gops{
-                                            for gop in gops_data{
-                                                for channel_data in gop.get_frame_data(){
+                                        if let Some(gops_data) = self.cache.get_gops_data() {
+                                            for gop in gops_data {
+                                                for channel_data in gop.get_frame_data() {
                                                     sender.send(channel_data).map_err(|_| ChannelError {
                                                         value: ChannelErrorValue::SendError,
                                                     })?;
                                                 }
                                             }
                                         }
-                                     }
-                                    SessionSubType::Publisher =>{
-
                                     }
-
+                                    SubscribeType::PublisherRtmp => {}
                                 }
-                                self.subscriberid_to_producer.insert(session_info.subscriber_id, sender);
-                            },
-                            TransmitterEvent::UnSubscribe{session_info} =>{
-                                self.subscriberid_to_producer.remove(&session_info.subscriber_id);
-                            },
-                            TransmitterEvent::UnPublish{} => {
+                                self.subscriberid_to_producer
+                                    .insert(info.id, sender);
+                            }
+                            TransmitterEvent::UnSubscribe { info } => {
+                                self.subscriberid_to_producer
+                                    .remove(&info.id);
+                            }
+                            TransmitterEvent::UnPublish {} => {
                                 return Ok(());
-                            },
-
-
+                            }
                         }
-
                     }
                 }
 
                 data = self.data_consumer.recv() =>{
-
-                    if let Some(val) = data{
-
+                    if let Some(val) = data {
                         match val {
                             ChannelData::MetaData { timestamp, data } => {
-                                self.cache.save_metadata(data,timestamp);
+                                self.cache.save_metadata(data, timestamp);
                             }
                             ChannelData::Audio { timestamp, data } => {
-
-                                self.cache.save_audio_seq(data.clone(),timestamp)?;
+                                self.cache.save_audio_data(data.clone(), timestamp).await?;
 
                                 let data = ChannelData::Audio {
                                     timestamp,
                                     data: data.clone(),
                                 };
 
-
-                                for (_,v) in self.subscriberid_to_producer.iter() {
+                                for (_, v) in self.subscriberid_to_producer.iter() {
                                     if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
-                                            value: ChannelErrorValue::SendAudioError,
-                                    }){
-                                        log::error!("Transmiter send error: {}",audio_err);
+                                        value: ChannelErrorValue::SendAudioError,
+                                    }) {
+                                        log::error!("Transmiter send error: {}", audio_err);
                                     }
-
                                 }
                             }
                             ChannelData::Video { timestamp, data } => {
-
-                                self.cache.save_video_seq(data.clone(),timestamp)?;
+                                self.cache.save_video_data(data.clone(), timestamp).await?;
 
                                 let data = ChannelData::Video {
                                     timestamp,
                                     data: data.clone(),
                                 };
-                                for (_,v) in self.subscriberid_to_producer.iter() {
+                                for (_, v) in self.subscriberid_to_producer.iter() {
                                     if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendVideoError,
-                                    }){
-                                        log::error!("Transmiter send error: {}",video_err);
+                                    }) {
+                                        log::error!("Transmiter send error: {}", video_err);
                                     }
                                 }
                             }
                         }
-
                     }
-
-
-
                 }
 
             }
@@ -189,7 +171,7 @@ impl Transmitter {
 
 pub struct ChannelsManager {
     //app_name to stream_name to producer
-    channels: HashMap<String, HashMap<String, TransmitterEventPublisher>>,
+    channels: HashMap<String, HashMap<String, TransmitterEventProducer>>,
     //event is consumed in Channels, produced from other rtmp sessions
     channel_event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
@@ -200,6 +182,7 @@ pub struct ChannelsManager {
     rtmp_pull_enabled: bool,
     rtmp_gop_num: usize,
     hls_enabled: bool,
+    // subscriber_statistics: HashMap<Uuid, SubscriberStatistics>,
 }
 
 impl Default for ChannelsManager {
@@ -222,6 +205,7 @@ impl ChannelsManager {
             rtmp_pull_enabled: false,
             rtmp_gop_num: 1,
             hls_enabled: false,
+            //subscriber_statistics: HashMap::new(),
         }
     }
     pub async fn run(&mut self) {
@@ -291,10 +275,10 @@ impl ChannelsManager {
                 ChannelEvent::Subscribe {
                     app_name,
                     stream_name,
-                    session_info,
+                    info,
                     responder,
                 } => {
-                    let rv = self.subscribe(&app_name, &stream_name, session_info).await;
+                    let rv = self.subscribe(&app_name, &stream_name, info).await;
                     match rv {
                         Ok(consumer) => {
                             if responder.send(consumer).is_err() {
@@ -310,9 +294,9 @@ impl ChannelsManager {
                 ChannelEvent::UnSubscribe {
                     app_name,
                     stream_name,
-                    session_info,
+                    info,
                 } => {
-                    let _ = self.unsubscribe(&app_name, &stream_name, session_info);
+                    let _ = self.unsubscribe(&app_name, &stream_name, info);
                 }
             }
         }
@@ -323,7 +307,7 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-        session_info: SessionInfo,
+        sub_info: SubscriberInfo,
     ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
         if let Some(val) = self.channels.get_mut(app_name) {
             if let Some(producer) = val.get_mut(stream_name) {
@@ -331,7 +315,7 @@ impl ChannelsManager {
 
                 let event = TransmitterEvent::Subscribe {
                     responder: sender,
-                    session_info,
+                    info: sub_info,
                 };
 
                 producer.send(event).map_err(|_| ChannelError {
@@ -378,12 +362,12 @@ impl ChannelsManager {
         &mut self,
         app_name: &String,
         stream_name: &String,
-        session_info: SessionInfo,
+        sub_info: SubscriberInfo,
     ) -> Result<(), ChannelError> {
         match self.channels.get_mut(app_name) {
             Some(val) => match val.get_mut(stream_name) {
                 Some(producer) => {
-                    let event = TransmitterEvent::UnSubscribe { session_info };
+                    let event = TransmitterEvent::UnSubscribe { info: sub_info };
                     producer.send(event).map_err(|_| ChannelError {
                         value: ChannelErrorValue::SendError,
                     })?;
@@ -511,7 +495,7 @@ impl ChannelsManager {
 mod tests {
 
     use std::cell::RefCell;
-    
+
     use std::sync::Arc;
     pub struct TestFunc {}
 

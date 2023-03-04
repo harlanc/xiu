@@ -1,7 +1,10 @@
 use bytes::BytesMut;
+use serde::Serialize;
 
-pub mod sound_format {
-    pub const AAC: u8 = 10;
+#[derive(Debug, Clone, Serialize, Default)]
+pub enum SoundFormat {
+    #[default]
+    AAC = 10,
 }
 
 pub mod aac_packet_type {
@@ -27,9 +30,24 @@ pub mod frame_type {
     pub const INTER_FRAME: u8 = 2;
 }
 
-pub mod codec_id {
-    pub const FLV_VIDEO_H264: u8 = 7;
-    pub const FLV_VIDEO_H265: u8 = 12;
+// pub mod codec_id {
+//     pub const FLV_VIDEO_H264: u8 = 7;
+//     pub const FLV_VIDEO_H265: u8 = 12;
+// }
+#[derive(Debug, Clone, Serialize, Default)]
+pub enum AvcCodecId {
+    #[default]
+    UNKNOWN = 0,
+    H264 = 7,
+    HEVC = 12,
+}
+
+pub fn u8_2_avc_codec_id(codec_id: u8) -> AvcCodecId {
+    match codec_id {
+        7_u8 => AvcCodecId::H264,
+        12_u8 => AvcCodecId::HEVC,
+        _ => AvcCodecId::UNKNOWN,
+    }
 }
 
 pub mod tag_type {
@@ -43,6 +61,90 @@ pub mod h264_nal_type {
     pub const H264_NAL_SPS: u8 = 7;
     pub const H264_NAL_PPS: u8 = 8;
     pub const H264_NAL_AUD: u8 = 9;
+}
+#[derive(Debug, Clone, Serialize, Default)]
+pub enum AacProfile {
+    // @see @see ISO_IEC_14496-3-AAC-2001.pdf, page 23
+    #[default]
+    UNKNOWN = -1,
+    LC = 2,
+    SSR = 3,
+    // AAC HE = LC+SBR
+    HE = 5,
+    // AAC HEv2 = LC+SBR+PS
+    HEV2 = 29,
+}
+
+pub fn u8_2_aac_profile(profile: u8) -> AacProfile {
+    match profile {
+        2_u8 => AacProfile::LC,
+        3_u8 => AacProfile::SSR,
+        5_u8 => AacProfile::HE,
+        29_u8 => AacProfile::HEV2,
+        _ => AacProfile::UNKNOWN,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+pub enum AvcProfile {
+    #[default]
+    UNKNOWN = -1,
+    // @see ffmpeg, libavcodec/avcodec.h:2713
+    Baseline = 66,
+    Main = 77,
+    Extended = 88,
+    High = 100,
+}
+
+pub fn u8_2_avc_profile(profile: u8) -> AvcProfile {
+    match profile {
+        66_u8 => AvcProfile::Baseline,
+        77_u8 => AvcProfile::Main,
+        88_u8 => AvcProfile::Extended,
+        100_u8 => AvcProfile::High,
+        _ => AvcProfile::UNKNOWN,
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+pub enum AvcLevel {
+    #[default]
+    UNKNOWN = -1,
+    Level1 = 10,
+    Level11 = 11,
+    Level12 = 12,
+    Level13 = 13,
+    Level2 = 20,
+    Level21 = 21,
+    Level22 = 22,
+    Level3 = 30,
+    Level31 = 31,
+    Level32 = 32,
+    Level4 = 40,
+    Level41 = 41,
+    Level5 = 50,
+    Level51 = 51,
+}
+
+pub fn u8_2_avc_level(profile: u8) -> AvcLevel {
+    match profile {
+        10_u8 => AvcLevel::Level1,
+        11_u8 => AvcLevel::Level11,
+        12_u8 => AvcLevel::Level12,
+        13_u8 => AvcLevel::Level13,
+        20_u8 => AvcLevel::Level2,
+        21_u8 => AvcLevel::Level21,
+        22_u8 => AvcLevel::Level22,
+        30_u8 => AvcLevel::Level3,
+        31_u8 => AvcLevel::Level31,
+        32_u8 => AvcLevel::Level32,
+        40_u8 => AvcLevel::Level4,
+        41_u8 => AvcLevel::Level41,
+        50_u8 => AvcLevel::Level5,
+        51_u8 => AvcLevel::Level51,
+
+        _ => AvcLevel::UNKNOWN,
+    }
 }
 
 pub enum FlvData {
