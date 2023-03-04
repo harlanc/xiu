@@ -48,6 +48,7 @@ impl AvStatistics {
             sender: s,
         }
     }
+
     pub async fn notify_audio_codec_info(&mut self, codec_info: &Mpeg4Aac) {
         let audio_info = &mut self.stream_statistics.lock().await.audio;
         audio_info.profile = define::u8_2_aac_profile(codec_info.profile);
@@ -55,6 +56,7 @@ impl AvStatistics {
         audio_info.sound_format = SoundFormat::AAC;
         audio_info.channels = codec_info.channels;
     }
+
     pub async fn notify_video_codec_info(&mut self, codec_info: &Mpeg4Avc) {
         let video_info = &mut self.stream_statistics.lock().await.video;
         video_info.codec = AvcCodecId::H264;
@@ -63,6 +65,7 @@ impl AvStatistics {
         video_info.height = codec_info.height;
         video_info.width = codec_info.width;
     }
+
     pub async fn notify_audio_statistics_info(&mut self, data_size: usize, aac_packet_type: u8) {
         match aac_packet_type {
             aac_packet_type::AAC_RAW => {
@@ -72,6 +75,7 @@ impl AvStatistics {
             _ => {}
         }
     }
+
     pub async fn notify_video_statistics_info(&mut self, data_size: usize, is_key_frame: bool) {
         *self.video_bytes.lock().await += data_size as f32;
         *self.frame_count.lock().await += 1;
@@ -99,26 +103,24 @@ impl AvStatistics {
             loop {
                 tokio::select! {
                    _ = interval.tick() => {
-
                     {
-                        let audio_info = &mut stream_statistics_clone.lock().await.audio;
+                        let stream_statistics = &mut stream_statistics_clone.lock().await;
+                        let audio_info = &mut stream_statistics.audio;
                         audio_info.bitrate = *audio_bytes_clone.lock().await;
-                    }
-                    {
-                        let video_info = &mut stream_statistics_clone.lock().await.video;
+
+                        let video_info = &mut stream_statistics.video;
                         video_info.bitrate = *video_bytes_clone.lock().await;
                         video_info.frame_rate = *frame_count_clone.lock().await;
                     }
-
                     *video_bytes_clone.lock().await = 0.0;
                     *audio_bytes_clone.lock().await = 0.0;
                     *frame_count_clone.lock().await = 0;
                     if let Ok(strinfo) = serde_json::to_string(&*stream_statistics_clone.lock().await) {
-                        println!("stream_info: {strinfo}");
+                        log::info!("stream_info: {strinfo}");
                     }
                 },
                    _ = r.recv() =>{
-                         println!("shutting down");
+                        log::info!("avstatistics shutting down");
                         return
                    },
                 }
