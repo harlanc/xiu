@@ -12,7 +12,7 @@ pub struct VideoInfo {
     level: AvcLevel,
     width: u32,
     height: u32,
-
+    #[serde(rename = "bitrate(kbits/s)")]
     bitrate: f32,
     frame_rate: usize,
     gop: usize,
@@ -23,7 +23,7 @@ pub struct AudioInfo {
     profile: AacProfile,
     samplerate: u32,
     channels: u8,
-
+    #[serde(rename = "bitrate(kbits/s)")]
     bitrate: f32,
 }
 #[derive(Debug, Clone, Serialize, Default)]

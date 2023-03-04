@@ -106,10 +106,10 @@ impl AvStatistics {
                     {
                         let stream_statistics = &mut stream_statistics_clone.lock().await;
                         let audio_info = &mut stream_statistics.audio;
-                        audio_info.bitrate = *audio_bytes_clone.lock().await;
+                        audio_info.bitrate = *audio_bytes_clone.lock().await * 8.0/1000.0;
 
                         let video_info = &mut stream_statistics.video;
-                        video_info.bitrate = *video_bytes_clone.lock().await;
+                        video_info.bitrate = *video_bytes_clone.lock().await * 8.0/1000.0;
                         video_info.frame_rate = *frame_count_clone.lock().await;
                     }
                     *video_bytes_clone.lock().await = 0.0;

@@ -30,10 +30,6 @@ pub mod frame_type {
     pub const INTER_FRAME: u8 = 2;
 }
 
-// pub mod codec_id {
-//     pub const FLV_VIDEO_H264: u8 = 7;
-//     pub const FLV_VIDEO_H265: u8 = 12;
-// }
 #[derive(Debug, Clone, Serialize, Default)]
 pub enum AvcCodecId {
     #[default]
@@ -110,19 +106,33 @@ pub fn u8_2_avc_profile(profile: u8) -> AvcProfile {
 pub enum AvcLevel {
     #[default]
     UNKNOWN = -1,
+    #[serde(rename = "1.0")]
     Level1 = 10,
+    #[serde(rename = "1.1")]
     Level11 = 11,
+    #[serde(rename = "1.2")]
     Level12 = 12,
+    #[serde(rename = "1.3")]
     Level13 = 13,
+    #[serde(rename = "2.0")]
     Level2 = 20,
+    #[serde(rename = "2.1")]
     Level21 = 21,
+    #[serde(rename = "2.2")]
     Level22 = 22,
+    #[serde(rename = "3.0")]
     Level3 = 30,
+    #[serde(rename = "3.1")]
     Level31 = 31,
+    #[serde(rename = "3.2")]
     Level32 = 32,
+    #[serde(rename = "4.0")]
     Level4 = 40,
+    #[serde(rename = "4.1")]
     Level41 = 41,
+    #[serde(rename = "5.0")]
     Level5 = 50,
+    #[serde(rename = "5.1")]
     Level51 = 51,
 }
 
