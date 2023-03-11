@@ -2,6 +2,7 @@ use {
     anyhow::Result,
     axum::{routing::get, Router},
     rtmp::{channels::define, channels::define::ChannelEventProducer},
+    std::sync::Arc,
     {
         tokio,
         tokio::sync::{mpsc, oneshot},
@@ -13,6 +14,11 @@ struct ApiService {
 }
 
 impl ApiService {
+    async fn root(&self) -> String {
+        String::from(
+            "Usage of xiu http api:\n  ./get_stream_status  get audio and video stream statistic information.\n",
+        )
+    }
     async fn get_stream_status(&self) -> Result<String> {
         let (data_sender, mut data_receiver) = mpsc::unbounded_channel();
         let (size_sender, size_receiver) = oneshot::channel();
@@ -53,19 +59,24 @@ impl ApiService {
 }
 
 pub async fn run(producer: ChannelEventProducer, port: usize) {
-    let api = ApiService {
+    let api = Arc::new(ApiService {
         channel_event_producer: producer,
-    };
+    });
 
-    //https://stackoverflow.com/questions/73251151/how-to-call-struct-method-from-axum-server-route
+    let api_root = api.clone();
+    let root = move || async move { api_root.root().await };
+
+    let api_get_stream_status = api.clone();
     let status = move || async move {
-        match api.get_stream_status().await {
+        match api_get_stream_status.get_stream_status().await {
             Ok(response) => response,
             Err(_) => "error".to_owned(),
         }
     };
 
-    let app = Router::new().route("/get_stream_status", get(status));
+    let app = Router::new()
+        .route("/", get(root))
+        .route("/get_stream_status", get(status));
     log::info!("Http api server listening on http://:{}", port);
     axum::Server::bind(&([127, 0, 0, 1], port as u16).into())
         .serve(app.into_make_service())
