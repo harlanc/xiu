@@ -1,7 +1,6 @@
-use axum::{routing::get, Router};
-
 use {
     anyhow::Result,
+    axum::{routing::get, Router},
     rtmp::{channels::define, channels::define::ChannelEventProducer},
     {
         tokio,
@@ -28,8 +27,7 @@ impl ApiService {
         match size_receiver.await {
             Ok(size) => {
                 if size == 0 {
-                    log::info!("size is 0");
-                    return Ok(String::from(""));
+                    return Ok(String::from("no stream data"));
                 }
                 loop {
                     if let Some(stream_statistics) = data_receiver.recv().await {

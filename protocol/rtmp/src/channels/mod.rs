@@ -116,18 +116,10 @@ impl Transmitter {
                                 return Ok(());
                             }
                             TransmitterEvent::Api { sender } => {
-
-                                log::info!("Transmitter begin send event api");
-
                                 let avstatistic_data = self.cache.av_statistics.get_avstatistic_data().await;
                                 if let Err(err) = sender.send(avstatistic_data){
-                                    log::info!("Transmitter begin send event api 2: {}",err);
-
-                                    // return Err(err.into());
-
+                                    log::info!("Transmitter send avstatistic data err: {}",err);
                                 }
-
-
                             }
                         }
                     }

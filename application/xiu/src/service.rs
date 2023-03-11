@@ -30,20 +30,19 @@ impl Service {
         self.start_httpflv(&mut channel).await?;
         self.start_hls(&mut channel).await?;
         self.start_rtmp(&mut channel).await?;
-        self.start_api_service(&mut channel).await?;
+        self.start_http_api_server(&mut channel).await?;
 
         tokio::spawn(async move { channel.run().await });
-
         Ok(())
     }
 
-    async fn start_api_service(&mut self, channel: &mut ChannelsManager) -> Result<()> {
+    async fn start_http_api_server(&mut self, channel: &mut ChannelsManager) -> Result<()> {
         let producer = channel.get_channel_event_producer();
 
         let http_api_port = if let Some(httpapi) = &self.cfg.httpapi {
             httpapi.port
         } else {
-            8083
+            8000
         };
 
         tokio::spawn(async move {
