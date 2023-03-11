@@ -18,6 +18,12 @@ log = "0.4.0"
 failure = "0.1.1"
 clap = "4.1.4"
 libc = "0.2.139"
+serde_json = { version = "1", default-features = false, features = [
+    "alloc",
+    "raw_value",
+    "std",
+] }
+axum = "0.6.10"
 
 # rtmp = "0.1.0"    #{path = "../../protocol/rtmp/"}#"0.0.4"
 # httpflv = "0.1.1" #{path = "../../protocol/httpflv/"}
