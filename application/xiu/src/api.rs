@@ -54,7 +54,7 @@ impl ApiService {
     }
 }
 
-pub async fn run(producer: ChannelEventProducer) {
+pub async fn run(producer: ChannelEventProducer, port: usize) {
     let api = ApiService {
         channel_event_producer: producer,
     };
@@ -68,8 +68,8 @@ pub async fn run(producer: ChannelEventProducer) {
     };
 
     let app = Router::new().route("/get_stream_status", get(status));
-
-    axum::Server::bind(&([127, 0, 0, 1], 3000).into())
+    log::info!("Http api server listening on http://:{}", port);
+    axum::Server::bind(&([127, 0, 0, 1], port as u16).into())
         .serve(app.into_make_service())
         .await
         .unwrap();

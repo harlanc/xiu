@@ -39,8 +39,15 @@ impl Service {
 
     async fn start_api_service(&mut self, channel: &mut ChannelsManager) -> Result<()> {
         let producer = channel.get_channel_event_producer();
+
+        let http_api_port = if let Some(httpapi) = &self.cfg.httpapi {
+            httpapi.port
+        } else {
+            8083
+        };
+
         tokio::spawn(async move {
-            api::run(producer).await;
+            api::run(producer, http_api_port).await;
         });
         Ok(())
     }
