@@ -6,11 +6,16 @@ use {
     hls::server as hls_server,
     httpflv::server as httpflv_server,
     rtmp::{
-        channels::ChannelsManager,
+        channels::{define, ChannelsManager},
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
-    tokio,
+    std::time::Duration,
+    {
+        tokio,
+        tokio::sync::{mpsc, oneshot},
+        tokio::time::sleep,
+    },
 };
 
 pub struct Service {
@@ -28,8 +33,55 @@ impl Service {
         self.start_httpflv(&mut channel).await?;
         self.start_hls(&mut channel).await?;
         self.start_rtmp(&mut channel).await?;
+        self.start_api_service(&mut channel).await?;
 
         tokio::spawn(async move { channel.run().await });
+
+        Ok(())
+    }
+
+    async fn start_api_service(&mut self, channel: &mut ChannelsManager) -> Result<()> {
+        let producer = channel.get_channel_event_producer();
+
+        tokio::spawn(async move {
+            loop {
+                sleep(Duration::from_secs(2)).await;
+                let (data_sender, mut data_receiver) = mpsc::unbounded_channel();
+                let (size_sender, size_receiver) = oneshot::channel();
+                let channel_event = define::ChannelEvent::Api {
+                    data_sender,
+                    size_sender,
+                };
+                if let Err(err) = producer.send(channel_event) {
+                    log::error!("send api event error: {}", err);
+                }
+                let mut data = Vec::new();
+
+                match size_receiver.await {
+                    Ok(size) => {
+                        if size == 0 {
+                            log::info!("size is 0");
+                            continue;
+                        }
+
+                        loop {
+                            if let Some(stream_statistics) = data_receiver.recv().await {
+                                data.push(stream_statistics);
+                            }
+
+                            if data.len() == size {
+                                break;
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        log::error!("start_api_service recv size error: {}", err);
+                    }
+                }
+
+                log::info!("receive data: {:?}", data);
+            }
+        });
 
         Ok(())
     }
@@ -49,7 +101,7 @@ impl Service {
             };
 
             channel.set_rtmp_gop_num(gop_num);
-            let producer = channel.get_session_event_producer();
+            let producer = channel.get_channel_event_producer();
 
             /*static push */
             if let Some(push_cfg_values) = &rtmp_cfg_value.push {
@@ -126,7 +178,7 @@ impl Service {
                 return Ok(());
             }
             let port = httpflv_cfg_value.port;
-            let event_producer = channel.get_session_event_producer();
+            let event_producer = channel.get_channel_event_producer();
 
             tokio::spawn(async move {
                 if let Err(err) = httpflv_server::run(event_producer, port).await {
@@ -147,7 +199,7 @@ impl Service {
                 return Ok(());
             }
 
-            let event_producer = channel.get_session_event_producer();
+            let event_producer = channel.get_channel_event_producer();
             let cient_event_consumer = channel.get_client_event_consumer();
             let mut rtmp_event_processor =
                 RtmpEventProcessor::new(cient_event_consumer, event_producer);

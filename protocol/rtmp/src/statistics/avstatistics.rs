@@ -109,9 +109,9 @@ impl AvStatistics {
                     *video_bytes_clone.lock().await = 0.0;
                     *audio_bytes_clone.lock().await = 0.0;
                     *frame_count_clone.lock().await = 0;
-                    if let Ok(strinfo) = serde_json::to_string(&*stream_statistics_clone.lock().await) {
-                        log::info!("stream_info: {strinfo}");
-                    }
+                    // if let Ok(strinfo) = serde_json::to_string(&*stream_statistics_clone.lock().await) {
+                    //    // log::info!("stream_info: {strinfo}");
+                    // }
                 },
                    _ = r.recv() =>{
                         log::info!("avstatistics shutting down");
@@ -120,5 +120,9 @@ impl AvStatistics {
                 }
             }
         });
+    }
+
+    pub async fn get_avstatistic_data(&self) -> StreamStatistics {
+        self.stream_statistics.lock().await.clone()
     }
 }

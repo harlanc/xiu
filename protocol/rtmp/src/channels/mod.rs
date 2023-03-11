@@ -7,13 +7,14 @@ use {
     crate::cache::Cache,
     crate::session::{common::SubscriberInfo, define::SubscribeType},
     define::{
-        ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent, ChannelEventConsumer,
-        ChannelEventProducer, ClientEvent, ClientEventConsumer, ClientEventProducer,
-        TransmitterEvent, TransmitterEventConsumer, TransmitterEventProducer,
+        AvStatisticSender, ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
+        ChannelEventConsumer, ChannelEventProducer, ClientEvent, ClientEventConsumer,
+        ClientEventProducer, StreamStatisticSizeSender, TransmitterEvent, TransmitterEventConsumer,
+        TransmitterEventProducer,
     },
     errors::{ChannelError, ChannelErrorValue},
     std::collections::HashMap,
-    tokio::sync::{broadcast, mpsc, mpsc::UnboundedReceiver, oneshot},
+    tokio::sync::{broadcast, mpsc, mpsc::UnboundedReceiver},
     uuid::Uuid,
 };
 
@@ -70,37 +71,32 @@ impl Transmitter {
                     if let Some(val) = data {
                         match val {
                             TransmitterEvent::Subscribe {
-                                responder,
+                                producer,
                                 info,
                             } => {
-                                let (sender, receiver) = mpsc::unbounded_channel();
-                                responder.send(receiver).map_err(|_| ChannelError {
-                                    value: ChannelErrorValue::SendError,
-                                })?;
-
                                 match info.sub_type {
                                     SubscribeType::PlayerRtmp
                                     | SubscribeType::PlayerHttpFlv
                                     | SubscribeType::PlayerHls => {
                                         if let Some(meta_body_data) = self.cache.get_metadata() {
-                                            sender.send(meta_body_data).map_err(|_| ChannelError {
+                                            producer.send(meta_body_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
                                         }
                                         if let Some(audio_seq_data) = self.cache.get_audio_seq() {
-                                            sender.send(audio_seq_data).map_err(|_| ChannelError {
+                                            producer.send(audio_seq_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
                                         }
                                         if let Some(video_seq_data) = self.cache.get_video_seq() {
-                                            sender.send(video_seq_data).map_err(|_| ChannelError {
+                                            producer.send(video_seq_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
                                             })?;
                                         }
                                         if let Some(gops_data) = self.cache.get_gops_data() {
                                             for gop in gops_data {
                                                 for channel_data in gop.get_frame_data() {
-                                                    sender.send(channel_data).map_err(|_| ChannelError {
+                                                    producer.send(channel_data).map_err(|_| ChannelError {
                                                         value: ChannelErrorValue::SendError,
                                                     })?;
                                                 }
@@ -110,7 +106,7 @@ impl Transmitter {
                                     SubscribeType::PublisherRtmp => {}
                                 }
                                 self.subscriberid_to_producer
-                                    .insert(info.id, sender);
+                                    .insert(info.id, producer);
                             }
                             TransmitterEvent::UnSubscribe { info } => {
                                 self.subscriberid_to_producer
@@ -118,6 +114,20 @@ impl Transmitter {
                             }
                             TransmitterEvent::UnPublish {} => {
                                 return Ok(());
+                            }
+                            TransmitterEvent::Api { sender } => {
+
+                                log::info!("Transmitter begin send event api");
+
+                                let avstatistic_data = self.cache.av_statistics.get_avstatistic_data().await;
+                                if let Err(err) = sender.send(avstatistic_data){
+                                    log::info!("Transmitter begin send event api 2: {}",err);
+
+                                    // return Err(err.into());
+
+                                }
+
+
                             }
                         }
                     }
@@ -180,9 +190,12 @@ pub struct ChannelsManager {
     channel_event_producer: ChannelEventProducer,
     //client_event_producer: client_event_producer
     client_event_producer: ClientEventProducer,
+    // configure how many gops will be cached.
+    rtmp_gop_num: usize,
+    //The rtmp static push/pull and the hls transfer is triggered actively,
+    //add a control switches separately.
     rtmp_push_enabled: bool,
     rtmp_pull_enabled: bool,
-    rtmp_gop_num: usize,
     hls_enabled: bool,
     // subscriber_statistics: HashMap<Uuid, SubscriberStatistics>,
 }
@@ -230,7 +243,7 @@ impl ChannelsManager {
         self.hls_enabled = enabled;
     }
 
-    pub fn get_session_event_producer(&mut self) -> ChannelEventProducer {
+    pub fn get_channel_event_producer(&mut self) -> ChannelEventProducer {
         self.channel_event_producer.clone()
     }
 
@@ -300,8 +313,47 @@ impl ChannelsManager {
                 } => {
                     let _ = self.unsubscribe(&app_name, &stream_name, info);
                 }
+
+                ChannelEvent::Api {
+                    data_sender,
+                    size_sender,
+                } => {
+                    if let Err(err) = self.api(data_sender, size_sender) {
+                        log::error!("event_loop api error: {}", err);
+                    }
+                }
             }
         }
+    }
+
+    fn api(
+        &mut self,
+        data_sender: AvStatisticSender,
+        size_sender: StreamStatisticSizeSender,
+    ) -> Result<(), ChannelError> {
+        let mut stream_count: usize = 0;
+        for v in self.channels.values() {
+            for event_sender in v.values() {
+                stream_count += 1;
+                if let Err(err) = event_sender.send(TransmitterEvent::Api {
+                    sender: data_sender.clone(),
+                }) {
+                    log::error!("TransmitterEvent  api send data err: {}", err);
+                    return Err(ChannelError {
+                        value: ChannelErrorValue::SendError,
+                    });
+                }
+            }
+        }
+
+        if let Err(err) = size_sender.send(stream_count) {
+            log::error!("TransmitterEvent api send size err: {}", err);
+            return Err(ChannelError {
+                value: ChannelErrorValue::SendError,
+            });
+        }
+
+        Ok(())
     }
 
     //player subscribe a stream
@@ -313,10 +365,9 @@ impl ChannelsManager {
     ) -> Result<mpsc::UnboundedReceiver<ChannelData>, ChannelError> {
         if let Some(val) = self.channels.get_mut(app_name) {
             if let Some(producer) = val.get_mut(stream_name) {
-                let (sender, receiver) = oneshot::channel();
-
+                let (channel_data_producer, channel_data_consumer) = mpsc::unbounded_channel();
                 let event = TransmitterEvent::Subscribe {
-                    responder: sender,
+                    producer: channel_data_producer,
                     info: sub_info,
                 };
 
@@ -324,14 +375,7 @@ impl ChannelsManager {
                     value: ChannelErrorValue::SendError,
                 })?;
 
-                if let Ok(consumer) = receiver.await {
-                    log::info!(
-                        "subscribe get consumer successfully, app_name: {}, stream_name: {}",
-                        app_name,
-                        stream_name
-                    );
-                    return Ok(consumer);
-                }
+                return Ok(channel_data_consumer);
             }
         }
 

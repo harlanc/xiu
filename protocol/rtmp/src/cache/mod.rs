@@ -22,7 +22,7 @@ pub struct Cache {
     audio_seq: BytesMut,
     audio_timestamp: u32,
     gops: Gops,
-    av_statistics: AvStatistics,
+    pub av_statistics: AvStatistics,
 }
 
 impl Drop for Cache {

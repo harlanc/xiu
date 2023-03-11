@@ -1,5 +1,6 @@
 use {
     crate::session::common::SubscriberInfo,
+    crate::statistics::StreamStatistics,
     bytes::BytesMut,
     std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
@@ -23,6 +24,12 @@ pub type ClientEventConsumer = broadcast::Receiver<ClientEvent>;
 pub type TransmitterEventProducer = mpsc::UnboundedSender<TransmitterEvent>;
 pub type TransmitterEventConsumer = mpsc::UnboundedReceiver<TransmitterEvent>;
 
+pub type AvStatisticSender = mpsc::UnboundedSender<StreamStatistics>;
+pub type AvStatisticReceiver = mpsc::UnboundedReceiver<StreamStatistics>;
+
+pub type StreamStatisticSizeSender = oneshot::Sender<usize>;
+pub type StreamStatisticSizeReceiver = oneshot::Sender<usize>;
+
 type ChannelResponder<T> = oneshot::Sender<T>;
 #[derive(Debug)]
 pub enum ChannelEvent {
@@ -45,6 +52,10 @@ pub enum ChannelEvent {
     UnPublish {
         app_name: String,
         stream_name: String,
+    },
+    Api {
+        data_sender: AvStatisticSender,
+        size_sender: StreamStatisticSizeSender,
     },
 }
 
@@ -93,6 +104,12 @@ impl fmt::Display for ChannelEvent {
                     "receive event, event_name: UnPublish, app_name: {app_name},stream_name: {stream_name}",
                 )
             }
+            ChannelEvent::Api {
+                data_sender: _,
+                size_sender: _,
+            } => {
+                write!(f, "receive event, event_name: Api",)
+            }
         }
     }
 }
@@ -100,13 +117,17 @@ impl fmt::Display for ChannelEvent {
 #[derive(Debug)]
 pub enum TransmitterEvent {
     Subscribe {
-        responder: ChannelResponder<ChannelDataConsumer>,
+        producer: ChannelDataProducer,
         info: SubscriberInfo,
     },
     UnSubscribe {
         info: SubscriberInfo,
     },
     UnPublish {},
+
+    Api {
+        sender: AvStatisticSender,
+    },
 }
 
 impl fmt::Display for TransmitterEvent {
