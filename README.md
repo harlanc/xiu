@@ -37,7 +37,8 @@ stand-alone server or cluster(RTMP relay).
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP).
 - [x] Support configuring the service using command line or a configuration file.
 - [ ] Support HTTP API/Notifications.
-  - [ ] Support querying stream/machine information and so on.
+  - [x] Support querying stream information.
+  - [ ]machine information.
   - [ ] Support notify stream status.
 - [ ] Support token authentications.
 - [ ] Support RTSP.
