@@ -1,5 +1,5 @@
 [package]
-name = "h264"
+name = "h264-decoder"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,7 @@ edition = "2021"
 byteorder = "1.4.2"
 bytes = "1.0.0"
 log = "0.4"
-#bytesio = "0.1.27"#{path = "../../bytesio/"}
-bytesio = { path = "../../bytesio/" }
 failure = "0.1.1"
+
+bytesio = "0.2.0"
+#bytesio = { path = "../../bytesio/" }

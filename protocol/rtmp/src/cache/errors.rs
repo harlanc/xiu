@@ -2,7 +2,7 @@ use {
     crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
     bytesio::bytes_errors::BytesReadError,
     failure::{Backtrace, Fail},
-    h264::errors::H264Error,
+    h264_decoder::errors::H264Error,
     std::fmt,
     xflv::errors::{FlvDemuxerError, MpegAacError, MpegAvcError},
 };

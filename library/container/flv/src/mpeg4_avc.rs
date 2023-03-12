@@ -7,7 +7,7 @@ use {
 };
 
 use super::errors::MpegErrorValue;
-use h264::sps::SpsParser;
+use h264_decoder::sps::SpsParser;
 
 const H264_START_CODE: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 

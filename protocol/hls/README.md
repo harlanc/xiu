@@ -14,5 +14,8 @@ Reference rtmp version v0.0.8
 - Fix the error chain.
 ## v0.1.1
 Change the listening port type.
+## v0.1.2
+- Refactor codes
+- Reference rtmp/xflv/mpegts new version.
 
 

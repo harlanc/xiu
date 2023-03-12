@@ -6,5 +6,7 @@ Remove no used dependences.
 ## v0.1.0
 - Fix the error chain.
 - Remove compile warnings.
+## v0.1.1
+- Refactor codes.
 
 

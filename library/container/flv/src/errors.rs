@@ -2,7 +2,7 @@ use {
     bytesio::bits_errors::BitError,
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     failure::{Backtrace, Fail},
-    h264::errors::H264Error,
+    h264_decoder::errors::H264Error,
     std::fmt,
 };
 

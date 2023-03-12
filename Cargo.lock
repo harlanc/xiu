@@ -175,7 +175,7 @@ checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
 
 [[package]]
 name = "bytesio"
-version = "0.1.27"
+version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "env_logger_extend"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -612,7 +612,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "h264"
+name = "h264-decoder"
 version = "0.1.0"
 dependencies = [
  "byteorder",
@@ -1156,7 +1156,7 @@ dependencies = [
  "bytesio",
  "chrono",
  "failure",
- "h264",
+ "h264-decoder",
  "hmac",
  "log",
  "rand 0.3.23",
@@ -1821,13 +1821,13 @@ checksum = "447660ad36a13288b1db4d4248e857b510e8c3a225c822ba4fb748c0aafecffd"
 
 [[package]]
 name = "xflv"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
  "bytesio",
  "failure",
- "h264",
+ "h264-decoder",
  "log",
  "serde",
 ]
@@ -1855,7 +1855,7 @@ dependencies = [
 
 [[package]]
 name = "xmpegts"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "byteorder",
  "bytes",
