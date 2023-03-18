@@ -15,7 +15,7 @@ use {
         config, handshake,
         handshake::{define::ServerHandshakeState, handshake_server::HandshakeServer},
         messages::{define::RtmpMessageData, parser::MessageParser},
-        netconnection::writer::NetConnection,
+        netconnection::writer::{ConnectProperties, NetConnection},
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
@@ -51,7 +51,7 @@ pub struct ServerSession {
     in channels and delete it from map when unsubscribe
     is called. */
     pub subscriber_id: Uuid,
-    connect_command_object: Option<HashMap<String, Amf0ValueType>>,
+    connect_properties: ConnectProperties,
 }
 
 impl ServerSession {
@@ -69,7 +69,7 @@ impl ServerSession {
             subscriber_id,
             bytesio_data: BytesMut::new(),
             has_remaing_data: false,
-            connect_command_object: None,
+            connect_properties: ConnectProperties::default(),
         }
     }
 
@@ -317,12 +317,74 @@ impl ServerSession {
         Ok(())
     }
 
+    fn parse_connect_properties(&mut self, command_obj: &HashMap<String, Amf0ValueType>) {
+        for (k, v) in command_obj {
+            match k.as_str() {
+                "app" => {
+                    if let Amf0ValueType::UTF8String(app) = v {
+                        self.connect_properties.app = Some(app.clone());
+                    }
+                }
+                "flashVer" => {
+                    if let Amf0ValueType::UTF8String(flash_ver) = v {
+                        self.connect_properties.flash_ver = Some(flash_ver.clone());
+                    }
+                }
+                "swfUrl" => {
+                    if let Amf0ValueType::UTF8String(swf_url) = v {
+                        self.connect_properties.swf_url = Some(swf_url.clone());
+                    }
+                }
+                "tcUrl" => {
+                    if let Amf0ValueType::UTF8String(tc_url) = v {
+                        self.connect_properties.tc_url = Some(tc_url.clone());
+                    }
+                }
+                "fpad" => {
+                    if let Amf0ValueType::Boolean(fpad) = v {
+                        self.connect_properties.fpad = Some(*fpad);
+                    }
+                }
+                "audioCodecs" => {
+                    if let Amf0ValueType::Number(audio_codecs) = v {
+                        self.connect_properties.audio_codecs = Some(*audio_codecs);
+                    }
+                }
+                "videoCodecs" => {
+                    if let Amf0ValueType::Number(video_codecs) = v {
+                        self.connect_properties.video_codecs = Some(*video_codecs);
+                    }
+                }
+                "videoFunction" => {
+                    if let Amf0ValueType::Number(video_function) = v {
+                        self.connect_properties.video_function = Some(*video_function);
+                    }
+                }
+                "pageUrl" => {
+                    if let Amf0ValueType::UTF8String(page_url) = v {
+                        self.connect_properties.page_url = Some(page_url.clone());
+                    }
+                }
+                "objectEncoding" => {
+                    if let Amf0ValueType::Number(object_encoding) = v {
+                        self.connect_properties.object_encoding = Some(*object_encoding);
+                    }
+                }
+
+                _ => {
+                    log::warn!("unknown connect properties: {}:{:?}", k, v);
+                }
+            }
+        }
+    }
+
     async fn on_connect(
         &mut self,
         transaction_id: &f64,
         command_obj: &HashMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
-        self.connect_command_object = Some(command_obj.clone());
+        self.parse_connect_properties(command_obj);
+        log::info!("connect properties: {:?}", self.connect_properties);
         let mut control_message =
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         log::info!("[ S->C ] [set window_acknowledgement_size]");

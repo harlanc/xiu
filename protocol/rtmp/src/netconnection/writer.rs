@@ -9,7 +9,7 @@ use {
     std::{collections::HashMap, sync::Arc},
     tokio::sync::Mutex,
 };
-
+#[derive(Clone, Default, Debug)]
 pub struct ConnectProperties {
     pub app: Option<String>,         // Server application name, e.g.: testapp
     pub flash_ver: Option<String>,   // Flash Player version, FMSc/1.0

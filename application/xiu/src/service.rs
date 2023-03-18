@@ -11,7 +11,6 @@ use {
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
-
     tokio,
 };
 
@@ -126,7 +125,6 @@ impl Service {
             let mut rtmp_server = RtmpServer::new(address, producer);
             tokio::spawn(async move {
                 if let Err(err) = rtmp_server.run().await {
-                    //print!("rtmp server  error {}\n", err);
                     log::error!("rtmp server error: {}\n", err);
                 }
             });
@@ -147,7 +145,6 @@ impl Service {
 
             tokio::spawn(async move {
                 if let Err(err) = httpflv_server::run(event_producer, port).await {
-                    //print!("push client error {}\n", err);
                     log::error!("httpflv server error: {}\n", err);
                 }
             });
@@ -171,7 +168,6 @@ impl Service {
 
             tokio::spawn(async move {
                 if let Err(err) = rtmp_event_processor.run().await {
-                    // print!("push client error {}\n", err);
                     log::error!("rtmp event processor error: {}\n", err);
                 }
             });
@@ -180,7 +176,6 @@ impl Service {
 
             tokio::spawn(async move {
                 if let Err(err) = hls_server::run(port).await {
-                    //print!("push client error {}\n", err);
                     log::error!("hls server error: {}\n", err);
                 }
             });
