@@ -318,61 +318,60 @@ impl ServerSession {
     }
 
     fn parse_connect_properties(&mut self, command_obj: &HashMap<String, Amf0ValueType>) {
-        for (k, v) in command_obj {
-            match k.as_str() {
+        for (property, value) in command_obj {
+            match property.as_str() {
                 "app" => {
-                    if let Amf0ValueType::UTF8String(app) = v {
+                    if let Amf0ValueType::UTF8String(app) = value {
                         self.connect_properties.app = Some(app.clone());
                     }
                 }
                 "flashVer" => {
-                    if let Amf0ValueType::UTF8String(flash_ver) = v {
+                    if let Amf0ValueType::UTF8String(flash_ver) = value {
                         self.connect_properties.flash_ver = Some(flash_ver.clone());
                     }
                 }
                 "swfUrl" => {
-                    if let Amf0ValueType::UTF8String(swf_url) = v {
+                    if let Amf0ValueType::UTF8String(swf_url) = value {
                         self.connect_properties.swf_url = Some(swf_url.clone());
                     }
                 }
                 "tcUrl" => {
-                    if let Amf0ValueType::UTF8String(tc_url) = v {
+                    if let Amf0ValueType::UTF8String(tc_url) = value {
                         self.connect_properties.tc_url = Some(tc_url.clone());
                     }
                 }
                 "fpad" => {
-                    if let Amf0ValueType::Boolean(fpad) = v {
+                    if let Amf0ValueType::Boolean(fpad) = value {
                         self.connect_properties.fpad = Some(*fpad);
                     }
                 }
                 "audioCodecs" => {
-                    if let Amf0ValueType::Number(audio_codecs) = v {
+                    if let Amf0ValueType::Number(audio_codecs) = value {
                         self.connect_properties.audio_codecs = Some(*audio_codecs);
                     }
                 }
                 "videoCodecs" => {
-                    if let Amf0ValueType::Number(video_codecs) = v {
+                    if let Amf0ValueType::Number(video_codecs) = value {
                         self.connect_properties.video_codecs = Some(*video_codecs);
                     }
                 }
                 "videoFunction" => {
-                    if let Amf0ValueType::Number(video_function) = v {
+                    if let Amf0ValueType::Number(video_function) = value {
                         self.connect_properties.video_function = Some(*video_function);
                     }
                 }
                 "pageUrl" => {
-                    if let Amf0ValueType::UTF8String(page_url) = v {
+                    if let Amf0ValueType::UTF8String(page_url) = value {
                         self.connect_properties.page_url = Some(page_url.clone());
                     }
                 }
                 "objectEncoding" => {
-                    if let Amf0ValueType::Number(object_encoding) = v {
+                    if let Amf0ValueType::Number(object_encoding) = value {
                         self.connect_properties.object_encoding = Some(*object_encoding);
                     }
                 }
-
                 _ => {
-                    log::warn!("unknown connect properties: {}:{:?}", k, v);
+                    log::warn!("unknown connect properties: {}:{:?}", property, value);
                 }
             }
         }
