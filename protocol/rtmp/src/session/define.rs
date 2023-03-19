@@ -30,10 +30,26 @@ pub const RTMP_LEVEL_ERROR: &str = "error\n";
 //session subscribe type
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum SubscribeType {
+    /* Remote client request playing rtmp stream.*/
     PlayerRtmp,
+    /* Remote client request playing http-flv stream.*/
     PlayerHttpFlv,
+    /* Remote client request playing hls stream.*/
     PlayerHls,
+    GenerateHls,
+    /* Local client *subscribe* from local rtmp session
+    and *publish* (relay push) the stream to remote server.*/
     PublisherRtmp,
+}
+
+//session publish type
+#[derive(Debug, Serialize, Clone, Eq, PartialEq)]
+pub enum PublishType {
+    /* Receive rtmp stream from remote push client */
+    PushRtmp,
+    /* Local client *publish* the rtmp stream to local session,
+    the rtmp stream is *subscribed* (pull) from remote server.*/
+    SubscriberRtmp,
 }
 
 pub enum SessionType {

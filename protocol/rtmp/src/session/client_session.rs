@@ -68,13 +68,12 @@ pub struct ClientSession {
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
     is called. */
-    subscriber_id: Uuid,
+    session_id: Uuid,
     state: ClientSessionState,
     client_type: ClientType,
 }
 
 impl ClientSession {
-    #[allow(dead_code)]
     pub fn new(
         stream: TcpStream,
         client_type: ClientType,
@@ -82,19 +81,31 @@ impl ClientSession {
         stream_name: String,
         event_producer: ChannelEventProducer,
     ) -> Self {
+        let remote_addr = if let Ok(addr) = stream.peer_addr() {
+            log::info!("server session: {}", addr.to_string());
+            Some(addr)
+        } else {
+            None
+        };
+
         let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
         let subscriber_id = Uuid::new_v4();
 
         Self {
             io: Arc::clone(&net_io),
-            common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Client),
+            common: Common::new(
+                Arc::clone(&net_io),
+                event_producer,
+                SessionType::Client,
+                remote_addr,
+            ),
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
             app_name,
             stream_name,
             client_type,
             state: ClientSessionState::Handshake,
-            subscriber_id,
+            session_id: subscriber_id,
         }
     }
 
@@ -454,7 +465,7 @@ impl ClientSession {
                         .subscribe_from_channels(
                             self.app_name.clone(),
                             self.stream_name.clone(),
-                            self.subscriber_id,
+                            self.session_id,
                         )
                         .await?;
                 }
@@ -462,7 +473,11 @@ impl ClientSession {
 
                 "NetStream.Play.Start" => {
                     self.common
-                        .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .publish_to_channels(
+                            self.app_name.clone(),
+                            self.stream_name.clone(),
+                            self.session_id,
+                        )
                         .await?
                 }
                 _ => {}

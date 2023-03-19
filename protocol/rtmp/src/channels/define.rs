@@ -1,7 +1,8 @@
 use {
-    crate::session::common::SubscriberInfo,
+    crate::session::common::{PublisherInfo, SubscriberInfo},
     crate::statistics::StreamStatistics,
     bytes::BytesMut,
+    serde::Serialize,
     std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
 };
@@ -31,12 +32,13 @@ pub type StreamStatisticSizeSender = oneshot::Sender<usize>;
 pub type StreamStatisticSizeReceiver = oneshot::Sender<usize>;
 
 type ChannelResponder<T> = oneshot::Sender<T>;
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ChannelEvent {
     Subscribe {
         app_name: String,
         stream_name: String,
         info: SubscriberInfo,
+        #[serde(skip_serializing)]
         responder: ChannelResponder<ChannelDataConsumer>,
     },
     UnSubscribe {
@@ -47,71 +49,20 @@ pub enum ChannelEvent {
     Publish {
         app_name: String,
         stream_name: String,
+        info: PublisherInfo,
+        #[serde(skip_serializing)]
         responder: ChannelResponder<ChannelDataProducer>,
     },
     UnPublish {
         app_name: String,
         stream_name: String,
+        info: PublisherInfo,
     },
+    #[serde(skip_serializing)]
     Api {
         data_sender: AvStatisticSender,
         size_sender: StreamStatisticSizeSender,
     },
-}
-
-impl fmt::Display for ChannelEvent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ChannelEvent::Subscribe {
-                app_name,
-                stream_name,
-                info,
-                responder: _,
-            } => {
-                write!(
-                    f,
-                    "receive event, event_name: Subscribe, app_name: {},stream_name: {}, subscriber id: {}",
-                    app_name, stream_name, info.id,
-                )
-            }
-            ChannelEvent::UnSubscribe {
-                app_name,
-                stream_name,
-                info,
-            } => {
-                write!(
-                    f,
-                    "receive event, event_name: UnSubscribe, app_name: {},stream_name: {}, subscriber id: {}",
-                    app_name, stream_name, info.id,
-                )
-            }
-            ChannelEvent::Publish {
-                app_name,
-                stream_name,
-                responder: _,
-            } => {
-                write!(
-                    f,
-                    "receive event, event_name: Publish, app_name: {app_name},stream_name: {stream_name}",
-                )
-            }
-            ChannelEvent::UnPublish {
-                app_name,
-                stream_name,
-            } => {
-                write!(
-                    f,
-                    "receive event, event_name: UnPublish, app_name: {app_name},stream_name: {stream_name}",
-                )
-            }
-            ChannelEvent::Api {
-                data_sender: _,
-                size_sender: _,
-            } => {
-                write!(f, "receive event, event_name: Api",)
-            }
-        }
-    }
 }
 
 #[derive(Debug)]

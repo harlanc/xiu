@@ -77,7 +77,8 @@ impl Transmitter {
                                 match info.sub_type {
                                     SubscribeType::PlayerRtmp
                                     | SubscribeType::PlayerHttpFlv
-                                    | SubscribeType::PlayerHls => {
+                                    | SubscribeType::PlayerHls
+                                    | SubscribeType::GenerateHls => {
                                         if let Some(meta_body_data) = self.cache.get_metadata() {
                                             producer.send(meta_body_data).map_err(|_| ChannelError {
                                                 value: ChannelErrorValue::SendError,
@@ -245,12 +246,16 @@ impl ChannelsManager {
 
     pub async fn event_loop(&mut self) {
         while let Some(message) = self.channel_event_consumer.recv().await {
-            log::info!("{}", message);
+            if let Ok(data) = serde_json::to_string(&message) {
+                log::info!("event data: {}", data);
+            }
+
             match message {
                 ChannelEvent::Publish {
                     app_name,
                     stream_name,
                     responder,
+                    info,
                 } => {
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
@@ -269,6 +274,7 @@ impl ChannelsManager {
                 ChannelEvent::UnPublish {
                     app_name,
                     stream_name,
+                    info,
                 } => {
                     if let Err(err) = self.unpublish(&app_name, &stream_name) {
                         log::error!(

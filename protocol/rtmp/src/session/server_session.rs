@@ -50,12 +50,19 @@ pub struct ServerSession {
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
     is called. */
-    pub subscriber_id: Uuid,
+    pub session_id: Uuid,
     connect_properties: ConnectProperties,
 }
 
 impl ServerSession {
     pub fn new(stream: TcpStream, event_producer: ChannelEventProducer) -> Self {
+        let remote_addr = if let Ok(addr) = stream.peer_addr() {
+            log::info!("server session: {}", addr.to_string());
+            Some(addr)
+        } else {
+            None
+        };
+
         let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
         let subscriber_id = Uuid::new_v4();
         Self {
@@ -65,8 +72,13 @@ impl ServerSession {
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
             state: ServerSessionState::Handshake,
-            common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Server),
-            subscriber_id,
+            common: Common::new(
+                Arc::clone(&net_io),
+                event_producer,
+                SessionType::Server,
+                remote_addr,
+            ),
+            session_id: subscriber_id,
             bytesio_data: BytesMut::new(),
             has_remaing_data: false,
             connect_properties: ConnectProperties::default(),
@@ -134,7 +146,11 @@ impl ServerSession {
                 }
                 Err(err) => {
                     self.common
-                        .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .unpublish_to_channels(
+                            self.app_name.clone(),
+                            self.stream_name.clone(),
+                            self.session_id,
+                        )
                         .await?;
 
                     return Err(SessionError {
@@ -172,13 +188,12 @@ impl ServerSession {
     async fn play(&mut self) -> Result<(), SessionError> {
         match self.common.send_channel_data().await {
             Ok(_) => {}
-
             Err(err) => {
                 self.common
                     .unsubscribe_from_channels(
                         self.app_name.clone(),
                         self.stream_name.clone(),
-                        self.subscriber_id,
+                        self.session_id,
                     )
                     .await?;
                 return Err(err);
@@ -452,7 +467,11 @@ impl ServerSession {
         stream_id: &f64,
     ) -> Result<(), SessionError> {
         self.common
-            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .unpublish_to_channels(
+                self.app_name.clone(),
+                self.stream_name.clone(),
+                self.session_id,
+            )
             .await?;
 
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
@@ -474,6 +493,14 @@ impl ServerSession {
         log::trace!("{}", stream_id);
 
         Ok(())
+    }
+
+    fn get_request_url(&mut self) -> String {
+        if let Some(tc_url) = &self.connect_properties.tc_url {
+            format!("{}/{}", tc_url, self.stream_name.clone())
+        } else {
+            format!("{}/{}", self.app_name.clone(), self.stream_name.clone())
+        }
     }
 
     #[allow(clippy::never_loop)]
@@ -583,12 +610,10 @@ impl ServerSession {
             self.stream_name
         );
         self.stream_name = stream_name.clone().unwrap();
+        /*Now it can update the request url*/
+        self.common.request_url = self.get_request_url();
         self.common
-            .subscribe_from_channels(
-                self.app_name.clone(),
-                stream_name.unwrap(),
-                self.subscriber_id,
-            )
+            .subscribe_from_channels(self.app_name.clone(), stream_name.unwrap(), self.session_id)
             .await?;
 
         self.state = ServerSessionState::Play;
@@ -620,6 +645,8 @@ impl ServerSession {
         };
 
         self.stream_name = stream_name;
+        /*Now it can update the request url*/
+        self.common.request_url = self.get_request_url();
 
         let _ = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
@@ -656,7 +683,11 @@ impl ServerSession {
         );
 
         self.common
-            .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .publish_to_channels(
+                self.app_name.clone(),
+                self.stream_name.clone(),
+                self.session_id,
+            )
             .await?;
 
         Ok(())

@@ -2,10 +2,12 @@ use {
     super::httpflv::HttpFlv,
     futures::channel::mpsc::unbounded,
     hyper::{
+        server::conn::AddrStream,
         service::{make_service_fn, service_fn},
         Body, Request, Response, Server, StatusCode,
     },
     rtmp::channels::define::ChannelEventProducer,
+    std::net::SocketAddr,
 };
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
@@ -15,6 +17,7 @@ static NOTFOUND: &[u8] = b"Not Found";
 async fn handle_connection(
     req: Request<Body>,
     event_producer: ChannelEventProducer, // event_producer: ChannelEventProducer
+    remote_addr: SocketAddr,
 ) -> Result<Response<Body>> {
     let path = req.uri().path();
 
@@ -33,6 +36,8 @@ async fn handle_connection(
                 stream_name,
                 event_producer,
                 http_response_data_producer,
+                String::from(path),
+                remote_addr,
             );
 
             tokio::spawn(async move {
@@ -59,11 +64,12 @@ pub async fn run(event_producer: ChannelEventProducer, port: usize) -> Result<()
     let listen_address = format!("0.0.0.0:{port}");
     let sock_addr = listen_address.parse().unwrap();
 
-    let new_service = make_service_fn(move |_| {
+    let new_service = make_service_fn(move |socket: &AddrStream| {
+        let remote_addr = socket.remote_addr();
         let flv_copy = event_producer.clone();
-        async {
+        async move {
             Ok::<_, GenericError>(service_fn(move |req| {
-                handle_connection(req, flv_copy.clone())
+                handle_connection(req, flv_copy.clone(), remote_addr)
             }))
         }
     });
