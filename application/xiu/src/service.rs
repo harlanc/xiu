@@ -25,16 +25,12 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let notifier = if let Some(cfg) = &self.cfg.httpnotifier {
-            Some(Notifier::new(
+        let notifier = self.cfg.httpnotifier.as_ref().map(|cfg| Notifier::new(
                 cfg.on_publish.clone(),
                 cfg.on_unpublish.clone(),
                 cfg.on_play.clone(),
                 cfg.on_stop.clone(),
-            ))
-        } else {
-            None
-        };
+            ));
         let mut channel = ChannelsManager::new(notifier);
 
         self.start_httpflv(&mut channel).await?;

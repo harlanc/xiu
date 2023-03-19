@@ -317,7 +317,7 @@ impl ChannelsManager {
                     stream_name,
                     info,
                 } => {
-                    if let Ok(_) = self.unsubscribe(&app_name, &stream_name, info) {
+                    if self.unsubscribe(&app_name, &stream_name, info).is_ok() {
                         if let Some(notifier) = &self.notifier {
                             notifier.on_stop_notify(event_serialize_str).await;
                         }
