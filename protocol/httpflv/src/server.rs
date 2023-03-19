@@ -36,7 +36,7 @@ async fn handle_connection(
                 stream_name,
                 event_producer,
                 http_response_data_producer,
-                String::from(path),
+                req.uri().to_string(),
                 remote_addr,
             );
 

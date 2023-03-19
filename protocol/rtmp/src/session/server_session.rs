@@ -40,6 +40,7 @@ enum ServerSessionState {
 pub struct ServerSession {
     pub app_name: String,
     pub stream_name: String,
+    pub url_parameters: String,
     io: Arc<Mutex<BytesIO>>,
     handshaker: HandshakeServer,
     unpacketizer: ChunkUnpacketizer,
@@ -68,6 +69,7 @@ impl ServerSession {
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
+            url_parameters: String::from(""),
             io: Arc::clone(&net_io),
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
@@ -495,11 +497,19 @@ impl ServerSession {
         Ok(())
     }
 
-    fn get_request_url(&mut self) -> String {
+    fn get_request_url(&mut self, raw_stream_name: String) -> String {
         if let Some(tc_url) = &self.connect_properties.tc_url {
-            format!("{}/{}", tc_url, self.stream_name.clone())
+            format!("{}/{}", tc_url, raw_stream_name)
         } else {
-            format!("{}/{}", self.app_name.clone(), self.stream_name.clone())
+            format!("{}/{}", self.app_name.clone(), raw_stream_name)
+        }
+    }
+    /*parse the raw stream name to get real stream name and the URL parameters*/
+    fn parse_raw_stream_name(&mut self, raw_stream_name: String) {
+        let data: Vec<&str> = raw_stream_name.split('?').collect();
+        self.stream_name = data[0].to_string();
+        if data.len() > 1 {
+            self.url_parameters = data[1].to_string();
         }
     }
 
@@ -604,16 +614,25 @@ impl ServerSession {
             .await?;
 
         event_messages.write_stream_is_record(*stream_id).await?;
+
+        let raw_stream_name = stream_name.unwrap();
+        self.parse_raw_stream_name(raw_stream_name.clone());
+
         log::info!(
-            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}",
+            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}, url parameters: {}",
             self.app_name,
-            self.stream_name
+            self.stream_name,
+            self.url_parameters
         );
-        self.stream_name = stream_name.clone().unwrap();
+
         /*Now it can update the request url*/
-        self.common.request_url = self.get_request_url();
+        self.common.request_url = self.get_request_url(raw_stream_name);
         self.common
-            .subscribe_from_channels(self.app_name.clone(), stream_name.unwrap(), self.session_id)
+            .subscribe_from_channels(
+                self.app_name.clone(),
+                self.stream_name.clone(),
+                self.session_id,
+            )
             .await?;
 
         self.state = ServerSessionState::Play;
@@ -635,7 +654,7 @@ impl ServerSession {
             });
         }
 
-        let stream_name = match other_values.remove(0) {
+        let raw_stream_name = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
                 return Err(SessionError {
@@ -644,9 +663,9 @@ impl ServerSession {
             }
         };
 
-        self.stream_name = stream_name;
+        self.parse_raw_stream_name(raw_stream_name.clone());
         /*Now it can update the request url*/
-        self.common.request_url = self.get_request_url();
+        self.common.request_url = self.get_request_url(raw_stream_name);
 
         let _ = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
@@ -658,15 +677,17 @@ impl ServerSession {
         };
 
         log::info!(
-            "[ S<-C ] [publish]  app_name: {}, stream_name: {}",
+            "[ S<-C ] [publish]  app_name: {}, stream_name: {}, url parameters: {}",
             self.app_name,
-            self.stream_name
+            self.stream_name,
+            self.url_parameters
         );
 
         log::info!(
-            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}",
+            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}, url parameters: {}",
             self.app_name,
-            self.stream_name
+            self.stream_name,
+            self.url_parameters
         );
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
