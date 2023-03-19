@@ -1,10 +1,10 @@
-//use super::statistics::SubscriberStatistics;
-
+//This mod will be move out of the rtmp library.
 pub mod define;
 pub mod errors;
 
 use {
     crate::cache::Cache,
+    crate::notify::Notifier,
     crate::session::{common::SubscriberInfo, define::SubscribeType},
     define::{
         AvStatisticSender, ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
@@ -190,17 +190,11 @@ pub struct ChannelsManager {
     rtmp_push_enabled: bool,
     rtmp_pull_enabled: bool,
     hls_enabled: bool,
-    // subscriber_statistics: HashMap<Uuid, SubscriberStatistics>,
-}
-
-impl Default for ChannelsManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    notifier: Option<Notifier>,
 }
 
 impl ChannelsManager {
-    pub fn new() -> Self {
+    pub fn new(notifier: Option<Notifier>) -> Self {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
         let (client_producer, _) = broadcast::channel(100);
 
@@ -213,7 +207,7 @@ impl ChannelsManager {
             rtmp_pull_enabled: false,
             rtmp_gop_num: 1,
             hls_enabled: false,
-            //subscriber_statistics: HashMap::new(),
+            notifier,
         }
     }
     pub async fn run(&mut self) {
@@ -246,22 +240,28 @@ impl ChannelsManager {
 
     pub async fn event_loop(&mut self) {
         while let Some(message) = self.channel_event_consumer.recv().await {
-            if let Ok(data) = serde_json::to_string(&message) {
+            let event_serialize_str = if let Ok(data) = serde_json::to_string(&message) {
                 log::info!("event data: {}", data);
-            }
+                data
+            } else {
+                String::from("empty body")
+            };
 
             match message {
                 ChannelEvent::Publish {
                     app_name,
                     stream_name,
                     responder,
-                    info,
+                    info: _,
                 } => {
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
                         Ok(producer) => {
                             if responder.send(producer).is_err() {
                                 log::error!("event_loop responder send err");
+                            }
+                            if let Some(notifier) = &self.notifier {
+                                notifier.on_publish_notify(event_serialize_str).await;
                             }
                         }
                         Err(err) => {
@@ -274,7 +274,7 @@ impl ChannelsManager {
                 ChannelEvent::UnPublish {
                     app_name,
                     stream_name,
-                    info,
+                    info: _,
                 } => {
                     if let Err(err) = self.unpublish(&app_name, &stream_name) {
                         log::error!(
@@ -283,6 +283,10 @@ impl ChannelsManager {
                             app_name,
                             stream_name
                         );
+                    }
+
+                    if let Some(notifier) = &self.notifier {
+                        notifier.on_unpublish_notify(event_serialize_str).await;
                     }
                 }
                 ChannelEvent::Subscribe {
@@ -297,6 +301,10 @@ impl ChannelsManager {
                             if responder.send(consumer).is_err() {
                                 log::error!("event_loop Subscribe err");
                             }
+
+                            if let Some(notifier) = &self.notifier {
+                                notifier.on_play_notify(event_serialize_str).await;
+                            }
                         }
                         Err(err) => {
                             log::error!("event_loop Subscribe error: {}", err);
@@ -309,7 +317,11 @@ impl ChannelsManager {
                     stream_name,
                     info,
                 } => {
-                    let _ = self.unsubscribe(&app_name, &stream_name, info);
+                    if let Ok(_) = self.unsubscribe(&app_name, &stream_name, info) {
+                        if let Some(notifier) = &self.notifier {
+                            notifier.on_stop_notify(event_serialize_str).await;
+                        }
+                    }
                 }
 
                 ChannelEvent::Api {

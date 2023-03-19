@@ -8,6 +8,7 @@ use {
     httpflv::server as httpflv_server,
     rtmp::{
         channels::ChannelsManager,
+        notify::Notifier,
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
@@ -24,7 +25,17 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut channel = ChannelsManager::new();
+        let notifier = if let Some(cfg) = &self.cfg.httpnotifier {
+            Some(Notifier::new(
+                cfg.on_publish.clone(),
+                cfg.on_unpublish.clone(),
+                cfg.on_play.clone(),
+                cfg.on_stop.clone(),
+            ))
+        } else {
+            None
+        };
+        let mut channel = ChannelsManager::new(notifier);
 
         self.start_httpflv(&mut channel).await?;
         self.start_hls(&mut channel).await?;

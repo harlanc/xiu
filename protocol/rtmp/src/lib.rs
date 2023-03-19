@@ -17,6 +17,7 @@ pub mod handshake;
 pub mod messages;
 pub mod netconnection;
 pub mod netstream;
+pub mod notify;
 pub mod protocol_control_messages;
 pub mod relay;
 pub mod rtmp;
