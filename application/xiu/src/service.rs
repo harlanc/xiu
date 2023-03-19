@@ -25,7 +25,7 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let notifier = self.cfg.httpnotifier.as_ref().map(|cfg| Notifier::new(
+        let notifier = self.cfg.httpnotify.as_ref().map(|cfg| Notifier::new(
                 cfg.on_publish.clone(),
                 cfg.on_unpublish.clone(),
                 cfg.on_play.clone(),

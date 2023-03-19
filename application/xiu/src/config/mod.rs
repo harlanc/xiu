@@ -11,7 +11,7 @@ pub struct Config {
     pub httpflv: Option<HttpFlvConfig>,
     pub hls: Option<HlsConfig>,
     pub httpapi: Option<HttpApiConfig>,
-    pub httpnotifier: Option<HttpNotifierConfig>,
+    pub httpnotify: Option<HttpNotifierConfig>,
     pub log: Option<LogConfig>,
 }
 
@@ -54,7 +54,7 @@ impl Config {
             httpflv: httpflv_config,
             hls: hls_config,
             httpapi: None,
-            httpnotifier: None,
+            httpnotify: None,
             log: log_config,
         }
     }
