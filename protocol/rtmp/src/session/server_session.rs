@@ -499,7 +499,7 @@ impl ServerSession {
 
     fn get_request_url(&mut self, raw_stream_name: String) -> String {
         if let Some(tc_url) = &self.connect_properties.tc_url {
-            format!("{}/{}", tc_url, raw_stream_name)
+            format!("{tc_url}/{raw_stream_name}")
         } else {
             format!("{}/{}", self.app_name.clone(), raw_stream_name)
         }

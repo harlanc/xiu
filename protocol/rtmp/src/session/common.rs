@@ -28,12 +28,12 @@ use {
     uuid::Uuid,
 };
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct NotifyInfo {
     pub request_url: String,
     pub remote_addr: String,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubscriberInfo {
     pub id: Uuid,
     pub sub_type: SubscribeType,
@@ -55,7 +55,7 @@ impl Serialize for SubscriberInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PublisherInfo {
     pub id: Uuid,
     pub sub_type: PublishType,
@@ -303,7 +303,7 @@ impl Common {
         match self.session_type {
             SessionType::Client => PublisherInfo {
                 id: sub_id,
-                sub_type: PublishType::PushRtmp,
+                sub_type: PublishType::SubscriberRtmp,
                 notify_info: NotifyInfo {
                     request_url: self.request_url.clone(),
                     remote_addr,
@@ -311,7 +311,7 @@ impl Common {
             },
             SessionType::Server => PublisherInfo {
                 id: sub_id,
-                sub_type: PublishType::SubscriberRtmp,
+                sub_type: PublishType::PushRtmp,
                 notify_info: NotifyInfo {
                     request_url: self.request_url.clone(),
                     remote_addr,
@@ -320,7 +320,7 @@ impl Common {
         }
     }
 
-    /*Begin to send data to retmote common player or local RTMP relay push client*/
+    /*Subscribe from local channels and then send data to retmote common player or local RTMP relay push client*/
     pub async fn subscribe_from_channels(
         &mut self,
         app_name: String,

@@ -1,13 +1,26 @@
 use {
     anyhow::Result,
-    axum::{routing::get, Router},
+    axum::{
+        routing::{get, post},
+        Json, Router,
+    },
     rtmp::{channels::define, channels::define::ChannelEventProducer},
+    serde::Deserialize,
+    std::str::FromStr,
     std::sync::Arc,
+    uuid::Uuid,
     {
         tokio,
         tokio::sync::{mpsc, oneshot},
     },
 };
+
+// the input to our `KickOffClient` handler
+#[derive(Deserialize)]
+struct KickOffClient {
+    id: String,
+}
+
 #[derive(Clone)]
 struct ApiService {
     channel_event_producer: ChannelEventProducer,
@@ -16,13 +29,16 @@ struct ApiService {
 impl ApiService {
     async fn root(&self) -> String {
         String::from(
-            "Usage of xiu http api:\n  ./get_stream_status  get audio and video stream statistic information.\n",
+            "Usage of xiu http api:
+                ./get_stream_status(get)  get audio and video stream statistic information.
+                ./kick_off_client(post) kick off client by publish/subscribe id.\n",
         )
     }
+
     async fn get_stream_status(&self) -> Result<String> {
         let (data_sender, mut data_receiver) = mpsc::unbounded_channel();
         let (size_sender, size_receiver) = oneshot::channel();
-        let channel_event = define::ChannelEvent::Api {
+        let channel_event = define::ChannelEvent::ApiStatistic {
             data_sender,
             size_sender,
         };
@@ -39,7 +55,6 @@ impl ApiService {
                     if let Some(stream_statistics) = data_receiver.recv().await {
                         data.push(stream_statistics);
                     }
-
                     if data.len() == size {
                         break;
                     }
@@ -56,6 +71,20 @@ impl ApiService {
 
         Ok(String::from(""))
     }
+
+    async fn kick_off_client(&self, id: KickOffClient) -> Result<String> {
+        let id_result = Uuid::from_str(&id.id);
+
+        if let Ok(id) = id_result {
+            let channel_event = define::ChannelEvent::ApiKickClient { id };
+
+            if let Err(err) = self.channel_event_producer.send(channel_event) {
+                log::error!("send api kick_off_client event error: {}", err);
+            }
+        }
+
+        Ok(String::from("ok"))
+    }
 }
 
 pub async fn run(producer: ChannelEventProducer, port: usize) {
@@ -66,9 +95,17 @@ pub async fn run(producer: ChannelEventProducer, port: usize) {
     let api_root = api.clone();
     let root = move || async move { api_root.root().await };
 
-    let api_get_stream_status = api.clone();
+    let get_status = api.clone();
     let status = move || async move {
-        match api_get_stream_status.get_stream_status().await {
+        match get_status.get_stream_status().await {
+            Ok(response) => response,
+            Err(_) => "error".to_owned(),
+        }
+    };
+
+    let kick_off = api.clone();
+    let kick = move |Json(id): Json<KickOffClient>| async move {
+        match kick_off.kick_off_client(id).await {
             Ok(response) => response,
             Err(_) => "error".to_owned(),
         }
@@ -76,7 +113,9 @@ pub async fn run(producer: ChannelEventProducer, port: usize) {
 
     let app = Router::new()
         .route("/", get(root))
-        .route("/get_stream_status", get(status));
+        .route("/get_stream_status", get(status))
+        .route("/kick_off_client", post(kick));
+
     log::info!("Http api server listening on http://:{}", port);
     axum::Server::bind(&([127, 0, 0, 1], port as u16).into())
         .serve(app.into_make_service())

@@ -25,12 +25,21 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let notifier = self.cfg.httpnotify.as_ref().map(|cfg| Notifier::new(
-                cfg.on_publish.clone(),
-                cfg.on_unpublish.clone(),
-                cfg.on_play.clone(),
-                cfg.on_stop.clone(),
-            ));
+        let notifier = if let Some(httpnotifier) = &self.cfg.httpnotify {
+            if !httpnotifier.enabled {
+                None
+            } else {
+                Some(Notifier::new(
+                    httpnotifier.on_publish.clone(),
+                    httpnotifier.on_unpublish.clone(),
+                    httpnotifier.on_play.clone(),
+                    httpnotifier.on_stop.clone(),
+                ))
+            }
+        } else {
+            None
+        };
+
         let mut channel = ChannelsManager::new(notifier);
 
         self.start_httpflv(&mut channel).await?;
@@ -38,7 +47,10 @@ impl Service {
         self.start_rtmp(&mut channel).await?;
         self.start_http_api_server(&mut channel).await?;
 
-        tokio::spawn(async move { channel.run().await });
+        tokio::spawn(async move {
+            channel.run().await;
+            log::info!("channel manager end...");
+        });
         Ok(())
     }
 

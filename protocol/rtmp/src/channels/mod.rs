@@ -9,8 +9,8 @@ use {
     define::{
         AvStatisticSender, ChannelData, ChannelDataConsumer, ChannelDataProducer, ChannelEvent,
         ChannelEventConsumer, ChannelEventProducer, ClientEvent, ClientEventConsumer,
-        ClientEventProducer, StreamStatisticSizeSender, TransmitterEvent, TransmitterEventConsumer,
-        TransmitterEventProducer,
+        ClientEventProducer, PubSubInfo, StreamStatisticSizeSender, TransmitterEvent,
+        TransmitterEventConsumer, TransmitterEventProducer,
     },
     errors::{ChannelError, ChannelErrorValue},
     std::collections::HashMap,
@@ -40,11 +40,15 @@ use {
 *
 *************************************************************************************/
 
-//receive data from ChannelsManager and send to players
+//receive data from ChannelsManager and send to players/subscribers
 pub struct Transmitter {
-    data_consumer: ChannelDataConsumer, //used for publisher to produce AV data
+    //used for receiving Audio/Video data
+    data_consumer: ChannelDataConsumer,
+    //used for receiving event
     event_consumer: TransmitterEventConsumer,
+    //used for sending audio/video data to players/subscribers
     subscriberid_to_producer: HashMap<Uuid, ChannelDataProducer>,
+    //used for cache metadata and GOP
     cache: Cache,
 }
 
@@ -177,19 +181,24 @@ impl Transmitter {
 pub struct ChannelsManager {
     //app_name to stream_name to producer
     channels: HashMap<String, HashMap<String, TransmitterEventProducer>>,
+    //save info to kick off client
+    channels_info: HashMap<Uuid, PubSubInfo>,
     //event is consumed in Channels, produced from other rtmp sessions
     channel_event_consumer: ChannelEventConsumer,
     //event is produced from other rtmp sessions
     channel_event_producer: ChannelEventProducer,
     //client_event_producer: client_event_producer
     client_event_producer: ClientEventProducer,
-    // configure how many gops will be cached.
+    //configure how many gops will be cached.
     rtmp_gop_num: usize,
     //The rtmp static push/pull and the hls transfer is triggered actively,
     //add a control switches separately.
     rtmp_push_enabled: bool,
+    //enable rtmp pull
     rtmp_pull_enabled: bool,
+    //enable hls
     hls_enabled: bool,
+    //http notifier on sub/pub event
     notifier: Option<Notifier>,
 }
 
@@ -200,6 +209,7 @@ impl ChannelsManager {
 
         Self {
             channels: HashMap::new(),
+            channels_info: HashMap::new(),
             channel_event_consumer: event_consumer,
             channel_event_producer: event_producer,
             client_event_producer: client_producer,
@@ -252,7 +262,7 @@ impl ChannelsManager {
                     app_name,
                     stream_name,
                     responder,
-                    info: _,
+                    info,
                 } => {
                     let rv = self.publish(&app_name, &stream_name);
                     match rv {
@@ -263,6 +273,13 @@ impl ChannelsManager {
                             if let Some(notifier) = &self.notifier {
                                 notifier.on_publish_notify(event_serialize_str).await;
                             }
+                            self.channels_info.insert(
+                                info.id,
+                                PubSubInfo::Publish {
+                                    app_name,
+                                    stream_name,
+                                },
+                            );
                         }
                         Err(err) => {
                             log::error!("event_loop Publish err: {}\n", err);
@@ -295,7 +312,8 @@ impl ChannelsManager {
                     info,
                     responder,
                 } => {
-                    let rv = self.subscribe(&app_name, &stream_name, info).await;
+                    let sub_id = info.id;
+                    let rv = self.subscribe(&app_name, &stream_name, info.clone()).await;
                     match rv {
                         Ok(consumer) => {
                             if responder.send(consumer).is_err() {
@@ -305,6 +323,15 @@ impl ChannelsManager {
                             if let Some(notifier) = &self.notifier {
                                 notifier.on_play_notify(event_serialize_str).await;
                             }
+
+                            self.channels_info.insert(
+                                sub_id,
+                                PubSubInfo::Subscribe {
+                                    app_name,
+                                    stream_name,
+                                    sub_info: info,
+                                },
+                            );
                         }
                         Err(err) => {
                             log::error!("event_loop Subscribe error: {}", err);
@@ -324,19 +351,26 @@ impl ChannelsManager {
                     }
                 }
 
-                ChannelEvent::Api {
+                ChannelEvent::ApiStatistic {
                     data_sender,
                     size_sender,
                 } => {
-                    if let Err(err) = self.api(data_sender, size_sender) {
+                    if let Err(err) = self.api_statistic(data_sender, size_sender) {
                         log::error!("event_loop api error: {}", err);
+                    }
+                }
+                ChannelEvent::ApiKickClient { id } => {
+                    self.api_kick_off_client(id);
+
+                    if let Some(notifier) = &self.notifier {
+                        notifier.on_unpublish_notify(event_serialize_str).await;
                     }
                 }
             }
         }
     }
 
-    fn api(
+    fn api_statistic(
         &mut self,
         data_sender: AvStatisticSender,
         size_sender: StreamStatisticSizeSender,
@@ -364,6 +398,44 @@ impl ChannelsManager {
         }
 
         Ok(())
+    }
+
+    fn api_kick_off_client(&mut self, uid: Uuid) {
+        let info = if let Some(info) = self.channels_info.get(&uid) {
+            info.clone()
+        } else {
+            return;
+        };
+
+        match info {
+            PubSubInfo::Publish {
+                app_name,
+                stream_name,
+            } => {
+                if let Err(err) = self.unpublish(&app_name, &stream_name) {
+                    log::error!(
+                        "event_loop ApiKickClient pub err: {} with app name: {} stream name :{}\n",
+                        err,
+                        app_name,
+                        stream_name
+                    );
+                }
+            }
+            PubSubInfo::Subscribe {
+                app_name,
+                stream_name,
+                sub_info,
+            } => {
+                if let Err(err) = self.unsubscribe(&app_name, &stream_name, sub_info) {
+                    log::error!(
+                        "event_loop ApiKickClient pub err: {} with app name: {} stream name :{}\n",
+                        err,
+                        app_name,
+                        stream_name
+                    );
+                }
+            }
+        }
     }
 
     //player subscribe a stream

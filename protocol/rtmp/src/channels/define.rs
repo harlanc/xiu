@@ -5,6 +5,7 @@ use {
     serde::Serialize,
     std::fmt,
     tokio::sync::{broadcast, mpsc, oneshot},
+    uuid::Uuid,
 };
 #[derive(Clone)]
 pub enum ChannelData {
@@ -59,10 +60,12 @@ pub enum ChannelEvent {
         info: PublisherInfo,
     },
     #[serde(skip_serializing)]
-    Api {
+    ApiStatistic {
         data_sender: AvStatisticSender,
         size_sender: StreamStatisticSizeSender,
     },
+    #[serde(skip_serializing)]
+    ApiKickClient { id: Uuid },
 }
 
 #[derive(Debug)]
@@ -104,6 +107,21 @@ pub enum ClientEvent {
         stream_name: String,
     },
     UnSubscribe {
+        app_name: String,
+        stream_name: String,
+    },
+}
+
+//Used for kickoff
+#[derive(Debug, Clone)]
+pub enum PubSubInfo {
+    Subscribe {
+        app_name: String,
+        stream_name: String,
+        sub_info: SubscriberInfo,
+    },
+
+    Publish {
         app_name: String,
         stream_name: String,
     },
