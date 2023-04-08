@@ -9,4 +9,6 @@ Reference rtmp v0.0.8
 Reference flv v0.1.0/rtmp v0.1.0
 ## v0.1.1
 Change the listening port type.
+## v0.2.0
+Support stream status notify using HTTP.
 

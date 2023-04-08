@@ -136,6 +136,10 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 - fix handshake error.[#23]
 ## v0.1.0
 - Fix error chain.
+## v0.2.0
+- Fix error chain.
+## v0.3.0
+- Fix error chain.
 
 
 

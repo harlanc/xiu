@@ -78,26 +78,28 @@ impl Transmitter {
                                 producer,
                                 info,
                             } => {
+
+                                if let Some(meta_body_data) = self.cache.get_metadata() {
+                                    producer.send(meta_body_data).map_err(|_| ChannelError {
+                                        value: ChannelErrorValue::SendError,
+                                    })?;
+                                }
+                                if let Some(audio_seq_data) = self.cache.get_audio_seq() {
+                                    producer.send(audio_seq_data).map_err(|_| ChannelError {
+                                        value: ChannelErrorValue::SendError,
+                                    })?;
+                                }
+                                if let Some(video_seq_data) = self.cache.get_video_seq() {
+                                    producer.send(video_seq_data).map_err(|_| ChannelError {
+                                        value: ChannelErrorValue::SendError,
+                                    })?;
+                                }
+
                                 match info.sub_type {
                                     SubscribeType::PlayerRtmp
                                     | SubscribeType::PlayerHttpFlv
                                     | SubscribeType::PlayerHls
                                     | SubscribeType::GenerateHls => {
-                                        if let Some(meta_body_data) = self.cache.get_metadata() {
-                                            producer.send(meta_body_data).map_err(|_| ChannelError {
-                                                value: ChannelErrorValue::SendError,
-                                            })?;
-                                        }
-                                        if let Some(audio_seq_data) = self.cache.get_audio_seq() {
-                                            producer.send(audio_seq_data).map_err(|_| ChannelError {
-                                                value: ChannelErrorValue::SendError,
-                                            })?;
-                                        }
-                                        if let Some(video_seq_data) = self.cache.get_video_seq() {
-                                            producer.send(video_seq_data).map_err(|_| ChannelError {
-                                                value: ChannelErrorValue::SendError,
-                                            })?;
-                                        }
                                         if let Some(gops_data) = self.cache.get_gops_data() {
                                             for gop in gops_data {
                                                 for channel_data in gop.get_frame_data() {

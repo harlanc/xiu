@@ -71,6 +71,8 @@ pub struct ClientSession {
     session_id: Uuid,
     state: ClientSessionState,
     client_type: ClientType,
+    sub_app_name: Option<String>,
+    sub_stream_name: Option<String>,
 }
 
 impl ClientSession {
@@ -106,6 +108,8 @@ impl ClientSession {
             client_type,
             state: ClientSessionState::Handshake,
             session_id: subscriber_id,
+            sub_app_name: None,
+            sub_stream_name: None,
         }
     }
 
@@ -224,6 +228,9 @@ impl ClientSession {
             }
             RtmpMessageData::AudioData { data } => self.common.on_audio_data(data, timestamp)?,
             RtmpMessageData::VideoData { data } => self.common.on_video_data(data, timestamp)?,
+            RtmpMessageData::AmfData { raw_data } => {
+                self.common.on_meta_data(raw_data, timestamp)?;
+            }
 
             _ => {}
         }
@@ -461,17 +468,31 @@ impl ClientSession {
             match &code_info[..] {
                 "NetStream.Publish.Start" => {
                     self.state = ClientSessionState::StartPublish;
-                    self.common
-                        .subscribe_from_channels(
-                            self.app_name.clone(),
-                            self.stream_name.clone(),
-                            self.session_id,
-                        )
-                        .await?;
+                    //subscribe from local session and publish to remote rtmp server
+                    if let (Some(app_name), Some(stream_name)) =
+                        (&self.sub_app_name, &self.sub_stream_name)
+                    {
+                        self.common
+                            .subscribe_from_channels(
+                                app_name.clone(),
+                                stream_name.clone(),
+                                self.session_id,
+                            )
+                            .await?;
+                    } else {
+                        self.common
+                            .subscribe_from_channels(
+                                self.app_name.clone(),
+                                self.stream_name.clone(),
+                                self.session_id,
+                            )
+                            .await?;
+                    }
                 }
                 "NetStream.Publish.Reset" => {}
 
                 "NetStream.Play.Start" => {
+                    //pull from remote rtmp server and publish to local session
                     self.common
                         .publish_to_channels(
                             self.app_name.clone(),
@@ -485,5 +506,10 @@ impl ClientSession {
         }
         log::trace!("{}", obj.len());
         Ok(())
+    }
+
+    pub fn subscribe(&mut self, session: &ClientSession) {
+        self.sub_app_name = Some(session.app_name.clone());
+        self.sub_stream_name = Some(session.stream_name.clone());
     }
 }

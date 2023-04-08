@@ -24,15 +24,17 @@ serde_json = { version = "1", default-features = false, features = [
     "std",
 ] }
 axum = "0.6.10"
+tokio-metrics = { version = "0.2.0", default-features = false }
+uuid = { version = "0.6.5", features = ["v4"] }
 
-rtmp = "0.2.0"   
-httpflv = "0.1.2"
-hls = "0.1.2"    
-env_logger_extend = "0.1.1"
-# rtmp = { path = "../../protocol/rtmp/" }             
-# httpflv = { path = "../../protocol/httpflv/" }
-# hls = { path = "../../protocol/hls/" }
-# env_logger_extend = { path = "../../library/logger/" }
+# rtmp = "0.2.0"   
+# httpflv = "0.1.2"
+# hls = "0.1.2"    
+# env_logger_extend = "0.1.1"
+rtmp = { path = "../../protocol/rtmp/" }
+httpflv = { path = "../../protocol/httpflv/" }
+hls = { path = "../../protocol/hls/" }
+env_logger_extend = { path = "../../library/logger/" }
 
 
 [features]
@@ -40,7 +42,7 @@ default = ["std"]
 std = ["serde"]
 
 [dependencies.tokio]
-version = "1.4.0"
+version = "1.26.0"
 default-features = false
 #features = ["rt-core", "rt-threaded", "macros", "time","sync"]
 features = ["full"]
