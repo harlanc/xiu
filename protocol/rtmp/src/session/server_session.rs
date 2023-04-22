@@ -19,10 +19,12 @@ use {
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
+        utils::RtmpUrlParser,
     },
     bytes::BytesMut,
     bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
-    std::{collections::HashMap, sync::Arc, time::Duration},
+    indexmap::IndexMap,
+    std::{sync::Arc, time::Duration},
     tokio::{net::TcpStream, sync::Mutex},
     uuid::Uuid,
 };
@@ -272,7 +274,7 @@ impl ServerSession {
             _ => &0.0,
         };
 
-        let empty_cmd_obj: HashMap<String, Amf0ValueType> = HashMap::new();
+        let empty_cmd_obj: IndexMap<String, Amf0ValueType> = IndexMap::new();
         let obj = match command_object {
             Amf0ValueType::Object(obj) => obj,
             _ => &empty_cmd_obj,
@@ -334,7 +336,7 @@ impl ServerSession {
         Ok(())
     }
 
-    fn parse_connect_properties(&mut self, command_obj: &HashMap<String, Amf0ValueType>) {
+    fn parse_connect_properties(&mut self, command_obj: &IndexMap<String, Amf0ValueType>) {
         for (property, value) in command_obj {
             match property.as_str() {
                 "app" => {
@@ -397,7 +399,7 @@ impl ServerSession {
     async fn on_connect(
         &mut self,
         transaction_id: &f64,
-        command_obj: &HashMap<String, Amf0ValueType>,
+        command_obj: &IndexMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
         self.parse_connect_properties(command_obj);
         log::info!("connect properties: {:?}", self.connect_properties);
@@ -504,14 +506,6 @@ impl ServerSession {
             format!("{}/{}", self.app_name.clone(), raw_stream_name)
         }
     }
-    /*parse the raw stream name to get real stream name and the URL parameters*/
-    fn parse_raw_stream_name(&mut self, raw_stream_name: String) {
-        let data: Vec<&str> = raw_stream_name.split('?').collect();
-        self.stream_name = data[0].to_string();
-        if data.len() > 1 {
-            self.url_parameters = data[1].to_string();
-        }
-    }
 
     #[allow(clippy::never_loop)]
     pub async fn on_play(
@@ -616,7 +610,10 @@ impl ServerSession {
         event_messages.write_stream_is_record(*stream_id).await?;
 
         let raw_stream_name = stream_name.unwrap();
-        self.parse_raw_stream_name(raw_stream_name.clone());
+
+        (self.stream_name, self.url_parameters) = RtmpUrlParser::default()
+            .set_raw_stream_name(raw_stream_name.clone())
+            .parse_raw_stream_name();
 
         log::info!(
             "[ S->C ] [stream is record]  app_name: {}, stream_name: {}, url parameters: {}",
@@ -663,7 +660,10 @@ impl ServerSession {
             }
         };
 
-        self.parse_raw_stream_name(raw_stream_name.clone());
+        (self.stream_name, self.url_parameters) = RtmpUrlParser::default()
+            .set_raw_stream_name(raw_stream_name.clone())
+            .parse_raw_stream_name();
+
         /*Now it can update the request url*/
         self.common.request_url = self.get_request_url(raw_stream_name);
 

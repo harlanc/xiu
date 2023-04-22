@@ -6,7 +6,8 @@ use {
         messages::define as messages_define,
     },
     bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
-    std::{collections::HashMap, sync::Arc},
+    indexmap::IndexMap,
+    std::sync::Arc,
     tokio::sync::Mutex,
 };
 #[derive(Clone, Default, Debug)]
@@ -22,6 +23,7 @@ pub struct ConnectProperties {
     pub video_function: Option<f64>, // double default: 1
     pub object_encoding: Option<f64>,
     pub page_url: Option<String>, // http://host/sample.html
+    pub pub_type: Option<String>,
 }
 
 impl ConnectProperties {
@@ -38,6 +40,7 @@ impl ConnectProperties {
             video_function: Some(1_f64),
             object_encoding: Some(0_f64),
             page_url: Some("".to_string()),
+            pub_type: Some("nonprivate".to_string()),
         }
     }
     pub fn new_none() -> Self {
@@ -53,6 +56,7 @@ impl ConnectProperties {
             video_function: None,
             object_encoding: None,
             page_url: None,
+            pub_type: None,
         }
     }
 }
@@ -89,7 +93,7 @@ impl NetConnection {
     pub async fn write_connect_with_value(
         &mut self,
         transaction_id: &f64,
-        properties: HashMap<String, Amf0ValueType>,
+        properties: IndexMap<String, Amf0ValueType>,
     ) -> Result<(), NetConnectionError> {
         self.amf0_writer.write_string(&String::from("connect"))?;
         self.amf0_writer.write_number(transaction_id)?;
@@ -106,10 +110,14 @@ impl NetConnection {
         self.amf0_writer.write_string(&String::from("connect"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
-        let mut properties_map = HashMap::new();
+        let mut properties_map = IndexMap::new();
 
         if let Some(app) = properties.app.clone() {
             properties_map.insert(String::from("app"), Amf0ValueType::UTF8String(app));
+        }
+
+        if let Some(pub_type) = properties.pub_type.clone() {
+            properties_map.insert(String::from("type"), Amf0ValueType::UTF8String(pub_type));
         }
 
         if let Some(flash_ver) = properties.flash_ver.clone() {
@@ -132,7 +140,7 @@ impl NetConnection {
         }
 
         if let Some(fpad) = properties.fpad {
-            properties_map.insert(String::from("fpab"), Amf0ValueType::Boolean(fpad));
+            properties_map.insert(String::from("fpad"), Amf0ValueType::Boolean(fpad));
         }
 
         if let Some(capabilities) = properties.capabilities {
@@ -187,7 +195,7 @@ impl NetConnection {
         self.amf0_writer.write_string(&String::from("_result"))?;
         self.amf0_writer.write_number(transaction_id)?;
 
-        let mut properties_map_a = HashMap::new();
+        let mut properties_map_a = IndexMap::new();
 
         properties_map_a.insert(
             String::from("fmsVer"),
@@ -200,7 +208,7 @@ impl NetConnection {
 
         self.amf0_writer.write_object(&properties_map_a)?;
 
-        let mut properties_map_b = HashMap::new();
+        let mut properties_map_b = IndexMap::new();
 
         properties_map_b.insert(
             String::from("level"),
@@ -249,6 +257,20 @@ impl NetConnection {
         self.write_chunk().await
     }
 
+    pub async fn write_get_stream_length(
+        &mut self,
+        transaction_id: &f64,
+        stream_name: &String,
+    ) -> Result<(), NetConnectionError> {
+        self.amf0_writer
+            .write_string(&String::from("getStreamLength"))?;
+        self.amf0_writer.write_number(transaction_id)?;
+        self.amf0_writer.write_null()?;
+        self.amf0_writer.write_string(stream_name)?;
+
+        self.write_chunk().await
+    }
+
     pub async fn error(
         &mut self,
         transaction_id: &f64,
@@ -260,7 +282,7 @@ impl NetConnection {
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
 
-        let mut properties_map = HashMap::new();
+        let mut properties_map = IndexMap::new();
 
         properties_map.insert(
             String::from("level"),

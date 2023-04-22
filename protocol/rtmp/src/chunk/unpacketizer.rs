@@ -62,10 +62,6 @@ enum MessageHeaderReadState {
     ReadMsgStreamID = 4,
 }
 
-fn f(chunk: &ChunkReadState) -> u8 {
-    *chunk as u8
-}
-
 pub struct ChunkUnpacketizer {
     pub reader: BytesReader,
 
@@ -121,7 +117,7 @@ impl ChunkUnpacketizer {
         log::trace!(
             "read chunks begin, current time: {}, and read state: {}",
             Local::now().timestamp_nanos(),
-            f(&self.chunk_read_state)
+            self.chunk_read_state
         );
 
         // log::trace!(
@@ -149,7 +145,7 @@ impl ChunkUnpacketizer {
         log::trace!(
             "read chunks end, current time: {}, and read state: {}",
             Local::now().timestamp_nanos(),
-            f(&self.chunk_read_state)
+            self.chunk_read_state
         );
 
         if !chunks.is_empty() {
@@ -175,7 +171,7 @@ impl ChunkUnpacketizer {
         log::trace!(
             "read chunk begin, current time: {}, and read state: {}, and chunk index: {}",
             Local::now().timestamp_nanos(),
-            f(&self.chunk_read_state),
+            self.chunk_read_state,
             self.chunk_index,
         );
 
@@ -197,7 +193,7 @@ impl ChunkUnpacketizer {
         log::trace!(
             "read chunk end, current time: {}, and read state: {}, and chunk index: {}",
             Local::now().timestamp_nanos(),
-            f(&self.chunk_read_state),
+            self.chunk_read_state,
             self.chunk_index,
         );
         Ok(result)
@@ -207,7 +203,7 @@ impl ChunkUnpacketizer {
 
     pub fn print_current_basic_header(&mut self) {
         log::trace!(
-            "print_current_basic_header, format id: {},csid: {}",
+            "print_current_basic_header, csid: {},format id: {}",
             self.current_chunk_info.basic_header.chunk_stream_id,
             self.current_chunk_info.basic_header.format
         );
@@ -286,9 +282,10 @@ impl ChunkUnpacketizer {
         //todo
         if csid != self.current_chunk_info.basic_header.chunk_stream_id {
             log::trace!(
-                "read_basic_header, chunk stream id update, new: {}, old:{}",
+                "read_basic_header, chunk stream id update, new: {}, old:{}, byte: {}",
                 csid,
-                self.current_chunk_info.basic_header.chunk_stream_id
+                self.current_chunk_info.basic_header.chunk_stream_id,
+                byte
             );
             if let Some(header) = self.chunk_headers.get_mut(&csid) {
                 self.current_chunk_info.basic_header = header.basic_header.clone();
@@ -326,9 +323,14 @@ impl ChunkUnpacketizer {
 
     pub fn read_message_header(&mut self) -> Result<UnpackResult, UnpackError> {
         log::trace!(
-            "read_message_header, left bytes length: {}",
+            "read_message_header, data left in buffer: {}",
             self.reader.len(),
         );
+
+        //fix bug: the is_extended_timestamp flag should be set in the read_message_header process
+        //each time and should not be saved which will lead to incorrectly reading an extra 4 bytes,
+        //so here at the start of the read_message_header process, reset this flag.
+        self.current_message_header().is_extended_timestamp = false;
 
         match self.current_chunk_info.basic_header.format {
             /*****************************************************************/
@@ -495,6 +497,9 @@ impl ChunkUnpacketizer {
                         self.current_message_header().timestamp_delta;
                 }
             }
+            3 => {
+                //log::info!("format 3==============");
+            }
             //todo: 3 should also be processed
             _ => {}
         }
@@ -510,7 +515,7 @@ impl ChunkUnpacketizer {
         let remaining_bytes = whole_msg_length - self.current_chunk_info.payload.len();
 
         log::trace!(
-            "read_message_payload whole msg length: {} and remaining bytes: {}",
+            "read_message_payload whole msg length: {} and remaining bytes need to be read: {}",
             whole_msg_length,
             remaining_bytes
         );
@@ -526,7 +531,11 @@ impl ChunkUnpacketizer {
             self.current_chunk_info.payload.reserve(additional);
         }
 
-        log::trace!("read_message_payload buffer len:{}", self.reader.len());
+        log::trace!(
+            "read_message_payload buffer len:{}, need_read_length: {}",
+            self.reader.len(),
+            need_read_length
+        );
 
         let payload_data = self.reader.read_bytes(need_read_length)?;
         self.current_chunk_info

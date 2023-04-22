@@ -79,9 +79,10 @@ impl ChunkPacketizer {
     fn write_message_header(
         &mut self,
         basic_header: &ChunkBasicHeader,
-        message_header: &ChunkMessageHeader,
+        message_header: &mut ChunkMessageHeader,
     ) -> Result<(), PackError> {
         let timestamp = if message_header.timestamp >= 0xFFFFFF {
+            message_header.is_extended_timestamp = true;
             0xFFFFFF
         } else {
             message_header.timestamp
@@ -125,7 +126,7 @@ impl ChunkPacketizer {
             chunk_info.basic_header.format,
             chunk_info.basic_header.chunk_stream_id,
         )?;
-        self.write_message_header(&chunk_info.basic_header, &chunk_info.message_header)?;
+        self.write_message_header(&chunk_info.basic_header, &mut chunk_info.message_header)?;
 
         if chunk_info.message_header.is_extended_timestamp {
             self.write_extened_timestamp(chunk_info.message_header.timestamp)?;

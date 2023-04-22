@@ -46,6 +46,7 @@ impl PullClient {
                 let mut client_session = ClientSession::new(
                     stream,
                     ClientType::Play,
+                    self.address.clone(),
                     app_name.clone(),
                     stream_name.clone(),
                     self.channel_event_producer.clone(),

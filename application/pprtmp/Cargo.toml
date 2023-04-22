@@ -1,5 +1,5 @@
 [package]
-name = "pullrtmppushrtmp"
+name = "pprtmp"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,6 +10,7 @@ anyhow = "^1.0"
 rtmp = { path = "../../protocol/rtmp/" }
 log = "0.4.0"
 env_logger = "0.9.3"
+clap = "4.1.4"
 
 [dependencies.tokio]
 version = "1.26.0"
