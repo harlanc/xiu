@@ -84,7 +84,7 @@ impl RtmpUrlParser {
     }
 
     pub fn append_port(&mut self, port: String) {
-        if !self.raw_domain_name.contains(":") {
+        if !self.raw_domain_name.contains(':') {
             self.raw_domain_name = format!("{}:{}", self.raw_domain_name, port);
             self.port = port;
         }
@@ -101,7 +101,7 @@ mod tests {
             "rtmp://domain.name.cn:1935/app_name/stream_name?auth_key=test_Key",
         ));
 
-        parser.parse_url();
+        parser.parse_url().unwrap();
 
         println!(" raw_domain_name: {}", parser.raw_domain_name);
         println!(" port: {}", parser.port);
@@ -116,7 +116,7 @@ mod tests {
         let mut parser =
             RtmpUrlParser::new(String::from("rtmp://domain.name.cn/app_name/stream_name"));
 
-        parser.parse_url();
+        parser.parse_url().unwrap();
 
         println!(" raw_domain_name: {}", parser.raw_domain_name);
         println!(" port: {}", parser.port);

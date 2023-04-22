@@ -60,26 +60,33 @@ impl MetaData {
         log::info!("metadata: {:?}", values);
 
         let mut is_metadata = false;
-        match values.remove(0) {
-            Amf0ValueType::UTF8String(str) => {
-                if str == "@setDataFrame" || str == "onMetaData" {
-                    is_metadata = true;
-                }
-            }
-            _ => {
-                //return false;
+
+        if let Amf0ValueType::UTF8String(str) = values.remove(0) {
+            if str == "@setDataFrame" || str == "onMetaData" {
+                is_metadata = true;
             }
         }
-        match values.remove(0) {
-            Amf0ValueType::UTF8String(str) => {
-                if str != "onMetaData" {
-                    //return false;
-                }
-            }
-            _ => {
-                //return false;
-            }
-        }
+
+        // match values.remove(0) {
+        //     Amf0ValueType::UTF8String(str) => {
+        //         if str == "@setDataFrame" || str == "onMetaData" {
+        //             is_metadata = true;
+        //         }
+        //     }
+        //     _ => {
+        //         //return false;
+        //     }
+        // }
+        // match values.remove(0) {
+        //     Amf0ValueType::UTF8String(str) => {
+        //         if str != "onMetaData" {
+        //             //return false;
+        //         }
+        //     }
+        //     _ => {
+        //         //return false;
+        //     }
+        // }
 
         is_metadata
     }

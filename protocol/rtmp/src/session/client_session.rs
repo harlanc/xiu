@@ -544,7 +544,7 @@ impl ClientSession {
     }
 
     pub fn subscribe(&mut self, app_name: String, stream_name: String) {
-        self.sub_app_name = Some(app_name.clone());
-        self.sub_stream_name = Some(stream_name.clone());
+        self.sub_app_name = Some(app_name);
+        self.sub_stream_name = Some(stream_name);
     }
 }
