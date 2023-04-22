@@ -4,6 +4,10 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 
 # Examples
 
+## Client
+
+   You can use this library to push or pull RTMP streams , refer to the pprtmp example from xiu/application/pprtmp.
+
 ## Single Server
 
     use rtmp::channels::channels::ChannelsManager;
@@ -107,39 +111,42 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 
 # Version History
 ## v0.0.1
-- support rtmp pushlish and play
+- Support rtmp pushlish and play
 ## v0.0.2
-- support rtmp relay pull and static push
+- Support rtmp relay pull and static push
 ## v0.0.3
-- add amf0 functions 
+- Add amf0 functions 
 ## v0.0.4
-- add timestamp for metadata 
+- Add timestamp for metadata 
 ## v0.0.5
-- support complex handshake
+- Support complex handshake
 ## v0.0.6
-- refactor some codes,update dependencies
+- Refactor some codes,update dependencies
 ## v0.0.7
 - Fix bugs;
-- add detail logs;
-- improve subscriber id;
+- Add detail logs;
+- Improve subscriber id;
 ## v0.0.8
 - Fix bugs;
 ## v0.0.9
 - Support cache GOP;
-- fix bugs;
-- refactor handshake mod;
+- Fix bugs;
+- Refactor handshake mod;
 ## v0.0.12
 - Fix overflow error.[#17]
 ## v0.0.13
-- add introductions and example codes in doc
+- Add introductions and example codes in doc
 ## v0.0.14
-- fix handshake error.[#23]
+- Fix handshake error.[#23]
 ## v0.1.0
-- Fix error chain.
+- Update RTMP library version.
 ## v0.2.0
-- Fix error chain.
+- Support audio and video information statistics.
 ## v0.3.0
-- Fix error chain.
+- Support notify stream status.
+- Add HTTP API to kickoff clients.
+- Fix some client session bugs.
+
 
 
 

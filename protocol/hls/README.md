@@ -17,5 +17,7 @@ Change the listening port type.
 ## v0.1.2
 - Refactor codes
 - Reference rtmp/xflv/mpegts new version.
+## v0.2.0
+- Support stream status notify using HTTP.
 
 

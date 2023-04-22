@@ -1,7 +1,7 @@
 [package]
 name = "hls"
 description = "hls library."
-version = "0.1.2"
+version = "0.2.0"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -18,13 +18,13 @@ log = "0.4"
 uuid = { version = "0.6.5", features = ["v4"] }
 hyper = { version = "0.14", features = ["full"] }
 tokio-util = { version = "0.6.5", features = ["codec"] }
-# xflv = "0.2.0"
-# rtmp = "0.2.0"
-# xmpegts = "0.1.1"
+xflv = "0.2.0"
+rtmp = "0.3.0"
+xmpegts = "0.1.1"
 
-xflv = { path = "../../library/container/flv/" }
-rtmp = { path = "../rtmp/" }
-xmpegts = { path = "../../library/container/mpegts/" }
+# xflv = { path = "../../library/container/flv/" }
+# rtmp = { path = "../rtmp/" }
+# xmpegts = { path = "../../library/container/mpegts/" }
 
 [dependencies.tokio]
 version = "1.4.0"

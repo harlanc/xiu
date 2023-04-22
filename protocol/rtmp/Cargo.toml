@@ -31,13 +31,13 @@ serde_json = { version = "1", default-features = false, features = [
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_with = "2.2.0"
 
-# bytesio = "0.2.0"
-# xflv = "0.2.0"
-# h264-decoder = "0.1.0"
+bytesio = "0.2.0"
+xflv = "0.2.0"
+h264-decoder = "0.1.0"
 
-bytesio = { path = "../../library/bytesio/" }
-xflv = { path = "../../library/container/flv/" }
-h264-decoder = { path = "../../library/codec/h264/" } 
+# bytesio = { path = "../../library/bytesio/" }
+# xflv = { path = "../../library/container/flv/" }
+# h264-decoder = { path = "../../library/codec/h264/" } 
 
 [dependencies.tokio]
 version = "1.4.0"
