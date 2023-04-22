@@ -7,13 +7,13 @@ use {
         cache::metadata::MetaData,
         channels::define::{ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer},
         session::{
-            common::SubscriberInfo,
+            common::{NotifyInfo, SubscriberInfo},
             define::SubscribeType,
             errors::{SessionError, SessionErrorValue},
         },
     },
     bytes::BytesMut,
-    std::time::Duration,
+    std::{net::SocketAddr, time::Duration},
     tokio::{
         sync::{mpsc, oneshot},
         time::sleep,
@@ -32,6 +32,8 @@ pub struct HttpFlv {
     data_consumer: ChannelDataConsumer,
     http_response_data_producer: HttpResponseDataProducer,
     subscriber_id: Uuid,
+    request_url: String,
+    remote_addr: SocketAddr,
 }
 
 impl HttpFlv {
@@ -40,6 +42,8 @@ impl HttpFlv {
         stream_name: String,
         event_producer: ChannelEventProducer,
         http_response_data_producer: HttpResponseDataProducer,
+        request_url: String,
+        remote_addr: SocketAddr,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
         let subscriber_id = Uuid::new_v4();
@@ -52,6 +56,8 @@ impl HttpFlv {
             event_producer,
             http_response_data_producer,
             subscriber_id,
+            request_url,
+            remote_addr,
         }
     }
 
@@ -140,6 +146,10 @@ impl HttpFlv {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
             sub_type: SubscribeType::PlayerHttpFlv,
+            notify_info: NotifyInfo {
+                request_url: self.request_url.clone(),
+                remote_addr: self.remote_addr.to_string(),
+            },
         };
 
         let subscribe_event = ChannelEvent::UnSubscribe {
@@ -163,6 +173,10 @@ impl HttpFlv {
             let sub_info = SubscriberInfo {
                 id: self.subscriber_id,
                 sub_type: SubscribeType::PlayerHttpFlv,
+                notify_info: NotifyInfo {
+                    request_url: self.request_url.clone(),
+                    remote_addr: self.remote_addr.to_string(),
+                },
             };
 
             let subscribe_event = ChannelEvent::Subscribe {

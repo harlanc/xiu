@@ -10,7 +10,8 @@ pub struct Config {
     pub rtmp: Option<RtmpConfig>,
     pub httpflv: Option<HttpFlvConfig>,
     pub hls: Option<HlsConfig>,
-    pub httpapi: Option<HttpApi>,
+    pub httpapi: Option<HttpApiConfig>,
+    pub httpnotify: Option<HttpNotifierConfig>,
     pub log: Option<LogConfig>,
 }
 
@@ -53,6 +54,7 @@ impl Config {
             httpflv: httpflv_config,
             hls: hls_config,
             httpapi: None,
+            httpnotify: None,
             log: log_config,
         }
     }
@@ -113,8 +115,17 @@ pub struct LogFile {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct HttpApi {
+pub struct HttpApiConfig {
     pub port: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct HttpNotifierConfig {
+    pub enabled: bool,
+    pub on_publish: Option<String>,
+    pub on_unpublish: Option<String>,
+    pub on_play: Option<String>,
+    pub on_stop: Option<String>,
 }
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {

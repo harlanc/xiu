@@ -1,6 +1,8 @@
+use serde::ser::SerializeStruct;
+
 use {
     super::{
-        define::{SessionType, SubscribeType},
+        define::{PublishType, SessionType, SubscribeType},
         errors::{SessionError, SessionErrorValue},
     },
     crate::{
@@ -17,17 +19,62 @@ use {
     },
     bytes::BytesMut,
     bytesio::bytesio::BytesIO,
-    std::{sync::Arc, time::Duration},
+    serde::{Serialize, Serializer},
+    std::{net::SocketAddr, sync::Arc, time::Duration},
     tokio::{
         sync::{mpsc, oneshot, Mutex},
         time::sleep,
     },
     uuid::Uuid,
 };
-#[derive(Debug)]
+
+#[derive(Debug, Serialize, Clone)]
+pub struct NotifyInfo {
+    pub request_url: String,
+    pub remote_addr: String,
+}
+#[derive(Debug, Clone)]
 pub struct SubscriberInfo {
     pub id: Uuid,
     pub sub_type: SubscribeType,
+    pub notify_info: NotifyInfo,
+}
+
+impl Serialize for SubscriberInfo {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("SubscriberInfo", 3)?;
+
+        state.serialize_field("id", &self.id.to_string())?;
+        state.serialize_field("sub_type", &self.sub_type)?;
+        state.serialize_field("notify_info", &self.notify_info)?;
+        state.end()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PublisherInfo {
+    pub id: Uuid,
+    pub sub_type: PublishType,
+    pub notify_info: NotifyInfo,
+}
+
+impl Serialize for PublisherInfo {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // 3 is the number of fields in the struct.
+        let mut state = serializer.serialize_struct("PublisherInfo", 3)?;
+
+        state.serialize_field("id", &self.id.to_string())?;
+        state.serialize_field("sub_type", &self.sub_type)?;
+        state.serialize_field("notify_info", &self.notify_info)?;
+        state.end()
+    }
 }
 pub struct Common {
     packetizer: ChunkPacketizer,
@@ -37,6 +84,11 @@ pub struct Common {
 
     event_producer: ChannelEventProducer,
     pub session_type: SessionType,
+
+    /*save the client side socket connected to the SeverSession */
+    remote_addr: Option<SocketAddr>,
+    /*request URL from client*/
+    pub request_url: String,
 }
 
 impl Common {
@@ -44,6 +96,7 @@ impl Common {
         net_io: Arc<Mutex<BytesIO>>,
         event_producer: ChannelEventProducer,
         session_type: SessionType,
+        remote_addr: Option<SocketAddr>,
     ) -> Self {
         //only used for init,since I don't found a better way to deal with this.
         let (init_producer, init_consumer) = mpsc::unbounded_channel();
@@ -56,6 +109,8 @@ impl Common {
 
             event_producer,
             session_type,
+            remote_addr,
+            request_url: String::default(),
         }
     }
     pub async fn send_channel_data(&mut self) -> Result<(), SessionError> {
@@ -209,19 +264,63 @@ impl Common {
     }
 
     fn get_subscriber_info(&mut self, sub_id: Uuid) -> SubscriberInfo {
+        let remote_addr = if let Some(addr) = self.remote_addr {
+            addr.to_string()
+        } else {
+            String::from("unknown")
+        };
+
         match self.session_type {
             SessionType::Client => SubscriberInfo {
                 id: sub_id,
+                /*rtmp local client subscribe from local rtmp session
+                and publish(relay) the rtmp steam to remote RTMP server*/
                 sub_type: SubscribeType::PublisherRtmp,
+                notify_info: NotifyInfo {
+                    request_url: self.request_url.clone(),
+                    remote_addr,
+                },
             },
             SessionType::Server => SubscriberInfo {
                 id: sub_id,
+                /* rtmp player from remote clent */
                 sub_type: SubscribeType::PlayerRtmp,
+                notify_info: NotifyInfo {
+                    request_url: self.request_url.clone(),
+                    remote_addr,
+                },
             },
         }
     }
 
-    /*Begin to send data to common player or relay pull client*/
+    fn get_publisher_info(&mut self, sub_id: Uuid) -> PublisherInfo {
+        let remote_addr = if let Some(addr) = self.remote_addr {
+            addr.to_string()
+        } else {
+            String::from("unknown")
+        };
+
+        match self.session_type {
+            SessionType::Client => PublisherInfo {
+                id: sub_id,
+                sub_type: PublishType::SubscriberRtmp,
+                notify_info: NotifyInfo {
+                    request_url: self.request_url.clone(),
+                    remote_addr,
+                },
+            },
+            SessionType::Server => PublisherInfo {
+                id: sub_id,
+                sub_type: PublishType::PushRtmp,
+                notify_info: NotifyInfo {
+                    request_url: self.request_url.clone(),
+                    remote_addr,
+                },
+            },
+        }
+    }
+
+    /*Subscribe from local channels and then send data to retmote common player or local RTMP relay push client*/
     pub async fn subscribe_from_channels(
         &mut self,
         app_name: String,
@@ -293,18 +392,19 @@ impl Common {
         Ok(())
     }
 
-    /*Begin to receive stream data from RTMP push client or RTMP relay push client*/
-    //receive stream data from remote client and produce
+    /*Begin to receive stream data from remote RTMP push client or local RTMP relay pull client*/
     pub async fn publish_to_channels(
         &mut self,
         app_name: String,
         stream_name: String,
+        pub_id: Uuid,
     ) -> Result<(), SessionError> {
         let (sender, receiver) = oneshot::channel();
         let publish_event = ChannelEvent::Publish {
             app_name,
             stream_name,
             responder: sender,
+            info: self.get_publisher_info(pub_id),
         };
 
         let rv = self.event_producer.send(publish_event);
@@ -329,6 +429,7 @@ impl Common {
         &mut self,
         app_name: String,
         stream_name: String,
+        pub_id: Uuid,
     ) -> Result<(), SessionError> {
         log::info!(
             "unpublish_to_channels, app_name:{}, stream_name:{}",
@@ -338,6 +439,7 @@ impl Common {
         let unpublish_event = ChannelEvent::UnPublish {
             app_name: app_name.clone(),
             stream_name: stream_name.clone(),
+            info: self.get_publisher_info(pub_id),
         };
 
         let rv = self.event_producer.send(unpublish_event);

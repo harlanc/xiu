@@ -38,8 +38,8 @@ stand-alone server or cluster(RTMP relay).
 - [x] Support configuring the service using command line or a configuration file.
 - [x] Support HTTP API/Notifications.
   - [x] Support querying stream information.
-  - [ ] Support notify stream status.
-- [ ] Support token authentications.
+  - [x] Support notify stream status.
+- [x] Support token authentications.
 - [ ] Support RTSP.
 
 ## Preparation

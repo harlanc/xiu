@@ -7,7 +7,7 @@ use {
         ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer,
     },
     rtmp::session::{
-        common::SubscriberInfo,
+        common::{NotifyInfo, SubscriberInfo},
         define::SubscribeType,
         errors::{SessionError, SessionErrorValue},
     },
@@ -104,10 +104,14 @@ impl FlvDataReceiver {
 
         loop {
             let (sender, receiver) = oneshot::channel();
-
+            /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
             let sub_info = SubscriberInfo {
                 id: self.subscriber_id,
-                sub_type: SubscribeType::PlayerHls,
+                sub_type: SubscribeType::GenerateHls,
+                notify_info: NotifyInfo {
+                    request_url: String::from(""),
+                    remote_addr: String::from(""),
+                },
             };
 
             let subscribe_event = ChannelEvent::Subscribe {
@@ -155,6 +159,10 @@ impl FlvDataReceiver {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
             sub_type: SubscribeType::PlayerHls,
+            notify_info: NotifyInfo {
+                request_url: String::from(""),
+                remote_addr: String::from(""),
+            },
         };
 
         let subscribe_event = ChannelEvent::UnSubscribe {

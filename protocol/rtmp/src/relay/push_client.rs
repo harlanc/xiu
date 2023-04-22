@@ -48,6 +48,7 @@ impl PushClient {
                     let mut client_session = ClientSession::new(
                         stream,
                         ClientType::Publish,
+                        self.address.clone(),
                         app_name.clone(),
                         stream_name.clone(),
                         self.channel_event_producer.clone(),

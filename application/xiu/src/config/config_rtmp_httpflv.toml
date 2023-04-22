@@ -13,6 +13,14 @@ port = 1935
 enabled = true
 port = 8081
 
+[httpnotify]
+enabled = false
+on_publish = "http://localhost:3001/on_publish"
+on_unpublish = "http://localhost:3001/on_unpublish"
+on_play = "http://localhost:3001/on_play"
+on_stop = "http://localhost:3001/on_stop"
+
+
 #######################################
 #   LOG configurations                #
 #######################################

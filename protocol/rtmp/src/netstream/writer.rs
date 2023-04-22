@@ -6,7 +6,8 @@ use {
         messages::define as messages_define,
     },
     bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
-    std::{collections::HashMap, sync::Arc},
+    indexmap::IndexMap,
+    std::sync::Arc,
     tokio::sync::Mutex,
 };
 
@@ -203,7 +204,7 @@ impl NetStreamWriter {
         self.amf0_writer.write_number(transaction_id)?;
         self.amf0_writer.write_null()?;
 
-        let mut properties_map = HashMap::new();
+        let mut properties_map = IndexMap::new();
 
         properties_map.insert(
             String::from("level"),

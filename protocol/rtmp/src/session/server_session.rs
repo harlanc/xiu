@@ -15,14 +15,16 @@ use {
         config, handshake,
         handshake::{define::ServerHandshakeState, handshake_server::HandshakeServer},
         messages::{define::RtmpMessageData, parser::MessageParser},
-        netconnection::writer::NetConnection,
+        netconnection::writer::{ConnectProperties, NetConnection},
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
+        utils::RtmpUrlParser,
     },
     bytes::BytesMut,
     bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
-    std::{collections::HashMap, sync::Arc, time::Duration},
+    indexmap::IndexMap,
+    std::{sync::Arc, time::Duration},
     tokio::{net::TcpStream, sync::Mutex},
     uuid::Uuid,
 };
@@ -40,6 +42,7 @@ enum ServerSessionState {
 pub struct ServerSession {
     pub app_name: String,
     pub stream_name: String,
+    pub url_parameters: String,
     io: Arc<Mutex<BytesIO>>,
     handshaker: HandshakeServer,
     unpacketizer: ChunkUnpacketizer,
@@ -50,26 +53,39 @@ pub struct ServerSession {
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
     is called. */
-    pub subscriber_id: Uuid,
-    connect_command_object: Option<HashMap<String, Amf0ValueType>>,
+    pub session_id: Uuid,
+    connect_properties: ConnectProperties,
 }
 
 impl ServerSession {
     pub fn new(stream: TcpStream, event_producer: ChannelEventProducer) -> Self {
+        let remote_addr = if let Ok(addr) = stream.peer_addr() {
+            log::info!("server session: {}", addr.to_string());
+            Some(addr)
+        } else {
+            None
+        };
+
         let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
         let subscriber_id = Uuid::new_v4();
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
+            url_parameters: String::from(""),
             io: Arc::clone(&net_io),
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
             state: ServerSessionState::Handshake,
-            common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Server),
-            subscriber_id,
+            common: Common::new(
+                Arc::clone(&net_io),
+                event_producer,
+                SessionType::Server,
+                remote_addr,
+            ),
+            session_id: subscriber_id,
             bytesio_data: BytesMut::new(),
             has_remaing_data: false,
-            connect_command_object: None,
+            connect_properties: ConnectProperties::default(),
         }
     }
 
@@ -134,7 +150,11 @@ impl ServerSession {
                 }
                 Err(err) => {
                     self.common
-                        .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .unpublish_to_channels(
+                            self.app_name.clone(),
+                            self.stream_name.clone(),
+                            self.session_id,
+                        )
                         .await?;
 
                     return Err(SessionError {
@@ -172,13 +192,12 @@ impl ServerSession {
     async fn play(&mut self) -> Result<(), SessionError> {
         match self.common.send_channel_data().await {
             Ok(_) => {}
-
             Err(err) => {
                 self.common
                     .unsubscribe_from_channels(
                         self.app_name.clone(),
                         self.stream_name.clone(),
-                        self.subscriber_id,
+                        self.session_id,
                     )
                     .await?;
                 return Err(err);
@@ -255,7 +274,7 @@ impl ServerSession {
             _ => &0.0,
         };
 
-        let empty_cmd_obj: HashMap<String, Amf0ValueType> = HashMap::new();
+        let empty_cmd_obj: IndexMap<String, Amf0ValueType> = IndexMap::new();
         let obj = match command_object {
             Amf0ValueType::Object(obj) => obj,
             _ => &empty_cmd_obj,
@@ -317,12 +336,73 @@ impl ServerSession {
         Ok(())
     }
 
+    fn parse_connect_properties(&mut self, command_obj: &IndexMap<String, Amf0ValueType>) {
+        for (property, value) in command_obj {
+            match property.as_str() {
+                "app" => {
+                    if let Amf0ValueType::UTF8String(app) = value {
+                        self.connect_properties.app = Some(app.clone());
+                    }
+                }
+                "flashVer" => {
+                    if let Amf0ValueType::UTF8String(flash_ver) = value {
+                        self.connect_properties.flash_ver = Some(flash_ver.clone());
+                    }
+                }
+                "swfUrl" => {
+                    if let Amf0ValueType::UTF8String(swf_url) = value {
+                        self.connect_properties.swf_url = Some(swf_url.clone());
+                    }
+                }
+                "tcUrl" => {
+                    if let Amf0ValueType::UTF8String(tc_url) = value {
+                        self.connect_properties.tc_url = Some(tc_url.clone());
+                    }
+                }
+                "fpad" => {
+                    if let Amf0ValueType::Boolean(fpad) = value {
+                        self.connect_properties.fpad = Some(*fpad);
+                    }
+                }
+                "audioCodecs" => {
+                    if let Amf0ValueType::Number(audio_codecs) = value {
+                        self.connect_properties.audio_codecs = Some(*audio_codecs);
+                    }
+                }
+                "videoCodecs" => {
+                    if let Amf0ValueType::Number(video_codecs) = value {
+                        self.connect_properties.video_codecs = Some(*video_codecs);
+                    }
+                }
+                "videoFunction" => {
+                    if let Amf0ValueType::Number(video_function) = value {
+                        self.connect_properties.video_function = Some(*video_function);
+                    }
+                }
+                "pageUrl" => {
+                    if let Amf0ValueType::UTF8String(page_url) = value {
+                        self.connect_properties.page_url = Some(page_url.clone());
+                    }
+                }
+                "objectEncoding" => {
+                    if let Amf0ValueType::Number(object_encoding) = value {
+                        self.connect_properties.object_encoding = Some(*object_encoding);
+                    }
+                }
+                _ => {
+                    log::warn!("unknown connect properties: {}:{:?}", property, value);
+                }
+            }
+        }
+    }
+
     async fn on_connect(
         &mut self,
         transaction_id: &f64,
-        command_obj: &HashMap<String, Amf0ValueType>,
+        command_obj: &IndexMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
-        self.connect_command_object = Some(command_obj.clone());
+        self.parse_connect_properties(command_obj);
+        log::info!("connect properties: {:?}", self.connect_properties);
         let mut control_message =
             ProtocolControlMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         log::info!("[ S->C ] [set window_acknowledgement_size]");
@@ -391,7 +471,11 @@ impl ServerSession {
         stream_id: &f64,
     ) -> Result<(), SessionError> {
         self.common
-            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .unpublish_to_channels(
+                self.app_name.clone(),
+                self.stream_name.clone(),
+                self.session_id,
+            )
             .await?;
 
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
@@ -413,6 +497,14 @@ impl ServerSession {
         log::trace!("{}", stream_id);
 
         Ok(())
+    }
+
+    fn get_request_url(&mut self, raw_stream_name: String) -> String {
+        if let Some(tc_url) = &self.connect_properties.tc_url {
+            format!("{tc_url}/{raw_stream_name}")
+        } else {
+            format!("{}/{}", self.app_name.clone(), raw_stream_name)
+        }
     }
 
     #[allow(clippy::never_loop)]
@@ -516,17 +608,27 @@ impl ServerSession {
             .await?;
 
         event_messages.write_stream_is_record(*stream_id).await?;
+
+        let raw_stream_name = stream_name.unwrap();
+
+        (self.stream_name, self.url_parameters) = RtmpUrlParser::default()
+            .set_raw_stream_name(raw_stream_name.clone())
+            .parse_raw_stream_name();
+
         log::info!(
-            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}",
+            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}, url parameters: {}",
             self.app_name,
-            self.stream_name
+            self.stream_name,
+            self.url_parameters
         );
-        self.stream_name = stream_name.clone().unwrap();
+
+        /*Now it can update the request url*/
+        self.common.request_url = self.get_request_url(raw_stream_name);
         self.common
             .subscribe_from_channels(
                 self.app_name.clone(),
-                stream_name.unwrap(),
-                self.subscriber_id,
+                self.stream_name.clone(),
+                self.session_id,
             )
             .await?;
 
@@ -549,7 +651,7 @@ impl ServerSession {
             });
         }
 
-        let stream_name = match other_values.remove(0) {
+        let raw_stream_name = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
                 return Err(SessionError {
@@ -558,7 +660,12 @@ impl ServerSession {
             }
         };
 
-        self.stream_name = stream_name;
+        (self.stream_name, self.url_parameters) = RtmpUrlParser::default()
+            .set_raw_stream_name(raw_stream_name.clone())
+            .parse_raw_stream_name();
+
+        /*Now it can update the request url*/
+        self.common.request_url = self.get_request_url(raw_stream_name);
 
         let _ = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
@@ -570,15 +677,17 @@ impl ServerSession {
         };
 
         log::info!(
-            "[ S<-C ] [publish]  app_name: {}, stream_name: {}",
+            "[ S<-C ] [publish]  app_name: {}, stream_name: {}, url parameters: {}",
             self.app_name,
-            self.stream_name
+            self.stream_name,
+            self.url_parameters
         );
 
         log::info!(
-            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}",
+            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}, url parameters: {}",
             self.app_name,
-            self.stream_name
+            self.stream_name,
+            self.url_parameters
         );
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
@@ -595,7 +704,11 @@ impl ServerSession {
         );
 
         self.common
-            .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .publish_to_channels(
+                self.app_name.clone(),
+                self.stream_name.clone(),
+                self.session_id,
+            )
             .await?;
 
         Ok(())

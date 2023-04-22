@@ -121,11 +121,19 @@ impl MessageParser {
             msg_type_id::AGGREGATE => {}
 
             _ => {
+                log::error!(
+                    "the msg_type_id is not supported: {}",
+                    self.chunk_info.message_header.msg_type_id
+                );
                 return Err(MessageError {
                     value: MessageErrorValue::UnknowMessageType,
                 });
             }
         }
+        log::error!(
+            "the msg_type_id is not processed: {}",
+            self.chunk_info.message_header.msg_type_id
+        );
         Err(MessageError {
             value: MessageErrorValue::UnknowMessageType,
         })

@@ -3,7 +3,7 @@ use {
     byteorder::BigEndian,
     bytes::BytesMut,
     bytesio::bytes_writer::BytesWriter,
-    std::collections::HashMap,
+    indexmap::IndexMap,
 };
 
 pub struct Amf0Writer {
@@ -71,7 +71,7 @@ impl Amf0Writer {
 
     pub fn write_object(
         &mut self,
-        properties: &HashMap<String, Amf0ValueType>,
+        properties: &IndexMap<String, Amf0ValueType>,
     ) -> Result<(), Amf0WriteError> {
         self.writer.write_u8(amf0_markers::OBJECT)?;
 

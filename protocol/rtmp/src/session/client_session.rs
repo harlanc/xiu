@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use {
     super::{
         common::Common,
@@ -15,16 +13,20 @@ use {
             define::CHUNK_SIZE,
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
         },
+        handshake,
         handshake::{define::ClientHandshakeState, handshake_client::SimpleHandshakeClient},
         messages::{define::RtmpMessageData, parser::MessageParser},
         netconnection::writer::{ConnectProperties, NetConnection},
         netstream::writer::NetStreamWriter,
         protocol_control_messages::writer::ProtocolControlMessagesWriter,
         user_control_messages::writer::EventMessagesWriter,
+        utils::RtmpUrlParser,
     },
     bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
-    std::{collections::HashMap, sync::Arc},
+    indexmap::IndexMap,
+    std::sync::Arc,
     tokio::{net::TcpStream, sync::Mutex},
+    uuid::Uuid,
 };
 
 #[allow(dead_code)]
@@ -63,38 +65,66 @@ pub struct ClientSession {
     common: Common,
     handshaker: SimpleHandshakeClient,
     unpacketizer: ChunkUnpacketizer,
+    //domain name with port
+    raw_domain_name: String,
     app_name: String,
+    //stream name with parameters
+    raw_stream_name: String,
     stream_name: String,
     /* Used to mark the subscriber's the data producer
     in channels and delete it from map when unsubscribe
     is called. */
-    subscriber_id: Uuid,
+    session_id: Uuid,
     state: ClientSessionState,
     client_type: ClientType,
+    sub_app_name: Option<String>,
+    sub_stream_name: Option<String>,
 }
 
 impl ClientSession {
-    #[allow(dead_code)]
     pub fn new(
         stream: TcpStream,
         client_type: ClientType,
+        raw_domain_name: String,
         app_name: String,
-        stream_name: String,
+        raw_stream_name: String,
         event_producer: ChannelEventProducer,
     ) -> Self {
+        let remote_addr = if let Ok(addr) = stream.peer_addr() {
+            log::info!("server session: {}", addr.to_string());
+            Some(addr)
+        } else {
+            None
+        };
+
         let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
         let subscriber_id = Uuid::new_v4();
 
+        let common = Common::new(
+            Arc::clone(&net_io),
+            event_producer,
+            SessionType::Client,
+            remote_addr,
+        );
+
+        let (stream_name, _) = RtmpUrlParser::default()
+            .set_raw_stream_name(raw_stream_name.clone())
+            .parse_raw_stream_name();
+
         Self {
             io: Arc::clone(&net_io),
-            common: Common::new(Arc::clone(&net_io), event_producer, SessionType::Client),
+            common,
             handshaker: SimpleHandshakeClient::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
+            raw_domain_name,
             app_name,
+            raw_stream_name,
             stream_name,
-            client_type,
+            session_id: subscriber_id,
             state: ClientSessionState::Handshake,
-            subscriber_id,
+            client_type,
+            sub_app_name: None,
+            sub_stream_name: None,
         }
     }
 
@@ -120,13 +150,13 @@ impl ClientSession {
                 }
                 ClientSessionState::Play => {
                     log::info!("[C -> S] Play...");
-                    self.send_play(&0.0, &self.stream_name.clone(), &0.0, &0.0, &false)
+                    self.send_play(&0.0, &self.raw_stream_name.clone(), &0.0, &0.0, &false)
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
                 ClientSessionState::PublishingContent => {
                     log::info!("[C -> S] PublishingContent...");
-                    self.send_publish(&0.0, &self.stream_name.clone(), &"live".to_string())
+                    self.send_publish(&3.0, &self.raw_stream_name.clone(), &"live".to_string())
                         .await?;
                     self.state = ClientSessionState::WaitStateChange;
                 }
@@ -141,19 +171,20 @@ impl ClientSession {
             self.unpacketizer.extend_data(&data[..]);
 
             loop {
-                let result = self.unpacketizer.read_chunks();
-
-                if let Ok(rv) = result {
-                    if let UnpackResult::Chunks(chunks) = rv {
-                        for chunk_info in chunks.iter() {
-                            let mut msg = MessageParser::new(chunk_info.clone()).parse()?;
-
-                            let timestamp = chunk_info.message_header.timestamp;
-                            self.process_messages(&mut msg, &timestamp).await?;
+                match self.unpacketizer.read_chunks() {
+                    Ok(rv) => {
+                        if let UnpackResult::Chunks(chunks) = rv {
+                            for chunk_info in chunks.iter() {
+                                let mut msg = MessageParser::new(chunk_info.clone()).parse()?;
+                                let timestamp = chunk_info.message_header.timestamp;
+                                self.process_messages(&mut msg, &timestamp).await?;
+                            }
                         }
                     }
-                } else {
-                    break;
+                    Err(err) => {
+                        log::trace!("read trunks error: {}", err);
+                        break;
+                    }
                 }
             }
         }
@@ -167,8 +198,12 @@ impl ClientSession {
                 break;
             }
 
-            let data = self.io.lock().await.read().await?;
-            self.handshaker.extend_data(&data[..]);
+            let mut bytes_len = 0;
+            while bytes_len < handshake::define::RTMP_HANDSHAKE_SIZE * 2 {
+                let data = self.io.lock().await.read().await?;
+                bytes_len += data.len();
+                self.handshaker.extend_data(&data[..]);
+            }
         }
 
         self.state = ClientSessionState::Connect;
@@ -213,6 +248,9 @@ impl ClientSession {
             }
             RtmpMessageData::AudioData { data } => self.common.on_audio_data(data, timestamp)?,
             RtmpMessageData::VideoData { data } => self.common.on_video_data(data, timestamp)?,
+            RtmpMessageData::AmfData { raw_data } => {
+                self.common.on_meta_data(raw_data, timestamp)?;
+            }
 
             _ => {}
         }
@@ -226,6 +264,7 @@ impl ClientSession {
         command_object: &Amf0ValueType,
         others: &mut Vec<Amf0ValueType>,
     ) -> Result<(), SessionError> {
+        log::info!("[C <- S] on_amf0_command_message...");
         let empty_cmd_name = &String::new();
         let cmd_name = match command_name {
             Amf0ValueType::UTF8String(str) => str,
@@ -237,7 +276,7 @@ impl ClientSession {
             _ => 0,
         };
 
-        let empty_cmd_obj: HashMap<String, Amf0ValueType> = HashMap::new();
+        let empty_cmd_obj: IndexMap<String, Amf0ValueType> = IndexMap::new();
         let _ = match command_object {
             Amf0ValueType::Object(obj) => obj,
             // Amf0ValueType::Null =>
@@ -282,21 +321,28 @@ impl ClientSession {
         let mut netconnection = NetConnection::new(Arc::clone(&self.io));
         let mut properties = ConnectProperties::new_none();
 
-        let url = format!("rtmp://localhost:1935/{app_name}", app_name = self.app_name);
+        let url = format!(
+            "rtmp://{domain_name}/{app_name}",
+            domain_name = self.raw_domain_name,
+            app_name = self.app_name
+        );
         properties.app = Some(self.app_name.clone());
-        properties.tc_url = Some(url.clone());
 
         match self.client_type {
             ClientType::Play => {
-                properties.flash_ver = Some("flashVerFMLE/3.0 (compatible; FMSc/1.0)".to_string());
-                properties.swf_url = Some(url.clone());
-            }
-            ClientType::Publish => {
+                properties.flash_ver = Some("LNX 9,0,124,2".to_string());
+                properties.tc_url = Some(url.clone());
                 properties.fpad = Some(false);
                 properties.capabilities = Some(15_f64);
-                properties.audio_codecs = Some(3191_f64);
+                properties.audio_codecs = Some(4071_f64);
                 properties.video_codecs = Some(252_f64);
                 properties.video_function = Some(1_f64);
+            }
+            ClientType::Publish => {
+                properties.pub_type = Some("nonprivate".to_string());
+                properties.flash_ver = Some("FMLE/3.0 (compatible; xiu)".to_string());
+                properties.fpad = Some(false);
+                properties.tc_url = Some(url.clone());
             }
         }
 
@@ -353,6 +399,13 @@ impl ClientSession {
         netstream
             .write_play(transaction_id, stream_name, start, duration, reset)
             .await?;
+
+        let mut netconnection = NetConnection::new(Arc::clone(&self.io));
+        netconnection
+            .write_get_stream_length(transaction_id, stream_name)
+            .await?;
+
+        //self.send_set_buffer_length(1, 1300).await?;
 
         Ok(())
     }
@@ -434,7 +487,8 @@ impl ClientSession {
     }
 
     pub async fn on_set_peer_bandwidth(&mut self) -> Result<(), SessionError> {
-        self.send_window_acknowledgement_size(250000).await?;
+        self.send_window_acknowledgement_size(5000000).await?;
+
         Ok(())
     }
 
@@ -444,25 +498,42 @@ impl ClientSession {
 
     pub async fn on_status(
         &mut self,
-        obj: &HashMap<String, Amf0ValueType>,
+        obj: &IndexMap<String, Amf0ValueType>,
     ) -> Result<(), SessionError> {
         if let Some(Amf0ValueType::UTF8String(code_info)) = obj.get("code") {
             match &code_info[..] {
                 "NetStream.Publish.Start" => {
                     self.state = ClientSessionState::StartPublish;
-                    self.common
-                        .subscribe_from_channels(
-                            self.app_name.clone(),
-                            self.stream_name.clone(),
-                            self.subscriber_id,
-                        )
-                        .await?;
+                    //subscribe from local session and publish to remote rtmp server
+                    if let (Some(app_name), Some(stream_name)) =
+                        (&self.sub_app_name, &self.sub_stream_name)
+                    {
+                        self.common
+                            .subscribe_from_channels(
+                                app_name.clone(),
+                                stream_name.clone(),
+                                self.session_id,
+                            )
+                            .await?;
+                    } else {
+                        self.common
+                            .subscribe_from_channels(
+                                self.app_name.clone(),
+                                self.stream_name.clone(),
+                                self.session_id,
+                            )
+                            .await?;
+                    }
                 }
                 "NetStream.Publish.Reset" => {}
-
                 "NetStream.Play.Start" => {
+                    //pull from remote rtmp server and publish to local session
                     self.common
-                        .publish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .publish_to_channels(
+                            self.app_name.clone(),
+                            self.stream_name.clone(),
+                            self.session_id,
+                        )
                         .await?
                 }
                 _ => {}
@@ -470,5 +541,10 @@ impl ClientSession {
         }
         log::trace!("{}", obj.len());
         Ok(())
+    }
+
+    pub fn subscribe(&mut self, app_name: String, stream_name: String) {
+        self.sub_app_name = Some(app_name);
+        self.sub_stream_name = Some(stream_name);
     }
 }

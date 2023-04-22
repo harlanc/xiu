@@ -5,6 +5,8 @@ members = [
   "protocol/hls",
   "library/bytesio",
   "application/xiu",
+  "application/http-server",
+  "application/pprtmp",
   "library/container/flv",
   "library/container/mpegts",
   "library/codec/h264",

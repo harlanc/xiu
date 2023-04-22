@@ -31,7 +31,7 @@ impl RtmpServer {
                 server_session::ServerSession::new(tcp_stream, self.event_producer.clone());
             tokio::spawn(async move {
                 if let Err(err) = session.run().await {
-                    log::info!(
+                    log::error!(
                         "session run error: session_type: {}, app_name: {}, stream_name: {}, err: {}",
                         session.common.session_type,
                         session.app_name,

@@ -57,31 +57,38 @@ impl MetaData {
             return false;
         }
 
-        log::info!("metadata: {:?}",values);
+        log::info!("metadata: {:?}", values);
 
-        match values.remove(0) {
-            Amf0ValueType::UTF8String(str) => {
-                if str != "@setDataFrame" {
-                    return false;
-                }
-            }
-            _ => {
-                return false;
+        let mut is_metadata = false;
+
+        if let Amf0ValueType::UTF8String(str) = values.remove(0) {
+            if str == "@setDataFrame" || str == "onMetaData" {
+                is_metadata = true;
             }
         }
 
-        match values.remove(0) {
-            Amf0ValueType::UTF8String(str) => {
-                if str != "onMetaData" {
-                    return false;
-                }
-            }
-            _ => {
-                return false;
-            }
-        }
+        // match values.remove(0) {
+        //     Amf0ValueType::UTF8String(str) => {
+        //         if str == "@setDataFrame" || str == "onMetaData" {
+        //             is_metadata = true;
+        //         }
+        //     }
+        //     _ => {
+        //         //return false;
+        //     }
+        // }
+        // match values.remove(0) {
+        //     Amf0ValueType::UTF8String(str) => {
+        //         if str != "onMetaData" {
+        //             //return false;
+        //         }
+        //     }
+        //     _ => {
+        //         //return false;
+        //     }
+        // }
 
-        true
+        is_metadata
     }
 
     pub fn get_chunk_body(&self) -> BytesMut {
