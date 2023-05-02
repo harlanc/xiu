@@ -1,5 +1,9 @@
 use bytes::BytesMut;
 
+trait FmtpSdp {
+    fn parse(&mut self, raw_data: String);
+}
+
 #[derive(Debug, Clone, Default)]
 struct H264FmtpSdp {
     packetization_mode: u8,
@@ -22,23 +26,30 @@ struct Mpeg4FmtpSdp {
     index_length: u16,
     index_delta_length: u16,
 }
+#[derive(Default)]
+struct UnknownFmtpSdp {}
+
+fn create_fmtp_sdp_parser(n: &str) -> Box<dyn FmtpSdp> {
+    match n {
+        "h264" => Box::new(H264FmtpSdp::default()),
+        "h265" => Box::new(H265FmtpSdp::default()),
+        "mpeg4-generic" => Box::new(Mpeg4FmtpSdp::default()),
+        _ => Box::new(UnknownFmtpSdp::default()),
+    }
+}
 
 // a=fmtp:96 packetization-mode=1; sprop-parameter-sets=Z2QAFqyyAUBf8uAiAAADAAIAAAMAPB4sXJA=,aOvDyyLA; profile-level-id=640016
-impl H264FmtpSdp {
-    pub fn parse(&mut self, raw_data: String) {
-        let first_space_index = if let Some(space_index) = raw_data.find(' ') {
-            space_index
-        } else {
-            log::error!("cannot find space in: {}", raw_data);
+impl FmtpSdp for H264FmtpSdp {
+    fn parse(&mut self, raw_data: String) {
+        let eles: Vec<&str> = raw_data.splitn(2, ' ').collect();
+        if eles.len() < 2 {
+            log::warn!("H264FmtpSdp parse err: {}", raw_data);
             return;
-        };
-
-        let parameters_raw_data = &raw_data[first_space_index + 1..];
-        let parameters: Vec<&str> = parameters_raw_data.split(';').collect();
+        }
+        let parameters: Vec<&str> = eles[1].split(';').collect();
 
         for parameter in parameters {
-            let trim_parameter = parameter.trim();
-            let kv: Vec<&str> = trim_parameter.split('=').collect();
+            let kv: Vec<&str> = parameter.trim().splitn(2, '=').collect();
             if kv.len() < 2 {
                 log::warn!("H264FmtpSdp parse key=value err: {}", parameter);
                 continue;
@@ -50,15 +61,7 @@ impl H264FmtpSdp {
                     }
                 }
                 "sprop-parameter-sets" => {
-                    //sps/pps may contains '=', so here find the first real key-value '=', and get the left sps/pps data.
-                    let first_equal_index = if let Some(equal_index) = trim_parameter.find('=') {
-                        equal_index
-                    } else {
-                        log::error!("cannot find equal in: {}", trim_parameter);
-                        return;
-                    };
-                    let spspps: Vec<&str> =
-                        trim_parameter[first_equal_index + 1..].split(',').collect();
+                    let spspps: Vec<&str> = kv[1].split(',').collect();
                     self.sps = spspps[0].into();
                     self.pps = spspps[1].into();
                 }
@@ -73,43 +76,32 @@ impl H264FmtpSdp {
     }
 }
 
-impl H265FmtpSdp {
+impl FmtpSdp for H265FmtpSdp {
     //"a=fmtp:96 sprop-vps=QAEMAf//AWAAAAMAkAAAAwAAAwA/ugJA; sprop-sps=QgEBAWAAAAMAkAAAAwAAAwA/oAUCAXHy5bpKTC8BAQAAAwABAAADAA8I; sprop-pps=RAHAc8GJ"
-    pub fn parse(&mut self, raw_data: String) {
-        let first_space_index = if let Some(space_index) = raw_data.find(' ') {
-            space_index
-        } else {
-            log::error!("H265FmtpSdp cannot find space in: {}", raw_data);
+    fn parse(&mut self, raw_data: String) {
+        let eles: Vec<&str> = raw_data.splitn(2, ' ').collect();
+        if eles.len() < 2 {
+            log::warn!("H265FmtpSdp parse err: {}", raw_data);
             return;
-        };
-
-        let parameters_raw_data = &raw_data[first_space_index + 1..];
-        let parameters: Vec<&str> = parameters_raw_data.split(';').collect();
+        }
+        let parameters: Vec<&str> = eles[1].split(';').collect();
 
         for parameter in parameters {
-            let trim_parameter = parameter.trim();
-            let kv: Vec<&str> = trim_parameter.split('=').collect();
+            let kv: Vec<&str> = parameter.trim().splitn(2, '=').collect();
             if kv.len() < 2 {
                 log::warn!("H265FmtpSdp parse key=value err: {}", parameter);
                 continue;
             }
 
-            let first_equal_index = if let Some(equal_index) = trim_parameter.find('=') {
-                equal_index
-            } else {
-                log::warn!("should not be here!");
-                continue;
-            };
-
             match kv[0] {
                 "sprop-vps" => {
-                    self.vps = trim_parameter[first_equal_index + 1..].into();
+                    self.vps = kv[1].into();
                 }
                 "sprop-sps" => {
-                    self.sps = trim_parameter[first_equal_index + 1..].into();
+                    self.sps = kv[1].into();
                 }
                 "sprop-pps" => {
-                    self.pps = trim_parameter[first_equal_index + 1..].into();
+                    self.pps = kv[1].into();
                 }
                 _ => {
                     log::info!("not parsed: {}", kv[0])
@@ -119,24 +111,20 @@ impl H265FmtpSdp {
     }
 }
 
-impl Mpeg4FmtpSdp {
+impl FmtpSdp for Mpeg4FmtpSdp {
     //a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=121056e500
-    pub fn parse(&mut self, raw_data: String) {
-        let first_space_index = if let Some(space_index) = raw_data.find(' ') {
-            space_index
-        } else {
-            log::error!("cannot find space in: {}", raw_data);
+    fn parse(&mut self, raw_data: String) {
+        let eles: Vec<&str> = raw_data.splitn(2, ' ').collect();
+        if eles.len() < 2 {
+            log::warn!("Mpeg4FmtpSdp parse err: {}", raw_data);
             return;
-        };
-
-        let parameters_raw_data = &raw_data[first_space_index + 1..];
-        let parameters: Vec<&str> = parameters_raw_data.split(';').collect();
+        }
+        let parameters: Vec<&str> = eles[1].split(';').collect();
 
         for parameter in parameters {
-            let trim_parameter = parameter.trim();
-            let kv: Vec<&str> = trim_parameter.split('=').collect();
+            let kv: Vec<&str> = parameter.trim().splitn(2, '=').collect();
             if kv.len() < 2 {
-                log::warn!("H264FmtpSdp parse key=value err: {}", parameter);
+                log::warn!("Mpeg4FmtpSdp parse key=value err: {}", parameter);
                 continue;
             }
             match kv[0].to_lowercase().as_str() {
@@ -172,9 +160,14 @@ impl Mpeg4FmtpSdp {
     }
 }
 
+impl FmtpSdp for UnknownFmtpSdp {
+    fn parse(&mut self, raw_data: String) {}
+}
+
 #[cfg(test)]
 mod tests {
 
+    use super::FmtpSdp;
     use super::H264FmtpSdp;
     use super::H265FmtpSdp;
     use super::Mpeg4FmtpSdp;
