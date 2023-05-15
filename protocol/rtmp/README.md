@@ -39,23 +39,18 @@ async fn main() -> anyhow::Result<()> {
 ## Cluster
 
 ```rust
-use rtmp::channels::channels::ChannelsManager;
+use rtmp::channels::ChannelsManager;
+use rtmp::relay::{pull_client::PullClient, push_client::PushClient};
 use rtmp::rtmp::RtmpServer;
-use rtmp::relay::{pull_client::PullClient, push_client::PushClient},
 
 #[tokio::main]
 
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
+    let mut channel = ChannelsManager::new(None);
+    let producer = channel.get_channel_event_producer();
 
-    let mut channel = ChannelsManager::new();
-    let producer = channel.get_session_event_producer();
-    
     // push the rtmp stream from local to 192.168.0.2:1935
-    let address = format!(
-        "{ip}:{port}",
-        ip = "192.168.0.2",
-        port = 1935
-    );
+    let address = format!("{ip}:{port}", ip = "192.168.0.2", port = 1935);
 
     let mut push_client = PushClient::new(
         address,
@@ -70,24 +65,20 @@ async fn main() -> Result<()> {
     channel.set_rtmp_push_enabled(true);
 
     //pull the rtmp stream from 192.168.0.3:1935 to local
-    let address = format!(
-                "{ip}:{port}",
-                ip = "192.168.0.3",
-                port = pull_cfg_value.port
-            );
+    let address = format!("{ip}:{port}", ip = "192.168.0.3", port = "1935");
     log::info!("start rtmp pull client from address: {}", address);
     let mut pull_client = PullClient::new(
         address,
         channel.get_client_event_consumer(),
         producer.clone(),
-    
+    );
+
     tokio::spawn(async move {
         if let Err(err) = pull_client.run().await {
             log::error!("pull client error {}\n", err);
         }
     });
     channel.set_rtmp_pull_enabled(true);
-
 
     // the local rtmp server
     let listen_port = 1935;
@@ -102,7 +93,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn(async move { channel.run().await });
 
-    signal::ctrl_c().await?;
+    tokio::signal::ctrl_c().await?;
     Ok(())
 }
 ```
