@@ -11,20 +11,18 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 ## Single Server
 
 ```rust
-use rtmp::channels::channels::ChannelsManager;
+use rtmp::channels::ChannelsManager;
 use rtmp::rtmp::RtmpServer;
 
 #[tokio::main]
-
-async fn main() -> Result<()> {
-
-    let mut channel = ChannelsManager::new();
-    let producer = channel.get_session_event_producer();
+async fn main() -> anyhow::Result<()> {
+    let mut channel = ChannelsManager::new(None);
+    let producer = channel.get_channel_event_producer();
 
     let listen_port = 1935;
     let address = format!("0.0.0.0:{port}", port = listen_port);
 
-    let mut rtmp_server = RtmpServer::new(address, producer.clone());
+    let mut rtmp_server = RtmpServer::new(address, producer);
     tokio::spawn(async move {
         if let Err(err) = rtmp_server.run().await {
             log::error!("rtmp server error: {}\n", err);
@@ -33,7 +31,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn(async move { channel.run().await });
 
-    signal::ctrl_c().await?;
+    tokio::signal::ctrl_c().await?;
     Ok(())
 }
 ```
