@@ -27,13 +27,13 @@ axum = "0.6.10"
 tokio-metrics = { version = "0.2.0", default-features = false }
 uuid = { version = "0.6.5", features = ["v4"] }
 
-rtmp = "0.3.0"   
-httpflv = "0.2.0"
-hls = "0.2.0"    
+# rtmp = "0.3.0"   
+# httpflv = "0.2.0"
+# hls = "0.2.0"    
 env_logger_extend = "0.1.1"
-# rtmp = { path = "../../protocol/rtmp/" }
-# httpflv = { path = "../../protocol/httpflv/" }
-# hls = { path = "../../protocol/hls/" }
+rtmp = { path = "../../protocol/rtmp/" }
+httpflv = { path = "../../protocol/httpflv/" }
+hls = { path = "../../protocol/hls/" }
 # env_logger_extend = { path = "../../library/logger/" }
 
 

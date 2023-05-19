@@ -19,11 +19,11 @@ uuid = { version = "0.6.5", features = ["v4"] }
 hyper = { version = "0.14", features = ["full"] }
 tokio-util = { version = "0.6.5", features = ["codec"] }
 xflv = "0.2.0"
-rtmp = "0.3.0"
+#rtmp = "0.3.0"
 xmpegts = "0.1.1"
 
 # xflv = { path = "../../library/container/flv/" }
-# rtmp = { path = "../rtmp/" }
+ rtmp = { path = "../rtmp/" }
 # xmpegts = { path = "../../library/container/mpegts/" }
 
 [dependencies.tokio]

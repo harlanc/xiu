@@ -446,6 +446,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_logger_extend"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49a04972dcdb9059f64c2be2b4445188c3d3713dabc7bb65cf10c933251dbc5d"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "env_logger",
+ "failure",
+ "job_scheduler",
+ "log",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -730,7 +744,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hls"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
@@ -741,8 +755,8 @@ dependencies = [
  "tokio",
  "tokio-util 0.6.10",
  "uuid 0.6.5",
- "xflv 0.2.0",
- "xmpegts",
+ "xflv 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xmpegts 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -821,7 +835,7 @@ dependencies = [
  "rtmp",
  "tokio",
  "uuid 0.6.5",
- "xflv 0.2.0",
+ "xflv 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2249,12 +2263,12 @@ dependencies = [
 
 [[package]]
 name = "xiu"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "axum",
  "clap",
- "env_logger_extend",
+ "env_logger_extend 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure",
  "hls",
  "httpflv",
@@ -2273,6 +2287,18 @@ dependencies = [
 [[package]]
 name = "xmpegts"
 version = "0.1.1"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "bytesio 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure",
+]
+
+[[package]]
+name = "xmpegts"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51456e116a38c34a4fd2c7ed2b6cf1ab23295130a5f379f62761da2233e91e05"
 dependencies = [
  "byteorder",
  "bytes",
