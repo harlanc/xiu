@@ -405,7 +405,7 @@ impl ClientSession {
             .write_get_stream_length(transaction_id, stream_name)
             .await?;
 
-        //self.send_set_buffer_length(1, 1300).await?;
+        self.send_set_buffer_length(1, 1300).await?;
 
         Ok(())
     }

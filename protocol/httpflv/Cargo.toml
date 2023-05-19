@@ -20,9 +20,9 @@ hyper = { version = "0.14", features = ["full"] }
 futures = "0.3"
 
 xflv = "0.2.0"
-rtmp = "0.3.0"
+#rtmp = "0.3.0"
 # xflv = { path = "../../library/container/flv/" }
-# rtmp = { path = "../rtmp/" } #"0.0.4"
+rtmp = { path = "../rtmp/" } #"0.0.4"
 
 [dependencies.tokio]
 version = "1.4.0"
