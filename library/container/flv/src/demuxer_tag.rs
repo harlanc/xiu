@@ -132,7 +132,7 @@ pub struct VideoTagHeader {
         2: AVC end of sequence (lower level NALU sequence ender is not required or supported)
     */
     pub avc_packet_type: u8,
-    pub composition_time: u32,
+    pub composition_time: i32,
 }
 
 impl VideoTagHeader {
@@ -177,6 +177,12 @@ impl VideoTagHeaderDemuxer {
                 //print!("==time0=={}\n", time);
                 //print!("==time1=={}\n", self.tag.composition_time);
                 self.tag.composition_time = (self.tag.composition_time << 8) + time as u32;
+            }
+            //transfer to signed i24
+            if self.tag.composition_time & (1 << 23) != 0 {
+                let sign_extend_mask = 0xff_ff << 23;
+                // Sign extend the value
+                self.tag.composition_time = (self.tag.composition_time | sign_extend_mask) as i32
             }
         }
 
