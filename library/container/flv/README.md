@@ -6,3 +6,6 @@ A flv library.
 
 ## v0.2.0
 - Read audio and video codec information.
+
+## v0.2.1
+- Fix rtmp cts parse error.

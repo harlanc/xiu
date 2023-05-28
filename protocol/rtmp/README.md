@@ -139,6 +139,11 @@ async fn main() -> anyhow::Result<()> {
 - Support notify stream status.
 - Add HTTP API to kickoff clients.
 - Fix some client session bugs.
+## v0.3.1
+- Fix error that cannot receive rtmp stream pushed from GStreamer.
+- Reference xflv new version v0.2.1.
+- Fix RTMP examples in README.
+
 
 
 
