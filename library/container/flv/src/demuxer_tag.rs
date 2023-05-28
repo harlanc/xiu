@@ -176,7 +176,7 @@ impl VideoTagHeaderDemuxer {
                 let time = self.bytes_reader.read_u8()?;
                 //print!("==time0=={}\n", time);
                 //print!("==time1=={}\n", self.tag.composition_time);
-                self.tag.composition_time = (self.tag.composition_time << 8) + time as u32;
+                self.tag.composition_time = (self.tag.composition_time << 8) + time as i32;
             }
             //transfer to signed i24
             if self.tag.composition_time & (1 << 23) != 0 {
