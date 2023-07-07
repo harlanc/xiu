@@ -4,6 +4,7 @@
 # For more help, visit the .dockerignore file reference guide at
 # https://docs.docker.com/engine/reference/builder/#dockerignore-file
 
+# Autodefine
 **/.DS_Store
 **/.classpath
 **/.dockerignore

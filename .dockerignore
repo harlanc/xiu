@@ -1,0 +1,4 @@
+# This file has no special nedds with in-container build.
+!Dockerfile
+!compose.yaml
+*
