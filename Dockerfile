@@ -36,9 +36,8 @@ RUN adduser \
     appuser
 
 # Copying app
-COPY --from=builder "/build/app/xiu" "/app/xiu"
-COPY --from=builder "/build/app/config/config_rtmp.toml" \
-                    "/app/config/config_rtmp.toml"
+COPY --from=builder "/build/app" "/app"
 
 # Launch
-CMD ["xiu", "-c", "/app/config/config_rtmp.toml"]
+ENTRYPOINT [ "xiu" ]
+CMD ["-c", "/app/config/config_rtmp.toml"]
