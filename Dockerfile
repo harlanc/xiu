@@ -4,45 +4,68 @@
 # Test image
 
 # Creating build image
-FROM alpine:latest AS builder
-WORKDIR /build
+ARG BUILDER_TAG="latest"
+FROM alpine:${BUILDER_TAG} AS builder
+
+# Define some handy args
+ARG DEPS="libgcc libssl3 openssl-dev"
+ARG TOOLCHAIN="pkgconf git rust cargo"
+ARG CWD="/build"
+ARG SOURCE_URL="https://github.com/harlanc/xiu.git"
+ARG MANIFEST="xiu/application/xiu/Cargo.toml"
+ARG COMPILED_APP="xiu/target/release/xiu"
+ARG DEFAULT_CONFIG="xiu/application/xiu/src/config/config_rtmp.toml"
+
+# Set workdir
+WORKDIR ${CWD}
 
 # Getting git, rust and cargo
-RUN apk update && apk add libgcc libssl3 openssl-dev pkgconf git rust cargo
+RUN apk update && apk add ${DEPS} ${TOOLCHAIN}
 
 # Copying source and building
-RUN git clone https://github.com/harlanc/xiu.git --branch "master";
-RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" --release;
+RUN git clone ${SOURCE_URL} --branch "master";
+RUN cargo build --manifest-path ${MANIFEST} --release;
 RUN mkdir "app" "app/config" \
-    && mv "xiu/target/release/xiu" "app" \
-    && cp "xiu/application/xiu/src/config/config_rtmp.toml" "app/config";
+    && mv ${COMPILED_APP} "app" \
+    && cp ${DEFAULT_CONFIG} "app/config";
 
 # Creating refined image
 FROM alpine:latest
-WORKDIR /app
-ENV PATH="${PATH}:/app"
+
+# Runtime args
+ARG DEPS="libgcc"
+ARG UID=10001
+ARG USERNAME="appuser"
+ARG CWD="/app"
+ARG DEFAULT_CONFIG="config/config_rtmp.toml"
+ARG RTMP="1935"
+ARG RTMP_PUSH="1936"
+ARG HLS="8080"
+ARG HTTPFLV="8081"
+
+# Set workdir
+WORKDIR ${CWD}
 
 # Adding non-priv user
-ARG UID=10001
-RUN apk add libgcc \
+RUN apk add ${DEPS} \
     && adduser \
     --disabled-password \
     --gecos "" \
     --home "/nonexistent" \
     --shell "/sbin/nologin" \
     --no-create-home \
-    --uid "${UID}" \
-    appuser;
+    --uid ${UID} \
+    ${USERNAME};
 
 # Copying app
 COPY --from=builder "/build/app" "/app"
 
 # Exposing all interesting ports
-EXPOSE 1935
-EXPOSE 1936
-EXPOSE 8080
-EXPOSE 8081
+EXPOSE ${RTMP}
+EXPOSE ${RTMP_PUSH}
+EXPOSE ${HLS}
+EXPOSE ${HTTPFLV}
 
 # Launch
 ENTRYPOINT [ "xiu" ]
-CMD ["-c", "config/config_rtmp.toml"]
+CMD ["-c", ${CONFIG}]

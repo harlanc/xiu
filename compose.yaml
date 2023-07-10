@@ -4,10 +4,12 @@ name: "xiu-rndfrk"
 # XIU test cluster
 services:
   xiu1:
-    image: "normkd/1688557675-0f6cc0425e5dfba9fd0951bba6251d62:1.0.0"
-    # environment:
-    #   - name=COMPOSE_PROJECT_NAME
-    hostname: "restreamer01"
+    # image: "normkd/1688557675-0f6cc0425e5dfba9fd0951bba6251d62:1.0.0"
+    build: .
+    environment:
+      - name=COMPOSE_PROJECT_NAME
+    # hostname: "restreamer.local"
+    # network_mode: host
     networks:
       - intranet
     ports:
@@ -27,7 +29,7 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 192.168.0.0/24
-  nonet:
-    name: none
-    external: true
+        - subnet: 172.16.10.0/24
+  # nonet:
+  #   name: none
+  #   external: true
