@@ -278,3 +278,9 @@ Open issues if you have any problems. Star and pull requests are welcomed. Your 
 - Add a http-server for testing http notify.
 - Add a pull rtmp and push rtmp example: pprtmp.
 - Fix some RTMP library bugs.
+
+## v0.6.1
+- Fix error that cannot receive rtmp stream pushed from GStreamer.
+- Fix rtmp cts parse error.
+- Fix RTMP examples in README.
+

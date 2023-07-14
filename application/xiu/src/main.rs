@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
 
     let mut cmd = Command::new("XIU")
         .bin_name("xiu")
-        .version("0.4.0")
+        .version("0.6.1")
         .author("HarlanC <harlanc@foxmail.com>")
         .about("A secure and easy to use live media server, hope you love it!!!")
         .arg(

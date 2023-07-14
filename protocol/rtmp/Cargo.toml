@@ -1,7 +1,7 @@
 [package]
 name = "rtmp"
 description = "rtmp library."
-version = "0.3.0"
+version = "0.3.1"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -30,11 +30,12 @@ serde_json = { version = "1", default-features = false, features = [
 ] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 
-# bytesio = "0.2.0"
-# xflv = "0.2.0"
-# h264-decoder = "0.1.0"
-streamhub = { path = "../../library/streamhub/" }
 
+# bytesio = "0.2.0"
+# xflv = "0.2.1"
+# h264-decoder = "0.1.0"
+
+streamhub = { path = "../../library/streamhub/" }
 bytesio = { path = "../../library/bytesio/" }
 xflv = { path = "../../library/container/flv/" }
 h264-decoder = { path = "../../library/codec/h264/" } 

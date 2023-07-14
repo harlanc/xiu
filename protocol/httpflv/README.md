@@ -11,4 +11,7 @@ A httpflv library.
 - Change the listening port type.
 ## v0.2.0
 - Support stream status notify using HTTP.
+## v0.2.1
+- Reference xflv new version v0.2.1.
+- Reference rtmp new version v0.3.1.
 
