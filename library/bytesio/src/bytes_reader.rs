@@ -1,8 +1,12 @@
 use {
-    super::bytes_errors::{BytesReadError, BytesReadErrorValue},
+    super::{
+        bytes_errors::{BytesReadError, BytesReadErrorValue},
+        bytesio::TNetIO,
+    },
     byteorder::{ByteOrder, ReadBytesExt},
     bytes::{BufMut, BytesMut},
-    std::io::Cursor,
+    std::{io::Cursor, sync::Arc},
+    tokio::sync::Mutex,
 };
 
 pub struct BytesReader {
@@ -105,6 +109,13 @@ impl BytesReader {
         Ok(val)
     }
 
+    pub fn read_u64<T: ByteOrder>(&mut self) -> Result<u64, BytesReadError> {
+        let mut cursor = self.read_bytes_cursor(8)?;
+        let val = cursor.read_u64::<T>()?;
+
+        Ok(val)
+    }
+
     pub fn get(&self, index: usize) -> Result<u8, BytesReadError> {
         if index >= self.len() {
             return Err(BytesReadError {
@@ -128,6 +139,97 @@ impl BytesReader {
     }
     pub fn get_remaining_bytes(&self) -> BytesMut {
         self.buffer.clone()
+    }
+}
+pub struct AsyncBytesReader<T1: TNetIO> {
+    pub bytes_reader: BytesReader,
+    pub io: Arc<Mutex<T1>>,
+}
+
+impl<T1> AsyncBytesReader<T1>
+where
+    T1: TNetIO,
+{
+    pub fn new(io: Arc<Mutex<T1>>) -> Self {
+        Self {
+            bytes_reader: BytesReader::new(BytesMut::default()),
+            io,
+        }
+    }
+
+    pub async fn read(&mut self) -> Result<(), BytesReadError> {
+        let data = self.io.lock().await.read().await?;
+        self.bytes_reader.extend_from_slice(&data[..]);
+        Ok(())
+    }
+
+    async fn check(&mut self, bytes_num: usize) -> Result<(), BytesReadError> {
+        while self.bytes_reader.len() < bytes_num {
+            self.read().await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn read_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, BytesReadError> {
+        self.check(bytes_num).await?;
+        self.bytes_reader.read_bytes(bytes_num)
+    }
+
+    pub async fn advance_bytes(&mut self, bytes_num: usize) -> Result<BytesMut, BytesReadError> {
+        self.check(bytes_num).await?;
+        self.bytes_reader.advance_bytes(bytes_num)
+    }
+
+    pub async fn read_bytes_cursor(
+        &mut self,
+        bytes_num: usize,
+    ) -> Result<Cursor<BytesMut>, BytesReadError> {
+        self.check(bytes_num).await?;
+        self.bytes_reader.read_bytes_cursor(bytes_num)
+    }
+
+    pub async fn advance_bytes_cursor(
+        &mut self,
+        bytes_num: usize,
+    ) -> Result<Cursor<BytesMut>, BytesReadError> {
+        self.check(bytes_num).await?;
+        self.bytes_reader.advance_bytes_cursor(bytes_num)
+    }
+
+    pub async fn read_u8(&mut self) -> Result<u8, BytesReadError> {
+        self.check(1).await?;
+        self.bytes_reader.read_u8()
+    }
+
+    pub async fn advance_u8(&mut self) -> Result<u8, BytesReadError> {
+        self.check(1).await?;
+        self.bytes_reader.advance_u8()
+    }
+
+    pub async fn read_u16<T: ByteOrder>(&mut self) -> Result<u16, BytesReadError> {
+        self.check(2).await?;
+        self.bytes_reader.read_u16::<T>()
+    }
+
+    pub async fn read_u24<T: ByteOrder>(&mut self) -> Result<u32, BytesReadError> {
+        self.check(3).await?;
+        self.bytes_reader.read_u24::<T>()
+    }
+
+    pub async fn advance_u24<T: ByteOrder>(&mut self) -> Result<u32, BytesReadError> {
+        self.check(3).await?;
+        self.bytes_reader.advance_u24::<T>()
+    }
+
+    pub async fn read_u32<T: ByteOrder>(&mut self) -> Result<u32, BytesReadError> {
+        self.check(4).await?;
+        self.bytes_reader.read_u32::<T>()
+    }
+
+    pub async fn read_f64<T: ByteOrder>(&mut self) -> Result<f64, BytesReadError> {
+        self.check(8).await?;
+        self.bytes_reader.read_f64::<T>()
     }
 }
 

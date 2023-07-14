@@ -67,7 +67,7 @@ impl EventMessagesWriter {
         stream_id: u32,
         ms: u32,
     ) -> Result<(), EventMessagesError> {
-        self.write_control_message_header(6)?;
+        self.write_control_message_header(10)?;
         self.writer
             .write_u16::<BigEndian>(define::RTMP_EVENT_SET_BUFFER_LENGTH)?;
         self.writer.write_u32::<BigEndian>(stream_id)?;

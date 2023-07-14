@@ -8,6 +8,7 @@ use std::vec::Vec;
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub rtmp: Option<RtmpConfig>,
+    pub rtsp: Option<RtspConfig>,
     pub httpflv: Option<HttpFlvConfig>,
     pub hls: Option<HlsConfig>,
     pub httpapi: Option<HttpApiConfig>,
@@ -16,7 +17,13 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(rtmp_port: usize, httpflv_port: usize, hls_port: usize, log_level: String) -> Self {
+    pub fn new(
+        rtmp_port: usize,
+        rtsp_port: usize,
+        httpflv_port: usize,
+        hls_port: usize,
+        log_level: String,
+    ) -> Self {
         let mut rtmp_config: Option<RtmpConfig> = None;
         if rtmp_port > 0 {
             rtmp_config = Some(RtmpConfig {
@@ -25,6 +32,14 @@ impl Config {
                 port: rtmp_port,
                 pull: None,
                 push: None,
+            });
+        }
+
+        let mut rtsp_config: Option<RtspConfig> = None;
+        if rtsp_port > 0 {
+            rtsp_config = Some(RtspConfig {
+                enabled: true,
+                port: rtsp_port,
             });
         }
 
@@ -51,6 +66,7 @@ impl Config {
 
         Self {
             rtmp: rtmp_config,
+            rtsp: rtsp_config,
             httpflv: httpflv_config,
             hls: hls_config,
             httpapi: None,
@@ -78,6 +94,12 @@ pub struct RtmpPullConfig {
 pub struct RtmpPushConfig {
     pub enabled: bool,
     pub address: String,
+    pub port: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RtspConfig {
+    pub enabled: bool,
     pub port: usize,
 }
 
@@ -142,17 +164,17 @@ fn test_toml_parse() {
     //     Err(err) => print!("{}\n", err),
     // }
 
-    let str = fs::read_to_string("/Users/zexu/github/xiu/application/src/config/config.toml");
+    let str = fs::read_to_string("/Users/zexu/github/xiu_live_rust/application/xiu/src/config/config.toml");
 
     match str {
         Ok(val) => {
             println!("++++++{val}\n");
             let decoded: Config = toml::from_str(&val[..]).unwrap();
 
-            let rtmp = decoded.rtmp;
+            let rtmp = decoded.httpnotify;
 
             if let Some(val) = rtmp {
-                println!("++++++{}\n", val.enabled);
+                println!("++++++{:?}\n", val);
             }
         }
         Err(err) => println!("======{err}"),

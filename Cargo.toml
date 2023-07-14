@@ -3,6 +3,7 @@ members = [
   "protocol/rtmp",
   "protocol/httpflv",
   "protocol/hls",
+  "protocol/rtsp",
   "library/bytesio",
   "application/xiu",
   "application/http-server",
@@ -11,4 +12,5 @@ members = [
   "library/container/mpegts",
   "library/codec/h264",
   "library/logger",
+  "library/streamhub",
 ]

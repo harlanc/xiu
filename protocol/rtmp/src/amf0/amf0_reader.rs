@@ -19,7 +19,6 @@ impl Amf0Reader {
 
         loop {
             let result = self.read_any()?;
-
             match result {
                 Amf0ValueType::END => {
                     break;
@@ -29,7 +28,6 @@ impl Amf0Reader {
                 }
             }
         }
-
         Ok(results)
     }
     pub fn read_any(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
@@ -239,6 +237,54 @@ mod tests {
         let _ = amf_reader.read_all();
 
         print!("test")
+    }
+
+    // fn uint32_to_int24(num: u32) -> i32 {
+    //     // 截取低24位
+    //     let mut result = num & 0xFFFFFF;
+
+    //     let mut result2: i32 = result as i32;
+
+    //     // 判断最高位是否为1
+    //     if (result & 0x800000) == 0x800000 {
+    //         // 获取补码表示
+    //         result = (result ^ 0xFFFFFF) + 1;
+
+    //         result2 = result as i32 * -1;
+    //     }
+
+    //     result2
+    // }
+
+    fn bytes_to_i24(bytes: [u8; 3]) -> i32 {
+        let sign_extend_mask = 0xff_ff << 23;
+        let value = ((bytes[0] as i32) << 16) | ((bytes[1] as i32) << 8) | (bytes[2] as i32);
+
+        if value & (1 << 23) != 0 {
+            // Sign extend the value
+            (value | sign_extend_mask) as i32
+        } else {
+            value as i32
+        }
+    }
+    #[test]
+    fn test_number() {
+        let data: [u8; 3] = [0xFF, 0xFF, 0xF0];
+
+        let mut bytes_reader = BytesReader::new(BytesMut::new());
+
+        bytes_reader.extend_from_slice(&data);
+
+        let mut t: u32 = 0;
+
+        for _ in 0..3 {
+            let time = bytes_reader.read_u8().unwrap();
+            //print!("==time0=={}\n", time);
+            //print!("==time1=={}\n", self.tag.composition_time);
+            t = (t << 8) + time as u32;
+        }
+
+        println!("number: {}", bytes_to_i24(data));
     }
 
     #[test]

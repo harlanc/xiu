@@ -35,6 +35,14 @@ async fn main() -> Result<()> {
                 .value_parser(value_parser!(usize)),
         )
         .arg(
+            Arg::new("rtsp")
+                .long("rtsp")
+                .short('t')
+                .value_name("port")
+                .help("Specify the rtsp listening port.(e.g.:554)")
+                .value_parser(value_parser!(usize)),
+        )
+        .arg(
             Arg::new("httpflv")
                 .long("httpflv")
                 .short('f')
@@ -63,7 +71,7 @@ async fn main() -> Result<()> {
         )
         .group(
             ArgGroup::new("vers")
-                .args(["config_file_path", "rtmp"])
+                .args(["config_file_path", "rtmp", "rtsp"])
                 .required(true),
         );
 
@@ -89,6 +97,10 @@ async fn main() -> Result<()> {
             Some(val) => *val,
             None => 0,
         };
+        let rtsp_port = match matches.get_one::<usize>("rtsp") {
+            Some(val) => *val,
+            None => 0,
+        };
         let httpflv_port = match matches.get_one::<usize>("httpflv") {
             Some(val) => *val,
             None => 0,
@@ -101,7 +113,8 @@ async fn main() -> Result<()> {
             Some(val) => val.clone(),
             None => String::from("info"),
         };
-        Config::new(rtmp_port, httpflv_port, hls_port, log_level)
+
+        Config::new(rtmp_port, rtsp_port, httpflv_port, hls_port, log_level)
     };
 
     /*set log level*/

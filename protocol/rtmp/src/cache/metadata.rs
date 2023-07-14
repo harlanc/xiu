@@ -24,9 +24,9 @@ impl MetaData {
         }
     }
     //, values: Vec<Amf0ValueType>
-    pub fn save(&mut self, body: BytesMut) {
+    pub fn save(&mut self, body: &BytesMut) {
         if self.is_metadata(body.clone()) {
-            self.chunk_body = body;
+            self.chunk_body = body.clone();
         }
     }
 

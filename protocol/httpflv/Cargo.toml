@@ -15,14 +15,14 @@ byteorder = "1.4.2"
 bytes = "1.0.0"
 failure = "0.1.1"
 log = "0.4"
-uuid = { version = "0.6.5", features = ["v4"] }
 hyper = { version = "0.14", features = ["full"] }
 futures = "0.3"
 
-xflv = "0.2.0"
-rtmp = "0.3.0"
-# xflv = { path = "../../library/container/flv/" }
-# rtmp = { path = "../rtmp/" } #"0.0.4"
+#xflv = "0.2.0"
+# rtmp = "0.3.0"
+xflv = { path = "../../library/container/flv/" }
+rtmp = { path = "../rtmp/" }                      #"0.0.4"
+streamhub = { path = "../../library/streamhub/" }
 
 [dependencies.tokio]
 version = "1.4.0"

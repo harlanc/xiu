@@ -17,27 +17,27 @@ rand = "0.3"
 failure = "0.1.1"
 hmac = "0.11.0"
 sha2 = "0.9"
-uuid = { version = "0.6.5", features = ["v4"] }
-tokio-util = { version = "0.6.5", features = ["codec"] }
+# uuid = { version = "0.6.5", features = ["v4"] }
 log = "0.4"
 chrono = "0.4"
 indexmap = "1.9.3"
 reqwest = "0.11.14"
+async-trait = "0.1.70"
 serde_json = { version = "1", default-features = false, features = [
     "alloc",
     "raw_value",
     "std",
 ] }
 serde = { version = "1.0", features = ["derive", "rc"] }
-serde_with = "2.2.0"
 
-bytesio = "0.2.0"
-xflv = "0.2.0"
-h264-decoder = "0.1.0"
+# bytesio = "0.2.0"
+# xflv = "0.2.0"
+# h264-decoder = "0.1.0"
+streamhub = { path = "../../library/streamhub/" }
 
-# bytesio = { path = "../../library/bytesio/" }
-# xflv = { path = "../../library/container/flv/" }
-# h264-decoder = { path = "../../library/codec/h264/" } 
+bytesio = { path = "../../library/bytesio/" }
+xflv = { path = "../../library/container/flv/" }
+h264-decoder = { path = "../../library/codec/h264/" } 
 
 [dependencies.tokio]
 version = "1.4.0"

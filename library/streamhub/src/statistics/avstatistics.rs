@@ -1,3 +1,5 @@
+use crate::stream::StreamIdentifier;
+
 use {
     super::StreamStatistics,
     std::{sync::Arc, time::Duration},
@@ -31,14 +33,14 @@ pub struct AvStatistics {
 }
 
 impl AvStatistics {
-    pub fn new(app_name: String, stream_name: String) -> Self {
+    pub fn new(identifier: StreamIdentifier) -> Self {
         let (s, _): (Sender<bool>, Receiver<bool>) = mpsc::channel(1);
         Self {
             video_bytes: Arc::new(Mutex::new(0.0)),
             audio_bytes: Arc::new(Mutex::new(0.0)),
             frame_count: Arc::new(Mutex::new(0)),
             gop_frame_count: Arc::new(Mutex::new(0)),
-            stream_statistics: Arc::new(Mutex::new(StreamStatistics::new(app_name, stream_name))),
+            stream_statistics: Arc::new(Mutex::new(StreamStatistics::new(identifier))),
             sender: s,
         }
     }

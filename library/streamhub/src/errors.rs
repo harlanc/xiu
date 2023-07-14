@@ -1,4 +1,4 @@
-use {crate::cache::errors::CacheError, failure::Fail, std::fmt};
+use {failure::Fail, std::fmt};
 #[derive(Debug, Fail)]
 pub enum ChannelErrorValue {
     #[fail(display = "no app name\n")]
@@ -15,8 +15,8 @@ pub enum ChannelErrorValue {
     SendVideoError,
     #[fail(display = "send audio error\n")]
     SendAudioError,
-    #[fail(display = "cache error name: {}\n", _0)]
-    CacheError(CacheError),
+    // #[fail(display = "cache error name: {}\n", _0)]
+    // CacheError(CacheError),
 }
 #[derive(Debug)]
 pub struct ChannelError {
@@ -29,10 +29,10 @@ impl fmt::Display for ChannelError {
     }
 }
 
-impl From<CacheError> for ChannelError {
-    fn from(error: CacheError) -> Self {
-        ChannelError {
-            value: ChannelErrorValue::CacheError(error),
-        }
-    }
-}
+// impl From<CacheError> for ChannelError {
+//     fn from(error: CacheError) -> Self {
+//         ChannelError {
+//             value: ChannelErrorValue::CacheError(error),
+//         }
+//     }
+// }

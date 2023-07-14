@@ -5,10 +5,8 @@ use {
         define::SessionType,
         errors::{SessionError, SessionErrorValue},
     },
-    //crate::utils::print::print,
     crate::{
         amf0::Amf0ValueType,
-        channels::define::ChannelEventProducer,
         chunk::{
             define::CHUNK_SIZE,
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
@@ -22,11 +20,17 @@ use {
         user_control_messages::writer::EventMessagesWriter,
         utils::RtmpUrlParser,
     },
-    bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
+    bytesio::{
+        bytes_writer::AsyncBytesWriter,
+        bytesio::{TNetIO, TcpIO},
+    },
     indexmap::IndexMap,
     std::sync::Arc,
+    //crate::utils::print::print,
+    streamhub::define::StreamHubEventSender,
+    streamhub::utils::RandomDigitCount,
+    streamhub::utils::Uuid,
     tokio::{net::TcpStream, sync::Mutex},
-    uuid::Uuid,
 };
 
 #[allow(dead_code)]
@@ -61,7 +65,7 @@ pub enum ClientType {
     Publish,
 }
 pub struct ClientSession {
-    io: Arc<Mutex<BytesIO>>,
+    io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
     common: Common,
     handshaker: SimpleHandshakeClient,
     unpacketizer: ChunkUnpacketizer,
@@ -79,6 +83,8 @@ pub struct ClientSession {
     client_type: ClientType,
     sub_app_name: Option<String>,
     sub_stream_name: Option<String>,
+    /*configure how many gops will be cached.*/
+    gop_num: usize,
 }
 
 impl ClientSession {
@@ -88,7 +94,8 @@ impl ClientSession {
         raw_domain_name: String,
         app_name: String,
         raw_stream_name: String,
-        event_producer: ChannelEventProducer,
+        event_producer: StreamHubEventSender,
+        gop_num: usize,
     ) -> Self {
         let remote_addr = if let Ok(addr) = stream.peer_addr() {
             log::info!("server session: {}", addr.to_string());
@@ -97,8 +104,10 @@ impl ClientSession {
             None
         };
 
-        let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
-        let subscriber_id = Uuid::new_v4();
+        let tcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
+        let net_io = Arc::new(Mutex::new(tcp_io));
+
+        let subscriber_id = Uuid::new(RandomDigitCount::Four);
 
         let common = Common::new(
             Arc::clone(&net_io),
@@ -125,6 +134,7 @@ impl ClientSession {
             client_type,
             sub_app_name: None,
             sub_stream_name: None,
+            gop_num,
         }
     }
 
@@ -246,10 +256,14 @@ impl ClientSession {
                 log::info!("[C <- S] on_stream_is_recorded...");
                 self.on_stream_is_recorded(stream_id)?;
             }
-            RtmpMessageData::AudioData { data } => self.common.on_audio_data(data, timestamp)?,
-            RtmpMessageData::VideoData { data } => self.common.on_video_data(data, timestamp)?,
+            RtmpMessageData::AudioData { data } => {
+                self.common.on_audio_data(data, timestamp).await?
+            }
+            RtmpMessageData::VideoData { data } => {
+                self.common.on_video_data(data, timestamp).await?
+            }
             RtmpMessageData::AmfData { raw_data } => {
-                self.common.on_meta_data(raw_data, timestamp)?;
+                self.common.on_meta_data(raw_data, timestamp).await?;
             }
 
             _ => {}
@@ -405,7 +419,7 @@ impl ClientSession {
             .write_get_stream_length(transaction_id, stream_name)
             .await?;
 
-        //self.send_set_buffer_length(1, 1300).await?;
+        self.send_set_buffer_length(1, 1300).await?;
 
         Ok(())
     }
@@ -533,6 +547,7 @@ impl ClientSession {
                             self.app_name.clone(),
                             self.stream_name.clone(),
                             self.session_id,
+                            self.gop_num,
                         )
                         .await?
                 }

@@ -4,7 +4,7 @@ use {
         ChunkMessageHeader,
     },
     byteorder::{BigEndian, LittleEndian},
-    bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
+    bytesio::{bytes_writer::AsyncBytesWriter, bytesio::TNetIO},
     std::{collections::HashMap, sync::Arc},
     tokio::sync::Mutex,
 };
@@ -26,7 +26,7 @@ pub struct ChunkPacketizer {
 }
 
 impl ChunkPacketizer {
-    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
             //chunk_info: ChunkInfo::new(),
