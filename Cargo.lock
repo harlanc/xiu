@@ -697,7 +697,7 @@ checksum = "856b5cb0902c2b6d65d5fd97dfa30f9b70c7538e770b98eab5ed52d8db923e01"
 
 [[package]]
 name = "hls"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "byteorder",
  "bytes",
@@ -777,7 +777,7 @@ checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 
 [[package]]
 name = "httpflv"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "byteorder",
  "bytes",
@@ -1400,7 +1400,7 @@ dependencies = [
 
 [[package]]
 name = "rtmp"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -2211,7 +2211,7 @@ dependencies = [
 
 [[package]]
 name = "xflv"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "byteorder",
  "bytes",
@@ -2224,7 +2224,7 @@ dependencies = [
 
 [[package]]
 name = "xiu"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "axum",
