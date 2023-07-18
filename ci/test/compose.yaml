@@ -1,0 +1,42 @@
+version: "3.8"
+# name: "xiu-streamer-test"
+
+# XIU test pod
+services:
+  stream1:
+    build:
+      context: "."
+      target: "runner"
+    image: "normkd/1688557675-11da8b5844776744b42ffae53506bca8:1.0.0"
+    # container_name: "${COMPOSE_PROJECT_NAME}.node0"
+    working_dir: "/app"
+    configs:
+      - "xiu_config"
+    hostname: "streamer1"
+    networks:
+      - "local"
+    ports:
+      - "1935:1935"
+      - "1935:1935/udp"
+      - "8000:8000" 
+      - "8000:8000/udp"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["xiu"]
+    command: ["-c", "config/config_rtmp.toml"]
+    deploy:
+      replicas: 3
+      endpoint_mode: "dnsrr"
+      labels:
+        clst0.mode0.replicated: "Replicated solve."
+  
+configs:
+  xiu_config:
+    file: "./config/config_rtmp.toml"
+    name: "default"
+    # external: true
+
+networks:
+  local:
+    name: "lan"
+    # driver: "bridge"
