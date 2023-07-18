@@ -1,35 +1,32 @@
-version: '3.8'
-name: "xiu-rndfrk"
+version: "3.8"
+name: "xiu-streamer-test"
 
-# XIU test cluster
+# XIU test pod
 services:
-  xiu1:
+  stream:
     # image: "normkd/1688557675-0f6cc0425e5dfba9fd0951bba6251d62:1.0.0"
-    build: .
-    environment:
-      - name=COMPOSE_PROJECT_NAME
-    # hostname: "restreamer.local"
-    # network_mode: host
+    build: "."
+    hostname: "restreamer"
     networks:
-      - intranet
+      - "intranet"
     ports:
-      - 1935:1935
-      - 1936:1936
-      - 8080:8080
-      - 8081:8081
+      - "80:80/tcp"
+      - "80:80/udp"
+      - "443:443"
+      - "1935:1935"
+      - "1936:1936"
+      - "8080:8080"
+      - "8081:8081"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     deploy:
       replicas: 3
-      endpoint_mode: dnsrr
+      mode: "dnsrr"
+      endpoint_mode: "dnsrr"
+      labels:
+        nodes.replicated: "Replicated solve." 
 
 networks:
   intranet:
-    name: testnet
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.16.10.0/24
-  # nonet:
-  #   name: none
-  #   external: true
+    name: "local"
+    driver: "bridge"

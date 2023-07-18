@@ -1,4 +1,4 @@
-# This file has no special nedds with in-container build.
+# This file has no special needs with in-container build.
 !Dockerfile
 !compose.yaml
 **/*
