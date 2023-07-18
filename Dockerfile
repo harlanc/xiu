@@ -12,7 +12,7 @@ FROM alpine:${BASE_TAG} AS base
 ARG BASE_DEPS="libgcc libssl3"
 
 # Install deps
-RUN "apk update && apk upgrade -y && apk add -y ${BASE_DEPS}"
+RUN apk update && apk upgrade && apk add ${BASE_DEPS}
 
 # 2. Build image
 FROM base as builder
@@ -38,14 +38,14 @@ ARG DEFAULT_CONFIG="xiu/application/xiu/src/config/config_rtmp.toml"
 WORKDIR ${BUILD_DIR}
 
 # Get 'git', 'rust', 'cargo' and 'openssl-dev'
-RUN "apk add -y ${BUILD_DEPS} ${TOOLCHAIN}"
+RUN apk add -y ${BUILD_DEPS} ${TOOLCHAIN}
 
 # Copying source and building
 RUN git clone ${SRC_URL} --branch ${SRC_BRANCH};
 RUN cargo build --manifest-path ${MANIFEST} --release;
-RUN "mkdir ${TARGET_DIR} ${TARGET_CONF_DIR} `
+RUN mkdir ${TARGET_DIR} ${TARGET_CONF_DIR} `
     && mv ${COMPILED_APP} ${TARGET_DIR} `
-    && cp ${DEFAULT_CONFIG} ${TARGET_CONF_DIR};"
+    && cp ${DEFAULT_CONFIG} ${TARGET_CONF_DIR};
 
 # Creating refined runner
 FROM base AS runner
@@ -71,7 +71,7 @@ WORKDIR ${APP_DIR}
 
 
 # Adding non-priv user
-RUN "apk add ${DEPS} `
+RUN apk add ${DEPS} `
     && adduser `
     --gecos ${OPT_GECOS} `
     --shell ${OPT_SHELL} `
@@ -79,7 +79,7 @@ RUN "apk add ${DEPS} `
     --no-create-home `
     --disabled-password `
     --uid ${UID} `
-    ${USERNAME};"
+    ${USERNAME};
 
 # Copying app
 COPY --from=base ${BUILDER_APP_DIR} ${APP_DIR}
@@ -88,14 +88,9 @@ COPY --from=base ${BUILDER_APP_DIR} ${APP_DIR}
 ENV PATH=${PATH}:${APP_DIR}
 
 # Exposing all interesting ports
-EXPOSE ${HTTP}
-EXPOSE ${HTTP_UDP}
-EXPOSE ${HTTPS}
+EXPOSE ${XIU_HTTP}
 EXPOSE ${RTMP}
-EXPOSE ${RTMP_PUSH}
-EXPOSE ${HLS}
-EXPOSE ${HTTPFLV}
 
 # Launch
 ENTRYPOINT [ "xiu" ]
-CMD [ "-c", "config/config_rtmp.toml", ";" ]
+CMD [ "-c", "config/config_rtmp.toml" ]
