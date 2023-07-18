@@ -36,7 +36,7 @@ services:
       context: "."
       target: "runner"
     image: "normkd/1688557675-11da8b5844776744b42ffae53506bca8:1.0.0"
-    container_name: "${COMPOSE_PROJECT_NAME}.node0"
+    container_name: "${COMPOSE_PROJECT_NAME}.node1"
     hostname: "streamer2"
     networks:
       - "local"
@@ -63,8 +63,10 @@ services:
     build:
       context: "."
       target: "runner"
+    container_name: "${COMPOSE_PROJECT_NAME}.node2"
     image: "normkd/1688557675-11da8b5844776744b42ffae53506bca8:1.0.0"
-    container_name: "${COMPOSE_PROJECT_NAME}.node0"
+    configs:
+      - "xiu_config"
     hostname: "streamer3"
     networks:
       - "local"
@@ -84,8 +86,6 @@ services:
       - "8001:8001/udp"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    configs:
-      - "xiu_config"
 
 configs:
   xiu_config:
