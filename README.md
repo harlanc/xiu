@@ -178,8 +178,9 @@ You can use two ways:
 
 - Use OBS to push a live rtmp stream
 - Or use FFmpeg to push a rtmp stream:
-     
-        ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test
+
+      ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test
+
 
 
 ##### Play

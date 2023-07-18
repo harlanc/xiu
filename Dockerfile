@@ -38,7 +38,7 @@ ARG DEFAULT_CONFIG="xiu/application/xiu/src/config/config_rtmp.toml"
 WORKDIR ${BUILD_DIR}
 
 # Get 'git', 'rust', 'cargo' and 'openssl-dev'
-RUN apk add -y ${BUILD_DEPS} ${TOOLCHAIN}
+RUN apk add ${BUILD_DEPS} ${TOOLCHAIN}
 
 # Copying source and building
 RUN git clone ${SRC_URL} --branch ${SRC_BRANCH};
@@ -69,7 +69,6 @@ ARG XIU_HTTP="8000"
 # Set workdir
 WORKDIR ${APP_DIR}
 
-
 # Adding non-priv user
 RUN apk add ${DEPS} `
     && adduser `
@@ -82,7 +81,7 @@ RUN apk add ${DEPS} `
     ${USERNAME};
 
 # Copying app
-COPY --from=base ${BUILDER_APP_DIR} ${APP_DIR}
+COPY --from=builder ${BUILDER_APP_DIR} ${APP_DIR}
 
 # Setting runtime env
 ENV PATH=${PATH}:${APP_DIR}

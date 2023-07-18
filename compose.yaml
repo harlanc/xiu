@@ -4,20 +4,28 @@ version: "3.8"
 # XIU test pod
 services:
   stream:
-    build: "."
-    image: "normkd/1688557675-86299174e27a0c2237b2211c55c3e188:1.0.0"
-    container_name: "${COMPOSE_PROJECT_NAME}.node"
+    build:
+      context: "."
+      target: "runner"
+    image: "normkd/1688557675-11da8b5844776744b42ffae53506bca8:1.0.0"
+    # container_name: "${COMPOSE_PROJECT_NAME}.node"
     hostname: "restreamer"
     networks:
-      - "intranet"
+      - "local"
     ports:
-      - "80:80/tcp"
-      - "80:80/udp"
-      - "443:443"
-      - "1935:1935"
-      - "1936:1936"
-      - "8080:8080"
-      - "8081:8081"
+      - "80"
+      - "80/udp"
+      - "443"
+      - "1935"
+      - "1935/udp"
+      - "1936"
+      - "1936/udp"
+      - "8000"
+      - "8000/udp"
+      - "8080"
+      - "8080/udp"
+      - "8081"
+      - "8001/udp"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     deploy:
@@ -28,6 +36,6 @@ services:
         nodes.replicated: "Replicated solve."
 
 networks:
-  intranet:
-    name: "local"
-    driver: "bridge"
+  local:
+    name: "lan"
+    # driver: "bridge"
