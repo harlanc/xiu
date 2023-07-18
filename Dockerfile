@@ -1,3 +1,4 @@
+# Pre-syntax block
 # syntax=docker/dockerfile:1
 
 # XIU restreamer
@@ -12,9 +13,9 @@ ARG DEPS="libgcc libssl3 openssl-dev"
 ARG TOOLCHAIN="pkgconf git rust cargo"
 ARG SOURCE_URL="https://github.com/harlanc/xiu.git"
 ARG SRC_BRANCH="master"
-ARG BUILD_DIR="/build"
-ARG TARGET_DIR="/app"
-ARG TGT_APPCONFIG_DIR="/app/config"
+ARG BUILD_DIR="build"
+ARG TARGET_DIR="app"
+ARG TGT_APPCONFIG_DIR="app/config"
 ARG MANIFEST="xiu/application/xiu/Cargo.toml"
 ARG COMPILED_APP="xiu/target/release/xiu"
 ARG DEFAULT_CONFIG="xiu/application/xiu/src/config/config_rtmp.toml"
@@ -32,7 +33,7 @@ RUN mkdir ${TARGET_DIR} ${TGT_APPCONFIG_DIR} \
     && mv ${COMPILED_APP} ${TARGET_DIR} \
     && cp ${DEFAULT_CONFIG} ${TGT_APPCONFIG_DIR};
 
-# Creating refined image
+# Creating refined runner
 FROM alpine:latest
 
 # Pre-run args
@@ -41,9 +42,10 @@ ARG UID=10001
 ARG USERNAME="appuser"
 ARG SHELL_HOMEDIR="/nonexistent"
 ARG SHELL="/sbin/nologin"
-ARG GECOS_OPT=""
-ARG APP="/app"
-ARG SRC="/build/app/*"
+ARG GECOS_OPT="Specified user"
+ARG BUILDER_SRC_DIR="/build/app"
+ARG RUNNER_APP_DIR="/app"
+ARG APP="xiu"
 ARG DEFAULT_CONFIG="config/config_rtmp.toml"
 ARG HTTP="80"
 ARG HTTP_UDP="80/udp"
@@ -54,7 +56,7 @@ ARG HLS="8080"
 ARG HTTPFLV="8081"
 
 # Set workdir
-WORKDIR ${APP}
+WORKDIR ${RUNNER_APP_DIR}
 
 # Adding non-priv user
 RUN apk add ${DEPS} \
@@ -68,10 +70,12 @@ RUN apk add ${DEPS} \
     ${USERNAME};
 
 # Copying app
-COPY --from=builder ${SRC} ${APP}
+COPY --from=builder ${BUILDER_SRC_DIR} ${RUNNER_APP_DIR}
 
-# Setting working env
-ENV PATH=${PATH}:${APP}
+# Setting runtime env
+ENV PATH=${PATH}:${RUNNER_APP_DIR}
+ENV APPNAME=${APP}
+ENV CONFIG=${DEFAULT_CONFIG}
 
 # Exposing all interesting ports
 EXPOSE ${HTTP}
@@ -83,5 +87,5 @@ EXPOSE ${HLS}
 EXPOSE ${HTTPFLV}
 
 # Launch
-ENTRYPOINT [ "xiu" ]
-CMD  [ "-c", "config/config_rtmp.toml" ]
+ENTRYPOINT ${APPNAME}
+CMD [ "-c", ${CONFIG} ]

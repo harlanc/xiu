@@ -1,11 +1,12 @@
 version: "3.8"
-name: "xiu-streamer-test"
+# name: "xiu-streamer-test"
 
 # XIU test pod
 services:
   stream:
-    # image: "normkd/1688557675-0f6cc0425e5dfba9fd0951bba6251d62:1.0.0"
     build: "."
+    image: "normkd/1688557675-86299174e27a0c2237b2211c55c3e188:1.0.0"
+    container_name: "${COMPOSE_PROJECT_NAME}.node"
     hostname: "restreamer"
     networks:
       - "intranet"
@@ -24,7 +25,7 @@ services:
       mode: "dnsrr"
       endpoint_mode: "dnsrr"
       labels:
-        nodes.replicated: "Replicated solve." 
+        nodes.replicated: "Replicated solve."
 
 networks:
   intranet:
