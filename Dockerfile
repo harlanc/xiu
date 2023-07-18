@@ -92,4 +92,4 @@ EXPOSE ${XIU_HTTP}
 
 # Launch
 ENTRYPOINT [ "xiu" ]
-CMD [ "-c", "config/config_rtmp.toml" ]
+# CMD [ "-c", "config/config_rtmp.toml" ]
