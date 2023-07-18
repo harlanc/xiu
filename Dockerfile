@@ -87,5 +87,5 @@ EXPOSE ${HLS}
 EXPOSE ${HTTPFLV}
 
 # Launch
-ENTRYPOINT ${APPNAME}
+ENTRYPOINT [ "xiu" ]
 CMD [ "-c", ${CONFIG} ]
