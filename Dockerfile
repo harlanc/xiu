@@ -88,8 +88,8 @@ COPY --from=base ${BUILDER_APP_DIR} ${APP_DIR}
 ENV PATH=${PATH}:${APP_DIR}
 
 # Exposing all interesting ports
-EXPOSE ${XIU_HTTP}
 EXPOSE ${RTMP}
+EXPOSE ${XIU_HTTP}
 
 # Launch
 ENTRYPOINT [ "xiu" ]
