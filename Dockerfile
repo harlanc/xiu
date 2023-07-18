@@ -47,7 +47,7 @@ RUN mkdir ${TARGET_DIR} ${TARGET_CONF_DIR} `
     && mv ${COMPILED_APP} ${TARGET_DIR} `
     && cp ${DEFAULT_CONFIG} ${TARGET_CONF_DIR};
 
-# Creating refined runner
+# 3. Runner
 FROM base AS runner
 
 # Runner build args
