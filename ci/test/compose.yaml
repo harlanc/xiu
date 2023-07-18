@@ -5,7 +5,7 @@ version: "3.8"
 services:
   stream1:
     build:
-      context: "."
+      context: "./ci/test"
       target: "runner"
     image: "normkd/1688557675-11da8b5844776744b42ffae53506bca8:1.0.0"
     # container_name: "${COMPOSE_PROJECT_NAME}.node0"
@@ -25,7 +25,7 @@ services:
     entrypoint: ["xiu"]
     command: ["-c", "config/config_rtmp.toml"]
     deploy:
-      replicas: 3
+      replicas: 1
       endpoint_mode: "dnsrr"
       labels:
         clst0.mode0.replicated: "Replicated solve."
