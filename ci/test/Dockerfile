@@ -7,15 +7,41 @@
 # ---
 
 # 1. Base image
-ARG VERSION=${BASE_VERSION}
-FROM alpine:${VERSION} AS builder
+ARG BASE_VERSION="latest"
+FROM alpine:${BASE_VERSION} AS base
 
-# Build env vars
-ENV SYSROOT=${DUMMYSYSROOT}
+# Base args
+# Deps
+ARG BASE_DEPS="libgcc"
+
+# User creation
+ARG UID=10001
+ARG USERNAME="appuser"
+ARG HOME="/nonexistent"
+ARG SHELL="/sbin/nologin"
+ARG GECOS="Specified user"
+
+# Install deps and create app user
+RUN apk --update-cache upgrade; \
+    apk add --no-cache ${RUN_DEPS}; \
+    apk cache clean; \
+    adduser \
+    --gecos ${GECOS} \
+    --shell ${SHELL} \
+    --home ${HOME} \
+    --no-create-home \
+    --disabled-password \
+    --uid ${UID} \
+    ${USERNAME};
+
+# ---
+
+# 2. Builder image
+FROM base as builder
 
 # Builder args
 # Deps
-ARG BUILD_DEPS="openssl-dev libgcc"
+ARG BUILD_DEPS="openssl-dev"
 ARG TOOLCHAIN="pkgconf git rust cargo"
 
 # App source
@@ -33,9 +59,8 @@ WORKDIR ${BUILD_DIR}
 
 # Get toolchain
 RUN apk --update-cache upgrade --upgrade-cache; \
-    apk add --no-cache ${BASE_DEPS}; \
+    apk add --no-cache ${BUILD_DEPS} ${TOOLCHAIN}; \
     apk cache clean;
-RUN apk add ${BUILD_DEPS} ${TOOLCHAIN};
 
 # Copying source and building
 RUN git clone ${SRC_URL} --branch ${SRC_BRANCH};
@@ -45,49 +70,25 @@ RUN mkdir ${TARGET_DIR} && mv ${COMPILED_APP} ${TARGET_DIR};
 # ---
 
 # 3. Runner
-ARG VERSION=${RUNNER_VERSION}
-FROM alpine:${VERSION} AS runner
-
-# Run env vars
-ENV SYSROOT=${DUMMYSYSROOT}
+FROM base AS runner
 
 # Runner build args
-# Base deps
-ARG RUN_DEPS="libgcc"
-
 # Dirs
 ARG BUILDER_APP_DIR="/build/app"
 ARG APP_DIR="/app"
-
-# User creation
-ARG UID=10001
-ARG USERNAME="appuser"
-ARG OPT_HOME="/nonexistent"
-ARG OPT_SHELL="/sbin/nologin"
-ARG OPT_GECOS="Specified user"
 
 # Port/proto aliases
 ARG RTMP="1935"
 ARG XIU_HTTP="8000"
 
+# Switching user
+USER ${USERNAME}
+
 # Set workdir
 WORKDIR ${APP_DIR}
 
-# Install deps and create app user
-RUN adduser \
-    --gecos ${OPT_GECOS} \
-    --shell ${OPT_SHELL} \
-    --home ${OPT_HOME} \
-    --no-create-home \
-    --disabled-password \
-    --uid ${UID} \
-    ${USERNAME};
-
 # Copying app
 COPY --from=builder ${BUILDER_APP_DIR} ${APP_DIR}
-
-# Setting runtime env
-ENV PATH=${PATH}:${APP_DIR}
 
 # Exposing all interesting ports
 EXPOSE ${RTMP}
