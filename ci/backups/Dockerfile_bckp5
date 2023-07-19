@@ -8,11 +8,43 @@
 
 # 1. Base image
 ARG BASE_VERSION="latest"
-FROM alpine:${BASE_VERSION} AS builder
+FROM alpine:${BASE_VERSION} AS base
+
+# Base args
+# Deps
+ARG BASE_DEPS="libgcc"
+
+# User creation
+ARG UID=10001
+ARG USERNAME="appuser"
+ARG HOME="/nonexistent"
+ARG SHELL="/sbin/nologin"
+ARG GECOS="Specified user"
+
+# Install deps and create app user
+RUN apk --update-cache upgrade; \
+    apk add --no-cache ${RUN_DEPS}; \
+    apk cache clean; \
+    adduser \
+    --gecos ${GECOS} \
+    --shell ${SHELL} \
+    --home ${HOME} \
+    --no-create-home \
+    --disabled-password \
+    --uid ${UID} \
+    ${USERNAME};
+
+# Switching user
+USER ${USERNAME}
+
+# ---
+
+# 2. Builder image
+FROM base as builder
 
 # Builder args
 # Deps
-ARG BUILD_DEPS="openssl-dev libgcc"
+ARG BUILD_DEPS="openssl-dev"
 ARG TOOLCHAIN="pkgconf git rust cargo"
 
 # App source
@@ -40,24 +72,13 @@ RUN mkdir ${TARGET_DIR} && mv ${COMPILED_APP} ${TARGET_DIR};
 
 # ---
 
-# 2. Runner
-ARG RUN_VERSION="latest"
-FROM alpine:${RUN_VERSION} AS runner
+# 3. Runner
+FROM base AS runner
 
 # Runner build args
-# Base deps
-ARG RUN_DEPS="libgcc"
-
 # Dirs
 ARG BUILDER_APP_DIR="/build/app"
 ARG APP_DIR="/app"
-
-# User creation
-ARG UID=10001
-ARG USERNAME="appuser"
-ARG HOME="/nonexistent"
-ARG SHELL="/sbin/nologin"
-ARG GECOS="Specified user"
 
 # Port/proto aliases
 ARG RTMP="1935"
@@ -65,22 +86,6 @@ ARG XIU_HTTP="8000"
 
 # Set workdir
 WORKDIR ${APP_DIR}
-
-# Install deps and create app user
-RUN apk --update-cache upgrade --upgrade-cache; \
-    apk add --no-cache ${RUN_DEPS}; \
-    apk cache clean; \
-    adduser \
-    --gecos ${GECOS} \
-    --shell ${SHELL} \
-    --home ${HOME} \
-    --no-create-home \
-    --disabled-password \
-    --uid ${UID} \
-    ${USERNAME};
-
-# Switching user
-USER ${USERNAME}
 
 # Copying app
 COPY --from=builder ${BUILDER_APP_DIR} ${APP_DIR}
