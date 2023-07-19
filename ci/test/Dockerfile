@@ -34,6 +34,9 @@ RUN apk --update-cache upgrade; \
     --uid ${UID} \
     ${USERNAME};
 
+# Switching user
+USER ${USERNAME}
+
 # ---
 
 # 2. Builder image
@@ -81,8 +84,8 @@ ARG APP_DIR="/app"
 ARG RTMP="1935"
 ARG XIU_HTTP="8000"
 
-# Switching user
-USER ${USERNAME}
+# App user
+ARG USERNAME="appuser"
 
 # Set workdir
 WORKDIR ${APP_DIR}
