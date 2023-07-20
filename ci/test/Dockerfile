@@ -15,6 +15,10 @@ ARG PLATFORM="linux/amd64"
 # Apk
 ARG APK_CACHE="/var/cache/apk/"
 
+# User profile manipulations
+ARG UID=10001
+ARG USERNAME="appuser"
+
 # ---
 
 # 1. Build app
@@ -75,8 +79,6 @@ ARG APP_DIR="/app/"
 ARG SHARED_DIR="/source/"
 
 # User creation
-ARG UID=10001
-ARG USERNAME="appuser"
 ARG HOME="/nonexistent"
 ARG SHELL="/sbin/nologin"
 ARG GECOS="Specified user"
