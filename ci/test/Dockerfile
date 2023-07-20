@@ -6,13 +6,23 @@
 
 # ---
 
-# 1. Base image
+# Glob build args
 ARG BASE_VERSION="latest"
-FROM alpine:${BASE_VERSION} AS builder
+ARG RUN_VERSION="latest"
+ARG PLATFORM="linux/amd64"
 
-# Builder args
+# Glob config args
+# Apk
+ARG APK_CACHE="/var/cache/apk/"
+
+# ---
+
+# 1. Build app
+FROM --platform=${PLATFORM} alpine:${BASE_VERSION} AS builder
+
+# - Builder args
 # Deps
-ARG BUILD_DEPS="openssl-dev libgcc"
+ARG BUILD_DEPS="openssl-dev"
 ARG TOOLCHAIN="pkgconf git rust cargo"
 
 # App source
@@ -21,36 +31,48 @@ ARG SRC_BRANCH="master"
 
 # Directory/file settings
 ARG BUILD_DIR="build"
-ARG TARGET_DIR="app"
+ARG OUT_DIR="app"
 ARG MANIFEST="xiu/application/xiu/Cargo.toml"
-ARG COMPILED_APP="xiu/target/release/xiu"
+ARG BUILDOUT="xiu/target/release/xiu"
 
-# Set workdir
+# Build args
+ARG BUILD_ARCH="x86_64"
+ARG BUILD_FAMILY="unix"
+ARG BUILD_OS="linux"
+ARG BUILD_ENV="gnu"
+
+# - Set workdir
 WORKDIR ${BUILD_DIR}
 
-# Get toolchain
-RUN apk --update-cache upgrade --upgrade-cache; \
+# - Get toolchain
+RUN apk cache sync; \
+    apk --update-cache upgrade; \
     apk add --no-cache ${BUILD_DEPS} ${TOOLCHAIN}; \
-    apk cache clean;
+    apk cache clean; \
+    rm -rf ${APK_CACHE};
 
-# Copying source and building
+# - Copying source and building
 RUN git clone ${SRC_URL} --branch ${SRC_BRANCH};
-RUN cargo build --manifest-path ${MANIFEST} --release;
-RUN mkdir ${TARGET_DIR} && mv ${COMPILED_APP} ${TARGET_DIR};
+RUN cargo build \
+                --quiet \
+                --manifest-path ${MANIFEST} \
+                --target_arch ${BUILD_ARCH} \
+                --out-dir ${OUT_DIR} \
+                --release;
 
 # ---
 
-# 2. Runner
-ARG RUN_VERSION="latest"
-FROM alpine:${RUN_VERSION} AS runner
+# 2. Run app
+FROM --platform=${PLATFORM} alpine:${RUN_VERSION} AS runner
 
-# Runner build args
-# Base deps
+# - Runner args
+# Run deps
 ARG RUN_DEPS="libgcc"
 
 # Dirs
-ARG BUILDER_APP_DIR="/build/app"
-ARG APP_DIR="/app"
+ARG SOURCE_DIR="/build/app/"
+ARG APP_DIR="/app/"
+ARG SHARED_DIR="/source/"
 
 # User creation
 ARG UID=10001
@@ -63,13 +85,17 @@ ARG GECOS="Specified user"
 ARG RTMP="1935"
 ARG XIU_HTTP="8000"
 
-# Set workdir
+# - Set workdir
 WORKDIR ${APP_DIR}
 
-# Install deps and create app user
-RUN apk --update-cache upgrade --upgrade-cache; \
+# - Install deps and create app user
+RUN --mount=type="cache",from="builder",src=${SOURCE_DIR},dst=${SHARED_DIR} \
+    apk cache sync; \
+    apk --update-cache upgrade; \
     apk add --no-cache ${RUN_DEPS}; \
     apk cache clean; \
+    rm -rf ${APK_CACHE}; \
+    cp -RT -- ${SOURCE_DIR} ${APP_DIR}; \
     adduser \
     --gecos ${GECOS} \
     --shell ${SHELL} \
@@ -79,15 +105,30 @@ RUN apk --update-cache upgrade --upgrade-cache; \
     --uid ${UID} \
     ${USERNAME};
 
-# Switching user
+# - Switching user
 USER ${USERNAME}
 
-# Copying app
-COPY --from=builder ${BUILDER_APP_DIR} ${APP_DIR}
-
-# Exposing all interesting ports
+# - Exposing all interesting ports
 EXPOSE ${RTMP}
 EXPOSE ${XIU_HTTP}
 
-# Launch
+# - Launch
 ENTRYPOINT [ "xiu" ]
+
+# ---
+
+# 3. Solo-mode
+FROM runner AS solo
+
+# - Solo-launch args
+# Configs external path
+ARG CONFIG_PATH="config/"
+
+# Config mount
+ARG CONFIG_MOUNT="/app/config/"
+
+# - Adding config volume
+RUN --mount=type="bind",src=${CONFIG_PATH},dst=${CONFIG_MOUNT}
+
+# - Running with default config
+CMD [ "-c", "/app/config/config_rtmp.toml" ]
