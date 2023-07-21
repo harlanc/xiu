@@ -4,100 +4,75 @@
 # XIU stream/restream server
 # Test image
 
-# ---
-
-# Glob build args
+# Glob build args, config, and user management 
 ARG BASE_VERSION="latest"
 ARG RUN_VERSION="latest"
 ARG PLATFORM="linux/amd64"
-
-# Glob config args
-# Apk
 ARG APK_CACHE="/var/cache/apk/"
-
-# User profile manipulations
-ARG UID=10001
-ARG USERNAME="appuser"
-
-# ---
 
 # 1. Build app
 FROM --platform=${PLATFORM} alpine:${BASE_VERSION} AS builder
 
-# - Builder args
-# Deps
+# Builder args
+# Deps, source settings, directories, build args
 ARG BUILD_DEPS="openssl-dev"
 ARG TOOLCHAIN="pkgconf git rust cargo"
-
-# App source
 ARG SRC_URL="https://github.com/harlanc/xiu.git"
 ARG SRC_BRANCH="master"
-
-# Directory/file settings
-ARG BUILD_DIR="build"
-ARG OUT_DIR="app"
+ARG SRC_TAG="v0.6.1"
+ARG BUILD_DIR="/build/"
+ARG REPOROOT="xiu"
 ARG MANIFEST="xiu/application/xiu/Cargo.toml"
-ARG BUILDOUT="xiu/target/release/xiu"
+ARG TARGET_TRIPLE="x86_64-unknown-linux-gnu"
 
-# Build args
-ARG BUILD_ARCH="x86_64"
-ARG BUILD_FAMILY="unix"
-ARG BUILD_OS="linux"
-ARG BUILD_ENV="gnu"
-
-# - Set workdir
+# Set workdir
 WORKDIR ${BUILD_DIR}
 
-# - Get toolchain
+# Get toolchain
 RUN apk cache sync; \
     apk --update-cache upgrade; \
     apk add --no-cache ${BUILD_DEPS} ${TOOLCHAIN}; \
     apk cache clean; \
     rm -rf ${APK_CACHE};
 
-# - Copying source and building
-RUN git clone ${SRC_URL} --branch ${SRC_BRANCH};
+# Copying source and building
+RUN git clone ${SRC_URL} --branch ${SRC_BRANCH} \
+    && cd ${REPOROOT} \
+    && git checkout -b "publish" "tags/"${SRC_TAG} \
+    && cd ${BUILD_DIR};
 RUN cargo build \
-                --quiet \
                 --manifest-path ${MANIFEST} \
-                --target_arch ${BUILD_ARCH} \
-                --out-dir ${OUT_DIR} \
                 --release;
-
-# ---
+RUN echo "Builded."
 
 # 2. Run app
 FROM --platform=${PLATFORM} alpine:${RUN_VERSION} AS runner
 
-# - Runner args
-# Run deps
+# Runner args
+# Deps, dirs, user creation, port/proto aliases
 ARG RUN_DEPS="libgcc"
-
-# Dirs
-ARG SOURCE_DIR="/build/app/"
-ARG APP_DIR="/app/"
+ARG SOURCE_DIR="/build/xiu/target/release/"
 ARG SHARED_DIR="/source/"
-
-# User creation
+ARG INSTALL_DIR="/app"
+ARG UID="10001"
+ARG USERNAME="appuser"
 ARG HOME="/nonexistent"
 ARG SHELL="/sbin/nologin"
 ARG GECOS="Specified user"
-
-# Port/proto aliases
 ARG RTMP="1935"
 ARG XIU_HTTP="8000"
 
-# - Set workdir
-WORKDIR ${APP_DIR}
+# Set workdir
+WORKDIR ${INSTALL_DIR}
 
-# - Install deps and create app user
+# Install deps and create app user
 RUN --mount=type="cache",from="builder",src=${SOURCE_DIR},dst=${SHARED_DIR} \
     apk cache sync; \
     apk --update-cache upgrade; \
     apk add --no-cache ${RUN_DEPS}; \
     apk cache clean; \
     rm -rf ${APK_CACHE}; \
-    cp -RT -- ${SOURCE_DIR} ${APP_DIR}; \
+    cp -RT -- ${SHARED_DIR}"/*" ${INSTALL_DIR}; \
     adduser \
     --gecos ${GECOS} \
     --shell ${SHELL} \
@@ -107,30 +82,12 @@ RUN --mount=type="cache",from="builder",src=${SOURCE_DIR},dst=${SHARED_DIR} \
     --uid ${UID} \
     ${USERNAME};
 
-# - Switching user
+# Switching user
 USER ${USERNAME}
 
-# - Exposing all interesting ports
+# Exposing all interesting ports
 EXPOSE ${RTMP}
 EXPOSE ${XIU_HTTP}
 
-# - Launch
+# Launch
 ENTRYPOINT [ "xiu" ]
-
-# ---
-
-# 3. Solo-mode
-FROM runner AS solo
-
-# - Solo-launch args
-# Configs external path
-ARG CONFIG_PATH="config/"
-
-# Config mount
-ARG CONFIG_MOUNT="/app/config/"
-
-# - Adding config volume
-RUN --mount=type="bind",src=${CONFIG_PATH},dst=${CONFIG_MOUNT}
-
-# - Running with default config
-CMD [ "-c", "/app/config/config_rtmp.toml" ]

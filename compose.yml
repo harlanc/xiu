@@ -7,11 +7,11 @@ services:
   # 1. Build
   app:
     build:
-      context: "./ci/test"
+      context: "."
       target: "runner"
 
     # Or use image
-    image: "normkd/1688557675-test01:1.0.0"
+    # image: "normkd/1688557675-test01:1.0.0"
 
   # 2. Base streamer
   base_streamer:
@@ -20,8 +20,6 @@ services:
 
     # Container config
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
-    configs:
-      - "xiu_config"
     
     # App config
     working_dir: "/app"
@@ -94,5 +92,5 @@ networks:
     name: "intra"
     ipam:
       config:
-        - subnet: "172.16.100.0/29"
+        - subnet: "172.16.100.0/24"
     # driver: "bridge"
