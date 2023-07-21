@@ -1,6 +1,7 @@
 use super::define;
 use super::errors::PackerError;
 use super::errors::UnPackerError;
+use super::RtpPacket;
 use async_trait::async_trait;
 use bytes::BytesMut;
 use bytesio::bytes_reader::BytesReader;
@@ -27,29 +28,38 @@ pub type OnFrameFn = Box<dyn Fn(FrameData) -> Result<(), UnPackerError> + Send +
 
 //Arc<Mutex<Box<dyn TNetIO + Send + Sync>>> : The network connection used by packer to send a/v data
 //BytesMut: The Rtp packet data that will be sent using the TNetIO
-pub type OnPacketFn = Box<
+pub type OnRtpPacketFn = Box<
     dyn Fn(
             Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
-            BytesMut,
+            RtpPacket,
         ) -> Pin<Box<dyn Future<Output = Result<(), PackerError>> + Send + 'static>>
         + Send
         + Sync,
->; //fn(BytesMut) -> Result<(), PackerError>;
+>;
+
+pub type OnRtpPacketFn2 =
+    Box<dyn Fn(RtpPacket) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + Sync>;
+// pub type OnPacketFn2 = Box<dyn Fn(&RtpPacket) + Send + Sync>;
+
+pub trait TRtpReceiverForRtcp {
+    fn on_packet_for_rtcp_handler(&mut self, f: OnRtpPacketFn2);
+}
 
 #[async_trait]
-pub trait TPacker: Send + Sync {
+pub trait TPacker: TRtpReceiverForRtcp + Send + Sync {
     /*Split frame to rtp packets and send out*/
     async fn pack(&mut self, nalus: &mut BytesMut, timestamp: u32) -> Result<(), PackerError>;
     /*Call back function used for processing a rtp packet.*/
-    fn on_packet_handler(&mut self, f: OnPacketFn);
+    fn on_packet_handler(&mut self, f: OnRtpPacketFn);
 }
 
 #[async_trait]
-pub trait TRtpPacker: TPacker {
+pub trait TVideoPacker: TPacker {
     /*pack one nalu to rtp packets*/
     async fn pack_nalu(&mut self, nalu: BytesMut) -> Result<(), PackerError>;
 }
-pub trait TUnPacker: Send + Sync {
+
+pub trait TUnPacker: TRtpReceiverForRtcp + Send + Sync {
     /*Assemble rtp fragments into complete frame and send to stream hub*/
     fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError>;
     /*Call back function used for processing a frame.*/
@@ -69,7 +79,7 @@ pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
     nalus.windows(pattern.len()).position(|w| w == pattern)
 }
 
-pub async fn split_annexb_and_process<T: TRtpPacker>(
+pub async fn split_annexb_and_process<T: TVideoPacker>(
     nalus: &mut BytesMut,
     packer: &mut T,
 ) -> Result<(), PackerError> {

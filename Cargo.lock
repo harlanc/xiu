@@ -190,23 +190,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bytesio"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3b6acf4ac32edea4c5c8863a7cdd7ed7f6fceb5d1bb0deebc46e128abc5ea88"
-dependencies = [
- "byteorder",
- "bytes",
- "failure",
- "futures",
- "log",
- "rand 0.3.23",
- "tokio",
- "tokio-stream",
- "tokio-util 0.6.10",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -656,20 +639,7 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "failure",
- "log",
-]
-
-[[package]]
-name = "h264-decoder"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf778cd02275a0da9db75ad25c82ba14ac9a7352613314ce5b6fc7aff293f4e5"
-dependencies = [
- "byteorder",
- "bytes",
- "bytesio 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio",
  "failure",
  "log",
 ]
@@ -1405,10 +1375,10 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.2.0",
+ "bytesio",
  "chrono",
  "failure",
- "h264-decoder 0.1.0",
+ "h264-decoder",
  "hmac",
  "indexmap",
  "log",
@@ -1429,7 +1399,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.2.0",
+ "bytesio",
  "chrono",
  "failure",
  "http",
@@ -1623,6 +1593,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
+ "bytesio",
  "chrono",
  "failure",
  "indexmap",
@@ -2215,9 +2186,9 @@ version = "0.2.1"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio",
  "failure",
- "h264-decoder 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "h264-decoder",
  "log",
  "serde",
 ]
@@ -2253,6 +2224,6 @@ version = "0.1.1"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.2.0",
+ "bytesio",
  "failure",
 ]

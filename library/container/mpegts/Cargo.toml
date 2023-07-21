@@ -14,5 +14,5 @@ edition = "2018"
 byteorder = "1.4.2"
 bytes = "1.0.0"
 failure = "0.1.1"
-#bytesio = "0.2.0"
+# bytesio = "0.2.0"
 bytesio = { path = "../../bytesio/" }

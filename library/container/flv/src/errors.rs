@@ -44,7 +44,7 @@ impl Fail for TagParseError {
     }
 }
 #[derive(Debug)]
-pub struct MuxerError {
+pub struct FlvMuxerError {
     pub value: MuxerErrorValue,
 }
 
@@ -56,17 +56,27 @@ pub enum MuxerErrorValue {
     BytesWriteError(BytesWriteError),
 }
 
-impl From<BytesWriteError> for MuxerError {
+impl From<BytesWriteError> for FlvMuxerError {
     fn from(error: BytesWriteError) -> Self {
-        MuxerError {
+        FlvMuxerError {
             value: MuxerErrorValue::BytesWriteError(error),
         }
     }
 }
 
-impl fmt::Display for MuxerError {
+impl fmt::Display for FlvMuxerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for FlvMuxerError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }
 

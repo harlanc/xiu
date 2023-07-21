@@ -123,7 +123,7 @@ impl FlvDataReceiver {
             let rv = self.event_producer.send(subscribe_event);
             if rv.is_err() {
                 let session_error = SessionError {
-                    value: SessionErrorValue::SendFrameDataErr,
+                    value: SessionErrorValue::StreamHubEventSendErr,
                 };
                 return Err(HlsError {
                     value: HlsErrorValue::SessionError(session_error),

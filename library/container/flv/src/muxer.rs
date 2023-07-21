@@ -1,5 +1,5 @@
 use {
-    super::errors::MuxerError, byteorder::BigEndian, bytes::BytesMut,
+    super::errors::FlvMuxerError, byteorder::BigEndian, bytes::BytesMut,
     bytesio::bytes_writer::BytesWriter,
 };
 
@@ -29,7 +29,7 @@ impl FlvMuxer {
         }
     }
 
-    pub fn write_flv_header(&mut self) -> Result<(), MuxerError> {
+    pub fn write_flv_header(&mut self) -> Result<(), FlvMuxerError> {
         self.writer.write(&FLV_HEADER)?;
         Ok(())
     }
@@ -39,7 +39,7 @@ impl FlvMuxer {
         tag_type: u8,
         data_size: u32,
         timestamp: u32,
-    ) -> Result<(), MuxerError> {
+    ) -> Result<(), FlvMuxerError> {
         //tag type
         self.writer.write_u8(tag_type)?;
         //data size
@@ -55,12 +55,12 @@ impl FlvMuxer {
         Ok(())
     }
 
-    pub fn write_flv_tag_body(&mut self, body: BytesMut) -> Result<(), MuxerError> {
+    pub fn write_flv_tag_body(&mut self, body: BytesMut) -> Result<(), FlvMuxerError> {
         self.writer.write(&body[..])?;
         Ok(())
     }
 
-    pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), MuxerError> {
+    pub fn write_previous_tag_size(&mut self, size: u32) -> Result<(), FlvMuxerError> {
         self.writer.write_u32::<BigEndian>(size)?;
         Ok(())
     }

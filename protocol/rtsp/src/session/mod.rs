@@ -1,34 +1,36 @@
 pub mod define;
 pub mod errors;
-use crate::global_trait::Marshal;
-use crate::http::RtspResponse;
-use crate::rtsp;
-use crate::rtsp_range::RtspRange;
-
 use super::rtsp_codec;
+use crate::global_trait::Marshal;
 use crate::global_trait::Unmarshal;
+use crate::http::RtspResponse;
+use crate::rtp::define::ANNEXB_NALU_START_CODE;
+use crate::rtp::utils::Marshal as RtpMarshal;
+
+use crate::rtp::RtpPacket;
+use crate::rtsp_range::RtspRange;
+use crate::sdp::fmtp::Fmtp;
 
 use crate::rtsp_codec::RtspCodecInfo;
 use crate::rtsp_track::RtspTrack;
 use crate::rtsp_track::TrackType;
 use crate::rtsp_transport::ProtocolType;
 use crate::rtsp_transport::RtspTransport;
-use crate::rtsp_utils;
+
 use byteorder::BigEndian;
 use bytes::BytesMut;
 use bytesio::bytes_reader::BytesReader;
 use bytesio::bytes_writer::AsyncBytesWriter;
 
+use bytesio::bytes_writer::BytesWriter;
 use bytesio::bytesio::UdpIO;
 use errors::SessionError;
 use errors::SessionErrorValue;
 use http::StatusCode;
+use streamhub::define::VideoCodecType;
 
 use super::http::RtspRequest;
 use super::rtp::errors::UnPackerError;
-use super::rtp::utils::Unmarshal as RtpUnmarshal;
-use super::rtp::RtpPacket;
-use super::rtsp_track::Track;
 use super::sdp::Sdp;
 
 use async_trait::async_trait;
@@ -36,9 +38,7 @@ use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
 use define::rtsp_method_name;
 
-use crate::rtsp_channel::TRtpFunc;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -162,7 +162,7 @@ impl RtspServerSession {
                 if channel_identifier == rtp_identifier {
                     track.on_rtp(&mut cur_reader).await;
                 } else if channel_identifier == rtcp_identifier {
-                    track.on_rtcp(&mut cur_reader).await;
+                    track.on_rtcp(&mut cur_reader, self.io.clone()).await;
                 }
             }
         }
@@ -272,12 +272,14 @@ impl RtspServerSession {
         //new tracks for publish session
         self.new_tracks()?;
 
-        // The sender is used for sending audio/video frame data to stream hub
-        // receiver is used to passing to stream hub and receive the a/v frame data
+        // The sender is used for sending audio/video frame data to the stream hub
+        // receiver is passed to the stream hub for receiving the a/v frame data
         let (sender, receiver) = mpsc::unbounded_channel();
         for (_, track) in &mut self.tracks {
             let sender_out = sender.clone();
-            track.rtp_channel.lock().await.on_frame_handler(Box::new(
+            let mut rtp_channel_guard = track.rtp_channel.lock().await;
+
+            rtp_channel_guard.on_frame_handler(Box::new(
                 move |msg: FrameData| -> Result<(), UnPackerError> {
                     if let Err(err) = sender_out.send(msg) {
                         log::error!("send frame error: {}", err);
@@ -285,6 +287,14 @@ impl RtspServerSession {
                     Ok(())
                 },
             ));
+
+            let rtcp_channel = Arc::clone(&track.rtcp_channel);
+            rtp_channel_guard.on_packet_for_rtcp_handler(Box::new(move |packet: RtpPacket| {
+                let rtcp_channel_in = Arc::clone(&rtcp_channel);
+                Box::pin(async move {
+                    rtcp_channel_in.lock().await.on_rtp_packet(packet);
+                })
+            }));
         }
 
         let publish_event = StreamHubEvent::Publish {
@@ -343,7 +353,7 @@ impl RtspServerSession {
                                 };
 
                             let address = rtsp_request.address.clone();
-                            if let Some(rtp_io) = UdpIO::new(address.clone(), rtp_port).await {
+                            if let Some(rtp_io) = UdpIO::new(address.clone(), rtp_port, 0).await {
                                 rtp_server_port = rtp_io.get_local_port();
 
                                 let box_udp_io: Box<dyn TNetIO + Send + Sync> = Box::new(rtp_io);
@@ -355,10 +365,14 @@ impl RtspServerSession {
                                 }
                             }
 
-                            if let Some(rtcp_io) = UdpIO::new(address.clone(), rtcp_port).await {
+                            if let Some(rtcp_io) =
+                                UdpIO::new(address.clone(), rtcp_port, rtp_server_port.unwrap() + 1)
+                                    .await
+                            {
                                 rtcp_server_port = rtcp_io.get_local_port();
-                                let box_rtcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(rtcp_io);
-                                track.rtcp_run_loop(box_rtcp_io).await;
+                                let box_rtcp_io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>> =
+                                    Arc::new(Mutex::new(Box::new(rtcp_io)));
+                                track.rtcp_receive_loop(box_rtcp_io).await;
                             }
                         }
                     }
@@ -382,7 +396,7 @@ impl RtspServerSession {
                         self.session_id.clone().unwrap().to_string(),
                     );
 
-                    track.set_transport(trans);
+                    track.set_transport(trans).await;
                 }
             }
             break;
@@ -403,12 +417,14 @@ impl RtspServerSession {
                     {
                         interleaveds[0]
                     } else {
-                        log::error!("should not be here!!!");
+                        log::error!("handle_play:should not be here!!!");
                         0
                     };
+
                     track.rtp_channel.lock().await.on_packet_handler(Box::new(
-                        move |io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>, msg: BytesMut| {
+                        move |io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>, packet: RtpPacket| {
                             Box::pin(async move {
+                                let msg = packet.marshal()?;
                                 let mut bytes_writer = AsyncBytesWriter::new(io);
                                 bytes_writer.write_u8(0x24)?;
                                 bytes_writer.write_u8(channel_identifer)?;
@@ -422,9 +438,11 @@ impl RtspServerSession {
                 }
                 ProtocolType::UDP => {
                     track.rtp_channel.lock().await.on_packet_handler(Box::new(
-                        move |io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>, msg: BytesMut| {
+                        move |io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>, packet: RtpPacket| {
                             Box::pin(async move {
                                 let mut bytes_writer = AsyncBytesWriter::new(io);
+
+                                let msg = packet.marshal()?;
                                 bytes_writer.write(&msg)?;
                                 bytes_writer.flush().await?;
                                 Ok(())
@@ -470,7 +488,7 @@ impl RtspServerSession {
                                 .rtp_channel
                                 .lock()
                                 .await
-                                .pack(&mut data, timestamp)
+                                .on_frame(&mut data, timestamp)
                                 .await?;
                         }
                     }
@@ -483,7 +501,7 @@ impl RtspServerSession {
                                 .rtp_channel
                                 .lock()
                                 .await
-                                .pack(&mut data, timestamp)
+                                .on_frame(&mut data, timestamp)
                                 .await?;
                         }
                     }
@@ -687,7 +705,6 @@ impl RtspServerSession {
         self.writer.flush().await?;
 
         Ok(())
-        //response.
     }
 }
 
@@ -713,6 +730,66 @@ impl TStreamHandler for RtspStreamHandler {
         sender: FrameDataSender,
         sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
+        match sub_type {
+            SubscribeType::PlayerRtmp => {
+                let sdp_info = self.sdp.lock().await;
+                for media in &sdp_info.medias {
+                    let mut bytes_writer = BytesWriter::new();
+                    if let Some(fmtp) = &media.fmtp {
+                        match fmtp {
+                            Fmtp::H264(data) => {
+                                bytes_writer.write(&ANNEXB_NALU_START_CODE)?;
+                                bytes_writer.write_u8(0x07)?;
+                                bytes_writer.write(&data.sps)?;
+                                bytes_writer.write(&ANNEXB_NALU_START_CODE)?;
+                                bytes_writer.write_u8(0x08)?;
+                                bytes_writer.write(&data.pps)?;
+
+                                let frame_data = FrameData::Video {
+                                    timestamp: 0,
+                                    data: bytes_writer.extract_current_bytes(),
+                                };
+                                if let Err(err) = sender.send(frame_data) {
+                                    log::error!("send sps/pps error: {}", err);
+                                }
+                            }
+                            Fmtp::H265(data) => {
+                                bytes_writer.write(&ANNEXB_NALU_START_CODE)?;
+                                bytes_writer.write_u8(0x21)?;
+                                bytes_writer.write(&data.sps)?;
+                                bytes_writer.write(&ANNEXB_NALU_START_CODE)?;
+                                bytes_writer.write_u8(0x22)?;
+                                bytes_writer.write(&data.pps)?;
+                                bytes_writer.write(&ANNEXB_NALU_START_CODE)?;
+                                bytes_writer.write_u8(0x20)?;
+                                bytes_writer.write(&data.vps)?;
+
+                                let frame_data = FrameData::Video {
+                                    timestamp: 0,
+                                    data: bytes_writer.extract_current_bytes(),
+                                };
+                                if let Err(err) = sender.send(frame_data) {
+                                    log::error!("send sps/pps/vps error: {}", err);
+                                }
+                            }
+                            Fmtp::Mpeg4(data) => {
+                                bytes_writer.write(&data.asc)?;
+                                let frame_data = FrameData::Audio {
+                                    timestamp: 0,
+                                    data: bytes_writer.extract_current_bytes(),
+                                };
+
+                                if let Err(err) = sender.send(frame_data) {
+                                    log::error!("send asc error: {}", err);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
         Ok(())
     }
     async fn get_statistic_data(&self) -> Option<StreamStatistics> {

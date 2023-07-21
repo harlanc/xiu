@@ -1,5 +1,3 @@
-use rand::Rng;
-
 macro_rules! scanf {
     ( $string:expr, $sep:expr, $( $x:ty ),+ ) => {{
         let mut iter = $string.split($sep);

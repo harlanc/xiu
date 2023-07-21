@@ -8,7 +8,7 @@ pub mod utils;
 use {
     crate::notify::Notifier,
     define::{
-        AvStatisticSender, ClientEvent, ClientEventConsumer, ClientEventProducer, FrameData,
+        AvStatisticSender, BroadcastEvent, BroadcastEventReceiver, BroadcastEventSender, FrameData,
         FrameDataReceiver, FrameDataSender, Information, PubSubInfo, StreamHubEvent,
         StreamHubEventReceiver, StreamHubEventSender, StreamStatisticSizeSender, SubscriberInfo,
         TStreamHandler, TransmitterEvent, TransmitterEventConsumer, TransmitterEventProducer,
@@ -132,7 +132,7 @@ pub struct StreamsHub {
     //event is produced from other rtmp sessions
     hub_event_sender: StreamHubEventSender,
     //client_event_producer: client_event_producer
-    client_event_producer: ClientEventProducer,
+    client_event_producer: BroadcastEventSender,
     //The rtmp static push/pull and the hls transfer is triggered actively,
     //add a control switches separately.
     rtmp_push_enabled: bool,
@@ -181,7 +181,7 @@ impl StreamsHub {
         self.hub_event_sender.clone()
     }
 
-    pub fn get_client_event_consumer(&mut self) -> ClientEventConsumer {
+    pub fn get_client_event_consumer(&mut self) -> BroadcastEventReceiver {
         self.client_event_producer.subscribe()
     }
 
@@ -391,7 +391,7 @@ impl StreamsHub {
         if self.rtmp_pull_enabled {
             log::info!("subscribe: try to pull stream, identifier: {}", identifer);
 
-            let client_event = ClientEvent::Subscribe {
+            let client_event = BroadcastEvent::Subscribe {
                 identifier: identifer.clone(),
             };
 
@@ -463,7 +463,7 @@ impl StreamsHub {
         self.streams.insert(identifier.clone(), event_publisher);
 
         if self.rtmp_push_enabled || self.hls_enabled {
-            let client_event = ClientEvent::Publish { identifier };
+            let client_event = BroadcastEvent::Publish { identifier };
 
             //send publish info to push clients
             self.client_event_producer

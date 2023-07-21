@@ -6,10 +6,12 @@ use super::errors::UnPackerError;
 use super::utils;
 use super::utils::Marshal;
 use super::utils::OnFrameFn;
-use super::utils::OnPacketFn;
+use super::utils::OnRtpPacketFn;
+use super::utils::OnRtpPacketFn2;
 use super::utils::TPacker;
-use super::utils::TRtpPacker;
+use super::utils::TRtpReceiverForRtcp;
 use super::utils::TUnPacker;
+use super::utils::TVideoPacker;
 use super::utils::Unmarshal;
 use super::RtpHeader;
 use super::RtpPacket;
@@ -17,17 +19,18 @@ use async_trait::async_trait;
 use byteorder::BigEndian;
 use bytes::{BufMut, BytesMut};
 use bytesio::bytes_reader::BytesReader;
-use bytesio::bytes_writer::AsyncBytesWriter;
 use bytesio::bytesio::TNetIO;
 use std::sync::Arc;
 use streamhub::define::FrameData;
+use streamhub::define::VideoCodecType;
 use tokio::sync::Mutex;
 
 pub struct RtpH265Packer {
     header: RtpHeader,
     mtu: usize,
     io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
-    on_packet_handler: Option<OnPacketFn>,
+    on_packet_handler: Option<OnRtpPacketFn>,
+    on_packet_for_rtcp_handler: Option<OnRtpPacketFn2>,
 }
 
 impl RtpH265Packer {
@@ -49,6 +52,7 @@ impl RtpH265Packer {
             mtu,
             io,
             on_packet_handler: None,
+            on_packet_for_rtcp_handler: None,
         }
     }
 
@@ -103,9 +107,12 @@ impl RtpH265Packer {
             packet.payload.put(fu_payload);
             packet.header.marker = if fu_header & define::FU_END > 0 { 1 } else { 0 };
 
-            let packet_bytesmut = packet.marshal()?;
+            if let Some(f) = &self.on_packet_for_rtcp_handler {
+                f(packet.clone());
+            }
+
             if let Some(f) = &self.on_packet_handler {
-                f(self.io.clone(), packet_bytesmut).await?;
+                f(self.io.clone(), packet).await?;
             }
             left_nalu_bytes = nalu_reader.len();
             self.header.seq_number += 1;
@@ -118,11 +125,14 @@ impl RtpH265Packer {
         packet.header.marker = 1;
         packet.payload.put(nalu);
 
-        let packet_bytesmut = packet.marshal()?;
         self.header.seq_number += 1;
 
+        if let Some(f) = &self.on_packet_for_rtcp_handler {
+            f(packet.clone());
+        }
+
         if let Some(f) = &self.on_packet_handler {
-            return f(self.io.clone(), packet_bytesmut).await;
+            return f(self.io.clone(), packet).await;
         }
         Ok(())
     }
@@ -135,13 +145,19 @@ impl TPacker for RtpH265Packer {
         utils::split_annexb_and_process(nalus, self).await?;
         Ok(())
     }
-    fn on_packet_handler(&mut self, f: OnPacketFn) {
+    fn on_packet_handler(&mut self, f: OnRtpPacketFn) {
         self.on_packet_handler = Some(f);
     }
 }
 
+impl TRtpReceiverForRtcp for RtpH265Packer {
+    fn on_packet_for_rtcp_handler(&mut self, f: OnRtpPacketFn2) {
+        self.on_packet_for_rtcp_handler = Some(f);
+    }
+}
+
 #[async_trait]
-impl TRtpPacker for RtpH265Packer {
+impl TVideoPacker for RtpH265Packer {
     async fn pack_nalu(&mut self, nalu: BytesMut) -> Result<(), PackerError> {
         if nalu.len() + define::RTP_FIXED_HEADER_LEN <= self.mtu {
             self.pack_single(nalu).await?;
@@ -160,11 +176,16 @@ pub struct RtpH265UnPacker {
     flags: i16,
     using_donl_field: bool,
     on_frame_handler: Option<OnFrameFn>,
+    on_packet_for_rtcp_handler: Option<OnRtpPacketFn2>,
 }
 
 impl TUnPacker for RtpH265UnPacker {
     fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
         let rtp_packet = RtpPacket::unmarshal(reader)?;
+
+        if let Some(f) = &self.on_packet_for_rtcp_handler {
+            f(rtp_packet.clone());
+        }
 
         self.timestamp = rtp_packet.header.timestamp;
         self.sequence_number = rtp_packet.header.seq_number;
@@ -330,5 +351,11 @@ impl RtpH265UnPacker {
         }
 
         Ok(())
+    }
+}
+
+impl TRtpReceiverForRtcp for RtpH265UnPacker {
+    fn on_packet_for_rtcp_handler(&mut self, f: OnRtpPacketFn2) {
+        self.on_packet_for_rtcp_handler = Some(f);
     }
 }

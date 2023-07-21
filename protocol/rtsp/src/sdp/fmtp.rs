@@ -8,20 +8,20 @@ pub struct H264Fmtp {
     pub payload_type: u16,
     packetization_mode: u8,
     profile_level_id: BytesMut,
-    sps: BytesMut,
-    pps: BytesMut,
+    pub sps: BytesMut,
+    pub pps: BytesMut,
 }
 #[derive(Debug, Clone, Default)]
 pub struct H265Fmtp {
     pub payload_type: u16,
-    vps: BytesMut,
-    sps: BytesMut,
-    pps: BytesMut,
+    pub vps: BytesMut,
+    pub sps: BytesMut,
+    pub pps: BytesMut,
 }
 #[derive(Debug, Clone, Default)]
 pub struct Mpeg4Fmtp {
     pub payload_type: u16,
-    asc: BytesMut,
+    pub asc: BytesMut,
     profile_level_id: BytesMut,
     mode: String,
     size_length: u16,

@@ -42,8 +42,7 @@ impl Marshal<Result<BytesMut, RtcpError>> for RtcpHeader {
     fn marshal(&self) -> Result<BytesMut, RtcpError> {
         let mut writer = BytesWriter::default();
 
-        let byte_1st: u8 =
-            (self.version << 6) | (self.padding_flag << 5) | (self.report_count << 3);
+        let byte_1st: u8 = (self.version << 6) | (self.padding_flag << 5) | self.report_count;
 
         writer.write_u8(byte_1st)?;
         writer.write_u8(self.payload_type)?;
@@ -52,3 +51,8 @@ impl Marshal<Result<BytesMut, RtcpError>> for RtcpHeader {
         Ok(writer.extract_current_bytes())
     }
 }
+
+// 88
+// 10 0 01000
+// 81
+// 10 0 00001

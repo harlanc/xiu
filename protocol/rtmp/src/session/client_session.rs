@@ -1,3 +1,5 @@
+use crate::chunk::packetizer::ChunkPacketizer;
+
 use {
     super::{
         common::Common,
@@ -60,6 +62,7 @@ enum ClientSessionPublishState {
     PublishingContent,
 }
 #[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ClientType {
     Play,
     Publish,
@@ -109,12 +112,13 @@ impl ClientSession {
 
         let subscriber_id = Uuid::new(RandomDigitCount::Four);
 
-        let common = Common::new(
-            Arc::clone(&net_io),
-            event_producer,
-            SessionType::Client,
-            remote_addr,
-        );
+        let packetizer = if client_type == ClientType::Publish {
+            Some(ChunkPacketizer::new(Arc::clone(&net_io)))
+        } else {
+            None
+        };
+
+        let common = Common::new(packetizer, event_producer, SessionType::Client, remote_addr);
 
         let (stream_name, _) = RtmpUrlParser::default()
             .set_raw_stream_name(raw_stream_name.clone())

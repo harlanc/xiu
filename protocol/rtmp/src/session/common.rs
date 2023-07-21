@@ -33,7 +33,8 @@ use {
 };
 
 pub struct Common {
-    packetizer: ChunkPacketizer,
+    //only Server Subscriber or Client Publisher needs to send out trunck data.
+    packetizer: Option<ChunkPacketizer>,
 
     data_receiver: FrameDataReceiver,
     data_sender: FrameDataSender,
@@ -50,7 +51,7 @@ pub struct Common {
 
 impl Common {
     pub fn new(
-        net_io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
+        packetizer: Option<ChunkPacketizer>,
         event_producer: StreamHubEventSender,
         session_type: SessionType,
         remote_addr: Option<SocketAddr>,
@@ -59,7 +60,7 @@ impl Common {
         let (init_producer, init_consumer) = mpsc::unbounded_channel();
 
         Self {
-            packetizer: ChunkPacketizer::new(Arc::clone(&net_io)),
+            packetizer,
 
             data_sender: init_producer,
             data_receiver: init_consumer,
@@ -114,7 +115,9 @@ impl Common {
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        if let Some(packetizer) = &mut self.packetizer {
+            packetizer.write_chunk(&mut chunk_info).await?;
+        }
 
         Ok(())
     }
@@ -130,7 +133,9 @@ impl Common {
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        if let Some(packetizer) = &mut self.packetizer {
+            packetizer.write_chunk(&mut chunk_info).await?;
+        }
 
         Ok(())
     }
@@ -150,7 +155,10 @@ impl Common {
             data,
         );
 
-        self.packetizer.write_chunk(&mut chunk_info).await?;
+        if let Some(packetizer) = &mut self.packetizer {
+            packetizer.write_chunk(&mut chunk_info).await?;
+        }
+
         Ok(())
     }
 
@@ -228,10 +236,6 @@ impl Common {
         }
 
         self.stream_handler.save_metadata(data, *timestamp).await;
-
-        // if let Some(cache) = &mut self.cache {
-        //     cache.lock().await.save_metadata(data, *timestamp);
-        // }
 
         Ok(())
     }
@@ -383,8 +387,7 @@ impl Common {
             stream_handler: self.stream_handler.clone(),
         };
 
-        let rv = self.event_producer.send(publish_event);
-        if rv.is_err() {
+        if self.event_producer.send(publish_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
@@ -413,8 +416,7 @@ impl Common {
             info: self.get_publisher_info(pub_id),
         };
 
-        let rv = self.event_producer.send(unpublish_event);
-        match rv {
+        match self.event_producer.send(unpublish_event) {
             Err(_) => {
                 log::error!(
                     "unpublish_to_channels error.app_name: {}, stream_name: {}",

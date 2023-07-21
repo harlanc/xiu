@@ -1,18 +1,18 @@
 use {
     super::{errors::HlsError, flv_data_receiver::FlvDataReceiver},
     streamhub::{
-        define::{StreamHubEventSender, ClientEvent, ClientEventConsumer},
+        define::{StreamHubEventSender, BroadcastEvent, BroadcastEventReceiver},
         stream::StreamIdentifier,
     },
 };
 
 pub struct RtmpEventProcessor {
-    client_event_consumer: ClientEventConsumer,
+    client_event_consumer: BroadcastEventReceiver,
     event_producer: StreamHubEventSender,
 }
 
 impl RtmpEventProcessor {
-    pub fn new(consumer: ClientEventConsumer, event_producer: StreamHubEventSender) -> Self {
+    pub fn new(consumer: BroadcastEventReceiver, event_producer: StreamHubEventSender) -> Self {
         Self {
             client_event_consumer: consumer,
             event_producer,
@@ -23,7 +23,7 @@ impl RtmpEventProcessor {
         loop {
             let val = self.client_event_consumer.recv().await?;
             match val {
-                ClientEvent::Publish { identifier } => {
+                BroadcastEvent::Publish { identifier } => {
                     if let StreamIdentifier::Rtmp {
                         app_name,
                         stream_name,

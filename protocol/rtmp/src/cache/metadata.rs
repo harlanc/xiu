@@ -32,7 +32,7 @@ impl MetaData {
 
     //used for the http-flv protocol
     pub fn remove_set_data_frame(&mut self) -> Result<BytesMut, MetadataError> {
-        let mut amf_writer: Amf0Writer = Amf0Writer::new(BytesWriter::new());
+        let mut amf_writer: Amf0Writer = Amf0Writer::new();
         amf_writer.write_string(&String::from("@setDataFrame"))?;
 
         let (_, right) = self.chunk_body.split_at(amf_writer.len());

@@ -1,3 +1,5 @@
+use crate::chunk::packetizer::ChunkPacketizer;
+
 use {
     super::{
         common::Common,
@@ -76,7 +78,6 @@ impl ServerSession {
         let tcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
         let net_io = Arc::new(Mutex::new(tcp_io));
 
-        let subscriber_id = Uuid::new(RandomDigitCount::Four);
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
@@ -86,12 +87,12 @@ impl ServerSession {
             unpacketizer: ChunkUnpacketizer::new(),
             state: ServerSessionState::Handshake,
             common: Common::new(
-                Arc::clone(&net_io),
+                Some(ChunkPacketizer::new(Arc::clone(&net_io))),
                 event_producer,
                 SessionType::Server,
                 remote_addr,
             ),
-            session_id: subscriber_id,
+            session_id: Uuid::new(RandomDigitCount::Four),
             bytesio_data: BytesMut::new(),
             has_remaing_data: false,
             connect_properties: ConnectProperties::default(),

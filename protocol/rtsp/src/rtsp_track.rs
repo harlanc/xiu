@@ -1,32 +1,11 @@
-use crate::rtp::rtcp::rtcp_header::RtcpHeader;
-use crate::rtp::rtcp::RTCP_SR;
-use crate::rtsp_channel::TRtpFunc;
-use crate::rtsp_transport::ProtocolType;
-
-use super::rtp::rtp_aac::RtpAacPacker;
-use super::rtp::rtp_h264::RtpH264Packer;
-use super::rtp::rtp_h265::RtpH265Packer;
-
-use super::rtp::rtp_aac::RtpAacUnPacker;
-use super::rtp::rtp_h264::RtpH264UnPacker;
-use super::rtp::rtp_h265::RtpH265UnPacker;
-
-use super::rtp::rtcp::rtcp_context::RtcpContext;
-use super::rtp::rtcp::rtcp_sr::RtcpSenderReport;
-use super::rtp::utils::TPacker;
-use super::rtp::utils::TUnPacker;
 use super::rtsp_channel::RtcpChannel;
 use super::rtsp_channel::RtpChannel;
-use super::rtsp_codec::RtspCodecId;
 use super::rtsp_codec::RtspCodecInfo;
 use super::rtsp_transport::RtspTransport;
-use crate::rtp::utils::Marshal;
-use crate::rtp::utils::Unmarshal;
+use crate::rtsp_channel::TRtpFunc;
 use bytes::BytesMut;
 use bytesio::bytes_reader::BytesReader;
-use bytesio::bytes_writer::AsyncBytesWriter;
 use bytesio::bytesio::TNetIO;
-use rand::Rng;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -61,7 +40,7 @@ pub struct RtspTrack {
     pub media_control: String,
 
     pub rtp_channel: Arc<Mutex<RtpChannel>>,
-    rtcp_channel: Arc<Mutex<RtcpChannel>>,
+    pub rtcp_channel: Arc<Mutex<RtcpChannel>>,
 }
 
 impl RtspTrack {
@@ -79,7 +58,7 @@ impl RtspTrack {
             transport: RtspTransport::default(),
             uri: String::default(),
             rtp_channel: Arc::new(Mutex::new(rtp_channel)),
-            rtcp_channel: Arc::new(Mutex::new(RtcpChannel::default())),
+            rtcp_channel: Arc::new(Mutex::default()),
         };
 
         rtsp_track
@@ -94,7 +73,7 @@ impl RtspTrack {
                 match rtp_io.read().await {
                     Ok(data) => {
                         reader.extend_from_slice(&data[..]);
-                        rtp_channel_in.on_rtp(&mut reader);
+                        rtp_channel_in.on_rtp_packet(&mut reader);
                     }
                     Err(err) => {
                         log::error!("read error: {:?}", err);
@@ -105,36 +84,50 @@ impl RtspTrack {
         });
     }
     //send and receive rtcp data in a UDP channel
-    pub async fn rtcp_run_loop(&mut self, mut rtcp_io: Box<dyn TNetIO + Send + Sync>) {
+    pub async fn rtcp_receive_loop(&mut self, rtcp_io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) {
         let rtcp_channel_out = self.rtcp_channel.clone();
+
         tokio::spawn(async move {
             let mut reader = BytesReader::new(BytesMut::new());
             let mut rtcp_channel_in = rtcp_channel_out.lock().await;
+
             loop {
-                match rtcp_io.read().await {
-                    Ok(data) => {
-                        reader.extend_from_slice(&data[..]);
-                        rtcp_channel_in.on_rtcp(&mut reader);
-                    }
+                let data = match rtcp_io.lock().await.read().await {
+                    Ok(data) => data,
                     Err(err) => {
                         log::error!("read error: {:?}", err);
                         break;
                     }
-                }
+                };
+                reader.extend_from_slice(&data[..]);
+                rtcp_channel_in.on_rtcp(&mut reader, rtcp_io.clone()).await;
             }
         });
     }
 
-    pub fn set_transport(&mut self, transport: RtspTransport) {
+    pub async fn set_transport(&mut self, transport: RtspTransport) {
+        if let Some(interleaveds) = transport.interleaved {
+            self.rtcp_channel
+                .lock()
+                .await
+                .set_channel_identifier(interleaveds[1]);
+        } else {
+            log::info!("it is a udp transport!!!");
+        }
+
         self.transport = transport;
     }
 
     pub async fn on_rtp(&mut self, reader: &mut BytesReader) {
-        self.rtp_channel.lock().await.on_rtp(reader);
+        self.rtp_channel.lock().await.on_rtp_packet(reader);
     }
 
-    pub async fn on_rtcp(&mut self, reader: &mut BytesReader) {
-        self.rtcp_channel.lock().await.on_rtcp(reader);
+    pub async fn on_rtcp(
+        &mut self,
+        reader: &mut BytesReader,
+        io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
+    ) {
+        self.rtcp_channel.lock().await.on_rtcp(reader, io).await;
     }
 
     pub async fn create_packer(&mut self, io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) {

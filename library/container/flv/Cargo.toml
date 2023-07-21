@@ -16,7 +16,7 @@ bytes = "1.0.0"
 failure = "0.1.1"
 serde = { version = "1.0", features = ["derive", "rc"] }
 log = "0.4"
-bytesio = "0.2.0"
-h264-decoder = "0.1.0"
-# bytesio = { path = "../../bytesio/" }
-# h264-decoder = { path = "../../codec/h264/" }
+# bytesio = "0.2.0"
+#h264-decoder = "0.1.0"
+bytesio = { path = "../../bytesio/" }
+h264-decoder = { path = "../../codec/h264/" }

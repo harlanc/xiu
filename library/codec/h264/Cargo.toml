@@ -15,5 +15,5 @@ bytes = "1.0.0"
 log = "0.4"
 failure = "0.1.1"
 
-bytesio = "0.2.0"
-#bytesio = { path = "../../bytesio/" }
+# bytesio = "0.2.0"
+bytesio = { path = "../../bytesio/" }

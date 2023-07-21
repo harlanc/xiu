@@ -11,8 +11,10 @@ pub struct Amf0Writer {
 }
 
 impl Amf0Writer {
-    pub fn new(writer: BytesWriter) -> Self {
-        Self { writer }
+    pub fn new() -> Self {
+        Self {
+            writer: BytesWriter::new(),
+        }
     }
     pub fn write_anys(&mut self, values: &Vec<Amf0ValueType>) -> Result<(), Amf0WriteError> {
         for val in values {
@@ -28,6 +30,7 @@ impl Amf0Writer {
             Amf0ValueType::Number(ref val) => self.write_number(val),
             Amf0ValueType::UTF8String(ref val) => self.write_string(val),
             Amf0ValueType::Object(ref val) => self.write_object(val),
+            Amf0ValueType::EcmaArray(ref val) => self.write_eacm_array(val),
             _ => Ok(()),
         }
     }
@@ -74,6 +77,24 @@ impl Amf0Writer {
         properties: &IndexMap<String, Amf0ValueType>,
     ) -> Result<(), Amf0WriteError> {
         self.writer.write_u8(amf0_markers::OBJECT)?;
+
+        for (key, value) in properties {
+            self.writer.write_u16::<BigEndian>(key.len() as u16)?;
+            self.writer.write(key.as_bytes())?;
+            self.write_any(value)?;
+        }
+
+        self.write_object_eof()?;
+        Ok(())
+    }
+
+    pub fn write_eacm_array(
+        &mut self,
+        properties: &IndexMap<String, Amf0ValueType>,
+    ) -> Result<(), Amf0WriteError> {
+        self.writer.write_u8(amf0_markers::ECMA_ARRAY)?;
+        self.writer
+            .write_u32::<BigEndian>(properties.len() as u32)?;
 
         for (key, value) in properties {
             self.writer.write_u16::<BigEndian>(key.len() as u16)?;

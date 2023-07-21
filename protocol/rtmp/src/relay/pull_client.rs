@@ -3,20 +3,20 @@ use streamhub::stream::StreamIdentifier;
 use {
     super::errors::ClientError,
     crate::session::client_session::{ClientSession, ClientType},
-    streamhub::define::{StreamHubEventSender, ClientEvent, ClientEventConsumer},
+    streamhub::define::{StreamHubEventSender, BroadcastEvent, BroadcastEventReceiver},
     tokio::net::TcpStream,
 };
 
 pub struct PullClient {
     address: String,
-    client_event_consumer: ClientEventConsumer,
+    client_event_consumer: BroadcastEventReceiver,
     channel_event_producer: StreamHubEventSender,
 }
 
 impl PullClient {
     pub fn new(
         address: String,
-        consumer: ClientEventConsumer,
+        consumer: BroadcastEventReceiver,
         producer: StreamHubEventSender,
     ) -> Self {
         Self {
@@ -31,7 +31,7 @@ impl PullClient {
         loop {
             let val = self.client_event_consumer.recv().await?;
 
-            if let ClientEvent::Subscribe { identifier } = val {
+            if let BroadcastEvent::Subscribe { identifier } = val {
                 if let StreamIdentifier::Rtmp {
                     app_name,
                     stream_name,

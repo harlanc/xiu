@@ -69,7 +69,7 @@ pub struct NetConnection {
 impl NetConnection {
     pub fn new(io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) -> Self {
         Self {
-            amf0_writer: Amf0Writer::new(BytesWriter::new()),
+            amf0_writer: Amf0Writer::new(),
             packetizer: ChunkPacketizer::new(io),
         }
     }
