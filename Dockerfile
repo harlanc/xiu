@@ -13,81 +13,52 @@ ARG APK_CACHE="/var/cache/apk/"
 # 1. Build app
 FROM --platform=${PLATFORM} alpine:${BASE_VERSION} AS builder
 
-# Builder args
-# Deps, source settings, directories, build args
-ARG BUILD_DEPS="openssl-dev"
-ARG TOOLCHAIN="pkgconf git rust cargo"
-ARG SRC_URL="https://github.com/harlanc/xiu.git"
-ARG SRC_BRANCH="master"
-ARG SRC_TAG="v0.6.1"
+# Builder args - source settings, directories and CWD
+ARG XIU_VERSION="v0.6.1"
 ARG BUILD_DIR="/build/"
-ARG REPOROOT="xiu"
-ARG MANIFEST="xiu/application/xiu/Cargo.toml"
-ARG TARGET_TRIPLE="x86_64-unknown-linux-gnu"
-
-# Set workdir
 WORKDIR ${BUILD_DIR}
 
 # Get toolchain
 RUN apk cache sync; \
     apk --update-cache upgrade; \
-    apk add --no-cache ${BUILD_DEPS} ${TOOLCHAIN}; \
+    apk add --no-cache "openssl-dev" "pkgconf" "git" "rust" "cargo"; \
     apk cache clean; \
     rm -rf ${APK_CACHE};
 
 # Copying source and building
-RUN git clone ${SRC_URL} --branch ${SRC_BRANCH} \
-    && cd ${REPOROOT} \
-    && git checkout -b "publish" "tags/"${SRC_TAG} \
+RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" \
+    && cd "xiu" \
+    && git checkout -b "publish" "tags/"${XIU_VERSION} \
     && cd ${BUILD_DIR};
-RUN cargo build \
-                --manifest-path ${MANIFEST} \
+RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" \
                 --release;
 RUN echo "Builded."
 
 # 2. Run app
-FROM --platform=${PLATFORM} alpine:${RUN_VERSION} AS runner
+FROM --platform=${PLATFORM} alpine:${RUN_VERSION} AS test_runner
 
-# Runner args
-# Deps, dirs, user creation, port/proto aliases
-ARG RUN_DEPS="libgcc"
-ARG SOURCE_DIR="/build/xiu/target/release/"
-ARG SHARED_DIR="/source/"
-ARG INSTALL_DIR="/app"
-ARG UID="10001"
-ARG USERNAME="appuser"
-ARG HOME="/nonexistent"
-ARG SHELL="/sbin/nologin"
-ARG GECOS="Specified user"
-ARG RTMP="1935"
-ARG XIU_HTTP="8000"
-
-# Set workdir
-WORKDIR ${INSTALL_DIR}
+# Runner args - dirs, user - and CWD
+WORKDIR "/app"
 
 # Install deps and create app user
-RUN --mount=type="cache",from="builder",src=${SOURCE_DIR},dst=${SHARED_DIR} \
+RUN --mount=type=bind,from=builder,src=/build/xiu/target/release,dst=/mnt/source \
     apk cache sync; \
     apk --update-cache upgrade; \
-    apk add --no-cache ${RUN_DEPS}; \
+    apk add --no-cache "libgcc" \
     apk cache clean; \
     rm -rf ${APK_CACHE}; \
-    cp -RT -- ${SHARED_DIR}"/*" ${INSTALL_DIR}; \
+    cp -RT -- "/source/*" "/app"; \
     adduser \
-    --gecos ${GECOS} \
-    --shell ${SHELL} \
-    --home ${HOME} \
+    --uid "10001" \
+    --gecos "Special no-login user for pub app." \
+    --shell "/sbin/nologin" \
+    --home "/nonexistent" \
     --no-create-home \
     --disabled-password \
-    --uid ${UID} \
-    ${USERNAME};
+    "appuser";
 
-# Switching user
-USER ${USERNAME}
-
-# Exposing all interesting ports
-EXPOSE ${RTMP}
-EXPOSE ${XIU_HTTP}
-
-# Launch
-ENTRYPOINT [ "xiu" ]
+# Switch user, setup and launch
+USER "appuser"
+EXPOSE "1935"
+EXPOSE "8000"
+ENTRYPOINT [ "sh" ]

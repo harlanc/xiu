@@ -4,93 +4,62 @@ name: "streamer_test"
 # XIU test pod
 services:
 
-  # 1. Build
-  app:
+  # 1. Base streamer
+  base_streamer:
     build:
       context: "."
-      target: "runner"
-
-    # Or use image
-    # image: "normkd/1688557675-test01:1.0.0"
-
-  # 2. Base streamer
-  base_streamer:
-    extends:
-      service: "app"
-
-    # Container config
+      target: "test_runner"
+    image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
-    
-    # App config
+    # environment:
+    #   - PATH ${PATH}:"/app"
     working_dir: "/app"
     user: "appuser"
-
-    # Base network
     hostname: "base_streamer"
-    networks:
-      local:
-        ipv4_address: "172.16.100.5"
-    
-    ports:
-      - "1935:1935"
-      - "1935:1935/udp"
-      - "8000:8000" 
-      - "8000:8000/udp"
-
-    # If using "*.docker.internal subdomain"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-    # Run
+    # networks:
+    #   - "intra"
+      # intra:
+        # ipv4_address: "172.16.100.5"
+    # ports:
+    #   - "1935:1935"
+      # - "1935:1935/udp"
+      # - "8000:8000" 
+      # - "8000:8000/udp"
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     entrypoint: ["xiu"]
     command: ["-c", "config/config_rtmp.toml"]
 
-
-  # 3. Streamer instances
+  # 2. Streamer instances
   streamer1:
-
-    # Extending app service
     extends:
       service: "base_streamer"
-
-    # Override/extend container config
     container_name: "${COMPOSE_PROJECT_NAME}.node1"
-
-    # Network
     hostname: "streamer1"
-    networks:
-      local:
-        ipv4_address: "172.16.100.6"
+    # ports:
+    #   - "1936:1936"
+    # networks:
+      # intra:
+        # ipv4_address: "172.16.100.6"
 
   streamer2:
-
-    # Extending app service
     extends:
       service: "base_streamer"
-
-    # Override/extend container config
     container_name: "${COMPOSE_PROJECT_NAME}.node2"
-
-    # Network
     hostname: "streamer2"
-    networks:
-      local:
-        ipv4_address: "172.16.100.7"
+    # ports:
+    #   - "1937:1937"
+    # networks:
+    #   intra:
+    #     ipv4_address: "172.16.100.7"
 
-# ---
-
-configs:
-  xiu_config:
-    file: "./config/config_rtmp.toml"
-    name: "default"
-    # external: true
-
-# ---
-
-networks:
-  local:
-    name: "intra"
-    ipam:
-      config:
-        - subnet: "172.16.100.0/24"
-    # driver: "bridge"
+# networks:
+#   intra:
+#     name: "test_bridge"
+#     driver: "bridge"
+    # ipam:
+      # config:
+        # - subnet: "172.16.100.0/24"
+  # default:
+  #   external: true
+  #   name: "nat"
