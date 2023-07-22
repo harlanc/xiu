@@ -62,7 +62,6 @@ RUN apk cache sync \
 COPY --from=builder "/build/xiu/target/release/xiu" "."
 
 # Switch user, setup and launch
-# USER ${USER}
+USER ${USER}
 EXPOSE "1935"
-EXPOSE "8000"
-ENTRYPOINT [ "/app/xiu" ]
+ENTRYPOINT [ "xiu" ]

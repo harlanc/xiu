@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3"
 name: "streamer_test"
 
 # XIU test pod
@@ -12,10 +12,12 @@ services:
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
     working_dir: "/app"
+    volumes:
+      - "./config:/app/config"
     user: "appuser"
     hostname: "base_streamer"
-    # networks:
-    #   - "intra"
+    networks:
+      - "intra"
       # intra:
         # ipv4_address: "172.16.100.5"
     # ports:
@@ -25,8 +27,7 @@ services:
       # - "8000:8000/udp"
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
-    entrypoint: ["sh"]
-    # command: ["-c", "config/config_rtmp.toml"]
+    command: ["-c", "config/config_rtmp.toml"]
 
   # 2. Streamer instances
   streamer1:
@@ -51,13 +52,13 @@ services:
     #   intra:
     #     ipv4_address: "172.16.100.7"
 
-# networks:
-#   intra:
-#     name: "test_bridge"
-#     driver: "bridge"
-    # ipam:
-      # config:
-        # - subnet: "172.16.100.0/24"
+networks:
+  intra:
+    name: "test_bridge"
+    driver: "bridge"
+    ipam:
+      config:
+        - subnet: "172.16.100.0/24"
   # default:
   #   external: true
   #   name: "nat"
