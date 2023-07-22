@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# escape=\
+# escape=`
 
 # XIU stream/restream server
 # Test image
@@ -17,17 +17,17 @@ ARG APP_VERSION="v0.6.1"
 WORKDIR "/build"
 
 # Get toolchain
-RUN apk cache sync \
-    && apk --update-cache upgrade \
-    && apk add --no-cache "openssl-dev" "pkgconf" "git" "rust" "cargo" \
-    && apk cache clean \
+RUN apk cache sync `
+    && apk --update-cache upgrade `
+    && apk add --no-cache "openssl-dev" "pkgconf" "git" "rust" "cargo" `
+    && apk cache clean `
     && rm -rf "/var/cache/apk";
 
 # Copying source and building
-RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" \
-    && cd "xiu" \
+RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
+    && cd "xiu" `
     && git checkout -b "publish" "tags/"${APP_VERSION};
-RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" \
+RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" `
                 --release;
 CMD ["echo", "Builded."]
 
@@ -44,18 +44,18 @@ ARG USER="appuser"
 WORKDIR "/app"
 
 # Install deps and create app user
-RUN apk cache sync \
-    && apk --update-cache upgrade \
-    && apk add --no-cache "libgcc" \
-    && apk cache clean \
-    && rm -rf "/var/cache/apk" \
-    && adduser \
-    --uid "10001" \
-    --gecos "Special no-login user for pub app." \
-    --shell "/sbin/nologin" \
-    --home "/nonexistent" \
-    --no-create-home \
-    --disabled-password \
+RUN apk cache sync `
+    && apk --update-cache upgrade `
+    && apk add --no-cache "libgcc" `
+    && apk cache clean `
+    && rm -rf "/var/cache/apk" `
+    && adduser `
+    --uid "10001" `
+    --gecos "Special no-login user for app." `
+    --shell "/sbin/nologin" `
+    --home "/nonexistent" `
+    --no-create-home `
+    --disabled-password `
     ${USER};
 
 # Copy app
