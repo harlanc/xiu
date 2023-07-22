@@ -11,8 +11,7 @@ services:
       target: "test_runner"
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
-    # environment:
-    #   - PATH ${PATH}:"/app"
+    env_file: ".env"
     working_dir: "/app"
     user: "appuser"
     hostname: "base_streamer"
@@ -28,7 +27,7 @@ services:
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
     entrypoint: ["xiu"]
-    command: ["-c", "config/config_rtmp.toml"]
+    # command: ["-c", "config/config_rtmp.toml"]
 
   # 2. Streamer instances
   streamer1:
