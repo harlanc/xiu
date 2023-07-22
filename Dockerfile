@@ -7,10 +7,10 @@
 # Glob build args, config, and user management 
 ARG BASE_VERSION="latest"
 ARG RUN_VERSION="latest"
-ARG PLATFORM="linux/amd64"
+ARG GLOB_PLATFORM="linux/amd64"
 
 # 1. Build app
-FROM --platform=${PLATFORM} alpine:${BASE_VERSION} AS builder
+FROM --platform=${GLOB_PLATFORM} alpine:${BASE_VERSION} AS builder
 
 # Builder args and CWD
 ARG APP_VERSION="v0.6.1"
@@ -26,14 +26,13 @@ RUN apk cache sync; \
 # Copying source and building
 RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" \
     && cd "xiu" \
-    && git checkout -b "publish" "tags/"${APP_VERSION} \
-    && cd "..";
+    && git checkout -b "publish" "tags/"${APP_VERSION};
 RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" \
                 --release;
 CMD ["echo", "Builded."]
 
 # 2. Run app
-FROM --platform=${PLATFORM} alpine:${RUN_VERSION} AS test_runner
+FROM --platform=${GLOB_PLATFORM} alpine:${RUN_VERSION} AS test_runner
 
 # Runner args and CWD
 ARG USER="appuser"
@@ -55,10 +54,10 @@ RUN apk cache sync; \
     ${USER};
 
 # Copy app
-COPY --from=builder "/build/app/" "/app/"
+COPY --from=builder "/build/xiu/target/release/." "."
 
 # Switch user, setup and launch
 USER ${USER}
 EXPOSE "1935"
 EXPOSE "8000"
-ENTRYPOINT [ "sh" ]
+ENTRYPOINT [ "/app/xiu" ]
