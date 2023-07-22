@@ -55,10 +55,10 @@ services:
 networks:
   intra:
     name: "test_bridge"
-    driver: "nat"
-    # ipam:
-    #   config:
-    #     - subnet: "172.16.100.0/24"
+    driver: "ipvlan"
+    ipam:
+      config:
+        - subnet: "172.100.0.0/24"
   # default:
   #   external: true
   #   name: "nat"
