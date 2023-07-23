@@ -20,18 +20,24 @@ WORKDIR "/build"
 RUN apk cache sync `
     && apk --update-cache upgrade `
     && apk add --no-cache `
-        "openssl-dev" "pkgconf" "git" "rustup" "rust" "cargo" "alpine-conf" `
+        "openssl-dev" "pkgconf" "git" "rustup" `
+        "alpine-conf" `
     && apk cache clean `
-    && rm -rf "/var/cache/apk"
-RUN rustup component add rust-std-x86_64-unknown-linux-musl
+    && rm -rf "/var/cache/apk";
+COPY "./alpine_setup_answers.conf" "/sys_setup/"
+RUN rustup-init -y;
+RUN setup-alpine -f "/sys_setup/alpine_setup_answers.conf"
+
+# RUN setup-timezone -p ${TZ} && setup-ntp "busybox"
+# RUN rustup component add rust-std-x86_64-unknown-linux-musl
 
 # Copying source and building
 RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
     && cd "xiu" `
     && git checkout -b "publish" "tags/"${APP_VERSION};
 RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" `
-                --target x86_64-unknown-linux-musl `
-                --release;
+                --target x86_64-unknown-linux-musl;
+                # --release;
 
 # 2. Run app
 FROM --platform=${GLOB_PLATFORM} alpine:${RUN_VERSION} AS test_runner
@@ -44,6 +50,7 @@ WORKDIR "/app"
 # Install deps and create app user
 RUN apk cache sync `
     && apk --update-cache upgrade `
+    # && apk add "alpine-conf" `
     && apk cache clean `
     && rm -rf "/var/cache/apk" `
     && adduser `
@@ -62,7 +69,16 @@ COPY --from=builder "/build/xiu/target/release/xiu" "."
 ENV SYSROOT="/dummy"
 ENV PATH=${PATH}":/app"
 
-# Switch user, setup and launch
-USER ${USER}
+# Switch user, setup ports
+# USER ${USER}
+EXPOSE "80"
+EXPOSE "80/udp"
+EXPOSE "443"
+EXPOSE "443/udp"
 EXPOSE "1935"
+EXPOSE "1935/udp"
+EXPOSE "8000"
+EXPOSE "8000/udp"
+
+# Start app in exec mode
 ENTRYPOINT [ "xiu" ]
