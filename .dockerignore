@@ -1,4 +1,6 @@
 # This file has no special needs with in-container build.
-!Dockerfile
-!compose.yaml
+# !Dockerfile
+# !compose.yaml
 **/*
+!**/*_setup_answers.conf
+!alpine_setup_answers.conf

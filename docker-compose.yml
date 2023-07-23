@@ -12,7 +12,7 @@ services:
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
     environment:
-      - TZ="Europe/Moscow"
+      TZ: ${STREAMER_TZ}
     working_dir: "/app"
     volumes:
       - "./config:/app/config"
