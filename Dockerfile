@@ -36,7 +36,7 @@ FROM --platform=${GLOB_PLATFORM} alpine:${RUN_VERSION} AS test_runner
 
 # Runner env
 ENV SYSROOT="/dummy"
-ENV PATH=${PATH}:"/app"
+ENV PATH=${PATH}":/app"
 
 
 # Runner args and CWD

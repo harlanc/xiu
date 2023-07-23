@@ -15,16 +15,15 @@ services:
     volumes:
       - "./config:/app/config"
     user: "appuser"
-    hostname: "base_streamer"
-    networks:
-      - "intra"
-      # intra:
-        # ipv4_address: "172.16.100.5"
-    ports:
-      - "1935"
-      # - "1935:1935/udp"
-      # - "8000:8000" 
-      # - "8000:8000/udp"
+    hostname: "base-streamer"
+    # networks:
+    #   intra:
+    #     ipv4_address: "172.16.100.5"
+    # ports:
+    #   - "55001:1935"
+    #   - "1935:1935/udp"
+    #   - "8000:8000" 
+    #   - "8000:8000/udp"
     # extra_hosts:
     #   - "host.docker.internal:host-gateway"
     command: ["-c", "config/config_rtmp.toml"]
@@ -36,10 +35,11 @@ services:
     container_name: "${COMPOSE_PROJECT_NAME}.node1"
     hostname: "streamer1"
     # ports:
-    #   - "1936:1936"
+    #   - "55002:1935"
+    #   - "8000:8000"
     # networks:
-      # intra:
-        # ipv4_address: "172.16.100.6"
+    #   intra:
+    #     ipv4_address: "172.16.110.6"
 
   streamer2:
     extends:
@@ -47,18 +47,25 @@ services:
     container_name: "${COMPOSE_PROJECT_NAME}.node2"
     hostname: "streamer2"
     # ports:
-    #   - "1937:1937"
+    #   - "55003:1935"
+    #   - "8000:8000"
     # networks:
     #   intra:
-    #     ipv4_address: "172.16.100.7"
+    #     ipv4_address: "172.16.120.5"
 
 networks:
   intra:
-    name: "test_bridge"
+    external: false
+    attachable: false
+    enable_ipv6: false
+    name: "testnet"
     driver: "ipvlan"
+    labels:
+      lab.net.is_test: true
+      lab.net.is_prod: false
+      lab.net.name: "local_test"
     ipam:
       config:
-        - subnet: "172.100.0.0/24"
-  # default:
-  #   external: true
-  #   name: "nat"
+        - subnet: "172.16.100.0/24"
+        # - ip_range: "172.16.100.0/28"
+        # - gateway: "172.16.100.10"
