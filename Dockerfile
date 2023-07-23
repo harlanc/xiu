@@ -19,34 +19,31 @@ WORKDIR "/build"
 # Get toolchain
 RUN apk cache sync `
     && apk --update-cache upgrade `
-    && apk add --no-cache "openssl-dev" "pkgconf" "git" "rust" "cargo" `
+    && apk add --no-cache `
+        "openssl-dev" "pkgconf" "git" "rustup" "rust" "cargo" "alpine-conf" `
     && apk cache clean `
-    && rm -rf "/var/cache/apk";
+    && rm -rf "/var/cache/apk"
+RUN rustup component add rust-std-x86_64-unknown-linux-musl
 
 # Copying source and building
 RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
     && cd "xiu" `
     && git checkout -b "publish" "tags/"${APP_VERSION};
 RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" `
+                --target x86_64-unknown-linux-musl `
                 --release;
-CMD ["echo", "Builded."]
 
 # 2. Run app
 FROM --platform=${GLOB_PLATFORM} alpine:${RUN_VERSION} AS test_runner
-
-# Runner env
-ENV SYSROOT="/dummy"
-ENV PATH=${PATH}":/app"
-
 
 # Runner args and CWD
 ARG USER="appuser"
 WORKDIR "/app"
 
+# apk add --no-cache "libgcc"
 # Install deps and create app user
 RUN apk cache sync `
     && apk --update-cache upgrade `
-    && apk add --no-cache "libgcc" `
     && apk cache clean `
     && rm -rf "/var/cache/apk" `
     && adduser `
@@ -60,6 +57,10 @@ RUN apk cache sync `
 
 # Copy app
 COPY --from=builder "/build/xiu/target/release/xiu" "."
+
+# Runner env
+ENV SYSROOT="/dummy"
+ENV PATH=${PATH}":/app"
 
 # Switch user, setup and launch
 USER ${USER}

@@ -11,6 +11,8 @@ services:
       target: "test_runner"
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
+    environment:
+      - TZ="Europe/Moscow"
     working_dir: "/app"
     volumes:
       - "./config:/app/config"
@@ -60,12 +62,12 @@ networks:
     enable_ipv6: false
     name: "testnet"
     driver: "ipvlan"
-    labels:
-      lab.net.is_test: true
-      lab.net.is_prod: false
-      lab.net.name: "local_test"
-    ipam:
-      config:
-        - subnet: "172.16.100.0/24"
+    driver_opts:
+      ipvlan_mode: "l2"
+      ipvlan_flag: "bridge"
+
+    # ipam:
+    #   config:
+    #     - subnet: "172.16.100.0/24"
         # - ip_range: "172.16.100.0/28"
         # - gateway: "172.16.100.10"
