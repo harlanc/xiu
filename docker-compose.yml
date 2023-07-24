@@ -9,6 +9,8 @@ services:
     build:
       context: "."
       target: "test_runner"
+      args:
+        BUILDER_TIMEZONE: ${BUILDER_TZ}
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
     environment:
