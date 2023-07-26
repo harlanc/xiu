@@ -186,8 +186,7 @@ impl Unmarshal<&mut BytesReader, Result<Self, FlvDemuxerError>> for VideoTagHead
             if tag_header.composition_time & (1 << 23) != 0 {
                 let sign_extend_mask = 0xff_ff << 23;
                 // Sign extend the value
-                tag_header.composition_time =
-                    (tag_header.composition_time | sign_extend_mask) as i32
+                tag_header.composition_time |= sign_extend_mask
             }
         }
 

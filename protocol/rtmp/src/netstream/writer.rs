@@ -5,7 +5,7 @@ use {
         chunk::{define as chunk_define, packetizer::ChunkPacketizer, ChunkInfo},
         messages::define as messages_define,
     },
-    bytesio::{bytes_writer::BytesWriter, bytesio::TNetIO},
+    bytesio::bytesio::TNetIO,
     indexmap::IndexMap,
     std::sync::Arc,
     tokio::sync::Mutex,

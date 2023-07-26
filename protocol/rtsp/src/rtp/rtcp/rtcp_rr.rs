@@ -23,17 +23,15 @@ impl Unmarshal<&mut BytesReader, Result<Self, RtcpError>> for ReportBlock {
     where
         Self: Sized,
     {
-        let mut report_block = ReportBlock::default();
-
-        report_block.ssrc = reader.read_u32::<BigEndian>()?;
-        report_block.fraction_lost = reader.read_u8()?;
-        report_block.cumutlative_num_of_packets_lost = reader.read_u24::<BigEndian>()?;
-        report_block.extended_highest_seq_number = reader.read_u32::<BigEndian>()?;
-        report_block.jitter = reader.read_u32::<BigEndian>()?;
-        report_block.lsr = reader.read_u32::<BigEndian>()?;
-        report_block.dlsr = reader.read_u32::<BigEndian>()?;
-
-        Ok(report_block)
+        Ok(ReportBlock {
+            ssrc: reader.read_u32::<BigEndian>()?,
+            fraction_lost: reader.read_u8()?,
+            cumutlative_num_of_packets_lost: reader.read_u24::<BigEndian>()?,
+            extended_highest_seq_number: reader.read_u32::<BigEndian>()?,
+            jitter: reader.read_u32::<BigEndian>()?,
+            lsr: reader.read_u32::<BigEndian>()?,
+            dlsr: reader.read_u32::<BigEndian>()?,
+        })
     }
 }
 
@@ -67,9 +65,11 @@ impl Unmarshal<BytesMut, Result<Self, RtcpError>> for RtcpReceiverReport {
     {
         let mut reader = BytesReader::new(data);
 
-        let mut receiver_report = RtcpReceiverReport::default();
-        receiver_report.header = RtcpHeader::unmarshal(&mut reader)?;
-        receiver_report.ssrc = reader.read_u32::<BigEndian>()?;
+        let mut receiver_report = RtcpReceiverReport {
+            header: RtcpHeader::unmarshal(&mut reader)?,
+            ssrc: reader.read_u32::<BigEndian>()?,
+            ..Default::default()
+        };
 
         for _ in 0..receiver_report.header.report_count {
             let report_block = ReportBlock::unmarshal(&mut reader)?;

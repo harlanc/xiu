@@ -1,7 +1,5 @@
 use super::errors::PackerError;
 use super::errors::UnPackerError;
-
-use super::utils::Marshal;
 use super::utils::OnFrameFn;
 use super::utils::OnRtpPacketFn;
 use super::utils::OnRtpPacketFn2;
@@ -26,7 +24,6 @@ use tokio::sync::Mutex;
 
 pub struct RtpAacPacker {
     header: RtpHeader,
-    mtu: usize,
     on_packet_handler: Option<OnRtpPacketFn>,
     on_packet_for_rtcp_handler: Option<OnRtpPacketFn2>,
     io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
@@ -37,7 +34,6 @@ impl RtpAacPacker {
         payload_type: u8,
         ssrc: u32,
         init_seq: u16,
-        mtu: usize,
         io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
     ) -> Self {
         RtpAacPacker {
@@ -49,7 +45,6 @@ impl RtpAacPacker {
                 marker: 1,
                 ..Default::default()
             },
-            mtu,
             io,
             on_packet_handler: None,
             on_packet_for_rtcp_handler: None,
@@ -94,10 +89,6 @@ impl TRtpReceiverForRtcp for RtpAacPacker {
 
 #[derive(Default)]
 pub struct RtpAacUnPacker {
-    sequence_number: u16,
-    timestamp: u32,
-    fu_buffer: BytesMut,
-    flags: i16,
     on_frame_handler: Option<OnFrameFn>,
     on_packet_for_rtcp_handler: Option<OnRtpPacketFn2>,
 }
@@ -117,7 +108,9 @@ pub struct RtpAacUnPacker {
 
 impl RtpAacUnPacker {
     pub fn new() -> Self {
-        RtpAacUnPacker::default()
+        Self {
+            ..Default::default()
+        }
     }
 }
 
@@ -142,18 +135,18 @@ impl TUnPacker for RtpAacUnPacker {
             au_lengths.push(au_length / 8);
         }
 
-        // log::info!(
-        //     "send audio : au_headers_length :{}, aus_number: {}, au_lengths: {:?}",
-        //     au_headers_length,
-        //     aus_number,
-        //     au_lengths,
-        // );
+        log::debug!(
+            "send audio : au_headers_length :{}, aus_number: {}, au_lengths: {:?}",
+            au_headers_length,
+            aus_number,
+            au_lengths,
+        );
 
-        for au_length in au_lengths {
-            let au_data = reader_payload.read_bytes(au_length)?;
+        for (i, item) in au_lengths.iter().enumerate() {
+            let au_data = reader_payload.read_bytes(*item)?;
             if let Some(f) = &self.on_frame_handler {
                 f(FrameData::Audio {
-                    timestamp: rtp_packet.header.timestamp,
+                    timestamp: rtp_packet.header.timestamp + i as u32 * 1024,
                     data: au_data,
                 })?;
             }

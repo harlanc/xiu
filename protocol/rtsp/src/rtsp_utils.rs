@@ -7,6 +7,21 @@ macro_rules! scanf {
 
 pub(crate) use scanf;
 
+use bytes::BytesMut;
+pub fn print(title: &str, data: BytesMut) {
+    println!("==========={}:{}", title, data.len());
+    let mut idx = 0;
+    for i in data {
+        print!("{i:02X} ");
+        idx += 1;
+        if idx % 16 == 0 {
+            println!()
+        }
+    }
+
+    println!("===========")
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -17,7 +32,7 @@ mod tests {
         if let (Some(a), Some(b), Some(c), _) =
             scanf!(str_a, |c| c == ':' || c == '.', i64, i64, i64, i64)
         {
-            println!("a:{} b:{} c:{} ", a, b, c);
+            println!("a:{a} b:{b} c:{c} ");
         }
     }
 }

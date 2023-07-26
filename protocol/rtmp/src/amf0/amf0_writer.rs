@@ -6,6 +6,7 @@ use {
     indexmap::IndexMap,
 };
 
+#[derive(Default)]
 pub struct Amf0Writer {
     writer: BytesWriter,
 }

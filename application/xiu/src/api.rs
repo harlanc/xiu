@@ -5,7 +5,6 @@ use {
         Json, Router,
     },
     serde::Deserialize,
-    std::str::FromStr,
     std::sync::Arc,
     streamhub::{define, define::StreamHubEventSender, utils::Uuid},
     {
@@ -72,7 +71,7 @@ impl ApiService {
     }
 
     async fn kick_off_client(&self, id: KickOffClient) -> Result<String> {
-        let id_result = Uuid::from_str(&id.id);
+        let id_result = Uuid::from_str2(&id.id);
 
         if let Some(id) = id_result {
             let channel_event = define::StreamHubEvent::ApiKickClient { id };

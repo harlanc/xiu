@@ -37,8 +37,8 @@ impl Unmarshal for RtspRequest {
                 if let Some(url) = fields.next() {
                     rtsp_request.url = url.to_string();
 
-                    if url.starts_with("rtsp://") {
-                        if let Some(index) = url[7..].find('/') {
+                    if let Some(val) = url.strip_prefix("rtsp://") {
+                        if let Some(index) = val.find('/') {
                             let path = &url[7 + index + 1..];
                             rtsp_request.path = String::from(path);
                             let address_with_port = &url[7..7 + index];
@@ -53,7 +53,7 @@ impl Unmarshal for RtspRequest {
                                 rtsp_request.port = port;
                             }
 
-                            print!("address_with_port: {}", address_with_port);
+                            print!("address_with_port: {address_with_port}");
                         }
                     }
                 }
@@ -88,7 +88,7 @@ impl Marshal for RtspRequest {
         let mut request_str = format!("{} {} {}\r\n", self.method, self.url, self.version);
         for (header_name, header_value) in &self.headers {
             if header_name != &"Content-Length".to_string() {
-                request_str += &format!("{}: {}\r\n", header_name, header_value);
+                request_str += &format!("{header_name}: {header_value}\r\n");
             }
         }
         if let Some(body) = &self.body {
@@ -163,7 +163,7 @@ impl Marshal for RtspResponse {
         );
         for (header_name, header_value) in &self.headers {
             if header_name != &"Content-Length".to_string() {
-                response_str += &format!("{}: {}\r\n", header_name, header_value);
+                response_str += &format!("{header_name}: {header_value}\r\n");
             }
         }
         if let Some(body) = &self.body {
@@ -185,8 +185,8 @@ mod tests {
     use super::RtspRequest;
 
     use indexmap::IndexMap;
-    use std::io::{BufRead, BufReader, Read};
-
+    use std::io::BufRead;
+    #[allow(dead_code)]
     fn read_headers(reader: &mut dyn BufRead) -> Option<IndexMap<String, String>> {
         let mut headers = IndexMap::new();
         loop {
@@ -264,9 +264,9 @@ mod tests {
         \r\n";
 
         if let Some(parser) = RtspRequest::unmarshal(data1) {
-            println!(" parser: {:?}", parser);
+            println!(" parser: {parser:?}");
             let marshal_result = parser.marshal();
-            print!("marshal result: =={}==", marshal_result);
+            print!("marshal result: =={marshal_result}==");
             assert_eq!(data1, marshal_result);
         }
 
@@ -294,9 +294,9 @@ mod tests {
         a=control:streamid=1\r\n";
 
         if let Some(parser) = RtspRequest::unmarshal(data2) {
-            println!(" parser: {:?}", parser);
+            println!(" parser: {parser:?}");
             let marshal_result = parser.marshal();
-            print!("marshal result: =={}==", marshal_result);
+            print!("marshal result: =={marshal_result}==");
             assert_eq!(data2, marshal_result);
         }
     }

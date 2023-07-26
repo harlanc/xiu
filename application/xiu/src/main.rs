@@ -1,7 +1,9 @@
+use clap::ArgGroup;
+
 use {
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
-    clap::{value_parser, Arg, ArgGroup, Command},
+    clap::{value_parser, Arg, Command},
     env_logger_extend::logger::{Logger, Rotate},
     std::{env, str::FromStr},
     tokio::signal,
@@ -24,7 +26,7 @@ async fn main() -> Result<()> {
                 .value_name("path")
                 .help("Specify the xiu server configuration file path.")
                 .value_parser(value_parser!(String))
-                .conflicts_with_all(["rtmp", "httpflv", "hls", "log"]),
+                .conflicts_with_all(["rtmp", "rtsp", "httpflv", "hls", "log"]),
         )
         .arg(
             Arg::new("rtmp")
@@ -32,7 +34,8 @@ async fn main() -> Result<()> {
                 .short('r')
                 .value_name("port")
                 .help("Specify the rtmp listening port.(e.g.:1935)")
-                .value_parser(value_parser!(usize)),
+                .value_parser(value_parser!(usize))
+                .conflicts_with("config_file_path"),
         )
         .arg(
             Arg::new("rtsp")
@@ -40,7 +43,8 @@ async fn main() -> Result<()> {
                 .short('t')
                 .value_name("port")
                 .help("Specify the rtsp listening port.(e.g.:554)")
-                .value_parser(value_parser!(usize)),
+                .value_parser(value_parser!(usize))
+                .conflicts_with("config_file_path"),
         )
         .arg(
             Arg::new("httpflv")
@@ -69,9 +73,16 @@ async fn main() -> Result<()> {
                 .value_parser(log_levels)
                 .conflicts_with("config_file_path"),
         )
+        // config_file_path conficts with all the other args,
+        // if not using config_file_path, RTSP/RTMP must be specified one or both
         .group(
-            ArgGroup::new("vers")
-                .args(["config_file_path", "rtmp", "rtsp"])
+            ArgGroup::new("one_of_group")
+                .args(&["config_file_path", "rtmp"])
+                .required(true),
+        )
+        .group(
+            ArgGroup::new("one_of_group2")
+                .args(&["config_file_path", "rtsp"])
                 .required(true),
         );
 

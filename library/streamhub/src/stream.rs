@@ -22,14 +22,13 @@ impl fmt::Display for StreamIdentifier {
             } => {
                 write!(
                     f,
-                    "RTMP - app_name: {}, stream_name: {}",
-                    app_name, stream_name
+                    "RTMP - app_name: {app_name}, stream_name: {stream_name}"
                 )
             }
             StreamIdentifier::Rtsp {
                 stream_path: stream_name,
             } => {
-                write!(f, "RTSP - stream_name: {}", stream_name)
+                write!(f, "RTSP - stream_name: {stream_name}")
             }
             StreamIdentifier::Unkonwn => {
                 write!(f, "Unkonwn")

@@ -1,7 +1,6 @@
 use crate::rtp::utils;
 use crate::rtp::RtpPacket;
 use bytes::BytesMut;
-use std::time::SystemTime;
 
 use super::{
     rtcp_app::RtcpApp,
@@ -41,7 +40,6 @@ struct RtcpSource {
     received: u32,       /* packets received */
     expected_prior: u32, /* packet expected at last interval */
     received_prior: u32, /* packet received at last interval */
-    transit: u32,        /* relative trans time for prev pkt */
     jitter: f64,         /* estimated jitter */
 }
 
@@ -71,7 +69,7 @@ impl RtcpSource {
                 /*
                  * Sequence number wrapped - count another 64K cycle.
                  */
-                self.cycles += RTP_SEQ_MOD as u32;
+                self.cycles += RTP_SEQ_MOD;
             }
             self.max_seq = seq;
         } else if delta as u32 <= RTP_SEQ_MOD - MAX_MISORDER {
@@ -106,7 +104,7 @@ impl RtcpSource {
 
         self.base_seq = seq as u32;
         self.max_seq = seq;
-        self.bad_seq = RTP_SEQ_MOD as u32 + 1;
+        self.bad_seq = RTP_SEQ_MOD + 1;
     }
 }
 
@@ -122,7 +120,6 @@ pub struct RtcpContext {
     sample_rate: u32,
     send_bytes: u64,
     send_packets: u64,
-    bindwidth: usize,
 
     source: RtcpSource,
 }
@@ -155,8 +152,7 @@ impl RtcpContext {
     }
 
     pub fn generate_bye(&self) -> RtcpBye {
-        let mut ssrss = Vec::new();
-        ssrss.push(self.ssrc);
+        let ssrss = vec![self.ssrc];
         RtcpBye {
             header: RtcpHeader {
                 report_count: 1,
@@ -189,34 +185,30 @@ impl RtcpContext {
         let lsr = self.sr_ntp_lsr >> 8 & 0xFFFFFFFF;
         let dlsr = (delay as f64 / 1000000. * 65535.) as u32;
 
-        let mut report_block = ReportBlock::default();
-        report_block.cumutlative_num_of_packets_lost = lost;
-        report_block.fraction_lost = fraction as u8;
-        report_block.extended_highest_seq_number = extend_max;
-        report_block.lsr = lsr as u32;
-        report_block.dlsr = dlsr;
-        report_block.ssrc = self.sender_ssrc;
-        report_block.jitter = self.source.jitter as u32;
-
-        report_block
+        ReportBlock {
+            cumutlative_num_of_packets_lost: lost,
+            fraction_lost: fraction as u8,
+            extended_highest_seq_number: extend_max,
+            lsr: lsr as u32,
+            dlsr,
+            ssrc: self.sender_ssrc,
+            jitter: self.source.jitter as u32,
+        }
     }
 
     pub fn generate_rr(&mut self) -> RtcpReceiverReport {
         let block = self.gen_report_block();
-        let mut blocks = Vec::new();
-        blocks.push(block);
 
         RtcpReceiverReport {
             header: RtcpHeader {
                 payload_type: RTCP_RR,
                 report_count: 1,
                 version: 2,
-                length: (4 + 1 * 24) / 4,
+                length: (4 + 24) / 4,
                 ..Default::default()
             },
-            report_blocks: blocks,
+            report_blocks: vec![block],
             ssrc: self.ssrc,
-            ..Default::default()
         }
     }
 

@@ -3,18 +3,11 @@ use {
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
-    failure::{Backtrace, Fail},
+    failure::Fail,
     std::fmt,
     tokio::sync::broadcast::error::RecvError,
     xflv::errors::FlvMuxerError,
     xflv::errors::MpegAvcError,
-};
-
-use xflv::{
-    define::h264_nal_type::H264_NAL_SPS,
-    flv_tag_header::VideoTagHeader,
-    mpeg4_aac::Mpeg4AacProcessor,
-    mpeg4_avc::{Mpeg4Avc, Mpeg4AvcProcessor, Pps, Sps},
 };
 
 pub struct RtmpRemuxerError {

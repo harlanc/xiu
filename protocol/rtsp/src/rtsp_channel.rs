@@ -1,6 +1,7 @@
 use crate::rtp::errors::PackerError;
 use crate::rtp::errors::UnPackerError;
 use crate::rtp::rtcp::rtcp_header::RtcpHeader;
+use crate::rtp::rtcp::RTCP_RR;
 use crate::rtp::rtcp::RTCP_SR;
 use crate::rtp::utils::OnFrameFn;
 use crate::rtp::utils::OnRtpPacketFn;
@@ -49,10 +50,8 @@ pub struct RtpChannel {
 #[derive(Default)]
 pub struct RtcpChannel {
     recv_ctx: RtcpContext,
-    send_ctx: RtcpContext,
+    pub send_ctx: RtcpContext,
     channel_identifier: u8,
-    on_packet_handler: Option<OnRtpPacketFn>,
-    io: Option<Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>>,
 }
 
 impl RtpChannel {
@@ -70,7 +69,7 @@ impl RtpChannel {
     }
 
     //Receive av frame from network -> pack AV frame to RTP packet -> send to stream hub
-    pub fn on_rtp_packet(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
+    pub fn on_packet(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
         if let Some(unpacker) = &mut self.rtp_unpacker {
             unpacker.unpack(reader)?;
         }
@@ -116,13 +115,13 @@ impl TRtpFunc for RtpChannel {
     fn create_unpacker(&mut self) {
         match self.codec_info.codec_id {
             RtspCodecId::H264 => {
-                self.rtp_unpacker = Some(Box::new(RtpH264UnPacker::default()));
+                self.rtp_unpacker = Some(Box::new(RtpH264UnPacker::new()));
             }
             RtspCodecId::H265 => {
-                self.rtp_unpacker = Some(Box::new(RtpH265UnPacker::default()));
+                self.rtp_unpacker = Some(Box::new(RtpH265UnPacker::new()));
             }
             RtspCodecId::AAC => {
-                self.rtp_unpacker = Some(Box::new(RtpAacUnPacker::default()));
+                self.rtp_unpacker = Some(Box::new(RtpAacUnPacker::new()));
             }
             RtspCodecId::G711A => {}
         }
@@ -152,7 +151,6 @@ impl TRtpFunc for RtpChannel {
                     self.codec_info.payload_type,
                     self.ssrc,
                     self.init_sequence,
-                    1400,
                     io,
                 )));
             }
@@ -177,15 +175,18 @@ impl RtcpChannel {
                 RTCP_SR => {
                     if let Ok(sr) = RtcpSenderReport::unmarshal(reader) {
                         self.recv_ctx.received_sr(&sr);
-                        self.send_rr(rtcp_io).await;
+                        if let Err(err) = self.send_rr(rtcp_io).await {
+                            log::error!("send rr error: {}", err);
+                        }
                     }
                 }
+                RTCP_RR => {}
                 _ => {}
             }
         }
     }
 
-    pub fn on_rtp_packet(&mut self, packet: RtpPacket) {
+    pub fn on_packet(&mut self, packet: RtpPacket) {
         self.recv_ctx.received_rtp(packet);
     }
 

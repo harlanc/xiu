@@ -2,6 +2,7 @@ use super::rtsp_channel::RtcpChannel;
 use super::rtsp_channel::RtpChannel;
 use super::rtsp_codec::RtspCodecInfo;
 use super::rtsp_transport::RtspTransport;
+use crate::rtp::errors::UnPackerError;
 use crate::rtsp_channel::TRtpFunc;
 use bytes::BytesMut;
 use bytesio::bytes_reader::BytesReader;
@@ -33,7 +34,7 @@ pub enum TrackType {
 // 2.3 A RTP channel for video media data transmitting.
 // 2.4 A RTCP channel for video control data transmitting
 pub struct RtspTrack {
-    track_type: TrackType,
+    pub track_type: TrackType,
 
     pub transport: RtspTransport,
     pub uri: String,
@@ -44,24 +45,17 @@ pub struct RtspTrack {
 }
 
 impl RtspTrack {
-    pub fn new(
-        track_type: TrackType,
-        codec_info: RtspCodecInfo,
-        media_control: String,
-        io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
-    ) -> Self {
+    pub fn new(track_type: TrackType, codec_info: RtspCodecInfo, media_control: String) -> Self {
         let rtp_channel = RtpChannel::new(codec_info);
 
-        let rtsp_track = RtspTrack {
+        RtspTrack {
             track_type,
             media_control,
             transport: RtspTransport::default(),
             uri: String::default(),
             rtp_channel: Arc::new(Mutex::new(rtp_channel)),
             rtcp_channel: Arc::new(Mutex::default()),
-        };
-
-        rtsp_track
+        }
     }
 
     pub async fn rtp_receive_loop(&mut self, mut rtp_io: Box<dyn TNetIO + Send + Sync>) {
@@ -73,7 +67,9 @@ impl RtspTrack {
                 match rtp_io.read().await {
                     Ok(data) => {
                         reader.extend_from_slice(&data[..]);
-                        rtp_channel_in.on_rtp_packet(&mut reader);
+                        if let Err(err) = rtp_channel_in.on_packet(&mut reader) {
+                            log::error!("rtp_receive_loop on_packet error: {}", err);
+                        }
                     }
                     Err(err) => {
                         log::error!("read error: {:?}", err);
@@ -118,8 +114,8 @@ impl RtspTrack {
         self.transport = transport;
     }
 
-    pub async fn on_rtp(&mut self, reader: &mut BytesReader) {
-        self.rtp_channel.lock().await.on_rtp_packet(reader);
+    pub async fn on_rtp(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
+        self.rtp_channel.lock().await.on_packet(reader)
     }
 
     pub async fn on_rtcp(

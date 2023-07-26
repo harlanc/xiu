@@ -94,10 +94,17 @@ impl Serialize for PublisherInfo {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum VideoCodecType {
     H264,
     H265,
+}
+
+#[derive(Clone)]
+pub struct MediaInfo {
+    pub audio_clock_rate: u32,
+    pub video_clock_rate: u32,
+    pub vcodec: VideoCodecType,
 }
 
 #[derive(Clone)]
@@ -105,6 +112,7 @@ pub enum FrameData {
     Video { timestamp: u32, data: BytesMut },
     Audio { timestamp: u32, data: BytesMut },
     MetaData { timestamp: u32, data: BytesMut },
+    MediaInfo { media_info: MediaInfo },
 }
 
 //used to save data which needs to be transferred between client/server sessions
@@ -136,7 +144,7 @@ pub type StreamStatisticSizeReceiver = oneshot::Sender<usize>;
 
 #[async_trait]
 pub trait TStreamHandler: Send + Sync {
-    async fn send_cache_data(
+    async fn send_prior_data(
         &self,
         sender: FrameDataSender,
         sub_type: SubscribeType,

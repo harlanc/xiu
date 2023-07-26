@@ -60,14 +60,15 @@ impl Unmarshal<&mut BytesReader, Result<Self, RtcpError>> for RtcpSenderReport {
     where
         Self: Sized,
     {
-        let mut sender_report = RtcpSenderReport::default();
-        sender_report.header = RtcpHeader::unmarshal(reader)?;
-
-        sender_report.ssrc = reader.read_u32::<BigEndian>()?;
-        sender_report.ntp = reader.read_u64::<BigEndian>()?;
-        sender_report.rtp_timestamp = reader.read_u32::<BigEndian>()?;
-        sender_report.sender_packet_count = reader.read_u32::<BigEndian>()?;
-        sender_report.sender_octet_count = reader.read_u32::<BigEndian>()?;
+        let mut sender_report = RtcpSenderReport {
+            header: RtcpHeader::unmarshal(reader)?,
+            ssrc: reader.read_u32::<BigEndian>()?,
+            ntp: reader.read_u64::<BigEndian>()?,
+            rtp_timestamp: reader.read_u32::<BigEndian>()?,
+            sender_packet_count: reader.read_u32::<BigEndian>()?,
+            sender_octet_count: reader.read_u32::<BigEndian>()?,
+            ..Default::default()
+        };
 
         for _ in 0..sender_report.header.report_count {
             let report_block = ReportBlock::unmarshal(reader)?;

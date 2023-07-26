@@ -36,7 +36,7 @@ impl Unmarshal for RtspRange {
                         match chrono::NaiveDateTime::parse_from_str(range_time, "%Y%m%dT%H%M%SZ") {
                             Ok(dt) => dt,
                             Err(err) => {
-                                println!("get_clock_time error: {}", err);
+                                println!("get_clock_time error: {err}");
                                 return -1;
                             }
                         };
@@ -75,7 +75,7 @@ impl Unmarshal for RtspRange {
                     }
                 }
 
-                if ranges.len() == 2 && ranges[1] != "" {
+                if ranges.len() == 2 && !ranges[1].is_empty() {
                     rtsp_range.end = Some(get_npt_time(ranges[1]));
                 }
             }
@@ -107,7 +107,7 @@ mod tests {
         //a=range:npt=0-
         let parser = RtspRange::unmarshal("clock=20220520T064812Z-20230520T064816Z").unwrap();
 
-        println!(" parser: {:?}", parser);
+        println!(" parser: {parser:?}");
 
         let parser1 = RtspRange::unmarshal("npt=now-").unwrap();
 

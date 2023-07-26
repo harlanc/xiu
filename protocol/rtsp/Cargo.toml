@@ -17,6 +17,8 @@ indexmap = "1.9.3"
 lazy_static = "1.4.0"
 chrono = "0.4"
 async-trait = "0.1.70"
+base64 = "0.21.2"
+hex = "0.4.3"
 
 #bytesio = "0.2.0"
 bytesio = { path = "../../library/bytesio/" }

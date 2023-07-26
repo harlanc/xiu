@@ -5,7 +5,6 @@ use super::RtpPacket;
 use async_trait::async_trait;
 use bytes::BytesMut;
 use bytesio::bytes_reader::BytesReader;
-use bytesio::bytes_writer::AsyncBytesWriter;
 use bytesio::bytesio::TNetIO;
 use std::future::Future;
 use std::pin::Pin;
@@ -83,7 +82,7 @@ pub async fn split_annexb_and_process<T: TVideoPacker>(
     nalus: &mut BytesMut,
     packer: &mut T,
 ) -> Result<(), PackerError> {
-    while nalus.len() > 0 {
+    while !nalus.is_empty() {
         /* 0x02,...,0x00,0x00,0x01,0x02..,0x00,0x00,0x01  */
         /*  |         |              |      |             */
         /*  -----------              --------             */
@@ -101,7 +100,7 @@ pub async fn split_annexb_and_process<T: TVideoPacker>(
                 };
 
             let nalu = nalu_with_start_code.split_off(first_pos + 3);
-            return packer.pack_nalu(nalu).await;
+            packer.pack_nalu(nalu).await?;
         } else {
             break;
         }
@@ -121,9 +120,7 @@ pub fn current_time() -> u64 {
 #[cfg(test)]
 mod tests {
 
-    use bytes::{BufMut, BytesMut};
-    use indexmap::IndexMap;
-    use std::io::{BufRead, BufReader, Read};
+    use bytes::BytesMut;
 
     fn find_start_code(nalus: &[u8]) -> Option<usize> {
         let pattern = [0x00, 0x00, 0x01];
@@ -138,7 +135,7 @@ mod tests {
             0x00, 0x00, 0x01, 0x02, 0x03,
         ]);
 
-        while nalus.len() > 0 {
+        while !nalus.is_empty() {
             /* 0x02,...,0x00,0x00,0x01,0x02..,0x00,0x00,0x01  */
             /*  |         |              |      |             */
             /*  -----------              --------             */
@@ -147,7 +144,7 @@ mod tests {
                 let mut nalu_with_start_code =
                     if let Some(distance_to_first_pos) = find_start_code(&nalus[first_pos + 3..]) {
                         let mut second_pos = first_pos + 3 + distance_to_first_pos;
-                        println!("left: {} right: {}", first_pos, distance_to_first_pos);
+                        println!("left: {first_pos} right: {distance_to_first_pos}");
                         while second_pos > 0 && nalus[second_pos - 1] == 0 {
                             second_pos -= 1;
                         }

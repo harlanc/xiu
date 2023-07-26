@@ -2,7 +2,6 @@ use super::define;
 use super::errors::PackerError;
 use super::errors::UnPackerError;
 use super::utils;
-use super::utils::Marshal;
 use super::utils::OnFrameFn;
 use super::utils::OnRtpPacketFn;
 use super::utils::OnRtpPacketFn2;
@@ -20,7 +19,6 @@ use bytesio::bytes_reader::BytesReader;
 use bytesio::bytesio::TNetIO;
 use std::sync::Arc;
 use streamhub::define::FrameData;
-use streamhub::define::VideoCodecType;
 use tokio::sync::Mutex;
 
 pub struct RtpH264Packer {
@@ -124,7 +122,7 @@ impl RtpH264Packer {
 impl TPacker for RtpH264Packer {
     //pack annexb h264 data
     async fn pack(&mut self, nalus: &mut BytesMut, timestamp: u32) -> Result<(), PackerError> {
-        self.header.timestamp = timestamp;
+        self.header.timestamp = timestamp; // ((timestamp as u64 * self.clock_rate as u64) / 1000) as u32;
         utils::split_annexb_and_process(nalus, self).await?;
         Ok(())
     }
@@ -157,7 +155,6 @@ pub struct RtpH264UnPacker {
     sequence_number: u16,
     timestamp: u32,
     fu_buffer: BytesMut,
-    flags: i16,
     on_frame_handler: Option<OnFrameFn>,
     on_packet_for_rtcp_handler: Option<OnRtpPacketFn2>,
 }
@@ -173,12 +170,7 @@ impl TUnPacker for RtpH264UnPacker {
         self.timestamp = rtp_packet.header.timestamp;
         self.sequence_number = rtp_packet.header.seq_number;
 
-        if let Some(packet_type) = rtp_packet.payload.get(0) {
-            let t = *packet_type & 0x1F;
-            if t != 1 && t != 28 {
-                log::info!("type: {}", *packet_type & 0x1F);
-            }
-
+        if let Some(packet_type) = rtp_packet.payload.first() {
             match *packet_type & 0x1F {
                 1..=23 => {
                     return self.unpack_single(rtp_packet.payload.clone(), *packet_type);
@@ -206,13 +198,15 @@ impl TUnPacker for RtpH264UnPacker {
 
 impl RtpH264UnPacker {
     pub fn new() -> Self {
-        RtpH264UnPacker::default()
+        RtpH264UnPacker {
+            ..Default::default()
+        }
     }
 
     fn unpack_single(
         &mut self,
         payload: BytesMut,
-        t: define::RtpNalType,
+        _t: define::RtpNalType,
     ) -> Result<(), UnPackerError> {
         if let Some(f) = &self.on_frame_handler {
             let mut annexb_payload = BytesMut::new();
@@ -224,7 +218,7 @@ impl RtpH264UnPacker {
                 data: annexb_payload,
             })?;
         }
-        return Ok(());
+        Ok(())
     }
 
     //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -361,7 +355,7 @@ impl RtpH264UnPacker {
             payload_reader.read_u16::<BigEndian>()?;
         }
 
-        while payload_reader.len() > 0 {
+        while !payload_reader.is_empty() {
             let length = payload_reader.read_u16::<BigEndian>()? as usize;
             let nalu = payload_reader.read_bytes(length)?;
 
@@ -442,7 +436,7 @@ impl RtpH264UnPacker {
         //read decoding_order_number_base
         payload_reader.read_u16::<BigEndian>()?;
 
-        while payload_reader.len() > 0 {
+        while !payload_reader.is_empty() {
             //read nalu size
             let nalu_size = payload_reader.read_u16::<BigEndian>()? as usize;
             // read dond

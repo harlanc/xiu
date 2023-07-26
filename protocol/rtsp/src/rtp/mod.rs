@@ -34,8 +34,10 @@ impl Unmarshal<&mut BytesReader, Result<Self, BytesReadError>> for RtpPacket {
     where
         Self: Sized,
     {
-        let mut rtp_packet = RtpPacket::default();
-        rtp_packet.header = RtpHeader::unmarshal(reader)?;
+        let mut rtp_packet = RtpPacket {
+            header: RtpHeader::unmarshal(reader)?,
+            ..Default::default()
+        };
 
         if rtp_packet.header.extension_flag == 1 {
             // 0                   1                   2                   3

@@ -33,8 +33,10 @@ impl Unmarshal<BytesMut, Result<Self, RtcpError>> for RtcpBye {
     {
         let mut reader = BytesReader::new(data);
 
-        let mut rtcp_bye = RtcpBye::default();
-        rtcp_bye.header = RtcpHeader::unmarshal(&mut reader)?;
+        let mut rtcp_bye = RtcpBye {
+            header: RtcpHeader::unmarshal(&mut reader)?,
+            ..Default::default()
+        };
 
         for _ in 0..rtcp_bye.header.report_count {
             let ssrc = reader.read_u32::<BigEndian>()?;

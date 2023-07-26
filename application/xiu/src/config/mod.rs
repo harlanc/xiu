@@ -174,7 +174,7 @@ fn test_toml_parse() {
             let rtmp = decoded.httpnotify;
 
             if let Some(val) = rtmp {
-                println!("++++++{:?}\n", val);
+                println!("++++++{val:?}\n");
             }
         }
         Err(err) => println!("======{err}"),

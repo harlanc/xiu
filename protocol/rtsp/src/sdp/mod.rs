@@ -19,7 +19,7 @@ impl Unmarshal for Bandwidth {
         let mut sdp_bandwidth = Bandwidth::default();
 
         let parameters: Vec<&str> = raw_data.split(':').collect();
-        if let Some(t) = parameters.get(0) {
+        if let Some(t) = parameters.first() {
             sdp_bandwidth.b_type = t.to_string();
         }
 
@@ -62,7 +62,7 @@ pub struct SdpMediaInfo {
     port: usize,
     protocol: String,
     fmts: Vec<u8>,
-    bandwidth: Bandwidth,
+    bandwidth: Option<Bandwidth>,
     pub rtpmap: RtpMap,
     pub fmtp: Option<fmtp::Fmtp>,
     pub attributes: HashMap<String, String>,
@@ -85,7 +85,7 @@ pub struct SdpMediaInfo {
 
 #[derive(Default, Debug, Clone)]
 pub struct Sdp {
-    raw_string: String,
+    pub raw_string: String,
     version: u16,
     origin: String,
     session: String,
@@ -102,7 +102,7 @@ impl Unmarshal for SdpMediaInfo {
         let mut sdp_media = SdpMediaInfo::default();
         let parameters: Vec<&str> = raw_data.split(' ').collect();
 
-        if let Some(para_0) = parameters.get(0) {
+        if let Some(para_0) = parameters.first() {
             sdp_media.media_type = para_0.to_string();
         }
 
@@ -117,13 +117,10 @@ impl Unmarshal for SdpMediaInfo {
         }
 
         let mut cur_param_idx = 3;
-        loop {
-            if let Some(fmt_str) = parameters.get(cur_param_idx) {
-                if let Ok(fmt) = fmt_str.parse::<u8>() {
-                    sdp_media.fmts.push(fmt);
-                }
-            } else {
-                break;
+
+        while let Some(fmt_str) = parameters.get(cur_param_idx) {
+            if let Ok(fmt) = fmt_str.parse::<u8>() {
+                sdp_media.fmts.push(fmt);
             }
             cur_param_idx += 1;
         }
@@ -152,13 +149,19 @@ impl Marshal for SdpMediaInfo {
             .collect::<Vec<String>>()
             .join(" ");
 
+        let bandwidth = if let Some(bandwidth) = &self.bandwidth {
+            format!("b={}", bandwidth.marshal())
+        } else {
+            String::from("")
+        };
+
         let mut sdp_media_info = format!(
-            "m={} {} {} {}\r\nb={}a=rtpmap:{}",
+            "m={} {} {} {}\r\n{}a=rtpmap:{}",
             self.media_type,
             self.port,
             self.protocol,
             fmts_str,
-            self.bandwidth.marshal(),
+            bandwidth,
             self.rtpmap.marshal()
         );
 
@@ -167,7 +170,7 @@ impl Marshal for SdpMediaInfo {
         }
 
         for (k, v) in &self.attributes {
-            sdp_media_info = format!("{}a={}:{}\r\n", sdp_media_info, k, v);
+            sdp_media_info = format!("{sdp_media_info}a={k}:{v}\r\n");
         }
 
         sdp_media_info
@@ -176,13 +179,14 @@ impl Marshal for SdpMediaInfo {
 
 impl Unmarshal for Sdp {
     fn unmarshal(raw_data: &str) -> Option<Self> {
-        let mut sdp = Sdp::default();
-        sdp.raw_string = raw_data.to_string();
+        let mut sdp = Sdp {
+            raw_string: raw_data.to_string(),
+            ..Default::default()
+        };
 
-        log::info!("sdp raw: {}", raw_data);
         let lines: Vec<&str> = raw_data.split(|c| c == '\r' || c == '\n').collect();
         for line in lines {
-            if line == "" {
+            if line.is_empty() {
                 continue;
             }
             let kv: Vec<&str> = line.trim().splitn(2, '=').collect();
@@ -235,7 +239,7 @@ impl Unmarshal for Sdp {
                 }
                 "b" => {
                     if let Some(cur_media) = sdp.medias.last_mut() {
-                        cur_media.bandwidth = Bandwidth::unmarshal(kv[1]).unwrap();
+                        cur_media.bandwidth = Some(Bandwidth::unmarshal(kv[1]).unwrap());
                     } else {
                         continue;
                     }
@@ -304,7 +308,7 @@ impl Marshal for Sdp {
         );
 
         for (k, v) in &self.attributes {
-            sdp_str = format!("{}a={}:{}\r\n", sdp_str, k, v);
+            sdp_str = format!("{sdp_str}a={k}:{v}\r\n");
         }
 
         for media_info in &self.medias {
@@ -321,8 +325,7 @@ mod tests {
     use crate::global_trait::{Marshal, Unmarshal};
 
     use super::Sdp;
-    use indexmap::IndexMap;
-    use std::io::{BufRead, BufReader, Read};
+
     #[test]
     fn test_parse_sdp() {
         let data2 = "ANNOUNCE rtsp://127.0.0.1:5544/stream RTSP/1.0\r\n\
@@ -368,15 +371,14 @@ mod tests {
         // a=control:streamid=1：指定音频流的流ID。
 
         if let Some(sdp) = Sdp::unmarshal(data2) {
-            println!("sdp : {:?}", sdp);
+            println!("sdp : {sdp:?}");
 
             println!("sdp str : {}", sdp.marshal());
         }
     }
     #[test]
     fn test_str() {
-        let mut fmts: Vec<u8> = Vec::new();
-        fmts.push(5);
+        let fmts: Vec<u8> = vec![5];
         // fmts.push(6);
         let fmts_str = fmts
             .iter()
@@ -384,6 +386,6 @@ mod tests {
             .collect::<Vec<String>>()
             .join(" ");
 
-        println!("=={}==", fmts_str);
+        println!("=={fmts_str}==");
     }
 }

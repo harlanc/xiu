@@ -97,58 +97,39 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
     ) -> Result<(), HlsError> {
-        loop {
-            let (sender, receiver) = mpsc::unbounded_channel();
-            /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
-            let sub_info = SubscriberInfo {
-                id: self.subscriber_id,
-                sub_type: SubscribeType::GenerateHls,
-                notify_info: NotifyInfo {
-                    request_url: String::from(""),
-                    remote_addr: String::from(""),
-                },
+        let (sender, receiver) = mpsc::unbounded_channel();
+        /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
+        let sub_info = SubscriberInfo {
+            id: self.subscriber_id,
+            sub_type: SubscribeType::GenerateHls,
+            notify_info: NotifyInfo {
+                request_url: String::from(""),
+                remote_addr: String::from(""),
+            },
+        };
+
+        let identifier = StreamIdentifier::Rtmp {
+            app_name,
+            stream_name,
+        };
+
+        let subscribe_event = StreamHubEvent::Subscribe {
+            identifier,
+            info: sub_info,
+            sender,
+        };
+
+        let rv = self.event_producer.send(subscribe_event);
+        if rv.is_err() {
+            let session_error = SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
             };
-
-            let identifier = StreamIdentifier::Rtmp {
-                app_name: app_name.clone(),
-                stream_name: stream_name.clone(),
-            };
-
-            let subscribe_event = StreamHubEvent::Subscribe {
-                identifier,
-                info: sub_info,
-                sender,
-            };
-
-            let rv = self.event_producer.send(subscribe_event);
-            if rv.is_err() {
-                let session_error = SessionError {
-                    value: SessionErrorValue::StreamHubEventSendErr,
-                };
-                return Err(HlsError {
-                    value: HlsErrorValue::SessionError(session_error),
-                });
-            }
-
-            self.data_consumer = receiver;
-            break;
-            // match receiver.await {
-            //     Ok(consumer) => {
-            //         self.data_consumer = consumer;
-            //         break;
-            //     }
-            //     Err(_) => {
-            //         if retry_count > 10 {
-            //             let session_error = SessionError {
-            //                 value: SessionErrorValue::SubscribeCountLimitReach,
-            //             };
-            //             return Err(HlsError {
-            //                 value: HlsErrorValue::SessionError(session_error),
-            //             });
-            //         }
-            //     }
-            // }
+            return Err(HlsError {
+                value: HlsErrorValue::SessionError(session_error),
+            });
         }
+
+        self.data_consumer = receiver;
 
         Ok(())
     }

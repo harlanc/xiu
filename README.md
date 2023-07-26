@@ -27,20 +27,25 @@
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
-Xiu is a simple,high performance and secure live media server written in pure Rust, it now supports popular live protocols like RTMP/HLS/HTTP-FLV, you can deploy it as a stand-alone server or a cluster using the relay feature.
+Xiu is a simple,high performance and secure live media server written in pure Rust, it now supports popular live protocols like RTMP/RTSP/HLS/HTTP-FLV, you can deploy it as a stand-alone server or a cluster using the relay feature.
 
 ## Features
 - [x] Support multiple platforms(Linux/MacOS/Windows).
-- [x] Support RTMP as a 
-stand-alone server or cluster(RTMP relay).
+- [x] Support RTMP.
+   - [x] Support publish/subscribe H264/AAC stream .
    - [x] Support GOP cache which can be configured in the configuration file.
-- [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP).
+   - [x] Support transfer from RTMP to HLS/HTTP-FLV
+   - [x] Support cluster.
+- [x] Support RTSP.
+  - [x] Support publish/subscribe H265/H264/AAC stream over both TCP(Interleaved) and UDP.
+  - [x] Support transfer from RTSP to RTMP/HLS/HTTP-FLV
+- [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP/RTSP).
 - [x] Support configuring the service using command line or a configuration file.
 - [x] Support HTTP API/Notifications.
   - [x] Support querying stream information.
   - [x] Support notify stream status.
 - [x] Support token authentications.
-- [ ] Support RTSP.
+
 
 ## Preparation
 #### Install Rust and Cargo
@@ -65,11 +70,12 @@ Start the service with the following command to get help:
     xiu -h
     A secure and easy to use live media server, hope you love it!!!
 
-    Usage: xiu [OPTIONS] <--config <path>|--rtmp <port>>
+    Usage: xiu [OPTIONS] 
 
     Options:
       -c, --config <path>   Specify the xiu server configuration file path.
       -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
+      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554)
       -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
       -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
       -l, --log <level>     Specify the log level. [possible values: trace, debug, info, warn, error, debug]
@@ -105,7 +111,7 @@ You can use command line to configure the xiu server easily. You can specify to 
 
 ##### Configure using command line
 
-    xiu -r 1935 -f 8080 -s 8081 -l info
+    xiu -r 1935 -t 5544 -f 8080 -s 8081 -l info
 
 
 #### How to Configure the configuration file
@@ -130,6 +136,12 @@ You can use command line to configure the xiu server easily. You can specify to 
     enabled = true
     address = "192.168.0.3"
     port = 1935
+    
+
+##### RTSP
+    [rtsp]
+    enabled = false
+    port = 5544
     
 ##### HTTPFLV
 
@@ -178,6 +190,8 @@ It contains the following 4 files:
 
 ##### Push
 
+###### Push RTMP
+
 You can use two ways:
 
 - Use OBS to push a live rtmp stream
@@ -185,12 +199,24 @@ You can use two ways:
      
         ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test
 
+###### Push RTSP
+
+- Over TCP(Interleaved mode)
+
+        ffmpeg -re -stream_loop -1  -i test.mp4 -c:v copy  -c:a copy  -rtsp_transport tcp   -f rtsp rtsp://127.0.0.1:5544/live/test
+    
+- Over UDP
+
+        ffmpeg -re -stream_loop -1  -i test.mp4 -c:v copy  -c:a copy     -f rtsp rtsp://127.0.0.1:5544/live/test
+
 
 ##### Play
 
-Use ffplay to play the rtmp/httpflv/hls live stream:
+Use ffplay to play the rtmp/rtsp/httpflv/hls live stream:
 
     ffplay -i rtmp://localhost:1935/live/test
+    ffplay -i rtsp://127.0.0.1:5544/live/test
+    ffplay -rtsp_transport tcp -i rtsp://127.0.0.1:5544/live/test
     ffplay -i http://localhost:8081/live/test.flv
     ffplay -i http://localhost:8080/live/test/test.m3u8
     

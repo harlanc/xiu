@@ -1,5 +1,5 @@
 use {
-    super::{define::h264_nal_type, errors::MpegAvcError, Marshal, Unmarshal},
+    super::{define::h264_nal_type, errors::MpegAvcError},
     byteorder::BigEndian,
     bytes::BytesMut,
     bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter},
@@ -13,31 +13,44 @@ const H264_START_CODE: [u8; 4] = [0x00, 0x00, 0x00, 0x01];
 
 #[derive(Clone, Default)]
 pub struct Sps {
-    pub size: u16,
+    // pub size: u16,
     pub data: BytesMut,
 }
 
 impl Sps {
     pub fn new() -> Self {
         Self {
-            size: 0,
+            // size: 0,
             data: BytesMut::new(),
         }
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
 #[derive(Clone, Default)]
 pub struct Pps {
-    pub size: u16,
+    // pub size: u16,
     pub data: BytesMut,
 }
 
 impl Pps {
     pub fn new() -> Self {
         Self {
-            size: 0,
+            // size: 0,
             data: BytesMut::new(),
         }
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
@@ -155,7 +168,7 @@ impl Mpeg4AvcProcessor {
             /*SPS size*/
             let sps_data_size = bytes_reader.read_u16::<BigEndian>()?;
             let sps_data = Sps {
-                size: sps_data_size,
+                // size: sps_data_size,
                 /*SPS data*/
                 data: bytes_reader.read_bytes(sps_data_size as usize)?,
             };
@@ -196,7 +209,7 @@ impl Mpeg4AvcProcessor {
         for i in 0..self.mpeg4_avc.nb_pps as usize {
             let pps_data_size = bytes_reader.read_u16::<BigEndian>()?;
             let pps_data = Pps {
-                size: pps_data_size,
+                // size: pps_data_size,
                 data: bytes_reader.read_bytes(pps_data_size as usize)?,
             };
 
@@ -220,7 +233,7 @@ impl Mpeg4AvcProcessor {
 
         let mut sps_pps_flag = false;
         while !bytes_reader.is_empty() {
-            let size = self.get_nalu_size(bytes_reader)?;
+            let size = self.read_nalu_size(bytes_reader)?;
             let nalu_type = bytes_reader.advance_u8()? & 0x1f;
 
             match nalu_type {
@@ -248,13 +261,39 @@ impl Mpeg4AvcProcessor {
         Ok(bytes_writer.extract_current_bytes())
     }
 
-    pub fn get_nalu_size(&mut self, bytes_reader: &mut BytesReader) -> Result<u32, MpegAvcError> {
+    pub fn read_nalu_size(&mut self, bytes_reader: &mut BytesReader) -> Result<u32, MpegAvcError> {
         let mut size: u32 = 0;
 
         for _ in 0..self.mpeg4_avc.nalu_length {
             size = bytes_reader.read_u8()? as u32 + (size << 8);
         }
         Ok(size)
+    }
+
+    pub fn write_nalu_size(
+        &mut self,
+        writer: &mut BytesWriter,
+        length: usize,
+    ) -> Result<(), MpegAvcError> {
+        let nalu_length = self.mpeg4_avc.nalu_length;
+        for i in 0..nalu_length {
+            let shift = (nalu_length - i - 1) * 8;
+            let num = ((length >> shift) & 0xFF) as u8;
+            writer.write_u8(num)?;
+        }
+        Ok(())
+    }
+
+    pub fn nalus_to_mpeg4avc(&mut self, nalus: Vec<BytesMut>) -> Result<BytesMut, MpegAvcError> {
+        let mut bytes_writer = BytesWriter::new();
+
+        for nalu in nalus {
+            let length = nalu.len();
+            self.write_nalu_size(&mut bytes_writer, length)?;
+            bytes_writer.write(&nalu)?;
+        }
+
+        Ok(bytes_writer.extract_current_bytes())
     }
 
     pub fn decoder_configuration_record_save(&mut self) -> Result<BytesMut, MpegAvcError> {
@@ -269,14 +308,14 @@ impl Mpeg4AvcProcessor {
         //sps
         bytes_writer.write_u8(self.mpeg4_avc.nb_sps | 0xE0)?;
         for i in 0..self.mpeg4_avc.nb_sps as usize {
-            bytes_writer.write_u16::<BigEndian>(self.mpeg4_avc.sps[i].size)?;
+            bytes_writer.write_u16::<BigEndian>(self.mpeg4_avc.sps[i].len() as u16)?;
             bytes_writer.write(&self.mpeg4_avc.sps[i].data[..])?;
         }
 
         //pps
         bytes_writer.write_u8(self.mpeg4_avc.nb_pps)?;
         for i in 0..self.mpeg4_avc.nb_pps as usize {
-            bytes_writer.write_u16::<BigEndian>(self.mpeg4_avc.pps[i].size)?;
+            bytes_writer.write_u16::<BigEndian>(self.mpeg4_avc.pps[i].len() as u16)?;
             bytes_writer.write(&self.mpeg4_avc.pps[i].data[..])?
         }
 
@@ -291,5 +330,37 @@ impl Mpeg4AvcProcessor {
         }
 
         Ok(bytes_writer.extract_current_bytes())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::BytesMut;
+    use bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter};
+
+    #[test]
+    fn test_bytes_to_bigend() {
+        let mut size: u32 = 0;
+        let mut b = BytesMut::new();
+        b.extend_from_slice(b"\0\0\x03\xe8");
+        let mut bytes_reader = BytesReader::new(b);
+
+        for _ in 0..4 {
+            size = bytes_reader.read_u8().unwrap() as u32 + (size << 8);
+        }
+        println!("size: {size}");
+    }
+    #[test]
+    fn test_bigend_to_bytes() {
+        let size = 1000;
+        let length = 4;
+        let mut bytes_writer = BytesWriter::new();
+
+        for i in 0..length {
+            let shift = (length - i - 1) * 8;
+            let num = ((size >> shift) & 0xFF) as u8;
+            bytes_writer.write_u8(num).unwrap();
+        }
+        println!("num: {:?}", bytes_writer.extract_current_bytes());
     }
 }

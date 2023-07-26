@@ -13,6 +13,20 @@ pub fn print(data: BytesMut) {
     println!("===========")
 }
 
+pub fn print2(title: &str, data: BytesMut) {
+    println!("==========={}:{}", title, data.len());
+    let mut idx = 0;
+    for i in data {
+        print!("{i:02X} ");
+        idx += 1;
+        if idx % 16 == 0 {
+            println!()
+        }
+    }
+
+    println!("===========")
+}
+
 pub fn printu8(data: BytesMut) {
     println!("==========={}", data.len());
     let mut idx = 0;

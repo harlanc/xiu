@@ -1,5 +1,5 @@
 use {
-    crate::rtp::errors::PackerError,
+    crate::rtp::errors::{PackerError, UnPackerError},
     bytesio::bytes_errors::BytesReadError,
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
     failure::{Backtrace, Fail},
@@ -22,6 +22,8 @@ pub enum SessionErrorValue {
     BytesWriteError(#[cause] BytesWriteError),
     #[fail(display = "Utf8Error: {}\n", _0)]
     Utf8Error(#[cause] Utf8Error),
+    #[fail(display = "UnPackerError: {}\n", _0)]
+    UnPackerError(#[cause] UnPackerError),
     #[fail(display = "stream hub event send error\n")]
     StreamHubEventSendErr,
     #[fail(display = "cannot receive frame data from stream hub\n")]
@@ -66,6 +68,14 @@ impl From<PackerError> for SessionError {
     fn from(error: PackerError) -> Self {
         SessionError {
             value: SessionErrorValue::PackerError(error),
+        }
+    }
+}
+
+impl From<UnPackerError> for SessionError {
+    fn from(error: UnPackerError) -> Self {
+        SessionError {
+            value: SessionErrorValue::UnPackerError(error),
         }
     }
 }

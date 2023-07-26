@@ -1,3 +1,5 @@
+use rtmp::remuxer::RtmpRemuxer;
+
 use {
     super::api,
     super::config::Config,
@@ -149,6 +151,22 @@ impl Service {
             });
         }
 
+        self.start_rtmp_remuxer(stream_hub).await?;
+
+        Ok(())
+    }
+
+    async fn start_rtmp_remuxer(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
+        let event_producer = stream_hub.get_hub_event_sender();
+        let broadcast_event_receiver = stream_hub.get_client_event_consumer();
+        let mut remuxer = RtmpRemuxer::new(broadcast_event_receiver, event_producer);
+        stream_hub.set_rtmp_remuxer_enabled(true);
+
+        tokio::spawn(async move {
+            if let Err(err) = remuxer.run().await {
+                log::error!("rtmp remuxer server error: {}\n", err);
+            }
+        });
         Ok(())
     }
 

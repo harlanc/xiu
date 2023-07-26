@@ -15,7 +15,6 @@ use {
     },
     async_trait::async_trait,
     bytes::BytesMut,
-    bytesio::bytesio::TNetIO,
     std::fmt,
     std::{net::SocketAddr, sync::Arc},
     streamhub::{
@@ -87,6 +86,7 @@ impl Common {
                     FrameData::MetaData { timestamp, data } => {
                         self.send_metadata(data, timestamp).await?;
                     }
+                    _ => {}
                 }
             } else {
                 retry_times += 1;
@@ -296,48 +296,31 @@ impl Common {
         log::info!(
             "subscribe_from_channels, app_name: {} stream_name: {} subscribe_id: {}",
             app_name,
-            stream_name.clone(),
+            stream_name,
             sub_id
         );
 
-        loop {
-            let (sender, receiver) = mpsc::unbounded_channel();
+        let (sender, receiver) = mpsc::unbounded_channel();
 
-            let identifier = StreamIdentifier::Rtmp {
-                app_name: app_name.clone(),
-                stream_name: stream_name.clone(),
-            };
+        let identifier = StreamIdentifier::Rtmp {
+            app_name,
+            stream_name,
+        };
 
-            let subscribe_event = StreamHubEvent::Subscribe {
-                identifier,
-                info: self.get_subscriber_info(sub_id),
-                sender,
-            };
-            let rv = self.event_producer.send(subscribe_event);
+        let subscribe_event = StreamHubEvent::Subscribe {
+            identifier,
+            info: self.get_subscriber_info(sub_id),
+            sender,
+        };
+        let rv = self.event_producer.send(subscribe_event);
 
-            if rv.is_err() {
-                return Err(SessionError {
-                    value: SessionErrorValue::StreamHubEventSendErr,
-                });
-            }
-
-            self.data_receiver = receiver;
-            break;
-
-            // match receiver.await {
-            //     Ok(consumer) => {
-            //         self.data_receiver = consumer;
-            //         break;
-            //     }
-            //     Err(_) => {
-            //         if retry_count > 10 {
-            //             return Err(SessionError {
-            //                 value: SessionErrorValue::SubscribeCountLimitReach,
-            //             });
-            //         }
-            //     }
-            // }
+        if rv.is_err() {
+            return Err(SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
+            });
         }
+
+        self.data_receiver = receiver;
 
         Ok(())
     }
@@ -439,6 +422,7 @@ impl Common {
     }
 }
 
+#[derive(Default)]
 pub struct RtmpStreamHandler {
     /*cache is used to save RTMP sequence/gops/meta data
     which needs to be send to client(player) */
@@ -490,7 +474,7 @@ impl RtmpStreamHandler {
 
 #[async_trait]
 impl TStreamHandler for RtmpStreamHandler {
-    async fn send_cache_data(
+    async fn send_prior_data(
         &self,
         sender: FrameDataSender,
         sub_type: SubscribeType,
@@ -540,7 +524,7 @@ impl TStreamHandler for RtmpStreamHandler {
         None
     }
 
-    async fn send_information(&self, sender: InformationSender) {}
+    async fn send_information(&self, _: InformationSender) {}
 }
 
 impl fmt::Debug for Common {
