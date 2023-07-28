@@ -22,5 +22,8 @@ Change the listening port type.
 ## v0.2.1
 - Reference xflv new version v0.2.1.
 - Reference rtmp new version v0.3.1.
+## 0.3.0
+- Do some refactoring.
+- Reference bytesio v0.3.0.
 
 

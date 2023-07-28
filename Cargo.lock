@@ -175,7 +175,7 @@ checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
 
 [[package]]
 name = "bytesio"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "byteorder",

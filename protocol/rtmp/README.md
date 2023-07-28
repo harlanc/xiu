@@ -143,6 +143,10 @@ async fn main() -> anyhow::Result<()> {
 - Fix error that cannot receive rtmp stream pushed from GStreamer.
 - Reference xflv new version v0.2.1.
 - Fix RTMP examples in README.
+## v0.4.0
+- Reference bytesio v0.3.0.
+- Support transferring from rtsp to rtmp.
+- Do some refactoring.
 
 
 
