@@ -29,7 +29,7 @@ tokio-metrics = { version = "0.2.0", default-features = false }
 env_logger_extend = "0.1.1"
 streamhub = "0.1.0"
 rtmp = "0.4.0"
-rtsp = "0.1.0"
+xrtsp = "0.1.0"
 httpflv = "0.3.0"
 hls = "0.3.0"
 
