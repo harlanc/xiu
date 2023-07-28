@@ -1,7 +1,7 @@
 COPY_CONF_FILES = sh ./update_project_conf.sh
 
 not_spport:
-	echo "input make <local|online>"
+	echo "input make <local|online|clean|check>"
 # build local source codes
 local:
 	cd ./confs && $(COPY_CONF_FILES) "local"
