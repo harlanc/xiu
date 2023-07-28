@@ -3,6 +3,9 @@ name = "streamhub"
 description = "It receives streams from publishers(rtmp/rtsp etc.) and send streams to subscribers(rtmp/rtsp/httpflv/hls)"
 version = "0.1.0"
 edition = "2021"
+authors = ["HarlanC <wawacry@qq.com>"]
+license = "MIT"
+repository = "https://github.com/harlanc/xiu"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
