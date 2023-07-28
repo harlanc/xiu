@@ -149,9 +149,9 @@ impl Service {
                     log::error!("rtmp server error: {}\n", err);
                 }
             });
-        }
 
-        self.start_rtmp_remuxer(stream_hub).await?;
+            self.start_rtmp_remuxer(stream_hub).await?;
+        }
 
         Ok(())
     }

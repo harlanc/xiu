@@ -4,7 +4,7 @@ use {
     failure::{Backtrace, Fail},
     h264_decoder::errors::H264Error,
     std::fmt,
-    xflv::errors::{FlvDemuxerError, MpegAacError, MpegAvcError},
+    xflv::errors::{FlvDemuxerError, MpegAacError, Mpeg4AvcHevcError},
 };
 
 #[derive(Debug, Fail)]
@@ -14,7 +14,7 @@ pub enum CacheErrorValue {
     #[fail(display = "mpeg aac error\n")]
     MpegAacError(MpegAacError),
     #[fail(display = "mpeg avc error\n")]
-    MpegAvcError(MpegAvcError),
+    MpegAvcError(Mpeg4AvcHevcError),
     #[fail(display = "pack error\n")]
     PackError(PackError),
     #[fail(display = "read bytes error\n")]
@@ -57,8 +57,8 @@ impl From<MpegAacError> for CacheError {
     }
 }
 
-impl From<MpegAvcError> for CacheError {
-    fn from(error: MpegAvcError) -> Self {
+impl From<Mpeg4AvcHevcError> for CacheError {
+    fn from(error: Mpeg4AvcHevcError) -> Self {
         CacheError {
             value: CacheErrorValue::MpegAvcError(error),
         }

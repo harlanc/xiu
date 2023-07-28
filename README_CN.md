@@ -37,8 +37,8 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 - [x] 支持订阅HLS/HTTPFLV直播流
 - [x] 支持命令行或者配置文件配置服务
 - [x] 支持HTTP API/notify
-    - 支持查询流信息
-    - 支持流事件通知
+    - [x] 支持查询流信息
+    - [x] 支持流事件通知
 - [x] 支持token鉴权
 
 ## 准备工作
@@ -89,12 +89,19 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     git checkout tags/<tag_name> -b <branch_name>
     
 #### 编译
+为了编译方便，把cargo相关的编译命令封装到了makefle中，使用下面的命令进行编译：
 
-    cd ./xiu/application/xiu
-    cargo build --release
+- 使用make local编译本地代码：
+
+        make local
+- 使用make online拉取线上crates仓库代码进行编译
+                
+        make online  
+
+
 #### 运行
 
-    cd ./xiu/target/release
+    cd ./xiu/target/release or ./xiu/target/debug
     ./xiu -h
     
 ## CLI

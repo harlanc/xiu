@@ -102,6 +102,13 @@ impl BytesReader {
         Ok(val)
     }
 
+    pub fn read_u48<T: ByteOrder>(&mut self) -> Result<u64, BytesReadError> {
+        let mut cursor = self.read_bytes_cursor(6)?;
+        let val = cursor.read_u48::<T>()?;
+
+        Ok(val)
+    }
+
     pub fn read_f64<T: ByteOrder>(&mut self) -> Result<f64, BytesReadError> {
         let mut cursor = self.read_bytes_cursor(8)?;
         let val = cursor.read_f64::<T>()?;

@@ -20,5 +20,5 @@ async-trait = "0.1.70"
 base64 = "0.21.2"
 hex = "0.4.3"
 
-bytesio = { path = "../../library/bytesio/" }
-streamhub = { path = "../../library/streamhub/" }
+bytesio = "0.3.0"
+streamhub = "0.1.0"

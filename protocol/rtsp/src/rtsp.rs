@@ -22,7 +22,7 @@ impl RtspServer {
         let socket_addr: &SocketAddr = &self.address.parse().unwrap();
         let listener = TcpListener::bind(socket_addr).await?;
 
-        log::info!("Rtmp server listening on tcp://{}", socket_addr);
+        log::info!("Rtsp server listening on tcp://{}", socket_addr);
         loop {
             let (tcp_stream, _) = listener.accept().await?;
             let mut session = RtspServerSession::new(tcp_stream, self.event_producer.clone());

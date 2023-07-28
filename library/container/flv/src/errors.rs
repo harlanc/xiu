@@ -94,7 +94,7 @@ pub enum DemuxerErrorValue {
     #[fail(display = "bytes read error:{}\n", _0)]
     BytesReadError(#[cause] BytesReadError),
     #[fail(display = "mpeg avc error:{}\n", _0)]
-    MpegAvcError(#[cause] MpegAvcError),
+    MpegAvcError(#[cause] Mpeg4AvcHevcError),
     #[fail(display = "mpeg aac error:{}\n", _0)]
     MpegAacError(#[cause] MpegAacError),
 }
@@ -115,8 +115,8 @@ impl From<BytesReadError> for FlvDemuxerError {
     }
 }
 
-impl From<MpegAvcError> for FlvDemuxerError {
-    fn from(error: MpegAvcError) -> Self {
+impl From<Mpeg4AvcHevcError> for FlvDemuxerError {
+    fn from(error: Mpeg4AvcHevcError) -> Self {
         FlvDemuxerError {
             value: DemuxerErrorValue::MpegAvcError(error),
         }
@@ -165,41 +165,41 @@ pub enum MpegErrorValue {
     SPSNalunitTypeNotCorrect,
 }
 #[derive(Debug)]
-pub struct MpegAvcError {
+pub struct Mpeg4AvcHevcError {
     pub value: MpegErrorValue,
 }
 
-impl From<BytesReadError> for MpegAvcError {
+impl From<BytesReadError> for Mpeg4AvcHevcError {
     fn from(error: BytesReadError) -> Self {
-        MpegAvcError {
+        Mpeg4AvcHevcError {
             value: MpegErrorValue::BytesReadError(error),
         }
     }
 }
 
-impl From<BytesWriteError> for MpegAvcError {
+impl From<BytesWriteError> for Mpeg4AvcHevcError {
     fn from(error: BytesWriteError) -> Self {
-        MpegAvcError {
+        Mpeg4AvcHevcError {
             value: MpegErrorValue::BytesWriteError(error),
         }
     }
 }
 
-impl From<H264Error> for MpegAvcError {
+impl From<H264Error> for Mpeg4AvcHevcError {
     fn from(error: H264Error) -> Self {
-        MpegAvcError {
+        Mpeg4AvcHevcError {
             value: MpegErrorValue::H264Error(error),
         }
     }
 }
 
-impl fmt::Display for MpegAvcError {
+impl fmt::Display for Mpeg4AvcHevcError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
     }
 }
 
-impl Fail for MpegAvcError {
+impl Fail for Mpeg4AvcHevcError {
     fn cause(&self) -> Option<&dyn Fail> {
         self.value.cause()
     }

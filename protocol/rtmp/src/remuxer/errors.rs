@@ -7,7 +7,7 @@ use {
     std::fmt,
     tokio::sync::broadcast::error::RecvError,
     xflv::errors::FlvMuxerError,
-    xflv::errors::MpegAvcError,
+    xflv::errors::Mpeg4AvcHevcError,
 };
 
 pub struct RtmpRemuxerError {
@@ -31,7 +31,7 @@ pub enum RtmpRemuxerErrorValue {
     #[fail(display = "bytes write error:{}\n", _0)]
     BytesWriteError(#[cause] BytesWriteError),
     #[fail(display = "mpeg avc error\n")]
-    MpegAvcError(#[cause] MpegAvcError),
+    MpegAvcError(#[cause] Mpeg4AvcHevcError),
     #[fail(display = "flv muxer error\n")]
     FlvMuxerError(#[cause] FlvMuxerError),
     #[fail(display = "stream hub event send error\n")]
@@ -85,8 +85,8 @@ impl From<BytesWriteError> for RtmpRemuxerError {
     }
 }
 
-impl From<MpegAvcError> for RtmpRemuxerError {
-    fn from(error: MpegAvcError) -> Self {
+impl From<Mpeg4AvcHevcError> for RtmpRemuxerError {
+    fn from(error: Mpeg4AvcHevcError) -> Self {
         RtmpRemuxerError {
             value: RtmpRemuxerErrorValue::MpegAvcError(error),
         }

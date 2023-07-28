@@ -92,11 +92,18 @@ use master branch
     
 #### Build
 
-    cd ./xiu/application/xiu
-    cargo build --release
+We use makefile to build xiu and revelant libraries.
+
+- Using make local to build local source codes:
+
+        make local
+- Using make online to pull the online crates codes and build:
+
+        make online  
+
 #### Run
 
-    cd ./xiu/target/release
+    cd ./xiu/target/release or ./xiu/target/debug
     ./xiu -h
     
 ## CLI
