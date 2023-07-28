@@ -1,6 +1,3 @@
-
-
-
 <p align="center" width="100%">
     <img width="38%" src="https://user-images.githubusercontent.com/10411078/149529602-7dcbaf26-55cd-4588-8989-206b76d32f07.png">
 </p>
@@ -10,6 +7,8 @@
 [![crates.io](https://img.shields.io/crates/d/xiu.svg)](https://crates.io/crates/xiu)
 ![RTMP](https://img.shields.io/:RTMP-blue.svg)[![crates.io](https://img.shields.io/crates/v/rtmp.svg)](https://crates.io/crates/rtmp)
 [![crates.io](https://img.shields.io/crates/d/rtmp.svg)](https://crates.io/crates/rtmp)
+![RTSP](https://img.shields.io/:RTSP-blue.svg)[![crates.io](https://img.shields.io/crates/v/xrtsp.svg)](https://crates.io/crates/xrtsp)
+[![crates.io](https://img.shields.io/crates/d/xrtsp.svg)](https://crates.io/crates/xrtsp)
 ![HTTPFLV](https://img.shields.io/:HTTPFLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/httpflv.svg)](https://crates.io/crates/httpflv)
 [![crates.io](https://img.shields.io/crates/d/httpflv.svg)](https://crates.io/crates/httpflv)
 ![HLS](https://img.shields.io/:HLS-blue.svg)[![crates.io](https://img.shields.io/crates/v/hls.svg)](https://crates.io/crates/hls)
@@ -32,18 +31,18 @@ Xiu is a simple,high performance and secure live media server written in pure Ru
 ## Features
 - [x] Support multiple platforms(Linux/MacOS/Windows).
 - [x] Support RTMP.
-   - [x] Support publish/subscribe H264/AAC stream .
+   - [x] Support for publishing or subscribing H.264/AAC streams.
    - [x] Support GOP cache which can be configured in the configuration file.
-   - [x] Support transfer from RTMP to HLS/HTTP-FLV
+   - [x] Support for protocol conversion from RTMP to HTTP-FLV/HLS.
    - [x] Support cluster.
 - [x] Support RTSP.
-  - [x] Support publish/subscribe H265/H264/AAC stream over both TCP(Interleaved) and UDP.
-  - [x] Support transfer from RTSP to RTMP/HLS/HTTP-FLV
+  - [x] Support for publishing or subscribing H.265/H.264/AAC stream over both TCP(Interleaved) and UDP.
+  - [x] Support for protocol conversion from RTSP to RTMP/HLS/HTTP-FLV.
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP/RTSP).
 - [x] Support configuring the service using command line or a configuration file.
 - [x] Support HTTP API/Notifications.
   - [x] Support querying stream information.
-  - [x] Support notify stream status.
+  - [x] Support notification of stream status.
 - [x] Support token authentications.
 
 
@@ -96,10 +95,10 @@ We use makefile to build xiu and revelant libraries.
 
 - Using make local to build local source codes:
 
-        make local
+        make local && make build
 - Using make online to pull the online crates codes and build:
 
-        make online  
+        make online && make build 
 
 #### Run
 

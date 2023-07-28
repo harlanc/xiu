@@ -5,6 +5,8 @@
 
 ![XIU](https://img.shields.io/:XIU-blue.svg)[![crates.io](https://img.shields.io/crates/v/xiu.svg)](https://crates.io/crates/xiu)
 [![crates.io](https://img.shields.io/crates/d/xiu.svg)](https://crates.io/crates/xiu)
+![RTSP](https://img.shields.io/:RTSP-blue.svg)[![crates.io](https://img.shields.io/crates/v/xrtsp.svg)](https://crates.io/crates/xrtsp)
+[![crates.io](https://img.shields.io/crates/d/xrtsp.svg)](https://crates.io/crates/xrtsp)
 ![RTMP](https://img.shields.io/:RTMP-blue.svg)[![crates.io](https://img.shields.io/crates/v/rtmp.svg)](https://crates.io/crates/rtmp)
 [![crates.io](https://img.shields.io/crates/d/rtmp.svg)](https://crates.io/crates/rtmp)
 ![HTTPFLV](https://img.shields.io/:HTTPFLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/httpflv.svg)](https://crates.io/crates/httpflv)
@@ -93,10 +95,10 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
 - 使用make local编译本地代码：
 
-        make local
+        make local && make build
 - 使用make online拉取线上crates仓库代码进行编译
                 
-        make online  
+        make online && make build
 
 
 #### 运行

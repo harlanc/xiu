@@ -12,9 +12,9 @@ use {
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
-    rtsp::rtsp::RtspServer,
     streamhub::{notify::Notifier, StreamsHub},
     tokio,
+    xrtsp::rtsp::RtspServer,
 };
 
 pub struct Service {
