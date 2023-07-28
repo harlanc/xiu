@@ -1,6 +1,7 @@
 pub mod avstatistics;
 
 use {
+    super::stream::StreamIdentifier,
     serde::Serialize,
     xflv::define::{AacProfile, AvcCodecId, AvcLevel, AvcProfile, SoundFormat},
 };
@@ -28,17 +29,15 @@ pub struct AudioInfo {
 }
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct StreamStatistics {
-    pub app_name: String,
-    pub stream_name: String,
+    identifier: StreamIdentifier,
     pub video: VideoInfo,
     pub audio: AudioInfo,
 }
 
 impl StreamStatistics {
-    pub fn new(app_name: String, stream_name: String) -> Self {
+    pub fn new(identifier: StreamIdentifier) -> Self {
         Self {
-            app_name,
-            stream_name,
+            identifier,
             ..Default::default()
         }
     }

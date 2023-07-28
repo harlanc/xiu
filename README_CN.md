@@ -21,16 +21,25 @@
 ![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
 
 
-XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持流行的三大流媒体协议包括RTMP/HLS/HTTPFLV，可以单点部署，也可以用relay功能来部署集群。
+XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持的流媒体协议包括RTMP/RTSP/HLS/HTTPFLV，可以单点部署，也可以用relay功能来部署集群。
 
 ## 功能
 
-- [x] RTMP
-  - [x] 发布直播流和播放直播流
-  - [x] 转发：静态转推和静态回源
-- [x] HTTPFLV
-- [x] HLS
-- [ ] SRT
+- [x] 支持多平台（Linux/Mac/Windows）
+- [x] 支持RTMP
+  - [x] 支持发布和订阅H264/AAC 直播流;
+  - [x] 支持秒开（Gop cache）
+    -  [x]   支持转换到HLS/HTTP-FLV协议 
+    -  [x] 支持部署集群
+- [x] 支持RTSP
+   - [x] 支持发布和订阅 H264/H265/AAC 直播流，可通过TCP/UDP传输。
+   - [x] 支持转换到RTMP/HLS/HTTP-FLV协议
+- [x] 支持订阅HLS/HTTPFLV直播流
+- [x] 支持命令行或者配置文件配置服务
+- [x] 支持HTTP API/notify
+    - [x] 支持查询流信息
+    - [x] 支持流事件通知
+- [x] 支持token鉴权
 
 ## 准备工作
 #### 安装 Rust and Cargo
@@ -58,11 +67,12 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
  
     A secure and easy to use live media server, hope you love it!!!
 
-    Usage: xiu [OPTIONS] <--config <path>|--rtmp <port>>
+    Usage: xiu [OPTIONS] 
 
     Options:
       -c, --config <path>   Specify the xiu server configuration file path.
       -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
+      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554)
       -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
       -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
       -l, --log <level>     Specify the log level. [possible values: trace, debug, info, warn, error, debug]
@@ -79,12 +89,19 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     git checkout tags/<tag_name> -b <branch_name>
     
 #### 编译
+为了编译方便，把cargo相关的编译命令封装到了makefle中，使用下面的命令进行编译：
 
-    cd ./xiu/application/xiu
-    cargo build --release
+- 使用make local编译本地代码：
+
+        make local
+- 使用make online拉取线上crates仓库代码进行编译
+                
+        make online  
+
+
 #### 运行
 
-    cd ./xiu/target/release
+    cd ./xiu/target/release or ./xiu/target/debug
     ./xiu -h
     
 ## CLI
@@ -99,7 +116,7 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
 ##### 通过命令行
 
-    xiu -r 1935 -f 8080 -s 8081 -l info
+    xiu -r 1935 -t 5544 -f 8080 -s 8081 -l info
 
 
 #### 配置文件说明
@@ -124,6 +141,11 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     enabled = true
     address = "192.168.0.3"
     port = 1935
+
+##### RTSP
+    [rtsp]
+    enabled = false
+    port = 5544
     
 ##### HTTPFLV
 
@@ -171,16 +193,29 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
 ##### 推流
 
+###### RTMP推流
+
 可以用任何推流软件或者命令工具来推RTMP流，比如使用OBS或者用ffmpeg命令行：
 
     ffmpeg -re -stream_loop -1 -i test.mp4 -c:a copy -c:v copy -f flv -flvflags no_duration_filesize rtmp://127.0.0.1:1935/live/test
 
+###### RTSP推流
+
+-  基于TCP推流(Interleaved mode)
+
+        ffmpeg -re -stream_loop -1  -i test.mp4 -c:v copy  -c:a copy  -rtsp_transport tcp   -f rtsp rtsp://127.0.0.1:5544/live/test
+    
+- 基于UDP推流
+
+        ffmpeg -re -stream_loop -1  -i test.mp4 -c:v copy  -c:a copy     -f rtsp rtsp://127.0.0.1:5544/live/test
 
 ##### 播放
 
-使用ffplay来播放 rtmp/httpflv/hls协议的直播流:
+使用ffplay来播放 rtmp/rtsp/httpflv/hls协议的直播流:
 
     ffplay -i rtmp://localhost:1935/live/test
+    ffplay -i rtsp://127.0.0.1:5544/live/test
+    ffplay -rtsp_transport tcp -i rtsp://127.0.0.1:5544/live/test
     ffplay -i http://localhost:8081/live/test.flv
     ffplay -i http://localhost:8080/live/test/test.m3u8
     

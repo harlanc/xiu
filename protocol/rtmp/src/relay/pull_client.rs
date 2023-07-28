@@ -1,23 +1,23 @@
+use streamhub::stream::StreamIdentifier;
+
 use {
     super::errors::ClientError,
-    crate::{
-        channels::define::{ChannelEventProducer, ClientEvent, ClientEventConsumer},
-        session::client_session::{ClientSession, ClientType},
-    },
+    crate::session::client_session::{ClientSession, ClientType},
+    streamhub::define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
     tokio::net::TcpStream,
 };
 
 pub struct PullClient {
     address: String,
-    client_event_consumer: ClientEventConsumer,
-    channel_event_producer: ChannelEventProducer,
+    client_event_consumer: BroadcastEventReceiver,
+    channel_event_producer: StreamHubEventSender,
 }
 
 impl PullClient {
     pub fn new(
         address: String,
-        consumer: ClientEventConsumer,
-        producer: ChannelEventProducer,
+        consumer: BroadcastEventReceiver,
+        producer: StreamHubEventSender,
     ) -> Self {
         Self {
             address,
@@ -29,12 +29,15 @@ impl PullClient {
 
     pub async fn run(&mut self) -> Result<(), ClientError> {
         loop {
-            let val = self.client_event_consumer.recv().await?;
+            let event = self.client_event_consumer.recv().await?;
 
-            if let ClientEvent::Subscribe {
-                app_name,
-                stream_name,
-            } = val
+            if let BroadcastEvent::Subscribe {
+                identifier:
+                    StreamIdentifier::Rtmp {
+                        app_name,
+                        stream_name,
+                    },
+            } = event
             {
                 log::info!(
                     "receive pull event, app_name :{}, stream_name: {}",
@@ -50,6 +53,7 @@ impl PullClient {
                     app_name.clone(),
                     stream_name.clone(),
                     self.channel_event_producer.clone(),
+                    0,
                 );
 
                 tokio::spawn(async move {

@@ -15,6 +15,8 @@ pub enum BytesReadErrorValue {
     IO(#[cause] io::Error),
     #[fail(display = "index out of range")]
     IndexOutofRange,
+    #[fail(display = "bytesio read error: {}\n", _0)]
+    BytesIOError(BytesIOError),
     // #[fail(display = "elapsed: {}\n", _0)]
     // TimeoutError(#[cause] Elapsed),
 }
@@ -34,6 +36,14 @@ impl From<io::Error> for BytesReadError {
     fn from(error: io::Error) -> Self {
         BytesReadError {
             value: BytesReadErrorValue::IO(error),
+        }
+    }
+}
+
+impl From<BytesIOError> for BytesReadError {
+    fn from(error: BytesIOError) -> Self {
+        BytesReadError {
+            value: BytesReadErrorValue::BytesIOError(error),
         }
     }
 }

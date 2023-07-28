@@ -5,7 +5,7 @@ use {
         chunk::{define as chunk_define, packetizer::ChunkPacketizer, ChunkInfo},
         messages::define as messages_define,
     },
-    bytesio::{bytes_writer::BytesWriter, bytesio::BytesIO},
+    bytesio::bytesio::TNetIO,
     indexmap::IndexMap,
     std::sync::Arc,
     tokio::sync::Mutex,
@@ -17,9 +17,9 @@ pub struct NetStreamWriter {
 }
 
 impl NetStreamWriter {
-    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) -> Self {
         Self {
-            amf0_writer: Amf0Writer::new(BytesWriter::new()),
+            amf0_writer: Amf0Writer::new(),
             packetizer: ChunkPacketizer::new(io),
         }
     }

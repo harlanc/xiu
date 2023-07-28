@@ -5,7 +5,7 @@ use {
     },
     byteorder::BigEndian,
     bytes::BytesMut,
-    bytesio::{bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
+    bytesio::{bytes_reader::BytesReader, bytes_writer::AsyncBytesWriter, bytesio::TNetIO},
     std::sync::Arc,
     tokio::sync::Mutex,
 };
@@ -22,7 +22,7 @@ pub struct SimpleHandshakeClient {
 }
 
 impl SimpleHandshakeClient {
-    pub fn new(io: Arc<Mutex<BytesIO>>) -> Self {
+    pub fn new(io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) -> Self {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             writer: AsyncBytesWriter::new(io),

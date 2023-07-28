@@ -1,0 +1,41 @@
+[package]
+name = "rtmp"
+description = "rtmp library."
+version = "0.3.1"
+authors = ["HarlanC <wawacry@qq.com"]
+repository = "https://github.com/harlanc/xiu"
+license = "MIT"
+readme = "README.md"
+categories = ["multimedia", "multimedia::video", 'multimedia::audio']
+keywords = ["rtmp", "video", "streaming"]
+edition = "2018"
+
+[dependencies]
+byteorder = "1.4.2"
+bytes = "1.0.0"
+rand = "0.3"
+failure = "0.1.1"
+hmac = "0.11.0"
+sha2 = "0.9"
+# uuid = { version = "0.6.5", features = ["v4"] }
+log = "0.4"
+chrono = "0.4"
+indexmap = "1.9.3"
+reqwest = "0.11.14"
+async-trait = "0.1.70"
+serde_json = { version = "1", default-features = false, features = [
+    "alloc",
+    "raw_value",
+    "std",
+] }
+serde = { version = "1.0", features = ["derive", "rc"] }
+
+bytesio = { path = "../../library/bytesio/" }
+streamhub = { path = "../../library/streamhub/" }
+h264-decoder = { path = "../../library/codec/h264/" }
+xflv = { path = "../../library/container/flv/" }
+
+[dependencies.tokio]
+version = "1.4.0"
+default-features = false
+features = ["full"]

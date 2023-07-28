@@ -1,3 +1,5 @@
+use crate::chunk::packetizer::ChunkPacketizer;
+
 use {
     super::{
         common::Common,
@@ -7,7 +9,6 @@ use {
     },
     crate::{
         amf0::Amf0ValueType,
-        channels::define::ChannelEventProducer,
         chunk::{
             define::CHUNK_SIZE,
             unpacketizer::{ChunkUnpacketizer, UnpackResult},
@@ -22,11 +23,17 @@ use {
         utils::RtmpUrlParser,
     },
     bytes::BytesMut,
-    bytesio::{bytes_writer::AsyncBytesWriter, bytesio::BytesIO},
+    bytesio::{
+        bytes_writer::AsyncBytesWriter,
+        bytesio::{TNetIO, TcpIO},
+    },
     indexmap::IndexMap,
     std::{sync::Arc, time::Duration},
+    streamhub::{
+        define::StreamHubEventSender,
+        utils::{RandomDigitCount, Uuid},
+    },
     tokio::{net::TcpStream, sync::Mutex},
-    uuid::Uuid,
 };
 
 enum ServerSessionState {
@@ -43,11 +50,10 @@ pub struct ServerSession {
     pub app_name: String,
     pub stream_name: String,
     pub url_parameters: String,
-    io: Arc<Mutex<BytesIO>>,
+    io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
     handshaker: HandshakeServer,
     unpacketizer: ChunkUnpacketizer,
     state: ServerSessionState,
-    pub common: Common,
     bytesio_data: BytesMut,
     has_remaing_data: bool,
     /* Used to mark the subscriber's the data producer
@@ -55,10 +61,13 @@ pub struct ServerSession {
     is called. */
     pub session_id: Uuid,
     connect_properties: ConnectProperties,
+    pub common: Common,
+    /*configure how many gops will be cached.*/
+    gop_num: usize,
 }
 
 impl ServerSession {
-    pub fn new(stream: TcpStream, event_producer: ChannelEventProducer) -> Self {
+    pub fn new(stream: TcpStream, event_producer: StreamHubEventSender, gop_num: usize) -> Self {
         let remote_addr = if let Ok(addr) = stream.peer_addr() {
             log::info!("server session: {}", addr.to_string());
             Some(addr)
@@ -66,8 +75,9 @@ impl ServerSession {
             None
         };
 
-        let net_io = Arc::new(Mutex::new(BytesIO::new(stream)));
-        let subscriber_id = Uuid::new_v4();
+        let tcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
+        let net_io = Arc::new(Mutex::new(tcp_io));
+
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
@@ -77,15 +87,16 @@ impl ServerSession {
             unpacketizer: ChunkUnpacketizer::new(),
             state: ServerSessionState::Handshake,
             common: Common::new(
-                Arc::clone(&net_io),
+                Some(ChunkPacketizer::new(Arc::clone(&net_io))),
                 event_producer,
                 SessionType::Server,
                 remote_addr,
             ),
-            session_id: subscriber_id,
+            session_id: Uuid::new(RandomDigitCount::Four),
             bytesio_data: BytesMut::new(),
             has_remaing_data: false,
             connect_properties: ConnectProperties::default(),
+            gop_num,
         }
     }
 
@@ -241,13 +252,13 @@ impl ServerSession {
                 self.on_set_chunk_size(*chunk_size as usize)?;
             }
             RtmpMessageData::AudioData { data } => {
-                self.common.on_audio_data(data, timestamp)?;
+                self.common.on_audio_data(data, timestamp).await?;
             }
             RtmpMessageData::VideoData { data } => {
-                self.common.on_video_data(data, timestamp)?;
+                self.common.on_video_data(data, timestamp).await?;
             }
             RtmpMessageData::AmfData { raw_data } => {
-                self.common.on_meta_data(raw_data, timestamp)?;
+                self.common.on_meta_data(raw_data, timestamp).await?;
             }
 
             _ => {}
@@ -708,6 +719,7 @@ impl ServerSession {
                 self.app_name.clone(),
                 self.stream_name.clone(),
                 self.session_id,
+                self.gop_num,
             )
             .await?;
 

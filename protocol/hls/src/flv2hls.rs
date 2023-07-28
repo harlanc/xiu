@@ -73,8 +73,11 @@ impl Flv2HlsRemuxer {
                 FlvDemuxerData::Audio { data: audio_data }
             }
             FlvData::Video { timestamp, data } => {
-                let video_data = self.video_demuxer.demux(timestamp, data)?;
-                FlvDemuxerData::Video { data: video_data }
+                if let Some(video_data) = self.video_demuxer.demux(timestamp, data)? {
+                    FlvDemuxerData::Video { data: video_data }
+                } else {
+                    return Ok(());
+                }
             }
             _ => return Ok(()),
         };
@@ -115,10 +118,6 @@ impl Flv2HlsRemuxer {
 
         match flv_demux_data {
             FlvDemuxerData::Video { data } => {
-                if !data.has_data {
-                    return Ok(());
-                }
-
                 pts = data.pts;
                 dts = data.dts;
                 pid = self.video_pid;

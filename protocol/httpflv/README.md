@@ -14,4 +14,7 @@ A httpflv library.
 ## v0.2.1
 - Reference xflv new version v0.2.1.
 - Reference rtmp new version v0.3.1.
+## v0.3.0
+- Reference bytesio v0.3.0.
+- Do some refactoring.
 

@@ -8,5 +8,8 @@ Remove no used dependences.
 - Remove compile warnings.
 ## v0.1.1
 - Refactor codes.
+## v0.2.0
+- Reference bytesio v0.3.0.
+
 
 

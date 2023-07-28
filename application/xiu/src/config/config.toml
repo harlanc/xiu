@@ -13,26 +13,41 @@ address = "192.168.0.1"
 port = 1935
 # push streams to other server node.
 [[rtmp.push]]
-enabled = true
+enabled = false
 address = "localhost"
 port = 1936
 [[rtmp.push]]
-enabled = true
+enabled = false
 address = "192.168.0.3"
 port = 1935
+
+[httpnotify]
+enabled = true
+on_publish = "http://localhost:3001/on_publish"
+on_unpublish = "http://localhost:3001/on_unpuslish"
+on_play = "http://localhost:3001/on_play"
+on_stop = "http://localhost:3001/on_stop"
+
+
+##########################
+#    RTSP configurations  #
+##########################
+[rtsp]
+enabled = false
+port = 445
 
 ##########################
 # HTTPFLV configurations #
 ##########################
 [httpflv]
-enabled = true
+enabled = false
 port = 8081
 
 ##########################
 #    HLS configurations  #
 ##########################
 [hls]
-enabled = true
+enabled = false
 port = 8080
 
 ##########################

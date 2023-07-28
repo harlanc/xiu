@@ -4,11 +4,9 @@ use {
         routing::{get, post},
         Json, Router,
     },
-    rtmp::{channels::define, channels::define::ChannelEventProducer},
     serde::Deserialize,
-    std::str::FromStr,
     std::sync::Arc,
-    uuid::Uuid,
+    streamhub::{define, define::StreamHubEventSender, utils::Uuid},
     {
         tokio,
         tokio::sync::{mpsc, oneshot},
@@ -23,7 +21,7 @@ struct KickOffClient {
 
 #[derive(Clone)]
 struct ApiService {
-    channel_event_producer: ChannelEventProducer,
+    channel_event_producer: StreamHubEventSender,
 }
 
 impl ApiService {
@@ -38,7 +36,7 @@ impl ApiService {
     async fn get_stream_status(&self) -> Result<String> {
         let (data_sender, mut data_receiver) = mpsc::unbounded_channel();
         let (size_sender, size_receiver) = oneshot::channel();
-        let channel_event = define::ChannelEvent::ApiStatistic {
+        let channel_event = define::StreamHubEvent::ApiStatistic {
             data_sender,
             size_sender,
         };
@@ -73,10 +71,10 @@ impl ApiService {
     }
 
     async fn kick_off_client(&self, id: KickOffClient) -> Result<String> {
-        let id_result = Uuid::from_str(&id.id);
+        let id_result = Uuid::from_str2(&id.id);
 
-        if let Ok(id) = id_result {
-            let channel_event = define::ChannelEvent::ApiKickClient { id };
+        if let Some(id) = id_result {
+            let channel_event = define::StreamHubEvent::ApiKickClient { id };
 
             if let Err(err) = self.channel_event_producer.send(channel_event) {
                 log::error!("send api kick_off_client event error: {}", err);
@@ -87,7 +85,7 @@ impl ApiService {
     }
 }
 
-pub async fn run(producer: ChannelEventProducer, port: usize) {
+pub async fn run(producer: StreamHubEventSender, port: usize) {
     let api = Arc::new(ApiService {
         channel_event_producer: producer,
     });

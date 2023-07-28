@@ -1,5 +1,4 @@
 use reqwest::Client;
-
 pub struct Notifier {
     request_client: Client,
     on_publish_url: Option<String>,
