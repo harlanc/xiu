@@ -319,8 +319,9 @@ mod tests {
         let parser = Mpeg4Fmtp::unmarshal("97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=23; config=121056e500").unwrap();
 
         println!(" parser: {parser:?}");
+        let en_asc = hex::encode(parser.asc.clone());
 
-        assert_eq!(parser.asc, "121056e500");
+        assert_eq!(en_asc, "121056e500");
         assert_eq!(parser.profile_level_id, "1");
         assert_eq!(parser.mode, "AAC-hbr");
         assert_eq!(parser.size_length, 13);

@@ -63,28 +63,28 @@ mod tests {
         println!("{cur_number}");
     }
 
-    use job_scheduler::{Job, JobScheduler};
-    use std::time::Duration;
-    #[test]
-    fn test_job_scheduler() {
-        let mut sched = JobScheduler::new();
+    
+    
+    // #[test]
+    // fn test_job_scheduler() {
+    //     let mut sched = JobScheduler::new();
 
-        sched.add(Job::new("0 0 * * * *".parse().unwrap(), || {
-            let dt: DateTime<Local> = Local::now();
-            let cur_number = format!(
-                "{}-{:02}-{:02} {:02}:{:02}:00",
-                dt.year(),
-                dt.month(),
-                dt.day(),
-                dt.hour(),
-                dt.minute()
-            );
-            println!("time number: {cur_number}");
-        }));
+    //     sched.add(Job::new("0 0 * * * *".parse().unwrap(), || {
+    //         let dt: DateTime<Local> = Local::now();
+    //         let cur_number = format!(
+    //             "{}-{:02}-{:02} {:02}:{:02}:00",
+    //             dt.year(),
+    //             dt.month(),
+    //             dt.day(),
+    //             dt.hour(),
+    //             dt.minute()
+    //         );
+    //         println!("time number: {cur_number}");
+    //     }));
 
-        loop {
-            sched.tick();
-            std::thread::sleep(Duration::from_millis(500));
-        }
-    }
+    //     loop {
+    //         sched.tick();
+    //         std::thread::sleep(Duration::from_millis(500));
+    //     }
+    // }
 }
