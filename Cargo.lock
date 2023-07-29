@@ -1266,8 +1266,8 @@ dependencies = [
  "clap",
  "env_logger",
  "log",
- "rtmp 0.4.0",
- "streamhub 0.1.0",
+ "rtmp 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "streamhub 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
 ]
 

@@ -16,6 +16,7 @@ copy_conf_files() {
     cp ./$MODE/httpflv.Cargo.toml "../protocol/httpflv/Cargo.toml"
     cp ./$MODE/rtmp.Cargo.toml "../protocol/rtmp/Cargo.toml"
     cp ./$MODE/rtsp.Cargo.toml "../protocol/rtsp/Cargo.toml"
+    cp ./$MODE/pprtmp.Cargo.toml "../application/xiu/Cargo.toml"
     cp ./$MODE/xiu.Cargo.toml "../application/xiu/Cargo.toml"
 }
 
