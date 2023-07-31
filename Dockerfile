@@ -42,7 +42,6 @@ FROM base AS builder
 
 # Builder args
 ARG TZ
-ARG APP_VERSION
 ARG PATH
 ARG APP_DIR
 
@@ -57,7 +56,8 @@ WORKDIR ${BUILD_DIR}
 RUN apk cache sync `
     && apk --update-cache upgrade --no-cache `
     && apk add --no-cache `
-                "openssl-dev" "pkgconf" "git" "rustup" "musl-dev" "gcc" `
+                "openssl-dev" "pkgconf" "git" "rustup" "musl-dev" `
+                "gcc" "make" `
     && rm -rf "/var/cache/apk" "/etc/apk/cache";
 RUN rustup-init -q -y `
                 --component "cargo" "x86_64-unknown-linux-musl" `
@@ -66,7 +66,7 @@ RUN rustup-init -q -y `
 # Copying source and building
 RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
     && cd "xiu" `
-    && git checkout -b "publish" "tags/"${APP_VERSION};
+    && git checkout -b "publish"
 RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" `
                 --target "x86_64-unknown-linux-musl" `
                 --release;
