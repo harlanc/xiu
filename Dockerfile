@@ -66,10 +66,10 @@ RUN rustup-init -q -y `
 
 # Copying source and building
 RUN git clone "https://github.com/puntopunto/xiu-rndfrk.git" --branch "master" `
-    && cd "xiu" `
+    && cd "xiu-rndfrk" `
     && git checkout -b "publish"
 
-RUN cd "xiu" && make "online" && make "build"
+RUN cd "xiu-rndfrk" && make "online" && make "build"
 
 # ---
 
@@ -85,7 +85,7 @@ ARG BUILD_DIR
 WORKDIR ${APP_DIR}
 
 # Copy app
-COPY --link --from=builder "${BUILD_DIR}/xiu/target/x86_64-unknown-linux-musl/release/xiu" "."
+COPY --link --from=builder "${BUILD_DIR}/xiu-rndfrk/target/x86_64-unknown-linux-musl/release/xiu" "."
 
 # Switch user
 USER ${USER}
