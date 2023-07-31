@@ -51,14 +51,13 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 ENV TZ="Europe/Belgrad"
 
 # Workdir
-WORKDIR "/build"
+WORKDIR ${BUILD_DIR}
 
 # Get toolchain
 RUN apk cache sync `
     && apk --update-cache upgrade --no-cache `
     && apk add --no-cache `
-        "openssl-dev" "pkgconf" "git" "rustup" `
-        "musl-dev" "gcc" `
+                "openssl-dev" "pkgconf" "git" "rustup" "musl-dev" "gcc" `
     && rm -rf "/var/cache/apk" "/etc/apk/cache";
 RUN rustup-init -q -y `
                 --component "cargo" "x86_64-unknown-linux-musl" `
@@ -80,12 +79,14 @@ FROM base AS runner
 # Runner args
 ARG APP_DIR
 ARG USER
+ARG BUILD_DIR
 
 # CWD
 WORKDIR ${APP_DIR}
 
 # Copy app
-COPY --link --from=builder "/build/xiu/target/x86_64-unknown-linux-musl/release/." "."
+COPY --link --from=builder `
+        "${BUILD_DIR}/xiu/target/x86_64-unknown-linux-musl/release/." "."
 
 # Switch user
 USER ${USER}

@@ -17,6 +17,7 @@ services:
         APP_VERSION: ${APP_VERSION}
         PATH: ${PATH}
         APP_DIR: ${APP_DIR}
+        BUILD_DIR: ${BUILD_DIR}
         USER: ${USER}
         UID: ${UID}
     image: "normkd/1688557675-test01:1.0.0"
