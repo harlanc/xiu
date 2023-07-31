@@ -85,8 +85,7 @@ ARG BUILD_DIR
 WORKDIR ${APP_DIR}
 
 # Copy app
-COPY --link --from=builder `
-        "${BUILD_DIR}/xiu/target/x86_64-unknown-linux-musl/release/." "."
+COPY --from=builder "/build/xiu/target/x86_64-unknown-linux-musl/release/xiu" "."
 
 # Switch user
 USER ${USER}
