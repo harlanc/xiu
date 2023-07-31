@@ -10,11 +10,15 @@ services:
       context: "."
       target: "test_runner"
       args:
-        BUILDER_TIMEZONE: ${BUILDER_TZ}
+        BUILDER_TZ: ${BUILDER_TZ}
+        PLATFORM: ${GLOB_PLATFORM}
+        BUILDER_VERSION: ${BASE_VERSION}
+        RUNNER_VERSION: ${RUN_VERSION}
+        APP_VERSION: ${APP_VERSION}
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.node0"
     environment:
-      TZ: ${STREAMER_TZ}
+      TZ: ${TZ}
     working_dir: "/app"
     volumes:
       - "./config:/app/config"
