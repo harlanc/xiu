@@ -85,11 +85,11 @@ networks:
     driver_opts:
       ipvlan_mode: "l2"
       ipvlan_flag: "bridge"
-    #   subnet: "172.100.100.0/24"
-    #   ip_range: "172.100.100.0/28"
-    #   gateway: "172.100.100.10"
-    ipam:
-      config:
-        - subnet: "172.100.100.0/24"
-        - ip_range: "172.100.100.0/28"
-        - gateway: "172.100.100.10"
+      subnet: "172.100.100.0/24"
+      ip_range: "172.100.100.0/28"
+      gateway: "172.100.100.10"
+    # ipam:
+    #   config:
+    #     - subnet: "172.100.100.0/24"
+    #     - ip_range: "172.100.100.0/28"
+    #     - gateway: "172.100.100.10"
