@@ -5,20 +5,19 @@ use {
     },
     crate::rtmp::{
         cache::metadata::MetaData,
-        channels::define::{ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer},
-        session::{
-            common::{NotifyInfo, SubscriberInfo},
-            define::SubscribeType,
-            errors::{SessionError, SessionErrorValue},
-        },
+        session::errors::{SessionError, SessionErrorValue},
     },
     bytes::BytesMut,
-    std::{net::SocketAddr, time::Duration},
-    tokio::{
-        sync::{mpsc, oneshot},
-        time::sleep,
+    std::net::SocketAddr,
+    streamhub::define::{
+        FrameData, FrameDataReceiver, NotifyInfo, StreamHubEvent, StreamHubEventSender,
+        SubscribeType, SubscriberInfo,
     },
-    uuid::Uuid,
+    streamhub::{
+        stream::StreamIdentifier,
+        utils::{RandomDigitCount, Uuid},
+    },
+    tokio::sync::mpsc,
     xflv::muxer::{FlvMuxer, HEADER_LENGTH},
 };
 
@@ -28,8 +27,8 @@ pub struct HttpFlv {
 
     muxer: FlvMuxer,
 
-    event_producer: ChannelEventProducer,
-    data_consumer: ChannelDataConsumer,
+    event_producer: StreamHubEventSender,
+    data_consumer: FrameDataReceiver,
     http_response_data_producer: HttpResponseDataProducer,
     subscriber_id: Uuid,
     request_url: String,
@@ -40,13 +39,13 @@ impl HttpFlv {
     pub fn new(
         app_name: String,
         stream_name: String,
-        event_producer: ChannelEventProducer,
+        event_producer: StreamHubEventSender,
         http_response_data_producer: HttpResponseDataProducer,
         request_url: String,
         remote_addr: SocketAddr,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
-        let subscriber_id = Uuid::new_v4();
+        let subscriber_id = Uuid::new(RandomDigitCount::Four);
 
         Self {
             app_name,
@@ -93,34 +92,22 @@ impl HttpFlv {
         self.unsubscribe_from_rtmp_channels().await
     }
 
-    pub fn write_flv_tag(&mut self, channel_data: ChannelData) -> Result<(), HttpFLvError> {
-        let common_data: BytesMut;
-        let common_timestamp: u32;
-        let tag_type: u8;
-
-        match channel_data {
-            ChannelData::Audio { timestamp, data } => {
-                common_data = data;
-                common_timestamp = timestamp;
-                tag_type = tag_type::AUDIO;
-            }
-
-            ChannelData::Video { timestamp, data } => {
-                common_data = data;
-                common_timestamp = timestamp;
-                tag_type = tag_type::VIDEO;
-            }
-
-            ChannelData::MetaData { timestamp, data } => {
+    pub fn write_flv_tag(&mut self, channel_data: FrameData) -> Result<(), HttpFLvError> {
+        let (common_data, common_timestamp, tag_type) = match channel_data {
+            FrameData::Audio { timestamp, data } => (data, timestamp, tag_type::AUDIO),
+            FrameData::Video { timestamp, data } => (data, timestamp, tag_type::VIDEO),
+            FrameData::MetaData { timestamp, data } => {
                 let mut metadata = MetaData::new();
-                metadata.save(data);
+                metadata.save(&data);
                 let data = metadata.remove_set_data_frame()?;
 
-                common_data = data;
-                common_timestamp = timestamp;
-                tag_type = tag_type::SCRIPT_DATA_AMF;
+                (data, timestamp, tag_type::SCRIPT_DATA_AMF)
             }
-        }
+            _ => {
+                log::error!("should not be here!!!");
+                (BytesMut::new(), 0, 0)
+            }
+        };
 
         let common_data_len = common_data.len() as u32;
 
@@ -152,9 +139,13 @@ impl HttpFlv {
             },
         };
 
-        let subscribe_event = ChannelEvent::UnSubscribe {
+        let identifier = StreamIdentifier::Rtmp {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
+        };
+
+        let subscribe_event = StreamHubEvent::UnSubscribe {
+            identifier,
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
@@ -165,58 +156,40 @@ impl HttpFlv {
     }
 
     pub async fn subscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
-        let mut retry_count: u8 = 0;
+        let (sender, receiver) = mpsc::unbounded_channel();
 
-        loop {
-            let (sender, receiver) = oneshot::channel();
+        let sub_info = SubscriberInfo {
+            id: self.subscriber_id,
+            sub_type: SubscribeType::PlayerHttpFlv,
+            notify_info: NotifyInfo {
+                request_url: self.request_url.clone(),
+                remote_addr: self.remote_addr.to_string(),
+            },
+        };
 
-            let sub_info = SubscriberInfo {
-                id: self.subscriber_id,
-                sub_type: SubscribeType::PlayerHttpFlv,
-                notify_info: NotifyInfo {
-                    request_url: self.request_url.clone(),
-                    remote_addr: self.remote_addr.to_string(),
-                },
+        let identifier = StreamIdentifier::Rtmp {
+            app_name: self.app_name.clone(),
+            stream_name: self.stream_name.clone(),
+        };
+
+        let subscribe_event = StreamHubEvent::Subscribe {
+            identifier,
+            info: sub_info,
+            sender,
+        };
+
+        let rv = self.event_producer.send(subscribe_event);
+
+        if rv.is_err() {
+            let session_error = SessionError {
+                value: SessionErrorValue::SendFrameDataErr,
             };
-
-            let subscribe_event = ChannelEvent::Subscribe {
-                app_name: self.app_name.clone(),
-                stream_name: self.stream_name.clone(),
-                info: sub_info,
-                responder: sender,
-            };
-
-            let rv = self.event_producer.send(subscribe_event);
-
-            if rv.is_err() {
-                let session_error = SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                };
-                return Err(HttpFLvError {
-                    value: HttpFLvErrorValue::SessionError(session_error),
-                });
-            }
-
-            match receiver.await {
-                Ok(consumer) => {
-                    self.data_consumer = consumer;
-                    break;
-                }
-                Err(_) => {
-                    if retry_count > 10 {
-                        let session_error = SessionError {
-                            value: SessionErrorValue::SubscribeCountLimitReach,
-                        };
-                        return Err(HttpFLvError {
-                            value: HttpFLvErrorValue::SessionError(session_error),
-                        });
-                    }
-                }
-            }
-
-            sleep(Duration::from_millis(800)).await;
-            retry_count += 1;
+            return Err(HttpFLvError {
+                value: HttpFLvErrorValue::SessionError(session_error),
+            });
         }
+
+        self.data_consumer = receiver;
 
         Ok(())
     }

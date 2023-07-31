@@ -1,7 +1,7 @@
 use {
     failure::Fail,
     futures::channel::mpsc::SendError,
-    xflv::errors::MuxerError,
+    xflv::errors::FlvMuxerError,
     rtmp::{
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
@@ -30,7 +30,7 @@ pub enum HttpFLvErrorValue {
     #[fail(display = "session error")]
     SessionError(SessionError),
     #[fail(display = "flv muxer error")]
-    MuxerError(MuxerError),
+    MuxerError(FlvMuxerError),
     #[fail(display = "amf write error")]
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "metadata error")]
@@ -47,8 +47,8 @@ impl From<SessionError> for HttpFLvError {
     }
 }
 
-impl From<MuxerError> for HttpFLvError {
-    fn from(error: MuxerError) -> Self {
+impl From<FlvMuxerError> for HttpFLvError {
+    fn from(error: FlvMuxerError) -> Self {
         HttpFLvError {
             value: HttpFLvErrorValue::MuxerError(error),
         }

@@ -3,20 +3,17 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
-    rtmp::channels::define::{
-        ChannelData, ChannelDataConsumer, ChannelEvent, ChannelEventProducer,
-    },
-    rtmp::session::{
-        common::{NotifyInfo, SubscriberInfo},
-        define::SubscribeType,
-        errors::{SessionError, SessionErrorValue},
-    },
+    rtmp::session::errors::{SessionError, SessionErrorValue},
     std::time::Duration,
-    tokio::{
-        sync::{mpsc, oneshot},
-        time::sleep,
+    streamhub::{
+        define::{
+            FrameData, FrameDataReceiver, NotifyInfo, StreamHubEvent, StreamHubEventSender,
+            SubscribeType, SubscriberInfo,
+        },
+        stream::StreamIdentifier,
+        utils::{RandomDigitCount, Uuid},
     },
-    uuid::Uuid,
+    tokio::{sync::mpsc, time::sleep},
     xflv::define::FlvData,
 };
 
@@ -26,8 +23,8 @@ pub struct FlvDataReceiver {
     app_name: String,
     stream_name: String,
 
-    event_producer: ChannelEventProducer,
-    data_consumer: ChannelDataConsumer,
+    event_producer: StreamHubEventSender,
+    data_consumer: FrameDataReceiver,
     media_processor: Flv2HlsRemuxer,
     subscriber_id: Uuid,
 }
@@ -36,12 +33,12 @@ impl FlvDataReceiver {
     pub fn new(
         app_name: String,
         stream_name: String,
-        event_producer: ChannelEventProducer,
+        event_producer: StreamHubEventSender,
 
         duration: i64,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
-        let subscriber_id = Uuid::new_v4();
+        let subscriber_id = Uuid::new(RandomDigitCount::Four);
 
         Self {
             app_name: app_name.clone(),
@@ -68,8 +65,8 @@ impl FlvDataReceiver {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 let flv_data: FlvData = match data {
-                    ChannelData::Audio { timestamp, data } => FlvData::Audio { timestamp, data },
-                    ChannelData::Video { timestamp, data } => FlvData::Video { timestamp, data },
+                    FrameData::Audio { timestamp, data } => FlvData::Audio { timestamp, data },
+                    FrameData::Video { timestamp, data } => FlvData::Video { timestamp, data },
                     _ => continue,
                 };
                 retry_count = 0;
@@ -100,57 +97,39 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
     ) -> Result<(), HlsError> {
-        let mut retry_count: u8 = 0;
+        let (sender, receiver) = mpsc::unbounded_channel();
+        /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
+        let sub_info = SubscriberInfo {
+            id: self.subscriber_id,
+            sub_type: SubscribeType::GenerateHls,
+            notify_info: NotifyInfo {
+                request_url: String::from(""),
+                remote_addr: String::from(""),
+            },
+        };
 
-        loop {
-            let (sender, receiver) = oneshot::channel();
-            /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
-            let sub_info = SubscriberInfo {
-                id: self.subscriber_id,
-                sub_type: SubscribeType::GenerateHls,
-                notify_info: NotifyInfo {
-                    request_url: String::from(""),
-                    remote_addr: String::from(""),
-                },
+        let identifier = StreamIdentifier::Rtmp {
+            app_name,
+            stream_name,
+        };
+
+        let subscribe_event = StreamHubEvent::Subscribe {
+            identifier,
+            info: sub_info,
+            sender,
+        };
+
+        let rv = self.event_producer.send(subscribe_event);
+        if rv.is_err() {
+            let session_error = SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
             };
-
-            let subscribe_event = ChannelEvent::Subscribe {
-                app_name: app_name.clone(),
-                stream_name: stream_name.clone(),
-                info: sub_info,
-                responder: sender,
-            };
-
-            let rv = self.event_producer.send(subscribe_event);
-            if rv.is_err() {
-                let session_error = SessionError {
-                    value: SessionErrorValue::SendChannelDataErr,
-                };
-                return Err(HlsError {
-                    value: HlsErrorValue::SessionError(session_error),
-                });
-            }
-
-            match receiver.await {
-                Ok(consumer) => {
-                    self.data_consumer = consumer;
-                    break;
-                }
-                Err(_) => {
-                    if retry_count > 10 {
-                        let session_error = SessionError {
-                            value: SessionErrorValue::SubscribeCountLimitReach,
-                        };
-                        return Err(HlsError {
-                            value: HlsErrorValue::SessionError(session_error),
-                        });
-                    }
-                }
-            }
-
-            sleep(Duration::from_millis(800)).await;
-            retry_count += 1;
+            return Err(HlsError {
+                value: HlsErrorValue::SessionError(session_error),
+            });
         }
+
+        self.data_consumer = receiver;
 
         Ok(())
     }
@@ -165,9 +144,13 @@ impl FlvDataReceiver {
             },
         };
 
-        let subscribe_event = ChannelEvent::UnSubscribe {
+        let identifier = StreamIdentifier::Rtmp {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
+        };
+
+        let subscribe_event = StreamHubEvent::UnSubscribe {
+            identifier,
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {

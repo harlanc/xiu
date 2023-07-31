@@ -1,0 +1,20 @@
+[package]
+name = "pprtmp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "^1.0"
+rtmp = { path = "../../protocol/rtmp/" }
+streamhub = { path = "../../library/streamhub/" }
+log = "0.4.0"
+env_logger = "0.9.3"
+clap = "4.1.4"
+
+[dependencies.tokio]
+version = "1.26.0"
+default-features = false
+#features = ["rt-core", "rt-threaded", "macros", "time","sync"]
+features = ["full"]

@@ -1,12 +1,12 @@
 use {
     anyhow::Result,
     clap::{value_parser, Arg, Command},
-    rtmp::channels::ChannelsManager,
     rtmp::session::client_session::ClientSession,
     rtmp::session::client_session::ClientType,
     rtmp::utils::RtmpUrlParser,
     std::env,
     std::process::exit,
+    streamhub::StreamsHub,
     tokio::net::TcpStream,
     tokio::signal,
     tokio::time::Duration,
@@ -50,9 +50,9 @@ async fn main() -> Result<()> {
     let pull_rtmp_url = matches.get_one::<String>("pullrtmp").unwrap().clone();
     let push_rtmp_url = matches.get_one::<String>("pushrtmp").unwrap().clone();
 
-    let mut channel = ChannelsManager::new(None);
-    let producer = channel.get_channel_event_producer();
-    tokio::spawn(async move { channel.run().await });
+    let mut stream_hub = StreamsHub::new(None);
+    let producer = stream_hub.get_hub_event_sender();
+    tokio::spawn(async move { stream_hub.run().await });
 
     let mut pull_parser = RtmpUrlParser::new(pull_rtmp_url);
     if let Err(err) = pull_parser.parse_url() {
@@ -67,6 +67,7 @@ async fn main() -> Result<()> {
         pull_parser.app_name.clone(),
         pull_parser.raw_stream_name,
         producer.clone(),
+        0,
     );
     tokio::spawn(async move {
         if let Err(err) = pull_client_session.run().await {
@@ -90,6 +91,7 @@ async fn main() -> Result<()> {
         push_parser.app_name,
         push_parser.raw_stream_name,
         producer.clone(),
+        0,
     );
 
     push_client_session.subscribe(pull_parser.app_name, pull_parser.stream_name);

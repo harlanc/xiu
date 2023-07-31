@@ -192,12 +192,4 @@ mod tests {
             }
         }
     }
-
-    use uuid::Uuid;
-
-    #[test]
-    fn test_uuid() {
-        let my_uuid = Uuid::new_v4();
-        println!("{my_uuid}");
-    }
 }

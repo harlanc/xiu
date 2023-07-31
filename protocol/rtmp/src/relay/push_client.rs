@@ -1,23 +1,24 @@
 use {
     super::errors::ClientError,
-    crate::{
-        channels::define::{ChannelEventProducer, ClientEvent, ClientEventConsumer},
-        session::client_session::{ClientSession, ClientType},
+    crate::session::client_session::{ClientSession, ClientType},
+    streamhub::{
+        define::{StreamHubEventSender, BroadcastEvent, BroadcastEventReceiver},
+        stream::StreamIdentifier,
     },
     tokio::net::TcpStream,
 };
 
 pub struct PushClient {
     address: String,
-    client_event_consumer: ClientEventConsumer,
-    channel_event_producer: ChannelEventProducer,
+    client_event_consumer: BroadcastEventReceiver,
+    channel_event_producer: StreamHubEventSender,
 }
 
 impl PushClient {
     pub fn new(
         address: String,
-        consumer: ClientEventConsumer,
-        producer: ChannelEventProducer,
+        consumer: BroadcastEventReceiver,
+        producer: StreamHubEventSender,
     ) -> Self {
         Self {
             address,
@@ -32,33 +33,38 @@ impl PushClient {
 
         loop {
             let val = self.client_event_consumer.recv().await?;
+
             match val {
-                ClientEvent::Publish {
-                    app_name,
-                    stream_name,
-                } => {
-                    log::info!(
-                        "publish app_name: {} stream_name: {} address: {}",
-                        app_name.clone(),
-                        stream_name.clone(),
-                        self.address.clone()
-                    );
-                    let stream = TcpStream::connect(self.address.clone()).await?;
+                BroadcastEvent::Publish { identifier } => {
+                    if let StreamIdentifier::Rtmp {
+                        app_name,
+                        stream_name,
+                    } = identifier
+                    {
+                        log::info!(
+                            "publish app_name: {} stream_name: {} address: {}",
+                            app_name.clone(),
+                            stream_name.clone(),
+                            self.address.clone()
+                        );
+                        let stream = TcpStream::connect(self.address.clone()).await?;
 
-                    let mut client_session = ClientSession::new(
-                        stream,
-                        ClientType::Publish,
-                        self.address.clone(),
-                        app_name.clone(),
-                        stream_name.clone(),
-                        self.channel_event_producer.clone(),
-                    );
+                        let mut client_session = ClientSession::new(
+                            stream,
+                            ClientType::Publish,
+                            self.address.clone(),
+                            app_name.clone(),
+                            stream_name.clone(),
+                            self.channel_event_producer.clone(),
+                            0,
+                        );
 
-                    tokio::spawn(async move {
-                        if let Err(err) = client_session.run().await {
-                            log::error!("client_session as push client run error: {}", err);
-                        }
-                    });
+                        tokio::spawn(async move {
+                            if let Err(err) = client_session.run().await {
+                                log::error!("client_session as push client run error: {}", err);
+                            }
+                        });
+                    }
                 }
 
                 _ => {

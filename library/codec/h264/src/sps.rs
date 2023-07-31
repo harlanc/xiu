@@ -4,11 +4,11 @@ use {
 };
 
 #[derive(Default, Debug)]
-struct Sps {
-    profile_idc: u8, // u(8)
+pub struct Sps {
+    pub profile_idc: u8, // u(8)
     flag: u8,
 
-    level_idc: u8,             // u(8)
+    pub level_idc: u8,         // u(8)
     seq_parameter_set_id: u32, // ue(v)
 
     chroma_format_idc: u32, // ue(v)
@@ -58,7 +58,7 @@ struct Sps {
 pub struct SpsParser {
     pub bytes_reader: BytesReader,
     pub bits_reader: BitsReader,
-    sps: Sps,
+    pub sps: Sps,
 }
 
 impl SpsParser {

@@ -78,6 +78,7 @@ impl Mpeg4AacProcessor {
     }
 
     pub fn audio_specific_config_load(&mut self) -> Result<&mut Self, MpegAacError> {
+        //11 88 56 E5  
         let byte_0 = self.bytes_reader.read_u8()?;
         self.mpeg4_aac.profile = (byte_0 >> 3) & 0x1F;
 

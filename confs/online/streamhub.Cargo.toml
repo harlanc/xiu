@@ -1,0 +1,35 @@
+[package]
+name = "streamhub"
+description = "It receives streams from publishers(rtmp/rtsp etc.) and send streams to subscribers(rtmp/rtsp/httpflv/hls)"
+version = "0.1.0"
+edition = "2021"
+authors = ["HarlanC <wawacry@qq.com>"]
+license = "MIT"
+repository = "https://github.com/harlanc/xiu"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+failure = "0.1.1"
+byteorder = "1.4.2"
+bytes = "1.0.0"
+rand = "0.8"
+log = "0.4"
+chrono = "0.4"
+indexmap = "1.9.3"
+reqwest = "0.11.14"
+async-trait = "0.1.70"
+serde_json = { version = "1", default-features = false, features = [
+    "alloc",
+    "raw_value",
+    "std",
+] }
+serde = { version = "1.0", features = ["derive", "rc"] }
+
+xflv = "0.3.0"
+bytesio = "0.3.0"
+
+[dependencies.tokio]
+version = "1.4.0"
+default-features = false
+features = ["full"]
