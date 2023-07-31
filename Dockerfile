@@ -48,7 +48,7 @@ ARG APP_DIR
 
 # Env
 ENV PATH="/root/.cargo/bin:${PATH}"
-ENV TZ=${TZ}
+ENV TZ="Europe/Belgrad"
 
 # Workdir
 WORKDIR "/build"
@@ -84,18 +84,8 @@ ARG USER
 # CWD
 WORKDIR ${APP_DIR}
 
-# Install deps and create app user
-# RUN --mount=type="cache",from="builder",src="/sys_setup/alpine_setup_answers.conf",dst="/sys_setup/" `
-# apk add --no-cache "libgcc" `
-
-
 # Copy app
 COPY --link --from=builder "/build/xiu/target/x86_64-unknown-linux-musl/release/." "."
-
-# Runner env
-# ENV TZ=${TIMEZONE}
-# ENV SYSROOT="/dummy"
-# ENV PATH=${PATH}:${APP_DIR}
 
 # Switch user
 USER ${USER}

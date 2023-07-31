@@ -1,5 +1,5 @@
 version: "3"
-name: "streamer_test"
+name: "restreamer"
 
 # XIU test pod
 services:
@@ -30,8 +30,16 @@ services:
       - "./ci/config:/app/config"
     user: "appuser"
     hostname: "streamer-00"
-    # networks:
-    #   intra:
+    expose:
+      - "80"
+      - "80/udp"
+      - "443"
+      - "1935"
+      - "1935/udp"
+      - "8000"
+      - "8000/udp"
+    networks:
+      - intra
     #     ipv4_address: "172.16.100.5"
     # ports:
     #   - "55001:1935"
@@ -72,14 +80,16 @@ networks:
     external: false
     attachable: false
     enable_ipv6: false
-    name: "testnet"
+    name: "restreamer_pod"
     driver: "ipvlan"
     driver_opts:
       ipvlan_mode: "l2"
       ipvlan_flag: "bridge"
-
-    # ipam:
-    #   config:
-    #     - subnet: "172.16.100.0/24"
-        # - ip_range: "172.16.100.0/28"
-        # - gateway: "172.16.100.10"
+    #   subnet: "172.100.100.0/24"
+    #   ip_range: "172.100.100.0/28"
+    #   gateway: "172.100.100.10"
+    ipam:
+      config:
+        - subnet: "172.100.100.0/24"
+        - ip_range: "172.100.100.0/28"
+        - gateway: "172.100.100.10"
