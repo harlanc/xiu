@@ -5,25 +5,31 @@ name: "streamer_test"
 services:
 
   # 1. Base streamer
-  base_streamer:
+  root_streamer:
     build:
       context: "."
-      target: "test_runner"
+      target: "runner"
       args:
-        BUILDER_TZ: ${BUILDER_TZ}
-        PLATFORM: ${GLOB_PLATFORM}
-        BUILDER_VERSION: ${BASE_VERSION}
-        RUNNER_VERSION: ${RUN_VERSION}
+        # BUILDER_TZ: ${BUILDER_TZ}
+        TZ: ${TZ}
+        PLATFORM: ${PLATFORM}
+        VERSION: ${VERSION}
         APP_VERSION: ${APP_VERSION}
+        PATH: ${PATH}
+        APP_DIR: ${APP_DIR}
+        USER: ${USER}
+        UID: ${UID}
     image: "normkd/1688557675-test01:1.0.0"
-    container_name: "${COMPOSE_PROJECT_NAME}.node0"
+    container_name: "${COMPOSE_PROJECT_NAME}.${ROOT}"
     environment:
       TZ: ${TZ}
+      PATH: ${PATH}:${APP_DIR}
+      SYSROOT: ${SYSROOT}
     working_dir: "/app"
     volumes:
-      - "./config:/app/config"
+      - "./ci/config:/app/config"
     user: "appuser"
-    hostname: "base-streamer"
+    hostname: "streamer-00"
     # networks:
     #   intra:
     #     ipv4_address: "172.16.100.5"
@@ -39,9 +45,9 @@ services:
   # 2. Streamer instances
   streamer1:
     extends:
-      service: "base_streamer"
-    container_name: "${COMPOSE_PROJECT_NAME}.node1"
-    hostname: "streamer1"
+      service: "root_streamer"
+    container_name: "${COMPOSE_PROJECT_NAME}.${NODE_01}"
+    hostname: "streamer-01"
     # ports:
     #   - "55002:1935"
     #   - "8000:8000"
@@ -51,9 +57,9 @@ services:
 
   streamer2:
     extends:
-      service: "base_streamer"
-    container_name: "${COMPOSE_PROJECT_NAME}.node2"
-    hostname: "streamer2"
+      service: "root_streamer"
+    container_name: "${COMPOSE_PROJECT_NAME}.${NODE_02}"
+    hostname: "streamer-02"
     # ports:
     #   - "55003:1935"
     #   - "8000:8000"

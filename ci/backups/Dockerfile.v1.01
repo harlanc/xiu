@@ -5,19 +5,13 @@
 # Test image
 
 # Glob build args, config, and user management 
-ARG PLATFORM
-ARG VERSION
-
+# ARG PLATFORM=${PLATFORM}
+# ARG VERSION=${VERSION}
 
 # ---
 
 # 1. Base image
 FROM --platform=${PLATFORM} alpine:${VERSION} AS base
-
-# Build args
-ARG TZ
-ARG USER
-ARG UID
 
 # Base setup
 RUN apk cache sync `
@@ -27,7 +21,7 @@ RUN apk cache sync `
     && apk del "alpine-conf" `
     && rm -rf "/var/cache/apk" "/etc/apk/cache" `
     && adduser `
-    --uid ${UID} `
+    --uid "10001" `
     --gecos "Special no-login user for app." `
     --shell "/sbin/nologin" `
     --home "/nonexistent" `
@@ -40,17 +34,11 @@ RUN apk cache sync `
 # 2. Build app
 FROM base AS builder
 
-# Builder args
-ARG TZ
-ARG APP_VERSION
-ARG PATH
-ARG APP_DIR
-
-# Env
+# Builder args, TZ and CWD
+# ARG BUILDER_TIMEZONE="Europe/Brussels"
+# ARG APP_VERSION="v0.6.1"
 ENV PATH="/root/.cargo/bin:${PATH}"
-ENV TZ=${TZ}
-
-# Workdir
+ENV TZ=${BUILDER_TZ}
 WORKDIR "/build"
 
 # Get toolchain
@@ -63,6 +51,8 @@ RUN apk cache sync `
 RUN rustup-init -q -y `
                 --component "cargo" "x86_64-unknown-linux-musl" `
                 --default-host "x86_64-unknown-linux-musl";
+
+# RUN setup-timezone -i ${BUILDER_TZ}
 
 # Copying source and building
 RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
@@ -77,12 +67,10 @@ RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" `
 # 3. Run app
 FROM base AS runner
 
-# Runner args
-ARG APP_DIR
-ARG USER
-
-# CWD
-WORKDIR ${APP_DIR}
+# Runner args and CWD
+# ARG TIMEZONE
+# ARG USER="appuser"
+WORKDIR ${APP_PATH}
 
 # Install deps and create app user
 # RUN --mount=type="cache",from="builder",src="/sys_setup/alpine_setup_answers.conf",dst="/sys_setup/" `
@@ -90,12 +78,12 @@ WORKDIR ${APP_DIR}
 
 
 # Copy app
-COPY --link --from=builder "/build/xiu/target/x86_64-unknown-linux-musl/release/." "."
+COPY --from=builder "/build/xiu/target/release/xiu/." "."
 
 # Runner env
 # ENV TZ=${TIMEZONE}
 # ENV SYSROOT="/dummy"
-# ENV PATH=${PATH}:${APP_DIR}
+# ENV PATH=${PATH}:${APP_PATH}
 
 # Switch user
 USER ${USER}
