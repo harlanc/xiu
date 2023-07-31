@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env ash
 if [ $# -ne 1 ]; then
     echo "USAGE: $0 <online|local>"
     echo " e.g.: $0 online"

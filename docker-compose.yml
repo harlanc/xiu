@@ -20,6 +20,7 @@ services:
         BUILD_DIR: ${BUILD_DIR}
         USER: ${USER}
         UID: ${UID}
+        APP: ${APP}
     image: "normkd/1688557675-test01:1.0.0"
     container_name: "${COMPOSE_PROJECT_NAME}.${ROOT}"
     environment:

@@ -24,6 +24,7 @@ RUN apk cache sync `
     && apk --update-cache upgrade --no-cache `
     && apk add "alpine-conf" `
     && setup-timezone -i ${TZ} `
+    # or "Africa/Nairobi"
     && apk del "alpine-conf" `
     && rm -rf "/var/cache/apk" "/etc/apk/cache" `
     && adduser `
@@ -67,9 +68,8 @@ RUN rustup-init -q -y `
 RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
     && cd "xiu" `
     && git checkout -b "publish"
-RUN cargo build --manifest-path "xiu/application/xiu/Cargo.toml" `
-                --target "x86_64-unknown-linux-musl" `
-                --release;
+
+RUN cd "xiu" && make "online" && make "build"
 
 # ---
 
@@ -85,7 +85,7 @@ ARG BUILD_DIR
 WORKDIR ${APP_DIR}
 
 # Copy app
-COPY --from=builder "/build/xiu/target/x86_64-unknown-linux-musl/release/xiu" "."
+COPY --link --from=builder "xiu/target/x86_64-unknown-linux-musl/release/xiu" "."
 
 # Switch user
 USER ${USER}
