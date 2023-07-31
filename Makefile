@@ -14,6 +14,5 @@ clean:
 	cargo clean
 build:
 	cargo build --working-dir "xiu/application/xiu" \
-				--manifest-path "Cargo.toml" \
 				--target "x86_64-unknown-linux-musl" \
 				--release

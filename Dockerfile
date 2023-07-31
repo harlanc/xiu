@@ -65,7 +65,7 @@ RUN rustup-init -q -y `
                 --default-host "x86_64-unknown-linux-musl";
 
 # Copying source and building
-RUN git clone "https://github.com/harlanc/xiu.git" --branch "master" `
+RUN git clone "https://github.com/puntopunto/xiu-rndfrk.git" --branch "master" `
     && cd "xiu" `
     && git checkout -b "publish"
 
@@ -85,7 +85,7 @@ ARG BUILD_DIR
 WORKDIR ${APP_DIR}
 
 # Copy app
-COPY --link --from=builder "xiu/target/x86_64-unknown-linux-musl/release/xiu" "."
+COPY --link --from=builder "${BUILD_DIR}/xiu/target/x86_64-unknown-linux-musl/release/xiu" "."
 
 # Switch user
 USER ${USER}
