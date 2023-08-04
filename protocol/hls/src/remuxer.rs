@@ -1,21 +1,27 @@
 use {
     super::{errors::HlsError, flv_data_receiver::FlvDataReceiver},
     streamhub::{
-        define::{StreamHubEventSender, BroadcastEvent, BroadcastEventReceiver},
+        define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
         stream::StreamIdentifier,
     },
 };
 
-pub struct RtmpEventProcessor {
+pub struct HlsRemuxer {
     client_event_consumer: BroadcastEventReceiver,
     event_producer: StreamHubEventSender,
+    need_record: bool,
 }
 
-impl RtmpEventProcessor {
-    pub fn new(consumer: BroadcastEventReceiver, event_producer: StreamHubEventSender) -> Self {
+impl HlsRemuxer {
+    pub fn new(
+        consumer: BroadcastEventReceiver,
+        event_producer: StreamHubEventSender,
+        need_record: bool,
+    ) -> Self {
         Self {
             client_event_consumer: consumer,
             event_producer,
+            need_record,
         }
     }
 
@@ -34,6 +40,7 @@ impl RtmpEventProcessor {
                             stream_name,
                             self.event_producer.clone(),
                             5,
+                            self.need_record,
                         );
 
                         tokio::spawn(async move {

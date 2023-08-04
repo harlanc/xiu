@@ -322,5 +322,7 @@ Open issues if you have any problems. Star and pull requests are welcomed. Your 
 - Fix RTMP examples in README.
 ## v0.7.0
 - Support RTSP.
+## v0.8.0
+- Support HLS record.
 
 

@@ -36,11 +36,11 @@ impl ApiService {
     async fn get_stream_status(&self) -> Result<String> {
         let (data_sender, mut data_receiver) = mpsc::unbounded_channel();
         let (size_sender, size_receiver) = oneshot::channel();
-        let channel_event = define::StreamHubEvent::ApiStatistic {
+        let hub_event = define::StreamHubEvent::ApiStatistic {
             data_sender,
             size_sender,
         };
-        if let Err(err) = self.channel_event_producer.send(channel_event) {
+        if let Err(err) = self.channel_event_producer.send(hub_event) {
             log::error!("send api event error: {}", err);
         }
         let mut data = Vec::new();
@@ -74,9 +74,9 @@ impl ApiService {
         let id_result = Uuid::from_str2(&id.id);
 
         if let Some(id) = id_result {
-            let channel_event = define::StreamHubEvent::ApiKickClient { id };
+            let hub_event = define::StreamHubEvent::ApiKickClient { id };
 
-            if let Err(err) = self.channel_event_producer.send(channel_event) {
+            if let Err(err) = self.channel_event_producer.send(hub_event) {
                 log::error!("send api kick_off_client event error: {}", err);
             }
         }

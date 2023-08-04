@@ -15,7 +15,7 @@ serde_json = { version = "1", default-features = false, features = [
 ] }
 axum = "0.6.10"
 log = "0.4.0"
-env_logger = "0.9.3"
+env_logger = "0.10.0"
 
 [dependencies.tokio]
 version = "1.4.0"

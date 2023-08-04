@@ -25,5 +25,8 @@ Change the listening port type.
 ## 0.3.0
 - Do some refactoring.
 - Reference bytesio v0.3.0.
+## 0.4.0
+- Support record.
+
 
 

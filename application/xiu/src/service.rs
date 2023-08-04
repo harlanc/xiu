@@ -5,7 +5,7 @@ use {
     super::config::Config,
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
-    hls::rtmp_event_processor::RtmpEventProcessor,
+    hls::remuxer::HlsRemuxer,
     hls::server as hls_server,
     httpflv::server as httpflv_server,
     rtmp::{
@@ -49,6 +49,7 @@ impl Service {
         self.start_rtmp(&mut stream_hub).await?;
         self.start_rtsp(&mut stream_hub).await?;
         self.start_http_api_server(&mut stream_hub).await?;
+        self.start_rtmp_remuxer(&mut stream_hub).await?;
 
         tokio::spawn(async move {
             stream_hub.run().await;
@@ -149,14 +150,33 @@ impl Service {
                     log::error!("rtmp server error: {}\n", err);
                 }
             });
-
-            self.start_rtmp_remuxer(stream_hub).await?;
         }
 
         Ok(())
     }
 
     async fn start_rtmp_remuxer(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
+        //The remuxer now is used for rtsp2rtmp, so both rtsp/rtmp cfg need to be enabled.
+        let mut rtsp_enabled = false;
+        if let Some(rtsp_cfg_value) = &self.cfg.rtsp {
+            if rtsp_cfg_value.enabled {
+                rtsp_enabled = true;
+            }
+        }
+        if !rtsp_enabled {
+            return Ok(());
+        }
+
+        let mut rtmp_enabled: bool = false;
+        if let Some(rtmp_cfg_value) = &self.cfg.rtmp {
+            if rtmp_cfg_value.enabled {
+                rtmp_enabled = true;
+            }
+        }
+        if !rtmp_enabled {
+            return Ok(());
+        }
+
         let event_producer = stream_hub.get_hub_event_sender();
         let broadcast_event_receiver = stream_hub.get_client_event_consumer();
         let mut remuxer = RtmpRemuxer::new(broadcast_event_receiver, event_producer);
@@ -224,11 +244,14 @@ impl Service {
 
             let event_producer = stream_hub.get_hub_event_sender();
             let cient_event_consumer = stream_hub.get_client_event_consumer();
-            let mut rtmp_event_processor =
-                RtmpEventProcessor::new(cient_event_consumer, event_producer);
+            let mut hls_remuxer = HlsRemuxer::new(
+                cient_event_consumer,
+                event_producer,
+                hls_cfg_value.need_record,
+            );
 
             tokio::spawn(async move {
-                if let Err(err) = rtmp_event_processor.run().await {
+                if let Err(err) = hls_remuxer.run().await {
                     log::error!("rtmp event processor error: {}\n", err);
                 }
             });

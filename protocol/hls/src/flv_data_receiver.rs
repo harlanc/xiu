@@ -22,7 +22,6 @@ use {
 pub struct FlvDataReceiver {
     app_name: String,
     stream_name: String,
-
     event_producer: StreamHubEventSender,
     data_consumer: FrameDataReceiver,
     media_processor: Flv2HlsRemuxer,
@@ -34,8 +33,8 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
         event_producer: StreamHubEventSender,
-
         duration: i64,
+        need_record: bool,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
         let subscriber_id = Uuid::new(RandomDigitCount::Four);
@@ -43,10 +42,9 @@ impl FlvDataReceiver {
         Self {
             app_name: app_name.clone(),
             stream_name: stream_name.clone(),
-
             data_consumer,
             event_producer,
-            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name),
+            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name, need_record),
             subscriber_id,
         }
     }

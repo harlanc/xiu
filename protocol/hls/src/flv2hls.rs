@@ -33,7 +33,7 @@ pub struct Flv2HlsRemuxer {
 }
 
 impl Flv2HlsRemuxer {
-    pub fn new(duration: i64, app_name: String, stream_name: String) -> Self {
+    pub fn new(duration: i64, app_name: String, stream_name: String, need_record: bool) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
@@ -41,8 +41,6 @@ impl Flv2HlsRemuxer {
         let video_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
             .unwrap();
-
-        let m3u8_name = format!("{stream_name}.m3u8");
 
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
@@ -62,7 +60,7 @@ impl Flv2HlsRemuxer {
             video_pid,
             audio_pid,
 
-            m3u8_handler: M3u8::new(duration, 6, m3u8_name, app_name, stream_name),
+            m3u8_handler: M3u8::new(duration, 6, app_name, stream_name, need_record),
         }
     }
 
@@ -172,4 +170,39 @@ impl Flv2HlsRemuxer {
     pub fn clear_files(&mut self) -> Result<(), MediaError> {
         self.m3u8_handler.clear()
     }
+}
+#[cfg(test)]
+mod tests {
+    // use std::{
+    //     env,
+    //     fs::{self},
+    // };
+
+    // #[test]
+    // fn test_new_path() {
+    //     if let Ok(current_dir) = env::current_dir() {
+    //         println!("Current directory: {:?}", current_dir);
+    //     } else {
+    //         eprintln!("Failed to get the current directory");
+    //     }
+    //     let directory = "test";
+
+    //     if !fs::metadata(directory).is_ok() {
+    //         match fs::create_dir(directory) {
+    //             Ok(_) => println!("目录已创建"),
+    //             Err(err) => println!("创建目录时出错：{:?}", err),
+    //         }
+    //     } else {
+    //         println!("目录已存在");
+    //     }
+    // }
+    // #[test]
+    // fn test_copy() {
+    //     let path = "./aa.txt";
+    //     if let Err(err) = fs::copy(path, "./test/") {
+    //         println!("copy err: {err}");
+    //     } else {
+    //         println!("copy success");
+    //     }
+    // }
 }

@@ -44,6 +44,7 @@ Xiu is a simple,high performance and secure live media server written in pure Ru
   - [x] Support querying stream information.
   - [x] Support notification of stream status.
 - [x] Support token authentications.
+- [x] Support recording live streams into HLS files(m3u8+ts).
 
 
 ## Preparation
@@ -163,6 +164,8 @@ You can use command line to configure the xiu server easily. You can specify to 
     enabled = true
     # listening port
     port = 8080
+    # need record the live stream or not
+    need_record = true
 
 ##### Log
 

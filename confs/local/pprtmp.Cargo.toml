@@ -10,7 +10,7 @@ anyhow = "^1.0"
 rtmp = { path = "../../protocol/rtmp/" }
 streamhub = { path = "../../library/streamhub/" }
 log = "0.4.0"
-env_logger = "0.9.3"
+env_logger = "0.10.0"
 clap = "4.1.4"
 
 [dependencies.tokio]
