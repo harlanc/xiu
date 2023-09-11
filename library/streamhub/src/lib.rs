@@ -1,3 +1,5 @@
+use define::PacketDataSender;
+
 pub mod define;
 pub mod errors;
 pub mod notify;
@@ -8,8 +10,8 @@ pub mod utils;
 use {
     crate::notify::Notifier,
     define::{
-        AvStatisticSender, BroadcastEvent, BroadcastEventReceiver, BroadcastEventSender, FrameData,
-        FrameDataReceiver, FrameDataSender, Information, PubSubInfo, StreamHubEvent,
+        AvStatisticSender, BroadcastEvent, BroadcastEventReceiver, BroadcastEventSender,
+        DataReceiver, FrameData, FrameDataSender, Information, PubSubInfo, StreamHubEvent,
         StreamHubEventReceiver, StreamHubEventSender, StreamStatisticSizeSender, SubscriberInfo,
         TStreamHandler, TransmitterEvent, TransmitterEventConsumer, TransmitterEventProducer,
     },
@@ -23,25 +25,28 @@ use {
 
 //receive data from ChannelsManager and send to players/subscribers
 pub struct Transmitter {
-    //used for receiving Audio/Video data
-    data_consumer: FrameDataReceiver,
+    //used for receiving Audio/Video data from publishers
+    data_consumer: DataReceiver,
     //used for receiving event
     event_consumer: TransmitterEventConsumer,
-    //used for sending audio/video data to players/subscribers
-    subscriberid_to_producer: HashMap<Uuid, FrameDataSender>,
+    //used for sending audio/video frame data to players/subscribers
+    id_to_frame_sender: HashMap<Uuid, FrameDataSender>,
+    //used for sending audio/video packet data to players/subscribers
+    id_to_packet_sender: HashMap<Uuid, PacketDataSender>,
     stream_handler: Arc<dyn TStreamHandler>,
 }
 
 impl Transmitter {
     fn new(
-        data_consumer: UnboundedReceiver<FrameData>,
+        data_consumer: DataReceiver,
         event_consumer: UnboundedReceiver<TransmitterEvent>,
         h: Arc<dyn TStreamHandler>,
     ) -> Self {
         Self {
             data_consumer,
             event_consumer,
-            subscriberid_to_producer: HashMap::new(),
+            id_to_frame_sender: HashMap::new(),
+            id_to_packet_sender: HashMap::new(),
             stream_handler: h,
         }
     }
@@ -57,10 +62,10 @@ impl Transmitter {
                                     .send_prior_data(sender.clone(), info.sub_type)
                                     .await?;
 
-                                self.subscriberid_to_producer.insert(info.id, sender);
+                                self.id_to_frame_sender.insert(info.id, sender);
                             }
                             TransmitterEvent::UnSubscribe { info } => {
-                                self.subscriberid_to_producer.remove(&info.id);
+                                self.id_to_frame_sender.remove(&info.id);
                             }
                             TransmitterEvent::UnPublish {} => {
                                 return Ok(());
@@ -91,7 +96,7 @@ impl Transmitter {
                                     data: data.clone(),
                                 };
 
-                                for (_, v) in self.subscriberid_to_producer.iter() {
+                                for (_, v) in self.id_to_frame_sender.iter() {
                                     if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendAudioError,
                                     }) {
@@ -104,7 +109,7 @@ impl Transmitter {
                                     timestamp,
                                     data: data.clone(),
                                 };
-                                for (_, v) in self.subscriberid_to_producer.iter() {
+                                for (_, v) in self.id_to_frame_sender.iter() {
                                     if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
                                         value: ChannelErrorValue::SendVideoError,
                                     }) {
@@ -382,7 +387,7 @@ impl StreamsHub {
         &mut self,
         identifer: &StreamIdentifier,
         sub_info: SubscriberInfo,
-        sender: FrameDataSender,
+        sender: DataSender,
     ) -> Result<(), ChannelError> {
         if let Some(producer) = self.streams.get_mut(identifer) {
             let event = TransmitterEvent::Subscribe {
@@ -444,7 +449,7 @@ impl StreamsHub {
     pub fn publish(
         &mut self,
         identifier: StreamIdentifier,
-        receiver: FrameDataReceiver,
+        receiver: DataReceiver,
         handler: Arc<dyn TStreamHandler>,
     ) -> Result<(), ChannelError> {
         if self.streams.get(&identifier).is_some() {

@@ -1,3 +1,5 @@
+use streamhub::define::{DataReceiver, DataSender};
+
 use {
     super::{
         define::SessionType,
@@ -311,6 +313,7 @@ impl Common {
             identifier,
             info: self.get_subscriber_info(sub_id),
             sender,
+            sender: DataSender { sender },
         };
         let rv = self.event_producer.send(subscribe_event);
 
@@ -360,6 +363,7 @@ impl Common {
             .await;
 
         let (sender, receiver) = mpsc::unbounded_channel();
+
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtmp {
                 app_name,
@@ -368,6 +372,10 @@ impl Common {
             receiver,
             info: self.get_publisher_info(pub_id),
             stream_handler: self.stream_handler.clone(),
+            receiver: DataReceiver {
+                packet_receiver: None,
+                frame_receiver: Some(receiver),
+            },
         };
 
         if self.event_producer.send(publish_event).is_err() {

@@ -23,8 +23,12 @@ pub enum SubscribeType {
     PlayerHttpFlv,
     /* Remote client request playing hls stream.*/
     PlayerHls,
-    /* Remote client request playing rtsp stream.*/
+    /* Remote/local client request playing rtsp stream.*/
     PlayerRtsp,
+    /* Local client request playing webrtc stream, it's used for protocol remux.*/
+    PlayerWebrtc,
+    /* Remote client request playing rtsp or webrtc(whep) raw rtp stream.*/
+    PlayerRtp,
     GenerateHls,
     /* Local client *subscribe* from local rtmp session
     and *publish* (relay push) the stream to remote server.*/
@@ -42,6 +46,10 @@ pub enum PublishType {
     /* Receive rtsp stream from remote push client */
     PushRtsp,
     RelayRtsp,
+    /* Receive webrtc stream from remote push client(whip),  */
+    PushWebRTC,
+    /* It used for publishing raw rtp data of rtsp/whbrtc(whip) */
+    PushRtp,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -115,14 +123,29 @@ pub enum FrameData {
     MediaInfo { media_info: MediaInfo },
 }
 
+//Used to pass rtp raw data.
+#[derive(Clone)]
+pub enum PacketData {
+    Video { timestamp: u32, data: BytesMut },
+    Audio { timestamp: u32, data: BytesMut },
+}
+
 //used to save data which needs to be transferred between client/server sessions
 #[derive(Clone)]
 pub enum Information {
     Sdp { data: String },
 }
 
+//used to transfer a/v frame between different protocols(rtmp/rtsp/webrtc/http-flv/hls)
+//or send a/v frame data from publisher to subscribers.
 pub type FrameDataSender = mpsc::UnboundedSender<FrameData>;
 pub type FrameDataReceiver = mpsc::UnboundedReceiver<FrameData>;
+
+//used to transfer rtp packet data,it includles the following directions:
+// rtsp(publisher)->stream hub->rtsp(subscriber)
+// webrtc(publisher whip)->stream hub->webrtc(subscriber whep)
+pub type PacketDataSender = mpsc::UnboundedSender<PacketData>;
+pub type PacketDataReceiver = mpsc::UnboundedReceiver<PacketData>;
 
 pub type InformationSender = mpsc::UnboundedSender<Information>;
 pub type InformationReceiver = mpsc::UnboundedReceiver<Information>;
@@ -153,13 +176,27 @@ pub trait TStreamHandler: Send + Sync {
     async fn send_information(&self, sender: InformationSender);
 }
 
+//A publisher can publish one or two kinds of av stream at a time.
+#[derive(Default)]
+pub struct DataReceiver {
+    pub frame_receiver: Option<FrameDataReceiver>,
+    pub packet_receiver: Option<PacketDataReceiver>,
+}
+
+//A subscriber only needs to subscribe to one type of stream at a time
+#[derive(Debug)]
+pub enum DataSender {
+    FrameDataSender,
+    PacketDataSender,
+}
+
 #[derive(Serialize)]
 pub enum StreamHubEvent {
     Subscribe {
         identifier: StreamIdentifier,
         info: SubscriberInfo,
         #[serde(skip_serializing)]
-        sender: FrameDataSender,
+        sender: DataSender,
     },
     UnSubscribe {
         identifier: StreamIdentifier,
@@ -169,7 +206,7 @@ pub enum StreamHubEvent {
         identifier: StreamIdentifier,
         info: PublisherInfo,
         #[serde(skip_serializing)]
-        receiver: FrameDataReceiver,
+        receiver: DataReceiver,
         #[serde(skip_serializing)]
         stream_handler: Arc<dyn TStreamHandler>,
     },
@@ -195,7 +232,7 @@ pub enum StreamHubEvent {
 #[derive(Debug)]
 pub enum TransmitterEvent {
     Subscribe {
-        sender: FrameDataSender,
+        sender: DataSender,
         info: SubscriberInfo,
     },
     UnSubscribe {
