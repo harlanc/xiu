@@ -2,7 +2,7 @@ use bytes::BytesMut;
 use bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter};
 use h264_decoder::sps::SpsParser;
 use indexmap::IndexMap;
-use streamhub::define::VideoCodecType;
+use streamhub::define::{DataSender, VideoCodecType};
 use xflv::{
     define::h264_nal_type::{H264_NAL_IDR, H264_NAL_PPS, H264_NAL_SPS},
     flv_tag_header::{AudioTagHeader, VideoTagHeader},
@@ -131,7 +131,7 @@ impl Rtsp2RtmpRemuxerSession {
                 stream_path: self.stream_path.clone(),
             },
             info: sub_info,
-            sender,
+            sender: DataSender::Frame { sender },
         };
 
         if self.event_producer.send(subscribe_event).is_err() {

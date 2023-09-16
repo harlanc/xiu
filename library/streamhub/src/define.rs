@@ -169,7 +169,7 @@ pub type StreamStatisticSizeReceiver = oneshot::Sender<usize>;
 pub trait TStreamHandler: Send + Sync {
     async fn send_prior_data(
         &self,
-        sender: FrameDataSender,
+        sender: DataSender,
         sub_type: SubscribeType,
     ) -> Result<(), ChannelError>;
     async fn get_statistic_data(&self) -> Option<StreamStatistics>;
@@ -177,17 +177,16 @@ pub trait TStreamHandler: Send + Sync {
 }
 
 //A publisher can publish one or two kinds of av stream at a time.
-#[derive(Default)]
 pub struct DataReceiver {
-    pub frame_receiver: Option<FrameDataReceiver>,
-    pub packet_receiver: Option<PacketDataReceiver>,
+    pub frame_receiver: FrameDataReceiver,
+    pub packet_receiver: PacketDataReceiver,
 }
 
 //A subscriber only needs to subscribe to one type of stream at a time
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DataSender {
-    FrameDataSender,
-    PacketDataSender,
+    Frame { sender: FrameDataSender },
+    Packet { sender: PacketDataSender },
 }
 
 #[derive(Serialize)]

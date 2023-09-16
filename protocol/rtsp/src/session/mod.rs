@@ -28,6 +28,8 @@ use bytesio::bytesio::UdpIO;
 use errors::SessionError;
 use errors::SessionErrorValue;
 use http::StatusCode;
+use streamhub::define::DataReceiver;
+use streamhub::define::DataSender;
 use streamhub::define::MediaInfo;
 use streamhub::define::VideoCodecType;
 
@@ -46,11 +48,10 @@ use tokio::sync::mpsc;
 
 use streamhub::{
     define::{
-        FrameData, FrameDataSender, Information, InformationSender, NotifyInfo, PublishType,
-        PublisherInfo, StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo,
-        TStreamHandler,
+        FrameData, Information, InformationSender, NotifyInfo, PublishType, PublisherInfo,
+        StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
-    errors::ChannelError,
+    errors::{ChannelError, ChannelErrorValue},
     statistics::StreamStatistics,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
@@ -299,11 +300,15 @@ impl RtspServerSession {
             }));
         }
 
+        let (_, no_used_receiver) = mpsc::unbounded_channel();
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.path.clone(),
             },
-            receiver,
+            receiver: DataReceiver {
+                frame_receiver: receiver,
+                packet_receiver: no_used_receiver,
+            },
             info: self.get_publisher_info(),
             stream_handler: self.stream_handler.clone(),
         };
@@ -466,7 +471,7 @@ impl RtspServerSession {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.path.clone(),
             },
-            sender,
+            sender: DataSender::Frame { sender },
             info: self.get_subscriber_info(),
         };
 
@@ -717,9 +722,17 @@ impl RtspStreamHandler {
 impl TStreamHandler for RtspStreamHandler {
     async fn send_prior_data(
         &self,
-        sender: FrameDataSender,
+        data_sender: DataSender,
         sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
+        let sender = match data_sender {
+            DataSender::Frame { sender } => sender,
+            DataSender::Packet { sender } => {
+                return Err(ChannelError {
+                    value: ChannelErrorValue::NotCorrectDataSenderType,
+                });
+            }
+        };
         match sub_type {
             SubscribeType::PlayerRtmp => {
                 let sdp_info = self.sdp.lock().await;

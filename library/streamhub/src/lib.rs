@@ -11,9 +11,10 @@ use {
     crate::notify::Notifier,
     define::{
         AvStatisticSender, BroadcastEvent, BroadcastEventReceiver, BroadcastEventSender,
-        DataReceiver, FrameData, FrameDataSender, Information, PubSubInfo, StreamHubEvent,
-        StreamHubEventReceiver, StreamHubEventSender, StreamStatisticSizeSender, SubscriberInfo,
-        TStreamHandler, TransmitterEvent, TransmitterEventConsumer, TransmitterEventProducer,
+        DataReceiver, DataSender, FrameData, FrameDataSender, Information, PubSubInfo,
+        StreamHubEvent, StreamHubEventReceiver, StreamHubEventSender, StreamStatisticSizeSender,
+        SubscribeType, SubscriberInfo, TStreamHandler, TransmitterEvent, TransmitterEventConsumer,
+        TransmitterEventProducer,
     },
     errors::{ChannelError, ChannelErrorValue},
     std::collections::HashMap,
@@ -26,7 +27,7 @@ use {
 //receive data from ChannelsManager and send to players/subscribers
 pub struct Transmitter {
     //used for receiving Audio/Video data from publishers
-    data_consumer: DataReceiver,
+    data_receiver: DataReceiver,
     //used for receiving event
     event_consumer: TransmitterEventConsumer,
     //used for sending audio/video frame data to players/subscribers
@@ -43,7 +44,7 @@ impl Transmitter {
         h: Arc<dyn TStreamHandler>,
     ) -> Self {
         Self {
-            data_consumer,
+            data_receiver: data_consumer,
             event_consumer,
             id_to_frame_sender: HashMap::new(),
             id_to_packet_sender: HashMap::new(),
@@ -59,13 +60,30 @@ impl Transmitter {
                         match val {
                             TransmitterEvent::Subscribe { sender, info } => {
                                 self.stream_handler
-                                    .send_prior_data(sender.clone(), info.sub_type)
-                                    .await?;
-
-                                self.id_to_frame_sender.insert(info.id, sender);
+                                .send_prior_data(sender.clone(), info.sub_type)
+                                .await?;
+                                match sender {
+                                    DataSender::Frame {
+                                        sender: frame_sender,
+                                    } => {
+                                        self.id_to_frame_sender.insert(info.id, frame_sender);
+                                    }
+                                    DataSender::Packet {
+                                        sender: packet_sender,
+                                    } => {
+                                        self.id_to_packet_sender.insert(info.id, packet_sender);
+                                    }
+                                }
                             }
                             TransmitterEvent::UnSubscribe { info } => {
-                                self.id_to_frame_sender.remove(&info.id);
+                                match info.sub_type {
+                                    SubscribeType::PlayerRtp =>{
+                                        self.id_to_packet_sender.remove(&info.id);
+                                    }
+                                    _ =>{
+                                        self.id_to_frame_sender.remove(&info.id);
+                                    }
+                                }
                             }
                             TransmitterEvent::UnPublish {} => {
                                 return Ok(());
@@ -82,9 +100,8 @@ impl Transmitter {
                             }
                         }
                     }
-
                 }
-                data = self.data_consumer.recv() => {
+                data = self.data_receiver.frame_receiver.recv() => {
                     if let Some(val) = data {
                         match val {
                             FrameData::MetaData { timestamp:_, data:_ } => {
