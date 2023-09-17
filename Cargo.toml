@@ -4,6 +4,7 @@ members = [
   "protocol/httpflv",
   "protocol/hls",
   "protocol/rtsp",
+  "protocol/webrtc",
   "library/bytesio",
   "application/xiu",
   "application/http-server",

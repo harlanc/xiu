@@ -727,7 +727,7 @@ impl TStreamHandler for RtspStreamHandler {
     ) -> Result<(), ChannelError> {
         let sender = match data_sender {
             DataSender::Frame { sender } => sender,
-            DataSender::Packet { sender } => {
+            DataSender::Packet { sender: _ } => {
                 return Err(ChannelError {
                     value: ChannelErrorValue::NotCorrectDataSenderType,
                 });
