@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 
 use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::net::TcpStream;
 
 use super::http::define::http_method_name;
@@ -69,7 +69,10 @@ impl WebRTCServerSession {
         Ok(())
     }
 
-    pub async fn run(&mut self) -> Result<(), SessionError> {
+    pub async fn run(
+        &mut self,
+        uuid_2_sessions: Arc<Mutex<HashMap<Uuid, Arc<Mutex<WebRTCServerSession>>>>>,
+    ) -> Result<(), SessionError> {
         log::info!("read run 0");
         while self.reader.len() < 4 {
             let data = self.io.lock().await.read().await?;
@@ -143,7 +146,19 @@ impl WebRTCServerSession {
                 http_method_name::DELETE => {
                     if let Some(session_id) = pars_map.get("session_id") {
                         if let Some(uuid) = Uuid::from_str2(session_id) {
-                            self.session_id = Some(uuid);
+                            //stop the running session and delete it.
+                            let mut uuid_2_sessions_unlock = uuid_2_sessions.lock().await;
+                            if let Some(session) = uuid_2_sessions_unlock.get(&uuid) {
+                                if let Err(err) = session.lock().await.close_peer_connection().await
+                                {
+                                    log::error!("close peer connection failed: {}", err);
+                                } else {
+                                    log::info!("close peer connection successfully.");
+                                }
+                                uuid_2_sessions_unlock.remove(&uuid);
+                            } else {
+                                log::warn!("the session :{}  is not exited.", uuid);
+                            }
                         }
                     } else {
                         log::error!(
@@ -152,6 +167,10 @@ impl WebRTCServerSession {
                             http_request.path_parameters.as_ref().unwrap()
                         );
                     }
+
+                    let status_code = http::StatusCode::OK;
+                    let response = Self::gen_response(status_code);
+                    self.send_response(&response).await?;
                 }
                 _ => {
                     log::warn!(

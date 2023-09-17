@@ -40,7 +40,7 @@ impl WebRTCServer {
             let uuid_2_sessions = self.uuid_2_sessions.clone();
             tokio::spawn(async move {
                 let mut session_unlock = session.lock().await;
-                if let Err(err) = session_unlock.run().await {
+                if let Err(err) = session_unlock.run(uuid_2_sessions.clone()).await {
                     log::error!("session run error, err: {}", err);
                 }
 
@@ -55,22 +55,7 @@ impl WebRTCServer {
                         }
                         http_method_name::OPTIONS => {}
                         http_method_name::PATCH => {}
-                        http_method_name::DELETE => {
-                            if let Some(uuid) = session_unlock.session_id {
-                                if let Some(session) = uuid_2_session_unlock.get(&uuid) {
-                                    if let Err(err) =
-                                        session.lock().await.close_peer_connection().await
-                                    {
-                                        log::error!("close peer connection failed: {}", err);
-                                    } else {
-                                        log::info!("close peer connection successfully.");
-                                    }
-                                    uuid_2_session_unlock.remove(&uuid);
-                                } else {
-                                    log::warn!("the session :{}  is not exited.", uuid);
-                                }
-                            }
-                        }
+                        http_method_name::DELETE => {}
                         _ => {}
                     }
                 }
