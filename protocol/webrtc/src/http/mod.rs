@@ -194,9 +194,11 @@ impl Marshal for HttpResponse {
                 response_str += &format!("{header_name}: {header_value}\r\n");
             }
         }
+
         if let Some(body) = &self.body {
             response_str += &format!("Content-Length: {}\r\n", body.len());
         }
+
         response_str += "\r\n";
         if let Some(body) = &self.body {
             response_str += body;

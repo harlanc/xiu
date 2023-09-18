@@ -14,12 +14,14 @@ use tokio::sync::Mutex;
 
 use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
-use std::{collections::HashMap, sync::Arc};
+use std::io::Read;
+use std::{collections::HashMap, fs::File, sync::Arc};
 use tokio::net::TcpStream;
 
 use super::http::define::http_method_name;
 use super::http::{HttpRequest, HttpResponse, Marshal, Unmarshal};
 
+use super::whep::handle_whep;
 use super::whip::handle_whip;
 use async_trait::async_trait;
 use byteorder::BigEndian;
@@ -87,6 +89,14 @@ impl WebRTCServerSession {
             let eles: Vec<&str> = http_request.path.splitn(2, '/').collect();
             let pars_map = &http_request.path_parameters_map;
 
+            let request_method = http_request.method.as_str();
+
+            if request_method == http_method_name::GET {
+                let response = Self::gen_file_response();
+                self.send_response(&response).await?;
+                return Ok(());
+            }
+
             if eles.len() < 2 || pars_map.get("app").is_none() || pars_map.get("stream").is_none() {
                 log::error!(
                     "WebRTCServerSession::run the http path is not correct: {}",
@@ -104,7 +114,7 @@ impl WebRTCServerSession {
 
             log::info!("1:{},2:{},3:{}", t, app_name, stream_name);
 
-            match http_request.method.as_str() {
+            match request_method {
                 http_method_name::POST => {
                     let sdp_data = if let Some(body) = http_request.body.as_ref() {
                         body
@@ -115,19 +125,20 @@ impl WebRTCServerSession {
                     };
                     self.session_id = Some(Uuid::new(RandomDigitCount::Zero));
 
+                    let path = format!(
+                        "{}?{}&session_id={}",
+                        http_request.path,
+                        http_request.path_parameters.as_ref().unwrap(),
+                        self.session_id.unwrap()
+                    );
+                    let offer = RTCSessionDescription::offer(sdp_data.clone())?;
+
                     match t.to_lowercase().as_str() {
                         "whip" => {
-                            let offer = RTCSessionDescription::offer(sdp_data.clone())?;
-                            let path = format!(
-                                "{}?{}&session_id={}",
-                                http_request.path,
-                                http_request.path_parameters.as_ref().unwrap(),
-                                self.session_id.unwrap()
-                            );
                             self.handle_whip(app_name, stream_name, path, offer).await?;
                         }
                         "whep" => {
-                            self.handle_whep();
+                            self.handle_whep(app_name, stream_name, path, offer).await?;
                         }
                         _ => {
                             log::error!(
@@ -170,6 +181,10 @@ impl WebRTCServerSession {
 
                     let status_code = http::StatusCode::OK;
                     let response = Self::gen_response(status_code);
+                    self.send_response(&response).await?;
+                }
+                http_method_name::GET => {
+                    let response = Self::gen_file_response();
                     self.send_response(&response).await?;
                 }
                 _ => {
@@ -244,7 +259,64 @@ impl WebRTCServerSession {
         self.send_response(&response).await
     }
 
-    fn handle_whep(&self) {}
+    async fn handle_whep(
+        &mut self,
+        app_name: String,
+        stream_name: String,
+        path: String,
+        offer: RTCSessionDescription,
+    ) -> Result<(), SessionError> {
+        let (sender, receiver) = mpsc::unbounded_channel();
+
+        let publish_event = StreamHubEvent::Subscribe {
+            identifier: StreamIdentifier::WebRTC {
+                app_name,
+                stream_name,
+            },
+            sender: DataSender::Packet { sender },
+            info: self.get_subscriber_info(),
+        };
+
+        if self.event_producer.send(publish_event).is_err() {
+            return Err(SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
+            });
+        }
+
+        let response = match handle_whep(offer, receiver).await {
+            Ok((session_description, peer_connection)) => {
+                self.peer_connection = Some(peer_connection);
+
+                let status_code = http::StatusCode::CREATED;
+                let mut response = Self::gen_response(status_code);
+
+                response
+            }
+            Err(err) => {
+                log::error!("handle whep err: {}", err);
+                let status_code = http::StatusCode::SERVICE_UNAVAILABLE;
+                Self::gen_response(status_code)
+            }
+        };
+        Ok(())
+    }
+
+    fn get_subscriber_info(&self) -> SubscriberInfo {
+        let id = if let Some(session_id) = &self.session_id {
+            *session_id
+        } else {
+            Uuid::new(RandomDigitCount::Zero)
+        };
+
+        SubscriberInfo {
+            id,
+            sub_type: SubscribeType::PlayerWebrtc,
+            notify_info: NotifyInfo {
+                request_url: String::from(""),
+                remote_addr: String::from(""),
+            },
+        }
+    }
 
     fn get_publisher_info(&self) -> PublisherInfo {
         let id = if let Some(session_id) = &self.session_id {
@@ -276,6 +348,24 @@ impl WebRTCServerSession {
             reason_phrase,
             ..Default::default()
         }
+    }
+
+    fn gen_file_response() -> HttpResponse {
+        let mut response = Self::gen_response(http::StatusCode::OK);
+
+        let mut file = File::open("./index.html").expect("Failed to open file");
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents)
+            .expect("Failed to read file");
+
+        let contents_str = String::from_utf8_lossy(&contents).to_string();
+
+        response
+            .headers
+            .insert("Content-Type".to_string(), "text/html".to_string());
+        response.body = Some(contents_str);
+
+        response
     }
 
     async fn send_response(&mut self, response: &HttpResponse) -> Result<(), SessionError> {
