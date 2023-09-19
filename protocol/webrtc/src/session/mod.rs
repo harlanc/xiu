@@ -19,6 +19,7 @@ use std::{collections::HashMap, fs::File, sync::Arc};
 use tokio::net::TcpStream;
 
 use super::http::define::http_method_name;
+use super::http::parse_content_length;
 use super::http::{HttpRequest, HttpResponse, Marshal, Unmarshal};
 
 use super::whep::handle_whep;
@@ -81,6 +82,22 @@ impl WebRTCServerSession {
             self.reader.extend_from_slice(&data[..]);
         }
         log::info!("read run 1");
+        let data = self.reader.get_remaining_bytes();
+
+        let content_length = match parse_content_length(std::str::from_utf8(&data)?) {
+            Some(content_length) => content_length,
+            None => {
+                log::error!("cannot find content length");
+                return Err(SessionError {
+                    value: errors::SessionErrorValue::HttpRequestNoContentLength,
+                });
+            }
+        };
+
+        while data.len() < content_length as usize {
+            let data = self.io.lock().await.read().await?;
+            self.reader.extend_from_slice(&data[..]);
+        }
 
         let request_data = self.reader.extract_remaining_bytes();
 
@@ -92,7 +109,16 @@ impl WebRTCServerSession {
             let request_method = http_request.method.as_str();
 
             if request_method == http_method_name::GET {
-                let response = Self::gen_file_response();
+                let response = match http_request.path.as_str() {
+                    "/" => Self::gen_file_response("./index.html"),
+                    "/whip.js" => Self::gen_file_response("./whip.js"),
+                    "/whep.js" => Self::gen_file_response("./whep.js"),
+                    _ => {
+                        log::warn!("the http get path: {} is not supported.", http_request.path);
+                        return Ok(());
+                    }
+                };
+
                 self.send_response(&response).await?;
                 return Ok(());
             }
@@ -181,10 +207,6 @@ impl WebRTCServerSession {
 
                     let status_code = http::StatusCode::OK;
                     let response = Self::gen_response(status_code);
-                    self.send_response(&response).await?;
-                }
-                http_method_name::GET => {
-                    let response = Self::gen_file_response();
                     self.send_response(&response).await?;
                 }
                 _ => {
@@ -350,10 +372,10 @@ impl WebRTCServerSession {
         }
     }
 
-    fn gen_file_response() -> HttpResponse {
+    fn gen_file_response(file_path: &str) -> HttpResponse {
         let mut response = Self::gen_response(http::StatusCode::OK);
 
-        let mut file = File::open("./index.html").expect("Failed to open file");
+        let mut file = File::open(file_path).expect("Failed to open file");
         let mut contents = Vec::new();
         file.read_to_end(&mut contents)
             .expect("Failed to read file");

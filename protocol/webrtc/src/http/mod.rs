@@ -38,8 +38,20 @@ impl HttpRequest {
     }
 }
 
+pub fn parse_content_length(request_data: &str) -> Option<u32> {
+    let start = "Content-Length:";
+    let end = "\r\n";
+
+    let start_index = request_data.find(start)? + start.len();
+    let end_index = request_data[start_index..].find(end)? + start_index;
+    let length_str = &request_data[start_index..end_index];
+
+    length_str.trim().parse().ok()
+}
+
 impl Unmarshal for HttpRequest {
     fn unmarshal(request_data: &str) -> Option<Self> {
+        log::info!("len: {} content: {}", request_data.len(), request_data);
         let mut http_request = HttpRequest::default();
         let header_end_idx = if let Some(idx) = request_data.find("\r\n\r\n") {
             let data_except_body = &request_data[..idx];
@@ -96,6 +108,11 @@ impl Unmarshal for HttpRequest {
         } else {
             return None;
         };
+        log::info!(
+            "header_end_idx is: {} {}",
+            header_end_idx,
+            request_data.len()
+        );
 
         if request_data.len() > header_end_idx {
             //parse body
@@ -291,6 +308,157 @@ mod tests {
         a=rtcp-fb:96 nack pli\r\n\
         a=rtpmap:97 rtx/90000\r\n\
         a=fmtp:97 apt=96\r\n";
+
+        if let Some(parser) = HttpRequest::unmarshal(request) {
+            println!(" parser: {parser:?}");
+            let marshal_result = parser.marshal();
+            print!("marshal result: =={marshal_result}==");
+            assert_eq!(request, marshal_result);
+        }
+    }
+
+    #[test]
+    fn test_whep_request() {
+        let request = "POST /whep?app=live&stream=test HTTP/1.1\r\n\
+        Host: localhost:3000\r\n\
+        Accept: */*\r\n\
+        Sec-Fetch-Site: same-origin\r\n\
+        Accept-Language: zh-cn\r\n\
+        Accept-Encoding: gzip, deflate\r\n\
+        Sec-Fetch-Mode: cors\r\n\
+        Content-Type: application/sdp\r\n\
+        Origin: http://localhost:3000\r\n\
+        User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15\r\n\
+        Referer: http://localhost:3000/\r\n\
+        Content-Length: 3895\r\n\
+        Connection: keep-alive\r\n\
+        Sec-Fetch-Dest: empty\r\n\
+        \r\n\
+        v=0\r\n\
+        o=- 6550659986740559335 2 IN IP4 127.0.0.1\r\n\
+        s=-\r\n\
+        t=0 0\r\n\
+        a=group:BUNDLE 0 1\r\n\
+        a=extmap-allow-mixed\r\n\
+        a=msid-semantic: WMS\r\n\
+        m=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99 100 101 102 125 104 124 106 107 108 109 127 35\r\n\
+        c=IN IP4 0.0.0.0\r\n\
+        a=rtcp:9 IN IP4 0.0.0.0\r\n\
+        a=ice-ufrag:0mum\r\n\
+        a=ice-pwd:DD4LnAhZLQNLSzRZWZRh9Jm4\r\n\
+        a=ice-options:trickle\r\n\
+        a=fingerprint:sha-256 6C:61:89:FF:9D:2F:BA:0A:A4:80:0D:98:C3:CA:43:05:82:EB:59:13:BC:C8:DE:33:2F:26:4A:27:D8:D0:D1:3D\r\n\
+        a=setup:actpass\r\n\
+        a=mid:0\r\n\
+        a=extmap:1 urn:ietf:params:rtp-hdrext:toffset\r\n\
+        a=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n\
+        a=extmap:3 urn:3gpp:video-orientation\r\n\
+        a=extmap:4 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n\
+        a=extmap:5 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\n\
+        a=extmap:6 http://www.webrtc.org/experiments/rtp-hdrext/video-content-type\r\n\
+        a=extmap:7 http://www.webrtc.org/experiments/rtp-hdrext/video-timing\r\n\
+        a=extmap:8 http://www.webrtc.org/experiments/rtp-hdrext/color-space\r\n\
+        a=extmap:9 urn:ietf:params:rtp-hdrext:sdes:mid\r\n\
+        a=extmap:10 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\r\n\
+        a=extmap:11 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id\r\n\
+        a=recvonly\r\n\
+        a=rtcp-mux\r\n\
+        a=rtcp-rsize\r\n\
+        a=rtpmap:96 H264/90000\r\n\
+        a=rtcp-fb:96 goog-remb\r\n\
+        a=rtcp-fb:96 transport-cc\r\n\
+        a=rtcp-fb:96 ccm fir\r\n\
+        a=rtcp-fb:96 nack\r\n\
+        a=rtcp-fb:96 nack pli\r\n\
+        a=fmtp:96 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=640c1f\r\n\
+        a=rtpmap:97 rtx/90000\r\n\
+        a=fmtp:97 apt=96\r\n\
+        a=rtpmap:98 H264/90000\r\n\
+        a=rtcp-fb:98 goog-remb\r\n\
+        a=rtcp-fb:98 transport-cc\r\n\
+        a=rtcp-fb:98 ccm fir\r\n\
+        a=rtcp-fb:98 nack\r\n\
+        a=rtcp-fb:98 nack pli\r\n\
+        a=fmtp:98 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n\
+        a=rtpmap:99 rtx/90000\r\n\
+        a=fmtp:99 apt=98\r\n\
+        a=rtpmap:100 H264/90000\r\n\
+        a=rtcp-fb:100 goog-remb\r\n\
+        a=rtcp-fb:100 transport-cc\r\n\
+        a=rtcp-fb:100 ccm fir\r\n\
+        a=rtcp-fb:100 nack\r\n\
+        a=rtcp-fb:100 nack pli\r\n\
+        a=fmtp:100 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=640c1f\r\n\
+        a=rtpmap:101 rtx/90000\r\n\
+        a=fmtp:101 apt=100\r\n\
+        a=rtpmap:102 H264/90000\r\n\
+        a=rtcp-fb:102 goog-remb\r\n\
+        a=rtcp-fb:102 transport-cc\r\n\
+        a=rtcp-fb:102 ccm fir\r\n\
+        a=rtcp-fb:102 nack\r\n\
+        a=rtcp-fb:102 nack pli\r\n\
+        a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f\r\n\
+        a=rtpmap:125 rtx/90000\r\n\
+        a=fmtp:125 apt=102\r\n\
+        a=rtpmap:104 VP8/90000\r\n\
+        a=rtcp-fb:104 goog-remb\r\n\
+        a=rtcp-fb:104 transport-cc\r\n\
+        a=rtcp-fb:104 ccm fir\r\n\
+        a=rtcp-fb:104 nack\r\n\
+        a=rtcp-fb:104 nack pli\r\n\
+        a=rtpmap:124 rtx/90000\r\n\
+        a=fmtp:124 apt=104\r\n\
+        a=rtpmap:106 VP9/90000\r\n\
+        a=rtcp-fb:106 goog-remb\r\n\
+        a=rtcp-fb:106 transport-cc\r\n\
+        a=rtcp-fb:106 ccm fir\r\n\
+        a=rtcp-fb:106 nack\r\n\
+        a=rtcp-fb:106 nack pli\r\n\
+        a=fmtp:106 profile-id=0\r\n\
+        a=rtpmap:107 rtx/90000\r\n\
+        a=fmtp:107 apt=106\r\n\
+        a=rtpmap:108 red/90000\r\n\
+        a=rtpmap:109 rtx/90000\r\n\
+        a=fmtp:109 apt=108\r\n\
+        a=rtpmap:127 ulpfec/90000\r\n\
+        a=rtpmap:35 flexfec-03/90000\r\n\
+        a=rtcp-fb:35 goog-remb\r\n\
+        a=rtcp-fb:35 transport-cc\r\n\
+        a=fmtp:35 repair-window=10000000\r\n\
+        m=audio 9 UDP/TLS/RTP/SAVPF 111 63 103 9 0 8 105 13 110 113 126\r\n\
+        c=IN IP4 0.0.0.0\r\n\
+        a=rtcp:9 IN IP4 0.0.0.0\r\n\
+        a=ice-ufrag:0mum\r\n\
+        a=ice-pwd:DD4LnAhZLQNLSzRZWZRh9Jm4\r\n\
+        a=ice-options:trickle\r\n\
+        a=fingerprint:sha-256 6C:61:89:FF:9D:2F:BA:0A:A4:80:0D:98:C3:CA:43:05:82:EB:59:13:BC:C8:DE:33:2F:26:4A:27:D8:D0:D1:3D\r\n\
+        a=setup:actpass\r\n\
+        a=mid:1\r\n\
+        a=extmap:14 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\n\
+        a=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n\
+        a=extmap:4 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n\
+        a=extmap:9 urn:ietf:params:rtp-hdrext:sdes:mid\r\n\
+        a=recvonly\r\n\
+        a=rtcp-mux\r\n\
+        a=rtpmap:111 opus/48000/2\r\n\
+        a=rtcp-fb:111 transport-cc\r\n\
+        a=fmtp:111 minptime=10;useinbandfec=1\r\n\
+        a=rtpmap:63 red/48000/2\r\n\
+        a=fmtp:63 111/111\r\n\
+        a=rtpmap:103 ISAC/16000\r\n\
+        a=rtpmap:9 G722/8000\r\n\
+        a=rtpmap:0 PCMU/8000\r\n\
+        a=rtpmap:8 PCMA/8000\r\n\
+        a=rtpmap:105 CN/16000\r\n\
+        a=rtpmap:13 CN/8000\r\n\
+        a=rtpmap:110 telephone-event/48000\r\n\
+        a=rtpmap:113 telephone-event/16000\r\n\
+        a=rtpmap:126 telephone-event/8000\r\n
+        ";
+
+        if let Some(l) = super::parse_content_length(request) {
+            println!("content length is : {}", l);
+        }
 
         if let Some(parser) = HttpRequest::unmarshal(request) {
             println!(" parser: {parser:?}");

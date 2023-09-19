@@ -34,6 +34,8 @@ pub enum SessionErrorValue {
     HttpRequestNotSupported,
     #[fail(display = "Empty sdp data\n")]
     HttpRequestEmptySdp,
+    #[fail(display = "Cannot find Content-Length\n")]
+    HttpRequestNoContentLength,
 }
 
 impl From<RTCError> for SessionError {
