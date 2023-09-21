@@ -163,9 +163,9 @@ pub async fn handle_whip(
     // This will notify you when the peer has connected/disconnected
     peer_connection.on_ice_connection_state_change(Box::new(
         move |connection_state: RTCIceConnectionState| {
-            println!("Connection State has changed {connection_state}");
+            log::info!("Connection State has changed {connection_state}");
             if connection_state == RTCIceConnectionState::Connected {
-                println!("Ctrl+C the remote client to stop the demo");
+                log::info!("Ctrl+C the remote client to stop the demo");
             }
             Box::pin(async {})
         },
@@ -177,7 +177,7 @@ pub async fn handle_whip(
     // This will notify you when the peer has connected/disconnected
     let pc_clone = peer_connection.clone();
     peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
-        println!("Peer Connection State has changed: {s}");
+        log::info!("Peer Connection State has changed: {s}");
         let pc_clone_2 = pc_clone.clone();
         Box::pin(async move {
             if s == RTCPeerConnectionState::Failed {

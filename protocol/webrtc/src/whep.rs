@@ -107,7 +107,7 @@ pub async fn handle_whep(
     // This will notify you when the peer has connected/disconnected
     peer_connection.on_ice_connection_state_change(Box::new(
         move |connection_state: RTCIceConnectionState| {
-            println!("Connection State has changed {connection_state}");
+            log::info!("Connection State has changed {connection_state}");
             if connection_state == RTCIceConnectionState::Failed {
                 // let _ = done_tx1.try_send(());
             }
@@ -118,13 +118,13 @@ pub async fn handle_whep(
     // Set the handler for Peer connection state
     // This will notify you when the peer has connected/disconnected
     peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
-        println!("Peer Connection State has changed: {s}");
+        log::info!("Peer Connection State has changed: {s}");
 
         if s == RTCPeerConnectionState::Failed {
             // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
             // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
             // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
-            println!("Peer Connection has gone to failed exiting: Done forwarding");
+            log::info!("Peer Connection has gone to failed exiting: Done forwarding");
             // let _ = done_tx2.try_send(());
         }
 
@@ -180,11 +180,15 @@ pub async fn handle_whep(
             if let Some(data) = receiver.recv().await {
                 match data {
                     PacketData::Video { timestamp, data } => {
-                        video_track.write(&data[..]);
+                        if let Err(err) = video_track.write(&data[..]).await {
+                            log::error!("send video data error: {}", err);
+                        }
                     }
 
                     PacketData::Audio { timestamp, data } => {
-                        audio_track.write(&data[..]);
+                        if let Err(err) = audio_track.write(&data[..]).await {
+                            log::error!("send audio data error: {}", err);
+                        }
                     }
                 }
             } else {

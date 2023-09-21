@@ -82,21 +82,29 @@ impl WebRTCServerSession {
             self.reader.extend_from_slice(&data[..]);
         }
         log::info!("read run 1");
-        let data = self.reader.get_remaining_bytes();
+        let mut remaining_data = self.reader.get_remaining_bytes();
 
-        let content_length = match parse_content_length(std::str::from_utf8(&data)?) {
-            Some(content_length) => content_length,
-            None => {
-                log::error!("cannot find content length");
-                return Err(SessionError {
-                    value: errors::SessionErrorValue::HttpRequestNoContentLength,
-                });
+        // let content_length = match parse_content_length(std::str::from_utf8(&data)?) {
+        //     Some(content_length) => content_length,
+        //     None => {
+        //         log::error!("cannot find content length");
+        //         return Err(SessionError {
+        //             value: errors::SessionErrorValue::HttpRequestNoContentLength,
+        //         });
+        //     }
+        // };
+
+        if let Some(content_length) = parse_content_length(std::str::from_utf8(&remaining_data)?) {
+            while remaining_data.len() < content_length as usize {
+                log::info!(
+                    "content_length: {} {}",
+                    content_length,
+                    remaining_data.len()
+                );
+                let data = self.io.lock().await.read().await?;
+                self.reader.extend_from_slice(&data[..]);
+                remaining_data = self.reader.get_remaining_bytes();
             }
-        };
-
-        while data.len() < content_length as usize {
-            let data = self.io.lock().await.read().await?;
-            self.reader.extend_from_slice(&data[..]);
         }
 
         let request_data = self.reader.extract_remaining_bytes();
@@ -304,6 +312,7 @@ impl WebRTCServerSession {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
         }
+        log::info!("before whep");
 
         let response = match handle_whep(offer, receiver).await {
             Ok((session_description, peer_connection)) => {
@@ -311,7 +320,7 @@ impl WebRTCServerSession {
 
                 let status_code = http::StatusCode::CREATED;
                 let mut response = Self::gen_response(status_code);
-
+                log::info!("before whep 1");
                 response
             }
             Err(err) => {
@@ -320,7 +329,8 @@ impl WebRTCServerSession {
                 Self::gen_response(status_code)
             }
         };
-        Ok(())
+        log::info!("after whep");
+        self.send_response(&response).await
     }
 
     fn get_subscriber_info(&self) -> SubscriberInfo {
@@ -393,6 +403,7 @@ impl WebRTCServerSession {
     async fn send_response(&mut self, response: &HttpResponse) -> Result<(), SessionError> {
         self.writer.write(response.marshal().as_bytes())?;
         self.writer.flush().await?;
+        log::info!("send_response");
 
         Ok(())
     }
