@@ -98,7 +98,7 @@ pub async fn handle_whip(
         let sender_clone = sender.clone();
 
         tokio::spawn(async move {
-            let mut b = vec![0u8; 1500];
+            let mut b = vec![0u8; 3000];
 
             while let Ok((rtp_packet, _)) = track.read(&mut b).await {
                 // Update the PayloadType

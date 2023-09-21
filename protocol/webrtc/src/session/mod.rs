@@ -320,6 +320,11 @@ impl WebRTCServerSession {
 
                 let status_code = http::StatusCode::CREATED;
                 let mut response = Self::gen_response(status_code);
+                response
+                    .headers
+                    .insert("Content-Type".to_string(), "application/sdp".to_string());
+                response.headers.insert("Location".to_string(), path);
+                response.body = Some(session_description.sdp);
                 log::info!("before whep 1");
                 response
             }
@@ -401,7 +406,9 @@ impl WebRTCServerSession {
     }
 
     async fn send_response(&mut self, response: &HttpResponse) -> Result<(), SessionError> {
+        log::info!("send_response 0");
         self.writer.write(response.marshal().as_bytes())?;
+        log::info!("send_response 1");
         self.writer.flush().await?;
         log::info!("send_response");
 

@@ -1,5 +1,7 @@
 use define::PacketDataSender;
 
+use crate::define::PacketData;
+
 pub mod define;
 pub mod errors;
 pub mod notify;
@@ -137,6 +139,41 @@ impl Transmitter {
                             FrameData::MediaInfo{media_info: _} =>{
 
                             }
+                        }
+                    }
+                }
+                data = self.data_receiver.packet_receiver.recv() => {
+                    if let Some(val) = data {
+                        match val {
+                   
+                            PacketData::Audio { timestamp, data } => {
+                                let data = PacketData::Audio {
+                                    timestamp,
+                                    data: data.clone(),
+                                };
+
+                                for (_, v) in self.id_to_packet_sender.iter() {
+                                    if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                        value: ChannelErrorValue::SendAudioError,
+                                    }) {
+                                        log::error!("Transmiter send error: {}", audio_err);
+                                    }
+                                }
+                            }
+                            PacketData::Video { timestamp, data } => {
+                                let data = PacketData::Video {
+                                    timestamp,
+                                    data: data.clone(),
+                                };
+                                for (_, v) in self.id_to_packet_sender.iter() {
+                                    if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                        value: ChannelErrorValue::SendVideoError,
+                                    }) {
+                                        log::error!("Transmiter send error: {}", video_err);
+                                    }
+                                }
+                            }
+                           
                         }
                     }
                 }
