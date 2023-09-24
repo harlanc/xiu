@@ -156,8 +156,8 @@ pub type StreamHubEventReceiver = mpsc::UnboundedReceiver<StreamHubEvent>;
 pub type BroadcastEventSender = broadcast::Sender<BroadcastEvent>;
 pub type BroadcastEventReceiver = broadcast::Receiver<BroadcastEvent>;
 
-pub type TransmitterEventProducer = mpsc::UnboundedSender<TransmitterEvent>;
-pub type TransmitterEventConsumer = mpsc::UnboundedReceiver<TransmitterEvent>;
+pub type TransmitterEventSender = mpsc::UnboundedSender<TransmitterEvent>;
+pub type TransmitterEventReceiver = mpsc::UnboundedReceiver<TransmitterEvent>;
 
 pub type AvStatisticSender = mpsc::UnboundedSender<StreamStatistics>;
 pub type AvStatisticReceiver = mpsc::UnboundedReceiver<StreamStatistics>;
@@ -178,8 +178,8 @@ pub trait TStreamHandler: Send + Sync {
 
 //A publisher can publish one or two kinds of av stream at a time.
 pub struct DataReceiver {
-    pub frame_receiver: FrameDataReceiver,
-    pub packet_receiver: PacketDataReceiver,
+    pub frame_receiver: Option<FrameDataReceiver>,
+    pub packet_receiver: Option<PacketDataReceiver>,
 }
 
 //A subscriber only needs to subscribe to one type of stream at a time

@@ -241,15 +241,15 @@ impl WebRTCServerSession {
         // The sender is used for sending audio/video frame data to the stream hub
         // receiver is passed to the stream hub for receiving the a/v packet data
         let (sender, receiver) = mpsc::unbounded_channel();
-        let (_, no_used_receiver) = mpsc::unbounded_channel();
+
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::WebRTC {
                 app_name,
                 stream_name,
             },
             receiver: DataReceiver {
-                packet_receiver: receiver,
-                frame_receiver: no_used_receiver,
+                packet_receiver: Some(receiver),
+                frame_receiver: None,
             },
             info: self.get_publisher_info(),
             stream_handler: self.stream_handler.clone(),

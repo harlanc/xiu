@@ -300,14 +300,13 @@ impl RtspServerSession {
             }));
         }
 
-        let (_, no_used_receiver) = mpsc::unbounded_channel();
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.path.clone(),
             },
             receiver: DataReceiver {
-                frame_receiver: receiver,
-                packet_receiver: no_used_receiver,
+                frame_receiver: Some(receiver),
+                packet_receiver: None,
             },
             info: self.get_publisher_info(),
             stream_handler: self.stream_handler.clone(),

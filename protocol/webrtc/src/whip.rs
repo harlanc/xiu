@@ -19,6 +19,8 @@ use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndicat
 use webrtc::rtp_transceiver::rtp_codec::{
     RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
 };
+use webrtc::rtp_transceiver::rtp_transceiver_direction::RTCRtpTransceiverDirection;
+use webrtc::rtp_transceiver::RTCRtpTransceiverInit;
 use webrtc::util::{Conn, Marshal};
 
 pub type Result<T> = std::result::Result<T, WebRTCError>;
@@ -61,10 +63,22 @@ pub async fn handle_whip(
 
     // Allow us to receive 1 audio track, and 1 video track
     peer_connection
-        .add_transceiver_from_kind(RTPCodecType::Audio, None)
+        .add_transceiver_from_kind(
+            RTPCodecType::Audio,
+            Some(RTCRtpTransceiverInit {
+                direction: RTCRtpTransceiverDirection::Recvonly,
+                send_encodings: Vec::new(),
+            }),
+        )
         .await?;
     peer_connection
-        .add_transceiver_from_kind(RTPCodecType::Video, None)
+        .add_transceiver_from_kind(
+            RTPCodecType::Video,
+            Some(RTCRtpTransceiverInit {
+                direction: RTCRtpTransceiverDirection::Recvonly,
+                send_encodings: Vec::new(),
+            }),
+        )
         .await?;
 
     // Set a handler for when a new remote track starts, this handler will forward data to

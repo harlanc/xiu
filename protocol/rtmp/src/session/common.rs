@@ -362,7 +362,6 @@ impl Common {
             .await;
 
         let (sender, receiver) = mpsc::unbounded_channel();
-        let (_, no_used_receiver) = mpsc::unbounded_channel();
 
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtmp {
@@ -372,8 +371,8 @@ impl Common {
             info: self.get_publisher_info(pub_id),
             stream_handler: self.stream_handler.clone(),
             receiver: DataReceiver {
-                packet_receiver: no_used_receiver,
-                frame_receiver: receiver,
+                packet_receiver: None,
+                frame_receiver: Some(receiver),
             },
         };
 
