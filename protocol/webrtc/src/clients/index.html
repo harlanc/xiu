@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WHEP Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        label {
+            display: inline-block;
+            width: 100px;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 200px;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #3e8e41;
+        }
+
+        #video-container {
+            width: 640px;
+            height: 360px;
+            margin: 0 auto;
+            background-color: #000;
+            position: relative;
+        }
+
+        #localVideo {
+            width: 100%;
+            height: 100%;
+        }
+
+        #play-btn {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translate(0, -50%);
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        #progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background-color: #333;
+            cursor: pointer;
+        }
+
+        #progress-bar-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WHEP Example</h1>
+    <div style="text-align: center;">
+        <label for="app-name">App Name:</label>
+        <input type="text" id="app-name" name="app-name" value="live">
+        <label for="stream-name">Stream Name:</label>
+        <input type="text" id="stream-name" name="stream-name" value="test">
+        <br><br>
+        <button id="start-whep-btn">Start WHEP</button>
+    </div>
+    <div id="video-container">
+        <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+
+    <script src="whep.js"></script>
+    <script>
+        const startWhepBtn = document.getElementById("start-whep-btn");
+
+        startWhepBtn.addEventListener("click", () => {
+            const appName = document.getElementById("app-name").value;
+            const streamName = document.getElementById("stream-name").value;
+
+            //Create peerconnection
+            const pc = window.pc = new RTCPeerConnection();
+
+            //Add recv only transceivers
+            pc.addTransceiver("audio");
+            pc.addTransceiver("video");
+
+            pc.ontrack = (event) => {
+                console.log(event)
+                if (event.track.kind == "video") {
+                    var player = document.getElementById('localVideo')
+                    player.srcObject = event.streams[0]
+                    player.controls = true
+
+                }
+            }
+            //Create whep client
+            const whep = new WHEPClient();
+
+            const url = location.origin + "/whep?app=" + appName + "&stream=" + streamName;
+            const token = ""
+
+            //Start viewing
+            whep.view(pc, url, token);
+
+        });
+    </script>
+</body>
+
+</html>

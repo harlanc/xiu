@@ -169,10 +169,12 @@ impl WebRTCServerSession {
 
                     match t.to_lowercase().as_str() {
                         "whip" => {
-                            self.handle_whip(app_name, stream_name, path, offer).await?;
+                            self.publish_whip(app_name, stream_name, path, offer)
+                                .await?;
                         }
                         "whep" => {
-                            self.handle_whep(app_name, stream_name, path, offer).await?;
+                            self.subscribe_whep(app_name, stream_name, path, offer)
+                                .await?;
                         }
                         _ => {
                             log::error!(
@@ -213,6 +215,23 @@ impl WebRTCServerSession {
                         );
                     }
 
+                    match t.to_lowercase().as_str() {
+                        "whip" => {
+                            self.unpublish_whip(app_name, stream_name)?;
+                        }
+                        "whep" => {}
+                        _ => {
+                            log::error!(
+                                "current path: {}, method: {}",
+                                http_request.path,
+                                t.to_lowercase()
+                            );
+                            return Err(SessionError {
+                                value: errors::SessionErrorValue::HttpRequestNotSupported,
+                            });
+                        }
+                    }
+
                     let status_code = http::StatusCode::OK;
                     let response = Self::gen_response(status_code);
                     self.send_response(&response).await?;
@@ -231,7 +250,7 @@ impl WebRTCServerSession {
         Ok(())
     }
 
-    async fn handle_whip(
+    async fn publish_whip(
         &mut self,
         app_name: String,
         stream_name: String,
@@ -289,7 +308,29 @@ impl WebRTCServerSession {
         self.send_response(&response).await
     }
 
-    async fn handle_whep(
+    fn unpublish_whip(
+        &mut self,
+        app_name: String,
+        stream_name: String,
+    ) -> Result<(), SessionError> {
+        let unpublish_event = StreamHubEvent::UnPublish {
+            identifier: StreamIdentifier::WebRTC {
+                app_name,
+                stream_name,
+            },
+            info: self.get_publisher_info(),
+        };
+
+        if self.event_producer.send(unpublish_event).is_err() {
+            return Err(SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn subscribe_whep(
         &mut self,
         app_name: String,
         stream_name: String,
