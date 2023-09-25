@@ -165,21 +165,18 @@ pub async fn handle_whip(
 
     // Set the handler for Peer connection state
     // This will notify you when the peer has connected/disconnected
-    let pc_clone = peer_connection.clone();
+
     peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
         log::info!("Peer Connection State has changed: {s}");
-        let pc_clone_2 = pc_clone.clone();
-        Box::pin(async move {
-            if s == RTCPeerConnectionState::Failed {
-                // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
-                // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
-                // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
-                println!("Peer Connection has gone to failed exiting: Done forwarding");
-                if let Err(err) = pc_clone_2.close().await {
-                    log::error!("peer Connection close error: {}", err);
-                }
-            }
-        })
+
+        if s == RTCPeerConnectionState::Failed {
+            // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
+            // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
+            // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
+            println!("Peer Connection has gone to failed exiting: Done forwarding");
+        }
+
+        Box::pin(async {})
     }));
 
     // Set the remote SessionDescription

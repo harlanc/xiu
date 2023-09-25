@@ -51,7 +51,8 @@ pub fn parse_content_length(request_data: &str) -> Option<u32> {
 
 impl Unmarshal for HttpRequest {
     fn unmarshal(request_data: &str) -> Option<Self> {
-        log::info!("len: {} content: {}", request_data.len(), request_data);
+        log::trace!("len: {} content: {}", request_data.len(), request_data);
+
         let mut http_request = HttpRequest::default();
         let header_end_idx = if let Some(idx) = request_data.find("\r\n\r\n") {
             let data_except_body = &request_data[..idx];
@@ -108,7 +109,7 @@ impl Unmarshal for HttpRequest {
         } else {
             return None;
         };
-        log::info!(
+        log::trace!(
             "header_end_idx is: {} {}",
             header_end_idx,
             request_data.len()

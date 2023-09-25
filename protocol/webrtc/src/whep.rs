@@ -16,16 +16,19 @@ use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
 
+use tokio::sync::mpsc;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::track::track_local::TrackLocal;
 use webrtc::track::track_local::TrackLocalWriter;
 
 pub type Result<T> = std::result::Result<T, WebRTCError>;
+use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 
 pub async fn handle_whep(
     offer: RTCSessionDescription,
     mut receiver: PacketDataReceiver,
+    state_sender: mpsc::UnboundedSender<RTCPeerConnectionState>,
 ) -> Result<(RTCSessionDescription, Arc<RTCPeerConnection>)> {
     // Everything below is the WebRTC-rs API! Thanks for using it ❤️.
 
@@ -111,6 +114,25 @@ pub async fn handle_whep(
         },
     ));
 
+    // Set the handler for Peer connection state
+    // This will notify you when the peer has connected/disconnected
+    peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
+        log::info!("Peer Connection State has changed: {s}");
+
+        if s == RTCPeerConnectionState::Failed {
+            // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
+            // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
+            // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
+            log::info!("Peer Connection has gone to failed exiting: Done forwarding");
+            // let _ = done_tx2.try_send(());
+        }
+        if let Err(err) = state_sender.send(s) {
+            log::error!("on_peer_connection_state_change send state err: {}", err);
+        }
+
+        Box::pin(async {})
+    }));
+
     // Set the remote SessionDescription
     peer_connection.set_remote_description(offer).await?;
 
@@ -144,7 +166,7 @@ pub async fn handle_whep(
                         }
                     }
                 }
-            } 
+            }
         }
     });
 

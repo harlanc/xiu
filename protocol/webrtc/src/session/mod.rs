@@ -85,7 +85,7 @@ impl WebRTCServerSession {
 
         if let Some(content_length) = parse_content_length(std::str::from_utf8(&remaining_data)?) {
             while remaining_data.len() < content_length as usize {
-                log::info!(
+                log::trace!(
                     "content_length: {} {}",
                     content_length,
                     remaining_data.len()
@@ -349,9 +349,10 @@ impl WebRTCServerSession {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
         }
-        log::info!("before whep");
 
-        let response = match handle_whep(offer, receiver).await {
+        let (pc_state_sender, mut pc_state_receiver) = mpsc::unbounded_channel();
+
+        let response = match handle_whep(offer, receiver, pc_state_sender).await {
             Ok((session_description, peer_connection)) => {
                 let pc_clone = peer_connection.clone();
 
@@ -360,41 +361,35 @@ impl WebRTCServerSession {
                 let subscriber_info_out = subscriber_info.clone();
                 let sender_out = self.event_sender.clone();
 
-                // Set the handler for Peer connection state
-                // This will notify you when the peer has connected/disconnected
-                peer_connection.on_peer_connection_state_change(Box::new(
-                    move |s: RTCPeerConnectionState| {
-                        let app_name_in = app_name_out.clone();
-                        let stream_name_in = stream_name_out.clone();
-                        let subscriber_info_in = subscriber_info_out.clone();
-                        let sender_in = sender_out.clone();
-                        log::info!("Peer Connection State has changed: {s}");
-                        let pc_clone2 = pc_clone.clone();
-                        Box::pin(async move {
-                            if s == RTCPeerConnectionState::Failed {
-                                // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
-                                // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
-                                // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
-                                log::info!(
-                                    "Peer Connection has gone to failed exiting: Done forwarding"
-                                );
-
-                                if let Err(err) = pc_clone2.close().await {
-                                    log::error!("Peer Connection close error: {}", err);
+                tokio::spawn(async move {
+                    loop {
+                        if let Some(state) = pc_state_receiver.recv().await {
+                            log::info!("state: {}", state);
+                            match state {
+                                RTCPeerConnectionState::Disconnected
+                                | RTCPeerConnectionState::Failed => {
+                                    if let Err(err) = pc_clone.close().await {
+                                        log::error!("peer connection close error: {}", err);
+                                    }
                                 }
-
-                                if let Err(err) = Self::unsubscribe_whep(
-                                    app_name_in,
-                                    stream_name_in,
-                                    subscriber_info_in,
-                                    sender_in,
-                                ) {
-                                    log::error!("unsubscribe whep error: {}", err);
+                                RTCPeerConnectionState::Closed => {
+                                    if let Err(err) = Self::unsubscribe_whep(
+                                        app_name_out,
+                                        stream_name_out,
+                                        subscriber_info_out,
+                                        sender_out,
+                                    ) {
+                                        log::error!("unsubscribe whep error: {}", err);
+                                    }
+                                    break;
                                 }
+                                _ => {}
                             }
-                        })
-                    },
-                ));
+                        } else {
+                            log::info!("recv");
+                        }
+                    }
+                });
 
                 self.peer_connection = Some(peer_connection);
 
@@ -414,7 +409,6 @@ impl WebRTCServerSession {
                 Self::gen_response(status_code)
             }
         };
-        log::info!("after whep");
         self.send_response(&response).await
     }
 
@@ -508,12 +502,8 @@ impl WebRTCServerSession {
     }
 
     async fn send_response(&mut self, response: &HttpResponse) -> Result<(), SessionError> {
-        log::info!("send_response 0");
         self.writer.write(response.marshal().as_bytes())?;
-        log::info!("send_response 1");
         self.writer.flush().await?;
-        log::info!("send_response");
-
         Ok(())
     }
 }
