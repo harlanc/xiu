@@ -3,10 +3,10 @@ use super::errors::WebRTCErrorValue;
 use bytes::BytesMut;
 use std::sync::Arc;
 use streamhub::define::{PacketData, PacketDataSender};
-use tokio::net::UdpSocket;
+
 use tokio::time::Duration;
 use webrtc::api::interceptor_registry::register_default_interceptors;
-use webrtc::api::media_engine::{MediaEngine, MIME_TYPE_OPUS, MIME_TYPE_VP8};
+use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
 use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
 use webrtc::ice_transport::ice_server::RTCIceServer;
@@ -16,12 +16,10 @@ use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
-use webrtc::rtp_transceiver::rtp_codec::{
-    RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
-};
+use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_transceiver_direction::RTCRtpTransceiverDirection;
 use webrtc::rtp_transceiver::RTCRtpTransceiverInit;
-use webrtc::util::{Conn, Marshal};
+use webrtc::util::Marshal;
 
 pub type Result<T> = std::result::Result<T, WebRTCError>;
 
@@ -145,26 +143,6 @@ pub async fn handle_whip(
                     }
                     _ => {}
                 }
-
-                // Write
-                // if let Err(err) = c.conn.send(&b[..n]).await {
-                //     // For this particular example, third party applications usually timeout after a short
-                //     // amount of time during which the user doesn't have enough time to provide the answer
-                //     // to the browser.
-                //     // That's why, for this particular example, the user first needs to provide the answer
-                //     // to the browser then open the third party application. Therefore we must not kill
-                //     // the forward on "connection refused" errors
-                //     //if opError, ok := err.(*net.OpError); ok && opError.Err.Error() == "write: connection refused" {
-                //     //    continue
-                //     //}
-                //     //panic(err)
-                //     if err.to_string().contains("Connection refused") {
-                //         continue;
-                //     } else {
-                //         println!("conn send err: {err}");
-                //         break;
-                //     }
-                // }
             }
 
             Result::<()>::Ok(())
@@ -185,8 +163,6 @@ pub async fn handle_whip(
         },
     ));
 
-    // let (done_tx, mut done_rx) = tokio::sync::mpsc::channel::<()>(1);
-
     // Set the handler for Peer connection state
     // This will notify you when the peer has connected/disconnected
     let pc_clone = peer_connection.clone();
@@ -199,8 +175,9 @@ pub async fn handle_whip(
                 // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
                 // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
                 println!("Peer Connection has gone to failed exiting: Done forwarding");
-                // let _ = done_tx.try_send(());
-                pc_clone_2.close().await;
+                if let Err(err) = pc_clone_2.close().await {
+                    log::error!("peer Connection close error: {}", err);
+                }
             }
         })
     }));

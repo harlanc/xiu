@@ -1,9 +1,8 @@
 pub mod errors;
 use streamhub::{
     define::{
-        DataReceiver, DataSender, FrameData, FrameDataSender, Information, InformationSender,
-        NotifyInfo, PacketDataSender, PublishType, PublisherInfo, StreamHubEvent,
-        StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
+        DataReceiver, DataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo,
+        StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
     errors::ChannelError,
     statistics::StreamStatistics,
@@ -25,7 +24,7 @@ use super::http::{HttpRequest, HttpResponse, Marshal, Unmarshal};
 use super::whep::handle_whep;
 use super::whip::handle_whip;
 use async_trait::async_trait;
-use byteorder::BigEndian;
+
 use bytes::BytesMut;
 use bytesio::bytes_reader::BytesReader;
 use bytesio::bytes_writer::AsyncBytesWriter;
@@ -33,6 +32,7 @@ use errors::SessionError;
 use errors::SessionErrorValue;
 use http::StatusCode;
 use tokio::sync::mpsc;
+use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::{sdp::session_description::RTCSessionDescription, RTCPeerConnection};
 
 pub struct WebRTCServerSession {
@@ -40,7 +40,7 @@ pub struct WebRTCServerSession {
     reader: BytesReader,
     writer: AsyncBytesWriter,
 
-    event_producer: StreamHubEventSender,
+    event_sender: StreamHubEventSender,
     stream_handler: Arc<WebRTCStreamHandler>,
 
     pub session_id: Option<Uuid>,
@@ -57,7 +57,7 @@ impl WebRTCServerSession {
             io: io.clone(),
             reader: BytesReader::new(BytesMut::default()),
             writer: AsyncBytesWriter::new(io),
-            event_producer,
+            event_sender: event_producer,
             stream_handler: Arc::new(WebRTCStreamHandler::new()),
             session_id: None,
             http_request_data: None,
@@ -76,23 +76,12 @@ impl WebRTCServerSession {
         &mut self,
         uuid_2_sessions: Arc<Mutex<HashMap<Uuid, Arc<Mutex<WebRTCServerSession>>>>>,
     ) -> Result<(), SessionError> {
-        log::info!("read run 0");
         while self.reader.len() < 4 {
             let data = self.io.lock().await.read().await?;
             self.reader.extend_from_slice(&data[..]);
         }
-        log::info!("read run 1");
-        let mut remaining_data = self.reader.get_remaining_bytes();
 
-        // let content_length = match parse_content_length(std::str::from_utf8(&data)?) {
-        //     Some(content_length) => content_length,
-        //     None => {
-        //         log::error!("cannot find content length");
-        //         return Err(SessionError {
-        //             value: errors::SessionErrorValue::HttpRequestNoContentLength,
-        //         });
-        //     }
-        // };
+        let mut remaining_data = self.reader.get_remaining_bytes();
 
         if let Some(content_length) = parse_content_length(std::str::from_utf8(&remaining_data)?) {
             while remaining_data.len() < content_length as usize {
@@ -115,7 +104,6 @@ impl WebRTCServerSession {
             let pars_map = &http_request.path_parameters_map;
 
             let request_method = http_request.method.as_str();
-
             if request_method == http_method_name::GET {
                 let response = match http_request.path.as_str() {
                     "/" => Self::gen_file_response("./index.html"),
@@ -217,7 +205,12 @@ impl WebRTCServerSession {
 
                     match t.to_lowercase().as_str() {
                         "whip" => {
-                            self.unpublish_whip(app_name, stream_name)?;
+                            Self::unpublish_whip(
+                                app_name,
+                                stream_name,
+                                self.get_publisher_info(),
+                                self.event_sender.clone(),
+                            )?;
                         }
                         "whep" => {}
                         _ => {
@@ -274,7 +267,7 @@ impl WebRTCServerSession {
             stream_handler: self.stream_handler.clone(),
         };
 
-        if self.event_producer.send(publish_event).is_err() {
+        if self.event_sender.send(publish_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
@@ -309,19 +302,20 @@ impl WebRTCServerSession {
     }
 
     fn unpublish_whip(
-        &mut self,
         app_name: String,
         stream_name: String,
+        publish_info: PublisherInfo,
+        sender: StreamHubEventSender,
     ) -> Result<(), SessionError> {
         let unpublish_event = StreamHubEvent::UnPublish {
             identifier: StreamIdentifier::WebRTC {
                 app_name,
                 stream_name,
             },
-            info: self.get_publisher_info(),
+            info: publish_info,
         };
 
-        if self.event_producer.send(unpublish_event).is_err() {
+        if sender.send(unpublish_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
@@ -339,16 +333,18 @@ impl WebRTCServerSession {
     ) -> Result<(), SessionError> {
         let (sender, receiver) = mpsc::unbounded_channel();
 
-        let publish_event = StreamHubEvent::Subscribe {
+        let subscriber_info = self.get_subscriber_info();
+
+        let subscribe_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::WebRTC {
-                app_name,
-                stream_name,
+                app_name: app_name.clone(),
+                stream_name: stream_name.clone(),
             },
             sender: DataSender::Packet { sender },
-            info: self.get_subscriber_info(),
+            info: subscriber_info.clone(),
         };
 
-        if self.event_producer.send(publish_event).is_err() {
+        if self.event_sender.send(subscribe_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
@@ -357,6 +353,49 @@ impl WebRTCServerSession {
 
         let response = match handle_whep(offer, receiver).await {
             Ok((session_description, peer_connection)) => {
+                let pc_clone = peer_connection.clone();
+
+                let app_name_out = app_name.clone();
+                let stream_name_out = stream_name.clone();
+                let subscriber_info_out = subscriber_info.clone();
+                let sender_out = self.event_sender.clone();
+
+                // Set the handler for Peer connection state
+                // This will notify you when the peer has connected/disconnected
+                peer_connection.on_peer_connection_state_change(Box::new(
+                    move |s: RTCPeerConnectionState| {
+                        let app_name_in = app_name_out.clone();
+                        let stream_name_in = stream_name_out.clone();
+                        let subscriber_info_in = subscriber_info_out.clone();
+                        let sender_in = sender_out.clone();
+                        log::info!("Peer Connection State has changed: {s}");
+                        let pc_clone2 = pc_clone.clone();
+                        Box::pin(async move {
+                            if s == RTCPeerConnectionState::Failed {
+                                // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
+                                // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
+                                // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
+                                log::info!(
+                                    "Peer Connection has gone to failed exiting: Done forwarding"
+                                );
+
+                                if let Err(err) = pc_clone2.close().await {
+                                    log::error!("Peer Connection close error: {}", err);
+                                }
+
+                                if let Err(err) = Self::unsubscribe_whep(
+                                    app_name_in,
+                                    stream_name_in,
+                                    subscriber_info_in,
+                                    sender_in,
+                                ) {
+                                    log::error!("unsubscribe whep error: {}", err);
+                                }
+                            }
+                        })
+                    },
+                ));
+
                 self.peer_connection = Some(peer_connection);
 
                 let status_code = http::StatusCode::CREATED;
@@ -377,6 +416,28 @@ impl WebRTCServerSession {
         };
         log::info!("after whep");
         self.send_response(&response).await
+    }
+
+    fn unsubscribe_whep(
+        app_name: String,
+        stream_name: String,
+        subscriber_info: SubscriberInfo,
+        sender: StreamHubEventSender,
+    ) -> Result<(), SessionError> {
+        let unsubscribe_event = StreamHubEvent::UnSubscribe {
+            identifier: StreamIdentifier::WebRTC {
+                app_name,
+                stream_name,
+            },
+            info: subscriber_info,
+        };
+
+        if sender.send(unsubscribe_event).is_err() {
+            return Err(SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
+            });
+        }
+        Ok(())
     }
 
     fn get_subscriber_info(&self) -> SubscriberInfo {
@@ -470,8 +531,8 @@ impl WebRTCStreamHandler {
 impl TStreamHandler for WebRTCStreamHandler {
     async fn send_prior_data(
         &self,
-        sender: DataSender,
-        sub_type: SubscribeType,
+        _sender: DataSender,
+        _sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
         Ok(())
     }
@@ -479,5 +540,5 @@ impl TStreamHandler for WebRTCStreamHandler {
         None
     }
 
-    async fn send_information(&self, sender: InformationSender) {}
+    async fn send_information(&self, _sender: InformationSender) {}
 }

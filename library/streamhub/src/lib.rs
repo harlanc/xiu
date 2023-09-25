@@ -160,7 +160,7 @@ impl Transmitter {
     }
     pub async fn receive_event_loop(
         stream_handler: Arc<dyn TStreamHandler>,
-        mut exit: broadcast::Sender<()>,
+        exit: broadcast::Sender<()>,
         mut receiver: TransmitterEventReceiver,
         packet_senders: Arc<Mutex<HashMap<Uuid, PacketDataSender>>>,
         frame_senders: Arc<Mutex<HashMap<Uuid, FrameDataSender>>>,
@@ -199,7 +199,9 @@ impl Transmitter {
                             }
                         },
                         TransmitterEvent::UnPublish {} => {
-                            exit.send(());
+                            if let Err(err) = exit.send(()) {
+                                log::error!("TransmitterEvent::UnPublish send error: {}", err);
+                            }
                             break;
                         }
                         TransmitterEvent::Api { sender } => {
@@ -339,7 +341,9 @@ impl StreamsHub {
                     info,
                     stream_handler,
                 } => {
-                    let rv = self.publish(identifier.clone(), receiver, stream_handler);
+                    let rv = self
+                        .publish(identifier.clone(), receiver, stream_handler)
+                        .await;
                     match rv {
                         Ok(()) => {
                             if let Some(notifier) = &self.notifier {
@@ -570,7 +574,7 @@ impl StreamsHub {
     }
 
     //publish a stream
-    pub fn publish(
+    pub async fn publish(
         &mut self,
         identifier: StreamIdentifier,
         receiver: DataReceiver,
@@ -583,20 +587,19 @@ impl StreamsHub {
         }
 
         let (event_publisher, event_consumer) = mpsc::unbounded_channel();
-        let mut transmitter = Transmitter::new(receiver, event_consumer, handler);
+        let transmitter = Transmitter::new(receiver, event_consumer, handler);
 
         let identifier_clone = identifier.clone();
-        tokio::spawn(async move {
-            if let Err(err) = transmitter.run().await {
-                log::error!(
-                    "transmiter run error, idetifier: {}, error: {}",
-                    identifier_clone,
-                    err,
-                );
-            } else {
-                log::info!("transmiter exits: idetifier: {}", identifier_clone);
-            }
-        });
+
+        if let Err(err) = transmitter.run().await {
+            log::error!(
+                "transmiter run error, idetifier: {}, error: {}",
+                identifier_clone,
+                err,
+            );
+        } else {
+            log::info!("transmiter exits: idetifier: {}", identifier_clone);
+        }
 
         self.streams.insert(identifier.clone(), event_publisher);
 

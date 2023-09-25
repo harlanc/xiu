@@ -457,7 +457,7 @@ mod tests {
         ";
 
         if let Some(l) = super::parse_content_length(request) {
-            println!("content length is : {}", l);
+            println!("content length is : {l}");
         }
 
         if let Some(parser) = HttpRequest::unmarshal(request) {

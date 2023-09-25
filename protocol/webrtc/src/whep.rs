@@ -1,11 +1,10 @@
 use super::errors::WebRTCError;
 use super::errors::WebRTCErrorValue;
-use bytes::BytesMut;
+
 use std::sync::Arc;
+use streamhub::define::PacketData;
 use streamhub::define::PacketDataReceiver;
-use streamhub::define::{PacketData, PacketDataSender};
-use tokio::net::UdpSocket;
-use tokio::time::Duration;
+
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::{MediaEngine, MIME_TYPE_H264, MIME_TYPE_OPUS};
 use webrtc::api::APIBuilder;
@@ -13,17 +12,14 @@ use webrtc::ice_transport::ice_connection_state::RTCIceConnectionState;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::configuration::RTCConfiguration;
-use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
+
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
-use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
-use webrtc::rtp_transceiver::rtp_codec::{
-    RTCRtpCodecCapability, RTCRtpCodecParameters, RTPCodecType,
-};
+
+use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::track::track_local::TrackLocal;
 use webrtc::track::track_local::TrackLocalWriter;
-use webrtc::util::{Conn, Marshal};
 
 pub type Result<T> = std::result::Result<T, WebRTCError>;
 
@@ -90,7 +86,7 @@ pub async fn handle_whep(
         .add_track(Arc::clone(&video_track) as Arc<dyn TrackLocal + Send + Sync>)
         .await?;
 
-    let rtp_sender_audio = peer_connection
+    let _ = peer_connection
         .add_track(Arc::clone(&audio_track) as Arc<dyn TrackLocal + Send + Sync>)
         .await?;
 
@@ -115,22 +111,6 @@ pub async fn handle_whep(
         },
     ));
 
-    // Set the handler for Peer connection state
-    // This will notify you when the peer has connected/disconnected
-    peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
-        log::info!("Peer Connection State has changed: {s}");
-
-        if s == RTCPeerConnectionState::Failed {
-            // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
-            // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
-            // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
-            log::info!("Peer Connection has gone to failed exiting: Done forwarding");
-            // let _ = done_tx2.try_send(());
-        }
-
-        Box::pin(async {})
-    }));
-
     // Set the remote SessionDescription
     peer_connection.set_remote_description(offer).await?;
 
@@ -148,51 +128,23 @@ pub async fn handle_whep(
     // in a production application you should exchange ICE Candidates via OnICECandidate
     let _ = gather_complete.recv().await;
 
-    // Output the answer in base64 so we can paste it in browser
-    // if let Some(local_desc) = peer_connection.local_description().await {
-    //     let json_str = serde_json::to_string(&local_desc)?;
-    //     let b64 = signal::encode(&json_str);
-    //     println!("{b64}");
-    // } else {
-    //     println!("generate local_description failed!");
-    // }
-
-    // // Open a UDP Listener for RTP Packets on port 5004
-    // let listener = UdpSocket::bind("127.0.0.1:5004").await?;
-
-    // let done_tx3 = done_tx.clone();
     // Read RTP packets forever and send them to the WebRTC Client
     tokio::spawn(async move {
-        // let mut inbound_rtp_packet = vec![0u8; 1600]; // UDP MTU
-        // while let Ok((n, _)) = listener.recv_from(&mut inbound_rtp_packet).await {
-        //     if let Err(err) = video_track.write(&inbound_rtp_packet[..n]).await {
-        //         if Error::ErrClosedPipe == err {
-        //             // The peerConnection has been closed.
-        //         } else {
-        //             println!("video_track write err: {err}");
-        //         }
-        //         let _ = done_tx3.try_send(());
-        //         return;
-        //     }
-        // }
-
         loop {
             if let Some(data) = receiver.recv().await {
                 match data {
-                    PacketData::Video { timestamp, data } => {
+                    PacketData::Video { timestamp: _, data } => {
                         if let Err(err) = video_track.write(&data[..]).await {
                             log::error!("send video data error: {}", err);
                         }
                     }
-
-                    PacketData::Audio { timestamp, data } => {
+                    PacketData::Audio { timestamp: _, data } => {
                         if let Err(err) = audio_track.write(&data[..]).await {
                             log::error!("send audio data error: {}", err);
                         }
                     }
                 }
-            } else {
-            }
+            } 
         }
     });
 
@@ -204,18 +156,4 @@ pub async fn handle_whep(
             value: WebRTCErrorValue::CanNotGetLocalDescription,
         })
     }
-
-    // println!("Press ctrl-c to stop");
-    // tokio::select! {
-    //     _ = done_rx.recv() => {
-    //         println!("received done signal!");
-    //     }
-    //     _ = tokio::signal::ctrl_c() => {
-    //         println!();
-    //     }
-    // };
-
-    // peer_connection.close().await?;
-
-    // Ok(())
 }

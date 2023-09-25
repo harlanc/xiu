@@ -1,9 +1,6 @@
 use {
-    bytesio::bytes_errors::BytesReadError,
-    bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
     failure::{Backtrace, Fail},
     std::fmt,
-    std::str::Utf8Error,
     webrtc::error::Error as RTCError,
     webrtc::util::Error as RTCUtilError,
 };
