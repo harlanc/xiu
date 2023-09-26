@@ -9,6 +9,7 @@ use streamhub::{
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
 };
+use tokio::sync::broadcast;
 use tokio::sync::Mutex;
 
 use bytesio::bytesio::TNetIO;
@@ -350,7 +351,7 @@ impl WebRTCServerSession {
             });
         }
 
-        let (pc_state_sender, mut pc_state_receiver) = mpsc::unbounded_channel();
+        let (pc_state_sender, mut pc_state_receiver) = broadcast::channel(1);
 
         let response = match handle_whep(offer, receiver, pc_state_sender).await {
             Ok((session_description, peer_connection)) => {
@@ -363,7 +364,7 @@ impl WebRTCServerSession {
 
                 tokio::spawn(async move {
                     loop {
-                        if let Some(state) = pc_state_receiver.recv().await {
+                        if let Ok(state) = pc_state_receiver.recv().await {
                             log::info!("state: {}", state);
                             match state {
                                 RTCPeerConnectionState::Disconnected

@@ -16,6 +16,7 @@ use webrtc::peer_connection::configuration::RTCConfiguration;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
 
+use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
@@ -28,7 +29,7 @@ use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 pub async fn handle_whep(
     offer: RTCSessionDescription,
     mut receiver: PacketDataReceiver,
-    state_sender: mpsc::UnboundedSender<RTCPeerConnectionState>,
+    state_sender: broadcast::Sender<RTCPeerConnectionState>,
 ) -> Result<(RTCSessionDescription, Arc<RTCPeerConnection>)> {
     // Everything below is the WebRTC-rs API! Thanks for using it ❤️.
 
@@ -116,6 +117,7 @@ pub async fn handle_whep(
 
     // Set the handler for Peer connection state
     // This will notify you when the peer has connected/disconnected
+    let mut state_receiver = state_sender.subscribe();
     peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
         log::info!("Peer Connection State has changed: {s}");
 
@@ -153,19 +155,40 @@ pub async fn handle_whep(
     // Read RTP packets forever and send them to the WebRTC Client
     tokio::spawn(async move {
         loop {
-            if let Some(data) = receiver.recv().await {
-                match data {
-                    PacketData::Video { timestamp: _, data } => {
-                        if let Err(err) = video_track.write(&data[..]).await {
-                            log::error!("send video data error: {}", err);
+            tokio::select! {
+                av_data = receiver.recv() =>{
+                    if let Some(data) = av_data {
+                        match data {
+                            PacketData::Video { timestamp: _, data } => {
+                                if let Err(err) = video_track.write(&data[..]).await {
+                                    log::error!("send video data error: {}", err);
+                                }
+                            }
+                            PacketData::Audio { timestamp: _, data } => {
+                                if let Err(err) = audio_track.write(&data[..]).await {
+                                    log::error!("send audio data error: {}", err);
+                                }
+                            }
                         }
                     }
-                    PacketData::Audio { timestamp: _, data } => {
-                        if let Err(err) = audio_track.write(&data[..]).await {
-                            log::error!("send audio data error: {}", err);
-                        }
-                    }
+
                 }
+                pc_state = state_receiver.recv() =>{
+                    if let Ok(state) = pc_state{
+
+                            if state == RTCPeerConnectionState::Closed {
+                                break;
+                            }
+
+
+
+
+
+                    }
+
+                }
+
+
             }
         }
     });
