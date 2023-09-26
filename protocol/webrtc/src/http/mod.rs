@@ -133,13 +133,15 @@ impl Marshal for HttpRequest {
         };
         let mut request_str = format!("{} {} {}\r\n", self.method, full_path, self.version);
         for (header_name, header_value) in &self.headers {
-            if header_name != &"Content-Length".to_string() {
+            if header_name == &"Content-Length".to_string() {
+                if let Some(body) = &self.body {
+                    request_str += &format!("Content-Length: {}\r\n", body.len());
+                }
+            } else {
                 request_str += &format!("{header_name}: {header_value}\r\n");
             }
         }
-        if let Some(body) = &self.body {
-            request_str += &format!("Content-Length: {}\r\n", body.len());
-        }
+
         request_str += "\r\n";
         if let Some(body) = &self.body {
             request_str += body;
@@ -207,14 +209,15 @@ impl Marshal for HttpResponse {
             "{} {} {}\r\n",
             self.version, self.status_code, self.reason_phrase
         );
+
         for (header_name, header_value) in &self.headers {
-            if header_name != &"Content-Length".to_string() {
+            if header_name == &"Content-Length".to_string() {
+                if let Some(body) = &self.body {
+                    response_str += &format!("Content-Length: {}\r\n", body.len());
+                }
+            } else {
                 response_str += &format!("{header_name}: {header_value}\r\n");
             }
-        }
-
-        if let Some(body) = &self.body {
-            response_str += &format!("Content-Length: {}\r\n", body.len());
         }
 
         response_str += "\r\n";
@@ -454,8 +457,7 @@ mod tests {
         a=rtpmap:13 CN/8000\r\n\
         a=rtpmap:110 telephone-event/48000\r\n\
         a=rtpmap:113 telephone-event/16000\r\n\
-        a=rtpmap:126 telephone-event/8000\r\n
-        ";
+        a=rtpmap:126 telephone-event/8000\r\n";
 
         if let Some(l) = super::parse_content_length(request) {
             println!("content length is : {l}");

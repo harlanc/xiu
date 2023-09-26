@@ -178,14 +178,14 @@ pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
 
 #[test]
 fn test_toml_parse() {
-    // let path = env::current_dir();
-    // match path {
-    //     Ok(val) => println!("The current directory is {}\n", val.display()),
-    //     Err(err) => print!("{}\n", err),
-    // }
+    let path = std::env::current_dir();
+    match path {
+        Ok(val) => println!("The current directory is {}\n", val.display()),
+        Err(err) => print!("{}\n", err),
+    }
 
     let str = fs::read_to_string(
-        "/Users/zexu/github/xiu_live_rust/application/xiu/src/config/config.toml",
+        "./src/config/config.toml",
     );
 
     match str {

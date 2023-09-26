@@ -17,7 +17,6 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
 
 use tokio::sync::broadcast;
-use tokio::sync::mpsc;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::track::track_local::TrackLocal;
@@ -171,24 +170,14 @@ pub async fn handle_whep(
                             }
                         }
                     }
-
                 }
                 pc_state = state_receiver.recv() =>{
                     if let Ok(state) = pc_state{
-
-                            if state == RTCPeerConnectionState::Closed {
-                                break;
-                            }
-
-
-
-
-
+                        if state == RTCPeerConnectionState::Closed {
+                            break;
+                        }
                     }
-
                 }
-
-
             }
         }
     });

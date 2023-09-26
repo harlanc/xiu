@@ -191,7 +191,7 @@ impl Transmitter {
                             }
                         }
                         TransmitterEvent::UnSubscribe { info } => match info.sub_type {
-                            SubscribeType::PlayerRtp => {
+                            SubscribeType::PlayerRtp | SubscribeType::PlayerWebrtc => {
                                 packet_senders.lock().await.remove(&info.id);
                             }
                             _ => {
