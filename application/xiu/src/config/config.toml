@@ -37,6 +37,13 @@ enabled = false
 port = 445
 
 ##########################
+#    WebRTC configurations  #
+##########################
+[webrtc]
+enabled = false
+port = 8083
+
+##########################
 # HTTPFLV configurations #
 ##########################
 [httpflv]
@@ -49,6 +56,7 @@ port = 8081
 [hls]
 enabled = false
 port = 8080
+need_record = true
 
 ##########################
 #   LOG configurations   #
