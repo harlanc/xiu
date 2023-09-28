@@ -22,10 +22,10 @@ copy_conf_files() {
 }
 
 # do some operations
-if [ "$MODE" == "online" ]; then
+if [ "$MODE" = "online" ]; then
     echo "copy online cargo project files..."
     copy_conf_files
-elif [ "$MODE" == "local" ]; then
+elif [ "$MODE" = "local" ]; then
     echo "copy local cargo project files..."
     copy_conf_files
 else
