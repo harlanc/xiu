@@ -21,4 +21,4 @@ webrtc = "0.8.0"
 async-trait = "0.1.70"
 
 bytesio = "0.3.0"
-streamhub = "0.1.0"
+streamhub = "0.1.1"

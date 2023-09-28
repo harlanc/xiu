@@ -20,5 +20,5 @@ log = "0.4"
 webrtc = "0.8.0"
 async-trait = "0.1.70"
 
-bytesio = { path = "../../library/bytesio/" }
-streamhub = { path = "../../library/streamhub/" }
+bytesio = "0.3.0"
+streamhub = "0.1.1"
