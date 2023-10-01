@@ -26,8 +26,8 @@ serde_json = { version = "1", default-features = false, features = [
 ] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 
-xflv = "0.3.0"
-bytesio = "0.3.0"
+bytesio = { path = "../../library/bytesio/" }
+xflv = { path = "../../library/container/flv/" }
 
 [dependencies.tokio]
 version = "1.4.0"

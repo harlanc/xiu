@@ -18,10 +18,10 @@ log = "0.4"
 hyper = { version = "0.14", features = ["full"] }
 tokio-util = { version = "0.6.5", features = ["codec"] }
 
-streamhub = "0.1.1"
-xflv = "0.3.0"
-rtmp = "0.4.1"
-xmpegts = "0.2.0"
+streamhub = { path = "../../library/streamhub/" }
+xmpegts = { path = "../../library/container/mpegts/" }
+xflv = { path = "../../library/container/flv/" }
+rtmp = { path = "../rtmp/" }
 
 [dependencies.tokio]
 version = "1.4.0"
