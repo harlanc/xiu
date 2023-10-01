@@ -162,8 +162,8 @@ async fn main() -> Result<()> {
 - Reference bytesio v0.3.0.
 - Support transferring from rtsp to rtmp.
 - Do some refactoring.
-
-
+## 0.4.2
+- Reference streamhub new version v0.1.2.
 
 
 

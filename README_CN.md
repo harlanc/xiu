@@ -23,26 +23,29 @@
 ![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
 
 
-XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持的流媒体协议包括RTMP/RTSP/HLS/HTTPFLV，可以单点部署，也可以用relay功能来部署集群。
+XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支持的流媒体协议包括RTMP[cluster]/RTSP/WebRTC[Whip/Whep]/HLS/HTTPFLV。
 
 ## 功能
 
 - [x] 支持多平台（Linux/Mac/Windows）
 - [x] 支持RTMP
-  - [x] 支持发布和订阅H264/AAC 直播流;
-  - [x] 支持秒开（Gop cache）
-    -  [x]   支持转换到HLS/HTTP-FLV协议 
-    -  [x] 支持部署集群
+  - [x] 支持发布和订阅H264/AAC 直播流；
+  - [x] 支持秒开（Gop cache）；
+  - [x] 支持转换到HLS/HTTP-FLV协议； 
+  - [x] 支持部署集群；
 - [x] 支持RTSP
-   - [x] 支持发布和订阅 H264/H265/AAC 直播流，可通过TCP/UDP传输。
-   - [x] 支持转换到RTMP/HLS/HTTP-FLV协议
+   - [x] 支持通过TCP（Interleaved）和UDP发布或订阅H.265/H.264/AAC流；
+   - [x] 支持转换到RTMP/HLS/HTTP-FLV协议；
+- [x] 支持WebRTC（Whip/Whep）
+   - [x] 支持使用Whip发布rtc流；
+   - [x] 支持使用Whep订阅rtc流；
 - [x] 支持订阅HLS/HTTPFLV直播流
 - [x] 支持命令行或者配置文件配置服务
 - [x] 支持HTTP API/notify
-    - [x] 支持查询流信息
-    - [x] 支持流事件通知
+    - [x] 支持查询流信息；
+    - [x] 支持流事件通知；
 - [x] 支持token鉴权
-- [x] 支持把直播流录制成HLS协议(m3u8+ts)文件.
+- [x] 支持把直播流录制成HLS协议(m3u8+ts)文件
 
 ## 准备工作
 #### 安装 Rust and Cargo
@@ -75,7 +78,8 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     Options:
       -c, --config <path>   Specify the xiu server configuration file path.
       -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
-      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554)
+      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554).
+      -w, --webrtc <port>   Specify the whip/whep listening port.(e.g.:8900).
       -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
       -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
       -l, --log <level>     Specify the log level. [possible values: trace, debug, info, warn, error, debug]
@@ -214,6 +218,12 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
         ffmpeg -re -stream_loop -1  -i test.mp4 -c:v copy  -c:a copy     -f rtsp rtsp://127.0.0.1:5544/live/test
 
+###### 使用Whip协议推送RTC流
+
+OBS（3.0或者更高版本）支持whip协议，按照如下配置推流：
+
+![](https://github-production-user-asset-6210df.s3.amazonaws.com/10411078/271836332-39238b1a-d6e0-4059-bbf3-02ee298df8e7.png)
+
 ##### 播放
 
 使用ffplay来播放 rtmp/rtsp/httpflv/hls协议的直播流:
@@ -223,7 +233,16 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     ffplay -rtsp_transport tcp -i rtsp://127.0.0.1:5544/live/test
     ffplay -i http://localhost:8081/live/test.flv
     ffplay -i http://localhost:8080/live/test/test.m3u8
-    
+
+- 如何播放RTC流（使用Whep协议）
+
+  1. 把xiu/protocol/webrtc/src/clients/目录下的文件拷贝到xiu可执行文件同级目录下；
+  2. 在浏览器中打开地址：http://localhost:8900；
+  3. 输入和推流地址相对应的app name和stream name；
+  4. 点击Start WHEP进行播放.
+
+![image](https://github.com/harlanc/xiu/assets/10411078/a6e1317f-0ad0-4f98-8b79-5ed8c96741f7)    
+
 ##### 转发 - 静态转推
 
 应用场景为边缘节点的直播流被转推到源站，配置如下：
@@ -289,7 +308,8 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
     
 ## Star History
 
-[link](https://star-history.t9t.io/#harlanc/xiu)
+[![Star History Chart](https://api.star-history.com/svg?repos=harlanc/xiu&type=Date)](https://star-history.com/#harlanc/xiu)
+
 
 ## 鸣谢
 
