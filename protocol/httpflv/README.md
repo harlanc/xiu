@@ -17,4 +17,6 @@ A httpflv library.
 ## v0.3.0
 - Reference bytesio v0.3.0.
 - Do some refactoring.
+## 0.3.2
+- Reference streamhub new version v0.1.2.
 

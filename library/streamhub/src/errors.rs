@@ -22,6 +22,8 @@ pub enum ChannelErrorValue {
     BytesReadError(BytesReadError),
     #[fail(display = "bytes write error\n")]
     BytesWriteError(BytesWriteError),
+    #[fail(display = "not correct data sender type\n")]
+    NotCorrectDataSenderType,
 }
 #[derive(Debug)]
 pub struct ChannelError {

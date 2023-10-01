@@ -1,9 +1,11 @@
 [workspace]
+resolver = "1"
 members = [
   "protocol/rtmp",
   "protocol/httpflv",
   "protocol/hls",
   "protocol/rtsp",
+  "protocol/webrtc",
   "library/bytesio",
   "application/xiu",
   "application/http-server",

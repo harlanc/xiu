@@ -9,6 +9,8 @@
 [![crates.io](https://img.shields.io/crates/d/rtmp.svg)](https://crates.io/crates/rtmp)
 ![RTSP](https://img.shields.io/:RTSP-blue.svg)[![crates.io](https://img.shields.io/crates/v/xrtsp.svg)](https://crates.io/crates/xrtsp)
 [![crates.io](https://img.shields.io/crates/d/xrtsp.svg)](https://crates.io/crates/xrtsp)
+![WEBRTC](https://img.shields.io/:WEBRTC-blue.svg)[![crates.io](https://img.shields.io/crates/v/xwebrtc.svg)](https://crates.io/crates/xwebrtc)
+[![crates.io](https://img.shields.io/crates/d/xwebrtc.svg)](https://crates.io/crates/xwebrtc)
 ![HTTPFLV](https://img.shields.io/:HTTPFLV-blue.svg)[![crates.io](https://img.shields.io/crates/v/httpflv.svg)](https://crates.io/crates/httpflv)
 [![crates.io](https://img.shields.io/crates/d/httpflv.svg)](https://crates.io/crates/httpflv)
 ![HLS](https://img.shields.io/:HLS-blue.svg)[![crates.io](https://img.shields.io/crates/v/hls.svg)](https://crates.io/crates/hls)
@@ -20,24 +22,29 @@
 [![](https://app.travis-ci.com/harlanc/xiu.svg?branch=master)](https://app.travis-ci.com/github/harlanc/xiu)
 [![](https://img.shields.io/discord/894502149764034560?logo=discord)](https://discord.gg/gS5wBRtpcB)
 ![wechat](https://img.shields.io/:微信-harlancc-blue.svg)
-![qqgroup](https://img.shields.io/:QQ群-24893069-blue.svg)
+
+
+
 
 
 
 [中文文档](https://github.com/harlanc/xiu/blob/master/README_CN.md)
 
-Xiu is a simple,high performance and secure live media server written in pure Rust, it now supports popular live protocols like RTMP/RTSP/HLS/HTTP-FLV, you can deploy it as a stand-alone server or a cluster using the relay feature.
+Xiu is a simple,high performance and secure live media server written in pure Rust, it now supports popular live protocols like RTMP[cluster]/RTSP/WebRTC[Whip/Whep]/HLS/HTTP-FLV.
 
 ## Features
 - [x] Support multiple platforms(Linux/MacOS/Windows).
 - [x] Support RTMP.
-   - [x] Support for publishing or subscribing H.264/AAC streams.
+   - [x] Support publishing or subscribing H.264/AAC streams.
    - [x] Support GOP cache which can be configured in the configuration file.
-   - [x] Support for protocol conversion from RTMP to HTTP-FLV/HLS.
+   - [x] Support protocol conversion from RTMP to HTTP-FLV/HLS.
    - [x] Support cluster.
 - [x] Support RTSP.
-  - [x] Support for publishing or subscribing H.265/H.264/AAC stream over both TCP(Interleaved) and UDP.
-  - [x] Support for protocol conversion from RTSP to RTMP/HLS/HTTP-FLV.
+  - [x] Support publishing or subscribing H.265/H.264/AAC stream over both TCP(Interleaved) and UDP.
+  - [x] Support protocol conversion from RTSP to RTMP/HLS/HTTP-FLV.
+- [x] Support WebRTC(Whip/Whep).
+  - [x] Support publishing rtc stream using Whip.
+  - [x] Support subscribing rtc stream using Whep.
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP/RTSP).
 - [x] Support configuring the service using command line or a configuration file.
 - [x] Support HTTP API/Notifications.
@@ -75,12 +82,13 @@ Start the service with the following command to get help:
     Options:
       -c, --config <path>   Specify the xiu server configuration file path.
       -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
-      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554)
+      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554).
+      -w, --webrtc <port>   Specify the whip/whep listening port.(e.g.:8900).
       -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
       -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
       -l, --log <level>     Specify the log level. [possible values: trace, debug, info, warn, error, debug]
-      -h, --help            Print help
-      -V, --version         Print version
+      -h, --help            Print help.
+      -V, --version         Print version.
     
 ### Build from souce
 
@@ -149,6 +157,11 @@ You can use command line to configure the xiu server easily. You can specify to 
     [rtsp]
     enabled = false
     port = 5544
+
+##### WebRTC(Whip/Whep)
+    [webrtc]
+    enabled = false
+    port = 8900
     
 ##### HTTPFLV
 
@@ -218,6 +231,12 @@ You can use two ways:
 
         ffmpeg -re -stream_loop -1  -i test.mp4 -c:v copy  -c:a copy     -f rtsp rtsp://127.0.0.1:5544/live/test
 
+###### Push RTC(Whip)
+
+Now OBS (version 3.0 or above) can support whip output. The configurations are as follows:
+    
+    
+![](https://github-production-user-asset-6210df.s3.amazonaws.com/10411078/271836332-39238b1a-d6e0-4059-bbf3-02ee298df8e7.png)
 
 ##### Play
 
@@ -228,6 +247,15 @@ Use ffplay to play the rtmp/rtsp/httpflv/hls live stream:
     ffplay -rtsp_transport tcp -i rtsp://127.0.0.1:5544/live/test
     ffplay -i http://localhost:8081/live/test.flv
     ffplay -i http://localhost:8080/live/test/test.m3u8
+
+- How to play WebRTC stream*(Whep)
+
+  1. Copy the files under xiu/protocol/webrtc/src/clients/ folder to the same level directory of the binary file xiu.
+  2. Open the address http://localhost:8900 in the browser.
+  3. Enter the app name and stream name corresponding to the OBS whip publish address.
+  4. Click Start WHEP(After OBS publish) to play the RTC stream.
+  
+![image](https://github.com/harlanc/xiu/assets/10411078/a6e1317f-0ad0-4f98-8b79-5ed8c96741f7)
     
 ##### Relay - Static push
 
@@ -294,7 +322,8 @@ Use the above methods to push live stream to service 1, when you play the stream
     ffplay -i rtmp://localhost:1936/live/test
 ## Star History
 
-[link](https://star-history.t9t.io/#harlanc/xiu)
+[![Star History Chart](https://api.star-history.com/svg?repos=harlanc/xiu&type=Date)](https://star-history.com/#harlanc/xiu)
+
 
 ## Thanks
 

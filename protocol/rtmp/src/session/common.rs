@@ -1,3 +1,5 @@
+use streamhub::define::{DataReceiver, DataSender};
+
 use {
     super::{
         define::SessionType,
@@ -310,7 +312,7 @@ impl Common {
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: self.get_subscriber_info(sub_id),
-            sender,
+            sender: DataSender::Frame { sender },
         };
         let rv = self.event_producer.send(subscribe_event);
 
@@ -360,14 +362,18 @@ impl Common {
             .await;
 
         let (sender, receiver) = mpsc::unbounded_channel();
+
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtmp {
                 app_name,
                 stream_name,
             },
-            receiver,
             info: self.get_publisher_info(pub_id),
             stream_handler: self.stream_handler.clone(),
+            receiver: DataReceiver {
+                packet_receiver: None,
+                frame_receiver: Some(receiver),
+            },
         };
 
         if self.event_producer.send(publish_event).is_err() {
@@ -476,9 +482,17 @@ impl RtmpStreamHandler {
 impl TStreamHandler for RtmpStreamHandler {
     async fn send_prior_data(
         &self,
-        sender: FrameDataSender,
+        data_sender: DataSender,
         sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
+        let sender = match data_sender {
+            DataSender::Frame { sender } => sender,
+            DataSender::Packet { sender: _ } => {
+                return Err(ChannelError {
+                    value: ChannelErrorValue::NotCorrectDataSenderType,
+                });
+            }
+        };
         if let Some(cache) = &mut *self.cache.lock().await {
             if let Some(meta_body_data) = cache.get_metadata() {
                 sender.send(meta_body_data).map_err(|_| ChannelError {

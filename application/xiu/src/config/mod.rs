@@ -9,6 +9,7 @@ use std::vec::Vec;
 pub struct Config {
     pub rtmp: Option<RtmpConfig>,
     pub rtsp: Option<RtspConfig>,
+    pub webrtc: Option<WebRTCConfig>,
     pub httpflv: Option<HttpFlvConfig>,
     pub hls: Option<HlsConfig>,
     pub httpapi: Option<HttpApiConfig>,
@@ -20,6 +21,7 @@ impl Config {
     pub fn new(
         rtmp_port: usize,
         rtsp_port: usize,
+        webrtc_port: usize,
         httpflv_port: usize,
         hls_port: usize,
         log_level: String,
@@ -40,6 +42,14 @@ impl Config {
             rtsp_config = Some(RtspConfig {
                 enabled: true,
                 port: rtsp_port,
+            });
+        }
+
+        let mut webrtc_config: Option<WebRTCConfig> = None;
+        if webrtc_port > 0 {
+            webrtc_config = Some(WebRTCConfig {
+                enabled: true,
+                port: webrtc_port,
             });
         }
 
@@ -68,6 +78,7 @@ impl Config {
         Self {
             rtmp: rtmp_config,
             rtsp: rtsp_config,
+            webrtc: webrtc_config,
             httpflv: httpflv_config,
             hls: hls_config,
             httpapi: None,
@@ -100,6 +111,12 @@ pub struct RtmpPushConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct RtspConfig {
+    pub enabled: bool,
+    pub port: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WebRTCConfig {
     pub enabled: bool,
     pub port: usize,
 }
@@ -161,14 +178,14 @@ pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
 
 #[test]
 fn test_toml_parse() {
-    // let path = env::current_dir();
-    // match path {
-    //     Ok(val) => println!("The current directory is {}\n", val.display()),
-    //     Err(err) => print!("{}\n", err),
-    // }
+    let path = std::env::current_dir();
+    match path {
+        Ok(val) => println!("The current directory is {}\n", val.display()),
+        Err(err) => print!("{}\n", err),
+    }
 
     let str = fs::read_to_string(
-        "/Users/zexu/github/xiu_live_rust/application/xiu/src/config/config.toml",
+        "./src/config/config.toml",
     );
 
     match str {

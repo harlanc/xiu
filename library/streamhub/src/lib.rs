@@ -1,3 +1,7 @@
+use define::{FrameDataReceiver, PacketDataReceiver, PacketDataSender};
+
+use crate::define::PacketData;
+
 pub mod define;
 pub mod errors;
 pub mod notify;
@@ -8,126 +12,253 @@ pub mod utils;
 use {
     crate::notify::Notifier,
     define::{
-        AvStatisticSender, BroadcastEvent, BroadcastEventReceiver, BroadcastEventSender, FrameData,
-        FrameDataReceiver, FrameDataSender, Information, PubSubInfo, StreamHubEvent,
-        StreamHubEventReceiver, StreamHubEventSender, StreamStatisticSizeSender, SubscriberInfo,
-        TStreamHandler, TransmitterEvent, TransmitterEventConsumer, TransmitterEventProducer,
+        AvStatisticSender, BroadcastEvent, BroadcastEventReceiver, BroadcastEventSender,
+        DataReceiver, DataSender, FrameData, FrameDataSender, Information, PubSubInfo,
+        StreamHubEvent, StreamHubEventReceiver, StreamHubEventSender, StreamStatisticSizeSender,
+        SubscribeType, SubscriberInfo, TStreamHandler, TransmitterEvent, TransmitterEventReceiver,
+        TransmitterEventSender,
     },
     errors::{ChannelError, ChannelErrorValue},
     std::collections::HashMap,
     std::sync::Arc,
     stream::StreamIdentifier,
-    tokio::sync::{broadcast, mpsc, mpsc::UnboundedReceiver},
+    tokio::sync::{broadcast, mpsc, mpsc::UnboundedReceiver, Mutex},
     utils::Uuid,
 };
 
 //receive data from ChannelsManager and send to players/subscribers
 pub struct Transmitter {
-    //used for receiving Audio/Video data
-    data_consumer: FrameDataReceiver,
+    //used for receiving Audio/Video data from publishers
+    data_receiver: DataReceiver,
     //used for receiving event
-    event_consumer: TransmitterEventConsumer,
-    //used for sending audio/video data to players/subscribers
-    subscriberid_to_producer: HashMap<Uuid, FrameDataSender>,
+    event_receiver: TransmitterEventReceiver,
+    //used for sending audio/video frame data to players/subscribers
+    id_to_frame_sender: Arc<Mutex<HashMap<Uuid, FrameDataSender>>>,
+    //used for sending audio/video packet data to players/subscribers
+    id_to_packet_sender: Arc<Mutex<HashMap<Uuid, PacketDataSender>>>,
     stream_handler: Arc<dyn TStreamHandler>,
 }
 
 impl Transmitter {
     fn new(
-        data_consumer: UnboundedReceiver<FrameData>,
-        event_consumer: UnboundedReceiver<TransmitterEvent>,
+        data_receiver: DataReceiver,
+        event_receiver: UnboundedReceiver<TransmitterEvent>,
         h: Arc<dyn TStreamHandler>,
     ) -> Self {
         Self {
-            data_consumer,
-            event_consumer,
-            subscriberid_to_producer: HashMap::new(),
+            data_receiver,
+            event_receiver,
+            id_to_frame_sender: Arc::new(Mutex::new(HashMap::new())),
+            id_to_packet_sender: Arc::new(Mutex::new(HashMap::new())),
             stream_handler: h,
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), ChannelError> {
-        loop {
-            tokio::select! {
-                data = self.event_consumer.recv() => {
-                    if let Some(val) = data {
-                        match val {
-                            TransmitterEvent::Subscribe { sender, info } => {
-                                self.stream_handler
-                                    .send_prior_data(sender.clone(), info.sub_type)
-                                    .await?;
+    pub async fn receive_frame_data_loop(
+        mut exit: broadcast::Receiver<()>,
+        mut receiver: FrameDataReceiver,
+        frame_senders: Arc<Mutex<HashMap<Uuid, FrameDataSender>>>,
+    ) {
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    data = receiver.recv() => {
+                        if let Some(val) = data {
+                            match val {
+                                FrameData::MetaData {
+                                    timestamp: _,
+                                    data: _,
+                                } => {}
+                                FrameData::Audio { timestamp, data } => {
+                                    let data = FrameData::Audio {
+                                        timestamp,
+                                        data: data.clone(),
+                                    };
 
-                                self.subscriberid_to_producer.insert(info.id, sender);
-                            }
-                            TransmitterEvent::UnSubscribe { info } => {
-                                self.subscriberid_to_producer.remove(&info.id);
-                            }
-                            TransmitterEvent::UnPublish {} => {
-                                return Ok(());
-                            }
-                            TransmitterEvent::Api { sender } => {
-                                if let Some(avstatistic_data) = self.stream_handler.get_statistic_data().await {
-                                    if let Err(err) = sender.send(avstatistic_data) {
-                                        log::info!("Transmitter send avstatistic data err: {}", err);
+                                    for (_, v) in frame_senders.lock().await.iter() {
+                                        if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendAudioError,
+                                        }) {
+                                            log::error!("Transmiter send error: {}", audio_err);
+                                        }
                                     }
                                 }
-                            }
-                            TransmitterEvent::Request {sender} =>{
-                                self.stream_handler.send_information(sender).await;
+                                FrameData::Video { timestamp, data } => {
+                                    let data = FrameData::Video {
+                                        timestamp,
+                                        data: data.clone(),
+                                    };
+                                    for (_, v) in frame_senders.lock().await.iter() {
+                                        if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendVideoError,
+                                        }) {
+                                            log::error!("Transmiter send error: {}", video_err);
+                                        }
+                                    }
+                                }
+                                FrameData::MediaInfo { media_info: _ } => {}
                             }
                         }
                     }
-
+                    _ = exit.recv()=>{
+                        break;
+                    }
                 }
-                data = self.data_consumer.recv() => {
-                    if let Some(val) = data {
-                        match val {
-                            FrameData::MetaData { timestamp:_, data:_ } => {
+            }
+        });
+    }
 
-                            }
-                            FrameData::Audio { timestamp, data } => {
-                                let data = FrameData::Audio {
-                                    timestamp,
-                                    data: data.clone(),
-                                };
+    pub async fn receive_packet_data_loop(
+        mut exit: broadcast::Receiver<()>,
+        mut receiver: PacketDataReceiver,
+        packet_senders: Arc<Mutex<HashMap<Uuid, PacketDataSender>>>,
+    ) {
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    data = receiver.recv() => {
+                        if let Some(val) = data {
+                            match val {
 
-                                for (_, v) in self.subscriberid_to_producer.iter() {
-                                    if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
-                                        value: ChannelErrorValue::SendAudioError,
-                                    }) {
-                                        log::error!("Transmiter send error: {}", audio_err);
+                                PacketData::Audio { timestamp, data } => {
+                                    let data = PacketData::Audio {
+                                        timestamp,
+                                        data: data.clone(),
+                                    };
+
+                                    for (_, v) in packet_senders.lock().await.iter() {
+                                        if let Err(audio_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendAudioError,
+                                        }) {
+                                            log::error!("Transmiter send error: {}", audio_err);
+                                        }
                                     }
                                 }
-                            }
-                            FrameData::Video { timestamp, data } => {
-                                let data = FrameData::Video {
-                                    timestamp,
-                                    data: data.clone(),
-                                };
-                                for (_, v) in self.subscriberid_to_producer.iter() {
-                                    if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
-                                        value: ChannelErrorValue::SendVideoError,
-                                    }) {
-                                        log::error!("Transmiter send error: {}", video_err);
+                                PacketData::Video { timestamp, data } => {
+                                    let data = PacketData::Video {
+                                        timestamp,
+                                        data: data.clone(),
+                                    };
+                                    for (_, v) in packet_senders.lock().await.iter() {
+                                        if let Err(video_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendVideoError,
+                                        }) {
+                                            log::error!("Transmiter send error: {}", video_err);
+                                        }
                                     }
                                 }
-                            }
-                            FrameData::MediaInfo{media_info: _} =>{
 
                             }
+                        }
+                    }
+                    _ = exit.recv()=>{
+                        break;
+                    }
+                }
+            }
+        });
+    }
+    pub async fn receive_event_loop(
+        stream_handler: Arc<dyn TStreamHandler>,
+        exit: broadcast::Sender<()>,
+        mut receiver: TransmitterEventReceiver,
+        packet_senders: Arc<Mutex<HashMap<Uuid, PacketDataSender>>>,
+        frame_senders: Arc<Mutex<HashMap<Uuid, FrameDataSender>>>,
+    ) {
+        tokio::spawn(async move {
+            loop {
+                if let Some(val) = receiver.recv().await {
+                    match val {
+                        TransmitterEvent::Subscribe { sender, info } => {
+                            if let Err(err) = stream_handler
+                                .send_prior_data(sender.clone(), info.sub_type)
+                                .await
+                            {
+                                log::error!("receive_event_loop send_prior_data err: {}", err);
+                                break;
+                            }
+                            match sender {
+                                DataSender::Frame {
+                                    sender: frame_sender,
+                                } => {
+                                    frame_senders.lock().await.insert(info.id, frame_sender);
+                                }
+                                DataSender::Packet {
+                                    sender: packet_sender,
+                                } => {
+                                    packet_senders.lock().await.insert(info.id, packet_sender);
+                                }
+                            }
+                        }
+                        TransmitterEvent::UnSubscribe { info } => match info.sub_type {
+                            SubscribeType::PlayerRtp | SubscribeType::PlayerWebrtc => {
+                                packet_senders.lock().await.remove(&info.id);
+                            }
+                            _ => {
+                                frame_senders.lock().await.remove(&info.id);
+                            }
+                        },
+                        TransmitterEvent::UnPublish {} => {
+                            if let Err(err) = exit.send(()) {
+                                log::error!("TransmitterEvent::UnPublish send error: {}", err);
+                            }
+                            break;
+                        }
+                        TransmitterEvent::Api { sender } => {
+                            if let Some(avstatistic_data) =
+                                stream_handler.get_statistic_data().await
+                            {
+                                if let Err(err) = sender.send(avstatistic_data) {
+                                    log::info!("Transmitter send avstatistic data err: {}", err);
+                                }
+                            }
+                        }
+                        TransmitterEvent::Request { sender } => {
+                            stream_handler.send_information(sender).await;
                         }
                     }
                 }
             }
+        });
+    }
+
+    pub async fn run(self) -> Result<(), ChannelError> {
+        let (tx, _) = broadcast::channel::<()>(1);
+
+        if let Some(receiver) = self.data_receiver.frame_receiver {
+            Self::receive_frame_data_loop(
+                tx.subscribe(),
+                receiver,
+                self.id_to_frame_sender.clone(),
+            )
+            .await;
         }
 
-        //Ok(())
+        if let Some(receiver) = self.data_receiver.packet_receiver {
+            Self::receive_packet_data_loop(
+                tx.subscribe(),
+                receiver,
+                self.id_to_packet_sender.clone(),
+            )
+            .await;
+        }
+
+        Self::receive_event_loop(
+            self.stream_handler,
+            tx,
+            self.event_receiver,
+            self.id_to_packet_sender,
+            self.id_to_frame_sender,
+        )
+        .await;
+
+        Ok(())
     }
 }
 
 pub struct StreamsHub {
     //app_name to stream_name to producer
-    streams: HashMap<StreamIdentifier, TransmitterEventProducer>,
+    streams: HashMap<StreamIdentifier, TransmitterEventSender>,
     //save info to kick off client
     streams_info: HashMap<Uuid, PubSubInfo>,
     //event is consumed in Channels, produced from other rtmp sessions
@@ -210,7 +341,9 @@ impl StreamsHub {
                     info,
                     stream_handler,
                 } => {
-                    let rv = self.publish(identifier.clone(), receiver, stream_handler);
+                    let rv = self
+                        .publish(identifier.clone(), receiver, stream_handler)
+                        .await;
                     match rv {
                         Ok(()) => {
                             if let Some(notifier) = &self.notifier {
@@ -382,7 +515,7 @@ impl StreamsHub {
         &mut self,
         identifer: &StreamIdentifier,
         sub_info: SubscriberInfo,
-        sender: FrameDataSender,
+        sender: DataSender,
     ) -> Result<(), ChannelError> {
         if let Some(producer) = self.streams.get_mut(identifer) {
             let event = TransmitterEvent::Subscribe {
@@ -441,10 +574,10 @@ impl StreamsHub {
     }
 
     //publish a stream
-    pub fn publish(
+    pub async fn publish(
         &mut self,
         identifier: StreamIdentifier,
-        receiver: FrameDataReceiver,
+        receiver: DataReceiver,
         handler: Arc<dyn TStreamHandler>,
     ) -> Result<(), ChannelError> {
         if self.streams.get(&identifier).is_some() {
@@ -454,20 +587,19 @@ impl StreamsHub {
         }
 
         let (event_publisher, event_consumer) = mpsc::unbounded_channel();
-        let mut transmitter = Transmitter::new(receiver, event_consumer, handler);
+        let transmitter = Transmitter::new(receiver, event_consumer, handler);
 
         let identifier_clone = identifier.clone();
-        tokio::spawn(async move {
-            if let Err(err) = transmitter.run().await {
-                log::error!(
-                    "transmiter run error, idetifier: {}, error: {}",
-                    identifier_clone,
-                    err,
-                );
-            } else {
-                log::info!("transmiter exits: idetifier: {}", identifier_clone);
-            }
-        });
+
+        if let Err(err) = transmitter.run().await {
+            log::error!(
+                "transmiter run error, idetifier: {}, error: {}",
+                identifier_clone,
+                err,
+            );
+        } else {
+            log::info!("transmiter exits: idetifier: {}", identifier_clone);
+        }
 
         self.streams.insert(identifier.clone(), event_publisher);
 

@@ -27,6 +27,8 @@ Change the listening port type.
 - Reference bytesio v0.3.0.
 ## 0.4.0
 - Support record.
+## 0.4.2
+- Reference streamhub new version v0.1.2.
 
 
 

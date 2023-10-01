@@ -175,7 +175,7 @@ impl HttpFlv {
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: sub_info,
-            sender,
+            sender: streamhub::define::DataSender::Frame { sender },
         };
 
         let rv = self.event_producer.send(subscribe_event);

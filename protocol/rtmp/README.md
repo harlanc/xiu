@@ -11,26 +11,35 @@ This is a simple rtmp library for easy use and reading, you can build your own s
 ## Single Server
 
 ```rust
-use rtmp::channels::ChannelsManager;
-use rtmp::rtmp::RtmpServer;
+use rtmp::{
+    relay::{pull_client::PullClient, push_client::PushClient},
+    rtmp::RtmpServer,
+};
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let mut channel = ChannelsManager::new(None);
-    let producer = channel.get_channel_event_producer();
+ use {anyhow::Result, streamhub::StreamsHub};
+
+fn start_single_server() {
+    let mut stream_hub = StreamsHub::new(None);
+    let sender = stream_hub.get_hub_event_sender();
 
     let listen_port = 1935;
     let address = format!("0.0.0.0:{port}", port = listen_port);
 
-    let mut rtmp_server = RtmpServer::new(address, producer);
+    let mut rtmp_server = RtmpServer::new(address, sender, 1);
     tokio::spawn(async move {
         if let Err(err) = rtmp_server.run().await {
             log::error!("rtmp server error: {}\n", err);
         }
     });
 
-    tokio::spawn(async move { channel.run().await });
+    tokio::spawn(async move { stream_hub.run().await });
+}
 
+#[tokio::main]
+
+async fn main() -> Result<()> {
+    start_single_server();
+    //start_cluster();
     tokio::signal::ctrl_c().await?;
     Ok(())
 }
@@ -39,38 +48,39 @@ async fn main() -> anyhow::Result<()> {
 ## Cluster
 
 ```rust
-use rtmp::channels::ChannelsManager;
-use rtmp::relay::{pull_client::PullClient, push_client::PushClient};
-use rtmp::rtmp::RtmpServer;
+use rtmp::{
+    relay::{pull_client::PullClient, push_client::PushClient},
+    rtmp::RtmpServer,
+};
 
-#[tokio::main]
+ use {anyhow::Result, streamhub::StreamsHub};
 
-async fn main() -> anyhow::Result<()> {
-    let mut channel = ChannelsManager::new(None);
-    let producer = channel.get_channel_event_producer();
+fn start_cluster() {
+    let mut stream_hub = StreamsHub::new(None);
+    let sender = stream_hub.get_hub_event_sender();
 
     // push the rtmp stream from local to 192.168.0.2:1935
     let address = format!("{ip}:{port}", ip = "192.168.0.2", port = 1935);
 
     let mut push_client = PushClient::new(
         address,
-        channel.get_client_event_consumer(),
-        producer.clone(),
+        stream_hub.get_client_event_consumer(),
+        sender.clone(),
     );
     tokio::spawn(async move {
         if let Err(err) = push_client.run().await {
             log::error!("push client error {}\n", err);
         }
     });
-    channel.set_rtmp_push_enabled(true);
+    stream_hub.set_rtmp_push_enabled(true);
 
     //pull the rtmp stream from 192.168.0.3:1935 to local
     let address = format!("{ip}:{port}", ip = "192.168.0.3", port = "1935");
     log::info!("start rtmp pull client from address: {}", address);
     let mut pull_client = PullClient::new(
         address,
-        channel.get_client_event_consumer(),
-        producer.clone(),
+        stream_hub.get_client_event_consumer(),
+        sender.clone(),
     );
 
     tokio::spawn(async move {
@@ -78,21 +88,26 @@ async fn main() -> anyhow::Result<()> {
             log::error!("pull client error {}\n", err);
         }
     });
-    channel.set_rtmp_pull_enabled(true);
+    stream_hub.set_rtmp_pull_enabled(true);
 
     // the local rtmp server
     let listen_port = 1935;
     let address = format!("0.0.0.0:{port}", port = listen_port);
 
-    let mut rtmp_server = RtmpServer::new(address, producer.clone());
+    let mut rtmp_server = RtmpServer::new(address, sender.clone(), 1);
     tokio::spawn(async move {
         if let Err(err) = rtmp_server.run().await {
             log::error!("rtmp server error: {}\n", err);
         }
     });
 
-    tokio::spawn(async move { channel.run().await });
+    tokio::spawn(async move { stream_hub.run().await });
+}
 
+#[tokio::main]
+
+async fn main() -> Result<()> {
+    start_cluster();
     tokio::signal::ctrl_c().await?;
     Ok(())
 }
@@ -147,8 +162,8 @@ async fn main() -> anyhow::Result<()> {
 - Reference bytesio v0.3.0.
 - Support transferring from rtsp to rtmp.
 - Do some refactoring.
-
-
+## 0.4.2
+- Reference streamhub new version v0.1.2.
 
 
 
