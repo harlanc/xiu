@@ -15,11 +15,7 @@ use super::{
 //the new is 2 and old is 65534, the distance between 2 and 65534 is 4 which is
 //65535 - 65534 + 2 + 1.(65533,65534,65535,0,1,2)
 pub fn distance(new: u16, old: u16) -> u16 {
-    if new < old {
-        65535 - old + new + 1
-    } else {
-        new - old
-    }
+    new.wrapping_sub(old)
 }
 
 const MIN_SEQUENTIAL: u32 = 2;
@@ -246,5 +242,21 @@ impl RtcpContext {
 
         self.last_rtp_clock = rtp_clock;
         self.last_rtp_timestamp = pkt.header.timestamp;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::distance;
+    #[test]
+    fn test_distance() {
+        assert_eq!(distance(0, 0), 0);
+        assert_eq!(distance(2, 0), 2);
+        assert_eq!(distance(32767, 0), 32767);
+        assert_eq!(distance(65535, 0), 65535);
+
+        assert_eq!(distance(0, 65535), 1);
+        assert_eq!(distance(0, 2), 65534);
     }
 }
