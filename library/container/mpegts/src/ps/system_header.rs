@@ -8,6 +8,8 @@ use {
     bytes::{BufMut, BytesMut},
     bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
+
+#[derive(Default)]
 pub struct PsStream {
     stream_id: u8,
     stream_id_extension: u8,
@@ -15,6 +17,7 @@ pub struct PsStream {
     buffer_size_bound: u16,
 }
 
+#[derive(Default)]
 pub struct PsSystemHeader {
     header_length: u16,
     rate_bound: u32,
@@ -63,8 +66,7 @@ impl PsSystemHeader {
     //         }
     //     }
     // }
-    pub fn read(&mut self, payload: BytesMut) -> Result<(), MpegPsError> {
-        let mut bytes_reader = BytesReader::new(payload);
+    pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
         if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_SYS] {

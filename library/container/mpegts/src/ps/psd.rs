@@ -62,6 +62,7 @@ use {
 //     }
 // }
 
+#[derive(Default)]
 struct AccessUnit {
     packet_stream_id: u8,
     pes_header_position_offset_sign: u8,
@@ -74,6 +75,7 @@ struct AccessUnit {
     coding_parameters_indicator: u8,
 }
 
+#[derive(Default)]
 pub struct PsProgramStreamDirectory {
     directory_stream_id: u8,
     pes_packet_length: u16,
@@ -84,8 +86,7 @@ pub struct PsProgramStreamDirectory {
 }
 
 impl PsProgramStreamDirectory {
-    pub fn read(&mut self, payload: BytesMut) -> Result<(), MpegPsError> {
-        let mut bytes_reader = BytesReader::new(payload);
+    pub fn read(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
         if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_PSD] {
@@ -116,8 +117,8 @@ impl PsProgramStreamDirectory {
             let next_2_bytes = bytes_reader.read_u16::<BigEndian>()?;
             let pes_header_position_offset_sign = (next_2_bytes >> 15) as u8;
             //0b11 1111 1111 1111;
-            let mut pes_header_position_offset = (next_2_bytes >> 1) as u64 & 0x3FFFFF;
-            pes_header_position_offset = (pes_header_position_offset << 14)
+            let mut pes_header_position_offset = (next_2_bytes >> 1) as u64 & 0x3FFF;
+            pes_header_position_offset = (pes_header_position_offset << 15)
                 | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
             pes_header_position_offset = (pes_header_position_offset << 15)
                 | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
@@ -125,7 +126,7 @@ impl PsProgramStreamDirectory {
             let reference_offset = bytes_reader.read_u16::<BigEndian>()?;
 
             let mut pts = (bytes_reader.read_u8()? as u64 >> 1) & 0x07;
-            pts = (pts << 3) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            pts = (pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
             pts = (pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
 
             let mut bytes_to_read = bytes_reader.read_u16::<BigEndian>()? as u32 >> 1;

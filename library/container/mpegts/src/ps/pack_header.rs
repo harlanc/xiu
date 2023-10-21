@@ -9,10 +9,14 @@ use {
     bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
 
+#[derive(Default)]
 enum MpegType {
     Mpeg1,
     Mpeg2,
+    #[default]
+    Unknown,
 }
+#[derive(Default)]
 pub struct PsPackHeader {
     mpeg_type: MpegType,
     system_clock_reference_base: u64,
@@ -22,8 +26,7 @@ pub struct PsPackHeader {
 }
 
 impl PsPackHeader {
-    pub fn read(&mut self, payload: BytesMut) -> Result<(), MpegPsError> {
-        let mut bytes_reader = BytesReader::new(payload);
+    pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
         if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_START] {
@@ -31,51 +34,47 @@ impl PsPackHeader {
                 value: super::errors::MpegPsErrorValue::StartCodeNotCorrect,
             });
         }
-        let next_byte = bytes_reader.advance_u8()?;
-
-        let mut bits_reader = BitsReader::new(bytes_reader);
+        let byte_5 = bytes_reader.read_u8()?;
 
         //mpeg1
-        if (next_byte >> 4) == 0b0010 {
+        if (byte_5 >> 4) == 0b0010 {
             self.mpeg_type = MpegType::Mpeg1;
-            bits_reader.read_n_bits(4)?;
-            self.system_clock_reference_base = bits_reader.read_n_bits(3)?;
-            bits_reader.read_bit()?;
 
-            self.system_clock_reference_base =
-                self.system_clock_reference_base << 15 | bits_reader.read_n_bits(15)?;
-            bits_reader.read_bit()?;
-
-            self.system_clock_reference_base =
-                self.system_clock_reference_base << 15 | bits_reader.read_n_bits(15)?;
-            bits_reader.read_bit()?;
+            self.system_clock_reference_base = (byte_5 as u64 >> 1) & 0x07;
+            self.system_clock_reference_base = (self.system_clock_reference_base << 15)
+                | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.system_clock_reference_base = (self.system_clock_reference_base << 15)
+                | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
 
             self.system_clock_reference_extension = 1;
-            self.program_mux_rate = bits_reader.read_n_bits(7)? as u32;
-            bits_reader.read_bit()?;
 
+            let byte_10 = bytes_reader.read_u8()?;
+            self.program_mux_rate = (byte_10 as u32) >> 1;
             self.program_mux_rate =
-                self.program_mux_rate << 15 | bits_reader.read_n_bits(15)? as u32;
-            bits_reader.read_bit()?;
+                (self.program_mux_rate << 15) | (bytes_reader.read_u16::<BigEndian>()? as u32 >> 1);
         }
         //mpeg2
-        else if (next_byte >> 6) == 0b01 {
+        else if (byte_5 >> 6) == 0b01 {
             self.mpeg_type = MpegType::Mpeg2;
-            bits_reader.read_n_bits(2)?;
-            self.system_clock_reference_base = bits_reader.read_n_bits(3)?;
-            bits_reader.read_bit()?;
-            self.system_clock_reference_base =
-                self.system_clock_reference_base << 15 | bits_reader.read_n_bits(15)?;
-            bits_reader.read_bit()?;
-            self.system_clock_reference_base =
-                self.system_clock_reference_base << 15 | bits_reader.read_n_bits(15)?;
-            bits_reader.read_bit()?;
-            self.system_clock_reference_extension = bits_reader.read_n_bits(9)? as u16;
-            bits_reader.read_bit()?;
 
-            self.program_mux_rate = bits_reader.read_n_bits(22)? as u32;
-            bits_reader.read_n_bits(7)?;
-            self.pack_stuffing_length = bits_reader.read_n_bits(3)? as u8;
+            self.system_clock_reference_base = (byte_5 as u64 >> 3) & 0x07;
+            self.system_clock_reference_base =
+                (self.system_clock_reference_base << 2) | (byte_5 as u64 & 0x03);
+            let next_two_bytes = bytes_reader.read_u16::<BigEndian>()?;
+            self.system_clock_reference_base =
+                (self.system_clock_reference_base << 13) | (next_two_bytes as u64 >> 3);
+            self.system_clock_reference_base =
+                (self.system_clock_reference_base << 2) | (next_two_bytes as u64 & 0x03);
+            let next_two_bytes_2 = bytes_reader.read_u16::<BigEndian>()?;
+            self.system_clock_reference_base =
+                (self.system_clock_reference_base << 13) | (next_two_bytes_2 as u64 >> 3);
+
+            self.system_clock_reference_extension = next_two_bytes_2 & 0x03;
+            self.system_clock_reference_extension = (self.system_clock_reference_extension << 7)
+                | (bytes_reader.read_u8()? as u16 >> 1);
+
+            self.program_mux_rate = bytes_reader.read_u24::<BigEndian>()? >> 2; //bits_reader.read_n_bits(22)? as u32;
+            self.pack_stuffing_length = bytes_reader.read_u8()? & 0x07;
         }
 
         Ok(())

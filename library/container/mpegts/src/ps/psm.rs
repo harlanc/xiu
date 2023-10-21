@@ -9,6 +9,7 @@ use {
     bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
 };
 
+#[derive(Default)]
 struct ElementaryStreamMap {
     stream_type: u8,
     elementary_stream_id: u8,
@@ -55,6 +56,8 @@ struct ElementaryStreamMap {
 //     }
 //     CRC_32 32 rpchof
 // }
+
+#[derive(Default)]
 pub struct PsProgramStreamMap {
     map_stream_id: u8,
     program_stream_map_length: u16,
@@ -68,8 +71,7 @@ pub struct PsProgramStreamMap {
 }
 
 impl PsProgramStreamMap {
-    pub fn read(&mut self, payload: BytesMut) -> Result<(), MpegPsError> {
-        let mut bytes_reader = BytesReader::new(payload);
+    pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
         if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_PSM] {
