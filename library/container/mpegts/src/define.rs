@@ -19,9 +19,16 @@ pub mod epsi_stream_type {
 
 pub mod epes_stream_id {
 
+    pub const PES_SID_EXTENSION: u8 = 0xB7; // PS system_header extension(p81)
+    pub const PES_SID_END: u8 = 0xB9; // MPEG_program_end_code
+    pub const PES_SID_START: u8 = 0xBA; // Pack start code
+    pub const PES_SID_SYS: u8 = 0xBB; // System header start code
+
+    pub const PES_SID_PSM: u8 = 0xBC; // program_stream_map
     pub const PES_SID_AUDIO: u8 = 0xC0; // ISO/IEC 13818-3/11172-3/13818-7/14496-3 audio stream '110x xxxx'
     pub const PES_SID_VIDEO: u8 = 0xE0; // H.262 | H.264 | H.265 | ISO/IEC 13818-2/11172-2/14496-2/14496-10 video stream '1110 xxxx'
     pub const PES_SID_PRIVATE_1: u8 = 0xBD; // private_stream_1
+    pub const PES_SID_PSD: u8 = 0xFF; // program_stream_directory
 }
 
 pub const AF_FLAG_PCR: u8 = 0x10;

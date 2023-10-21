@@ -6,7 +6,7 @@ const RTP_SEQ_MOD: u32 = 1 << 16;
 const MAX_DROPOUT: u16 = 3000;
 const MAX_MISORDER: u16 = 100;
 
-struct RtpQueue {
+pub struct RtpQueue {
     cycles: u32,      /* shifted count of seq. number cycles */
     bad_seq: u16,     /* last 'bad' seq number + 1 */
     probation: usize, /* sequ. packets till source is valid */
@@ -188,7 +188,6 @@ mod tests {
         let bb: u16 = 65535;
 
         println!("{}", aa.wrapping_sub(bb) as i16);
-
         println!("{}", bb.wrapping_sub(aa) as i16);
     }
 
