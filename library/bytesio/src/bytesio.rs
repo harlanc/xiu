@@ -134,22 +134,22 @@ impl TNetIO for TcpIO {
     }
 
     async fn read_timeout(&mut self, duration: Duration) -> Result<BytesMut, BytesIOError> {
-        let begin_millseconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
         loop {
-            match self.read().await {
+            match tokio::time::timeout(duration, self.read()).await {
                 Ok(data) => {
-                    return Ok(data);
-                }
-                Err(_) => {
-                    sleep(Duration::from_millis(50)).await;
-                    let current_millseconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-                    if current_millseconds - begin_millseconds > duration {
-                        return Err(BytesIOError {
-                            value: BytesIOErrorValue::TimeoutError,
-                        });
+                    match data {
+                        Ok(data) => {
+                            return Ok(data);
+                        }
+                        Err(err) => {
+                            return Err(err);
+                        }
                     }
+                },
+                Err(_) => {
+                    return Err(BytesIOError {
+                        value: BytesIOErrorValue::TimeoutError,
+                    })
                 }
             }
         }
