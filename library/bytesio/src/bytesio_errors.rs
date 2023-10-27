@@ -12,7 +12,7 @@ pub enum BytesIOErrorValue {
     #[fail(display = "io error\n")]
     IOError(io::Error),
     #[fail(display = "time out error\n")]
-    TimeoutError,
+    TimeoutError(tokio::time::error::Elapsed),
     #[fail(display = "none return")]
     NoneReturn,
 }
