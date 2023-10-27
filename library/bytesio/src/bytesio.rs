@@ -1,23 +1,18 @@
-use super::bytesio_errors::{BytesIOError, BytesIOErrorValue};
+use std::net::SocketAddr;
+use std::time::Duration;
 
+use async_trait::async_trait;
 use bytes::BufMut;
 use bytes::Bytes;
 use bytes::BytesMut;
-use futures::StreamExt;
-
-use std::time::Duration;
-
-use tokio::net::TcpStream;
-use tokio::time::sleep;
-
 use futures::SinkExt;
-use std::time::{SystemTime, UNIX_EPOCH};
+use futures::StreamExt;
+use tokio::net::TcpStream;
+use tokio::net::UdpSocket;
 use tokio_util::codec::BytesCodec;
 use tokio_util::codec::Framed;
 
-use async_trait::async_trait;
-use std::net::SocketAddr;
-use tokio::net::UdpSocket;
+use super::bytesio_errors::{BytesIOError, BytesIOErrorValue};
 
 pub enum NetType {
     TCP,
@@ -76,24 +71,11 @@ impl TNetIO for UdpIO {
     }
 
     async fn read_timeout(&mut self, duration: Duration) -> Result<BytesMut, BytesIOError> {
-        let begin_millseconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-        loop {
-            match self.read().await {
-                Ok(data) => {
-                    return Ok(data);
-                }
-                Err(_) => {
-                    sleep(Duration::from_millis(50)).await;
-                    let current_millseconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-                    if current_millseconds - begin_millseconds > duration {
-                        return Err(BytesIOError {
-                            value: BytesIOErrorValue::TimeoutError,
-                        });
-                    }
-                }
-            }
+        match tokio::time::timeout(duration, self.read()).await {
+            Ok(data) => data,
+            Err(err) => Err(BytesIOError {
+                value: BytesIOErrorValue::TimeoutError(err),
+            })
         }
     }
 
@@ -134,24 +116,11 @@ impl TNetIO for TcpIO {
     }
 
     async fn read_timeout(&mut self, duration: Duration) -> Result<BytesMut, BytesIOError> {
-        let begin_millseconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-        loop {
-            match self.read().await {
-                Ok(data) => {
-                    return Ok(data);
-                }
-                Err(_) => {
-                    sleep(Duration::from_millis(50)).await;
-                    let current_millseconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-
-                    if current_millseconds - begin_millseconds > duration {
-                        return Err(BytesIOError {
-                            value: BytesIOErrorValue::TimeoutError,
-                        });
-                    }
-                }
-            }
+        match tokio::time::timeout(duration, self.read()).await {
+            Ok(data) => data,
+            Err(err) => Err(BytesIOError {
+                value: BytesIOErrorValue::TimeoutError(err),
+            })
         }
     }
 
