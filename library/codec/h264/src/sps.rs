@@ -102,7 +102,7 @@ impl SpsParser {
                     };
 
                     for i in 0..matrix_dim {
-                        self.sps.seq_scaling_list_present_flag[i] = self.bits_reader.read_bit()?;
+                        self.sps.seq_scaling_list_present_flag.push(self.bits_reader.read_bit()?);
                     }
                 }
             }
