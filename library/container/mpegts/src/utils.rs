@@ -3,9 +3,9 @@ use {
     bytesio::{bytes_errors::BytesWriteError, bytes_writer::BytesWriter},
 };
 
-pub fn pcr_write(pcr_result: &mut BytesWriter, pcr: i64) -> Result<(), BytesWriteError> {
-    let pcr_base: i64 = pcr / 300;
-    let pcr_ext: i64 = pcr % 300;
+pub fn pcr_write(pcr_result: &mut BytesWriter, pcr: u64) -> Result<(), BytesWriteError> {
+    let pcr_base: u64 = pcr / 300;
+    let pcr_ext: u64 = pcr % 300;
 
     pcr_result.write_u8((pcr_base >> 25) as u8)?;
     pcr_result.write_u8((pcr_base >> 17) as u8)?;

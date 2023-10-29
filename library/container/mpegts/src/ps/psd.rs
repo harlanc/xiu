@@ -86,7 +86,7 @@ pub struct PsProgramStreamDirectory {
 }
 
 impl PsProgramStreamDirectory {
-    pub fn read(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
+    pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
         if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_PSD] {

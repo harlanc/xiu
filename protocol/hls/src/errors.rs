@@ -6,7 +6,7 @@ use {
     std::fmt,
     tokio::sync::broadcast::error::RecvError,
     xflv::errors::FlvDemuxerError,
-    xmpegts::errors::MpegTsError,
+    xmpegts::errors::MpegError,
 };
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub enum MediaErrorValue {
     #[fail(display = "flv demuxer error:{}\n", _0)]
     FlvDemuxerError(#[cause] FlvDemuxerError),
     #[fail(display = "mpegts error:{}\n", _0)]
-    MpegTsError(#[cause] MpegTsError),
+    MpegTsError(#[cause] MpegError),
     #[fail(display = "write file error:{}\n", _0)]
     IOError(#[cause] std::io::Error),
 }
@@ -58,8 +58,8 @@ impl From<FlvDemuxerError> for MediaError {
     }
 }
 
-impl From<MpegTsError> for MediaError {
-    fn from(error: MpegTsError) -> Self {
+impl From<MpegError> for MediaError {
+    fn from(error: MpegError) -> Self {
         MediaError {
             value: MediaErrorValue::MpegTsError(error),
         }

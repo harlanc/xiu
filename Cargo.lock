@@ -3673,6 +3673,7 @@ dependencies = [
  "bytes",
  "bytesio 0.3.0",
  "failure",
+ "log",
 ]
 
 [[package]]

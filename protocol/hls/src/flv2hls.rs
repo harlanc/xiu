@@ -36,10 +36,10 @@ impl Flv2HlsRemuxer {
     pub fn new(duration: i64, app_name: String, stream_name: String, need_record: bool) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
-            .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
+            .add_stream(epsi_stream_type::PSI_STREAM_AAC)
             .unwrap();
         let video_pid = ts_muxer
-            .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
+            .add_stream(epsi_stream_type::PSI_STREAM_H264)
             .unwrap();
 
         Self {
@@ -162,7 +162,7 @@ impl Flv2HlsRemuxer {
         self.last_pts = pts;
 
         self.ts_muxer
-            .write(pid, pts * 90, dts * 90, flags, payload)?;
+            .write(pid, pts as u64 * 90, dts as u64 * 90, flags, payload)?;
 
         Ok(())
     }

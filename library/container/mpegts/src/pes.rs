@@ -1,54 +1,348 @@
+use byteorder::BigEndian;
+
 use {
-    super::{define, errors::MpegTsError},
-    bytes::BytesMut,
+    super::define, super::errors::MpegError, bytes::BytesMut, bytesio::bytes_reader::BytesReader,
     bytesio::bytes_writer::BytesWriter,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 #[allow(dead_code)]
 pub struct Pes {
-    pub program_number: u16,
-    pub pid: u16,
-    pub stream_id: u8,
-    pub codec_id: u8,
-    pub continuity_counter: u8,
-    pub esinfo: BytesMut,
-    pub esinfo_length: usize,
+    pub stream_id: u8,                 //8
+    pub pes_packet_length: u16,        //16
+    pub pes_scrambling_control: u8,    //2
+    pub pes_priority: u8,              //2
+    pub data_alignment_indicator: u8,  //1
+    pub copyright: u8,                 //1
+    pub original_or_copy: u8,          //1
+    pub pts_dts_flags: u8,             //2
+    pub escr_flag: u8,                 //1
+    pub es_rate_flag: u8,              //1
+    pub dsm_trick_mode_flag: u8,       //1
+    pub additional_copy_info_flag: u8, //1
 
-    pub data_alignment_indicator: u8, //1
+    pub pes_crc_flag: u8,           //1
+    pub pes_extension_flag: u8,     //1
+    pub pes_header_data_length: u8, //8
 
-    pub pts: i64,
-    pub dts: i64,
+    pub pts: u64,
+    pub dts: u64,
     escr_base: u64,
     escr_extension: u32,
     es_rate: u32,
-}
 
-impl Default for Pes {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub trick_mode_control: u8,
+    pub trick_value: u8,
+    pub additional_copy_info: u8,
+    pub previous_pes_packet_crc: u16,
+    pub payload: BytesMut,
+
+    pub pid: u16,
+    pub codec_id: u8,
+    pub continuity_counter: u8,
 }
 
 impl Pes {
-    pub fn new() -> Self {
-        Self {
-            program_number: 0,
-            pid: 0,
-            stream_id: 0,
-            codec_id: 0,
-            continuity_counter: 0,
-            esinfo: BytesMut::new(),
-            esinfo_length: 0,
+    //  T-REC-H.222.0-201703-S!!PDF-E.pdf Table 2-21 P37
+    // PES_packet() {
+    //     packet_start_code_prefix 24 bslbf
+    //     stream_id 8 uimsbf
+    //     PES_packet_length 16 uimsbf
 
-            data_alignment_indicator: 0, //1
+    //     if (stream_id != program_stream_map
+    //     && stream_id != padding_stream
+    //     && stream_id != private_stream_2
+    //     && stream_id != ECM
+    //     && stream_id != EMM
+    //     && stream_id != program_stream_directory
+    //     && stream_id != DSMCC_stream
+    //     && stream_id != ITU-T Rec. H.222.1 type E stream) {
+    //         '10' 2 bslbf
+    //         PES_scrambling_control 2 bslbf
+    //         PES_priority 1 bslbf
+    //         data_alignment_indicator 1 bslbf
+    //         copyright 1 bslbf
+    //         original_or_copy 1 bslbf
+    //         PTS_DTS_flags 2 bslbf
+    //         ESCR_flag 1 bslbf
+    //         ES_rate_flag 1 bslbf
+    //         DSM_trick_mode_flag 1 bslbf
+    //         additional_copy_info_flag 1 bslbf
+    //         PES_CRC_flag 1 bslbf
+    //         PES_extension_flag 1 bslbf
+    //         PES_header_data_length 8 uimsbf
 
-            pts: 0,
-            dts: 0,
-            escr_base: 0,
-            escr_extension: 0,
-            es_rate: 0,
+    //         if (PTS_DTS_flags == '10') {
+    //             '0010' 4 bslbf
+    //             PTS [32..30] 3 bslbf
+    //             marker_bit 1 bslbf
+    //             PTS [29..15] 15 bslbf
+    //             marker_bit 1 bslbf
+    //             PTS [14..0] 15 bslbf
+    //             marker_bit 1 bslbf
+    //         }
+
+    //         if (PTS_DTS_flags == '11') {
+    //             '0011' 4 bslbf
+    //             PTS [32..30] 3 bslbf
+    //             marker_bit 1 bslbf
+    //             PTS [29..15] 15 bslbf
+    //             marker_bit 1 bslbf
+    //             PTS [14..0] 15 bslbf
+    //             marker_bit 1 bslbf
+    //             '0001' 4 bslbf
+    //             DTS [32..30] 3 bslbf
+    //             marker_bit 1 bslbf
+    //             DTS [29..15] 15 bslbf
+    //             marker_bit 1 bslbf
+    //             DTS [14..0] 15 bslbf
+    //             marker_bit 1 bslbf
+    //         }
+
+    //         if (ESCR_flag == '1') {
+    //             reserved 2 bslbf
+    //             ESCR_base[32..30] 3 bslbf
+    //             marker_bit 1 bslbf
+    //             ESCR_base[29..15] 15 bslbf
+    //             marker_bit 1 bslbf
+    //             ESCR_base[14..0] 15 bslbf
+    //             marker_bit 1 bslbf
+    //             ESCR_extension 9 uimsbf
+    //             marker_bit 1 bslbf
+    //         }
+
+    //         if (ES_rate_flag == '1') {
+    //             marker_bit 1 bslbf
+    //             ES_rate 22 uimsbf
+    //             marker_bit 1 bslbf
+    //         }
+
+    //         if (DSM_trick_mode_flag == '1') {
+    //             trick_mode_control 3 uimsbf
+    //             if ( trick_mode_control == fast_forward ) {
+    //                 field_id 2 bslbf
+    //                 intra_slice_refresh 1 bslbf
+    //                 frequency_truncation 2 bslbf
+    //             }
+    //         else if ( trick_mode_control == slow_motion ) {
+    //             rep_cntrl 5 uimsbf
+    //         }
+    //         else if ( trick_mode_control == freeze_frame ) {
+    //             field_id 2 uimsbf
+    //             reserved 3 bslbf
+    //         }
+    //         else if ( trick_mode_control == fast_reverse ) {
+    //             field_id 2 bslbf
+    //             intra_slice_refresh 1 bslbf
+    //             frequency_truncation 2 bslbf
+    //         else if ( trick_mode_control == slow_reverse ) {
+    //             rep_cntrl 5 uimsbf
+    //         }
+    //         else
+    //             reserved 5 bslbf
+    //         }
+
+    //         if ( additional_copy_info_flag == '1') {
+    //             marker_bit 1 bslbf
+    //             additional_copy_info 7 bslbf
+    //         }
+
+    //         if ( PES_CRC_flag == '1') {
+    //             previous_PES_packet_CRC 16 bslbf
+    //         }
+
+    //         if ( PES_extension_flag == '1') {
+    //             PES_private_data_flag 1 bslbf
+    //             pack_header_field_flag 1 bslbf
+    //             program_packet_sequence_counter_flag 1 bslbf
+    //             P-STD_buffer_flag 1 bslbf
+    //             reserved 3 bslbf
+    //             PES_extension_flag_2 1 bslbf
+    //             if ( PES_private_data_flag == '1') {
+    //                 PES_private_data 128 bslbf
+    //             }
+    //             if (pack_header_field_flag == '1') {
+    //                 pack_field_length 8 uimsbf
+    //                 pack_header()
+    //             }
+    //             if (program_packet_sequence_counter_flag == '1') {
+    //                 marker_bit 1 bslbf
+    //                 program_packet_sequence_counter 7 uimsbf
+    //                 marker_bit 1 bslbf
+    //                 MPEG1_MPEG2_identifier 1 bslbf
+    //                 original_stuff_length 6 uimsbf
+    //             }
+
+    //             if ( P-STD_buffer_flag == '1') {
+    //                 '01' 2 bslbf
+    //                 P-STD_buffer_scale 1 bslbf
+    //                 P-STD_buffer_size 13 uimsbf
+    //             }
+
+    //             if ( PES_extension_flag_2 == '1') {
+    //                 marker_bit 1 bslbf
+    //                 PES_extension_field_length 7 uimsbf
+    //                 stream_id_extension_flag 1 bslbf
+    //                 if ( stream_id_extension_flag == '0') {
+    //                     stream_id_extension 7 uimsbf
+    //                 } else {
+    //                     reserved 6 bslbf
+    //                     tref_extension_flag 1 bslbf
+    //                     if ( tref_extension_flag  '0' ) {
+    //                         reserved 4 bslbf
+    //                         TREF[32..30] 3 bslbf
+    //                         marker_bit 1 bslbf
+    //                         TREF[29..15] 15 bslbf
+    //                         marker_bit 1 bslbf
+    //                         TREF[14..0] 15 bslbf
+    //                         marker_bit 1 bslbf
+    //                     }
+    //                 }
+
+    //                 for ( i  0; i  N3; i) {
+    //                     reserved 8 bslbf
+    //                 }
+    //             }
+    //         }
+    //         for (i < 0; i < N1; i++) {
+    //             stuffing_byte 8 bslbf
+    //         }
+    //         for (i < 0; i < N2; i++) {
+    //             PES_packet_data_byte 8 bslbf
+    //         }
+    // }
+    pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegError> {
+        bytes_reader.read_bytes(3)?;
+        self.stream_id = bytes_reader.read_u8()?;
+        self.pes_packet_length = bytes_reader.read_u16::<BigEndian>()?;
+
+        let bytes_5 = bytes_reader.read_u8()?;
+        assert!(bytes_5 >> 6 == 0b10);
+        self.pes_scrambling_control = (bytes_5 >> 4) & 0x03;
+        self.pes_priority = (bytes_5 >> 3) & 0x01;
+        self.data_alignment_indicator = (bytes_5 >> 2) & 0x01;
+        self.copyright = (bytes_5 >> 1) & 0x01;
+        self.original_or_copy = bytes_5 & 0x01;
+
+        let bytes_6 = bytes_reader.read_u8()?;
+        self.pts_dts_flags = (bytes_6 >> 6) & 0x03;
+        self.escr_flag = (bytes_6 >> 5) & 0x01;
+        self.es_rate_flag = (bytes_6 >> 4) & 0x01;
+        self.dsm_trick_mode_flag = (bytes_6 >> 3) & 0x01;
+        self.additional_copy_info_flag = (bytes_6 >> 2) & 0x01;
+        self.pes_crc_flag = (bytes_6 >> 1) & 0x01;
+        self.pes_extension_flag = bytes_6 & 0x01;
+
+        self.pes_header_data_length = bytes_reader.read_u8()?;
+        let cur_bytes_len = bytes_reader.len();
+
+        if self.pts_dts_flags == 0x02 {
+            let next_byte = bytes_reader.read_u8()?;
+            assert!(next_byte >> 4 == 0b0010);
+            self.pts = (next_byte as u64 >> 1) & 0x07;
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+        } else if self.pts_dts_flags == 0x03 {
+            let next_byte = bytes_reader.read_u8()?;
+            assert!(next_byte >> 4 == 0b0011);
+            self.pts = (next_byte as u64 >> 1) & 0x07;
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+
+            let next_byte_1 = bytes_reader.read_u8()?;
+            assert!(next_byte_1 >> 4 == 0b0011);
+            self.dts = (next_byte_1 as u64 >> 1) & 0x07;
+            self.dts = (self.dts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.dts = (self.dts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
         }
+
+        if self.escr_flag == 0x01 {
+            let next_byte = bytes_reader.read_u8()?;
+            self.escr_base = (next_byte as u64 >> 3) & 0x07;
+            self.escr_base = (self.escr_base << 2) | (next_byte as u64 & 0x03);
+
+            let next_2_bytes = bytes_reader.read_u16::<BigEndian>()? as u64;
+            self.escr_base = (self.escr_base << 13) | (next_2_bytes >> 3);
+            self.escr_base = (self.escr_base << 2) | (next_2_bytes & 0x03);
+
+            let next_2_bytes_2 = bytes_reader.read_u16::<BigEndian>()? as u64;
+            self.escr_base = (self.escr_base << 13) | (next_2_bytes_2 >> 3);
+
+            self.escr_extension = (next_2_bytes as u32 & 0x03);
+            self.escr_extension =
+                (self.escr_extension << 7) | (bytes_reader.read_u8()? as u32 >> 1);
+        }
+
+        if self.es_rate_flag == 0x01 {
+            self.es_rate = (bytes_reader.read_u24::<BigEndian>()? >> 1) & 0x3FFFFF;
+        }
+
+        if self.dsm_trick_mode_flag == 0x01 {
+            let next_byte = bytes_reader.read_u8()?;
+            self.trick_mode_control = next_byte >> 5;
+        }
+
+        if self.additional_copy_info_flag == 0x01 {
+            self.additional_copy_info = bytes_reader.read_u8()? & 0x7F;
+        }
+
+        if self.pes_crc_flag == 0x01 {
+            self.previous_pes_packet_crc = bytes_reader.read_u16::<BigEndian>()?;
+        }
+
+        if self.pes_extension_flag == 0x01 {}
+
+        let left_pes_header_len =
+            self.pes_header_data_length as usize - (cur_bytes_len - bytes_reader.len());
+        bytes_reader.read_bytes(left_pes_header_len)?;
+
+        let payload_len =
+            self.pes_packet_length as usize - self.pes_header_data_length as usize - 3;
+
+        self.payload = bytes_reader.read_bytes(payload_len)?;
+
+        Ok(())
+    }
+
+    pub fn parse_mpeg1(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegError> {
+        bytes_reader.read_bytes(3)?;
+        self.stream_id = bytes_reader.read_u8()?;
+        self.pes_packet_length = bytes_reader.read_u16::<BigEndian>()?;
+
+        let cur_bytes_len = bytes_reader.len();
+
+        while bytes_reader.advance_u8()? == 0xFF {
+            bytes_reader.read_u8()?;
+        }
+
+        if (bytes_reader.advance_u8()? >> 6) == 0x01 {
+            bytes_reader.read_u16::<BigEndian>()?;
+        }
+
+        let next_byte = bytes_reader.read_u8()?;
+        let first_4_bits = next_byte >> 4;
+
+        if first_4_bits == 0x02 {
+            self.pts = (next_byte as u64 >> 1) & 0x07;
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+        } else if first_4_bits == 0x03 {
+            self.pts = (next_byte as u64 >> 1) & 0x07;
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.pts = (self.pts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+
+            let next_byte_2 = bytes_reader.read_u8()?;
+            self.dts = (next_byte_2 as u64 >> 1) & 0x07;
+            self.dts = (self.dts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+            self.dts = (self.dts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
+        } else {
+            assert_eq!(next_byte, 0x0F);
+        }
+
+        let payload_len = self.pes_packet_length as usize - (cur_bytes_len - bytes_reader.len());
+        self.payload = bytes_reader.read_bytes(payload_len)?;
+
+        Ok(())
     }
 }
 
@@ -83,7 +377,7 @@ impl PesMuxer {
         payload_data_length: usize,
         stream_data: &Pes,
         h264_h265_with_aud: bool,
-    ) -> Result<(), MpegTsError> {
+    ) -> Result<(), MpegError> {
         /*pes start code 3 bytes*/
         self.bytes_writer.write_u8(0x00)?; //0
         self.bytes_writer.write_u8(0x00)?; //1
@@ -105,12 +399,12 @@ impl PesMuxer {
 
         let mut flags: u8 = 0x00;
         let mut length: u8 = 0x00;
-        if define::PTS_NO_VALUE != stream_data.pts {
+        if define::PTS_NO_VALUE != stream_data.pts as i64 {
             flags |= 0x80;
             length += 5;
         }
 
-        if define::PTS_NO_VALUE != stream_data.dts && stream_data.dts != stream_data.pts {
+        if define::PTS_NO_VALUE != stream_data.dts as i64 && stream_data.dts != stream_data.pts {
             flags |= 0x40;
             length += 5;
         }

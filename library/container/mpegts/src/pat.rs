@@ -1,5 +1,5 @@
 use {
-    super::{crc32, define::epat_pid, errors::MpegTsError, pmt},
+    super::{crc32, define::epat_pid, errors::MpegError, pmt},
     byteorder::{BigEndian, LittleEndian},
     bytes::BytesMut,
     bytesio::bytes_writer::BytesWriter,
@@ -49,7 +49,7 @@ impl PatMuxer {
         }
     }
 
-    pub fn write(&mut self, pat: Pat) -> Result<BytesMut, MpegTsError> {
+    pub fn write(&mut self, pat: Pat) -> Result<BytesMut, MpegError> {
         /*table id*/
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PAS as u8)?;
 

@@ -10,7 +10,7 @@ use {
 };
 
 #[derive(Default)]
-enum MpegType {
+pub enum MpegType {
     Mpeg1,
     Mpeg2,
     #[default]
@@ -18,7 +18,7 @@ enum MpegType {
 }
 #[derive(Default)]
 pub struct PsPackHeader {
-    mpeg_type: MpegType,
+    pub mpeg_type: MpegType,
     system_clock_reference_base: u64,
     system_clock_reference_extension: u16,
     program_mux_rate: u32,
