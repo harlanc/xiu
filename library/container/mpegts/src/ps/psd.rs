@@ -76,7 +76,7 @@ struct AccessUnit {
 }
 
 #[derive(Default)]
-pub struct PsProgramStreamDirectory {
+pub struct ProgramStreamDirectory {
     directory_stream_id: u8,
     pes_packet_length: u16,
     number_of_access_units: u16,
@@ -85,7 +85,7 @@ pub struct PsProgramStreamDirectory {
     access_units: Vec<AccessUnit>,
 }
 
-impl PsProgramStreamDirectory {
+impl ProgramStreamDirectory {
     pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 

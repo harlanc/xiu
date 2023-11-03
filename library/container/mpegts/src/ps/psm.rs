@@ -58,7 +58,7 @@ struct ElementaryStreamMap {
 // }
 
 #[derive(Default)]
-pub struct PsProgramStreamMap {
+pub struct ProgramStreamMap {
     map_stream_id: u8,
     program_stream_map_length: u16,
     current_next_indicator: u8,
@@ -70,7 +70,7 @@ pub struct PsProgramStreamMap {
     stream_map: Vec<ElementaryStreamMap>,
 }
 
-impl PsProgramStreamMap {
+impl ProgramStreamMap {
     pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 

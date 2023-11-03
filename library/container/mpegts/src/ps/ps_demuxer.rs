@@ -3,8 +3,8 @@ use byteorder::BigEndian;
 use super::{
     errors::MpegPsError,
     pack_header::{MpegType, PsPackHeader},
-    psd::PsProgramStreamDirectory,
-    psm::PsProgramStreamMap,
+    psd::ProgramStreamDirectory,
+    psm::ProgramStreamMap,
     system_header::PsSystemHeader,
 };
 use {
@@ -21,8 +21,8 @@ use crate::{
 pub struct PsDemuxer {
     reader: BytesReader,
     pack_header: PsPackHeader,
-    psm: PsProgramStreamMap,
-    psd: PsProgramStreamDirectory,
+    psm: ProgramStreamMap,
+    psd: ProgramStreamDirectory,
     system_header: PsSystemHeader,
     pes: Pes,
 }
@@ -36,6 +36,7 @@ impl PsDemuxer {
 
             if prefix_code[0] != 0x00 || prefix_code[1] != 0x00 || prefix_code[2] != 0x01 {
                 self.reader.read_u8()?;
+                continue;
             }
 
             match prefix_code[3] {
@@ -81,7 +82,6 @@ impl PsDemuxer {
                             log::error!("unknow mpeg type");
                         }
                     }
-
                 }
 
                 _ => {}
