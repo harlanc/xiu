@@ -36,41 +36,37 @@ impl ChunkPacketizer {
     }
     fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
         chunk_info.basic_header.format = 0;
+        //save the header data for update
+        let cur_chunk_header = ChunkHeader {
+            basic_header: chunk_info.basic_header.clone(),
+            message_header: chunk_info.message_header.clone(),
+        };
 
-        let pre_header = self
-        .csid_2_chunk_header
-        .get_mut(&chunk_info.basic_header.chunk_stream_id);
+        if let Some(pre_header) = self
+            .csid_2_chunk_header
+            .get_mut(&chunk_info.basic_header.chunk_stream_id)
+        {
+            let cur_msg_header = &mut chunk_info.message_header;
+            let pre_msg_header = &mut pre_header.message_header;
 
-        match pre_header {
-            None => {
-                self.csid_2_chunk_header.insert(
-                    chunk_info.basic_header.chunk_stream_id,
-                    ChunkHeader {
-                        basic_header: chunk_info.basic_header.clone(),
-                        message_header: chunk_info.message_header.clone(),
-                    },
-                );
-            }
-            Some(val) => {
-                let cur_msg_header = &mut chunk_info.message_header;
-                let pre_msg_header = &val.message_header;
+            if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
+                chunk_info.basic_header.format = 1;
+                cur_msg_header.timestamp -= pre_msg_header.timestamp;
 
-                if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
-                    chunk_info.basic_header.format = 1;
-                    cur_msg_header.timestamp -= pre_msg_header.timestamp;
-
-                    if cur_msg_header.msg_type_id == pre_msg_header.msg_type_id
-                        && cur_msg_header.msg_length == pre_msg_header.msg_length
-                    {
-                        chunk_info.basic_header.format = 2;
-                        if chunk_info.message_header.timestamp == pre_msg_header.timestamp {
-                            chunk_info.basic_header.format = 3;
-                        }
+                if cur_msg_header.msg_type_id == pre_msg_header.msg_type_id
+                    && cur_msg_header.msg_length == pre_msg_header.msg_length
+                {
+                    chunk_info.basic_header.format = 2;
+                    if cur_msg_header.timestamp == pre_msg_header.timestamp {
+                        chunk_info.basic_header.format = 3;
                     }
                 }
             }
         }
-        
+        //update pre header
+        self.csid_2_chunk_header
+            .insert(chunk_info.basic_header.chunk_stream_id, cur_chunk_header);
+
         Ok(PackResult::Success)
     }
 
@@ -113,6 +109,7 @@ impl ChunkPacketizer {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
                 self.writer
                     .write_u24::<BigEndian>(message_header.msg_length)?;
+                self.writer.write_u8(message_header.msg_type_id)?;
             }
             2 => {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
