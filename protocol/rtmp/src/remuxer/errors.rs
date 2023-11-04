@@ -18,23 +18,23 @@ pub struct RtmpRemuxerError {
 pub enum RtmpRemuxerErrorValue {
     #[fail(display = "hls error")]
     Error,
-    #[fail(display = "session error:{}\n", _0)]
+    #[fail(display = "session error:{}", _0)]
     SessionError(#[cause] SessionError),
-    #[fail(display = "amf write error:{}\n", _0)]
+    #[fail(display = "amf write error:{}", _0)]
     Amf0WriteError(#[cause] Amf0WriteError),
-    #[fail(display = "metadata error:{}\n", _0)]
+    #[fail(display = "metadata error:{}", _0)]
     MetadataError(#[cause] MetadataError),
-    #[fail(display = "receive error:{}\n", _0)]
+    #[fail(display = "receive error:{}", _0)]
     RecvError(#[cause] RecvError),
-    #[fail(display = "bytes read error:{}\n", _0)]
+    #[fail(display = "bytes read error:{}", _0)]
     BytesReadError(#[cause] BytesReadError),
-    #[fail(display = "bytes write error:{}\n", _0)]
+    #[fail(display = "bytes write error:{}", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    #[fail(display = "mpeg avc error\n")]
+    #[fail(display = "mpeg avc error")]
     MpegAvcError(#[cause] Mpeg4AvcHevcError),
-    #[fail(display = "flv muxer error\n")]
+    #[fail(display = "flv muxer error")]
     FlvMuxerError(#[cause] FlvMuxerError),
-    #[fail(display = "stream hub event send error\n")]
+    #[fail(display = "stream hub event send error")]
     StreamHubEventSendErr,
 }
 impl From<RecvError> for RtmpRemuxerError {

@@ -28,17 +28,17 @@ pub struct MediaError {
 pub enum MediaErrorValue {
     #[fail(display = "server error")]
     Error,
-    #[fail(display = "session error:{}\n", _0)]
+    #[fail(display = "session error:{}", _0)]
     SessionError(#[cause] SessionError),
-    #[fail(display = "amf write error:{}\n", _0)]
+    #[fail(display = "amf write error:{}", _0)]
     Amf0WriteError(#[cause] Amf0WriteError),
-    #[fail(display = "metadata error:{}\n", _0)]
+    #[fail(display = "metadata error:{}", _0)]
     MetadataError(#[cause] MetadataError),
-    #[fail(display = "flv demuxer error:{}\n", _0)]
+    #[fail(display = "flv demuxer error:{}", _0)]
     FlvDemuxerError(#[cause] FlvDemuxerError),
-    #[fail(display = "mpegts error:{}\n", _0)]
+    #[fail(display = "mpegts error:{}", _0)]
     MpegTsError(#[cause] MpegTsError),
-    #[fail(display = "write file error:{}\n", _0)]
+    #[fail(display = "write file error:{}", _0)]
     IOError(#[cause] std::io::Error),
 }
 
@@ -114,17 +114,17 @@ pub struct HlsError {
 pub enum HlsErrorValue {
     #[fail(display = "hls error")]
     Error,
-    #[fail(display = "session error:{}\n", _0)]
+    #[fail(display = "session error:{}", _0)]
     SessionError(#[cause] SessionError),
-    #[fail(display = "amf write error:{}\n", _0)]
+    #[fail(display = "amf write error:{}", _0)]
     Amf0WriteError(#[cause] Amf0WriteError),
-    #[fail(display = "metadata error:{}\n", _0)]
+    #[fail(display = "metadata error:{}", _0)]
     MetadataError(#[cause] MetadataError),
-    #[fail(display = "flv demuxer error:{}\n", _0)]
+    #[fail(display = "flv demuxer error:{}", _0)]
     FlvDemuxerError(#[cause] FlvDemuxerError),
-    #[fail(display = "media error:{}\n", _0)]
+    #[fail(display = "media error:{}", _0)]
     MediaError(#[cause] MediaError),
-    #[fail(display = "receive error:{}\n", _0)]
+    #[fail(display = "receive error:{}", _0)]
     RecvError(#[cause] RecvError),
 }
 impl From<RecvError> for HlsError {

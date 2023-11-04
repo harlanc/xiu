@@ -4,25 +4,25 @@ use bytesio::bytes_errors::BytesWriteError;
 use {failure::Fail, std::fmt};
 #[derive(Debug, Fail)]
 pub enum ChannelErrorValue {
-    #[fail(display = "no app name\n")]
+    #[fail(display = "no app name")]
     NoAppName,
-    #[fail(display = "no stream name\n")]
+    #[fail(display = "no stream name")]
     NoStreamName,
-    #[fail(display = "no app or stream name\n")]
+    #[fail(display = "no app or stream name")]
     NoAppOrStreamName,
-    #[fail(display = "exists\n")]
+    #[fail(display = "exists")]
     Exists,
-    #[fail(display = "send error\n")]
+    #[fail(display = "send error")]
     SendError,
-    #[fail(display = "send video error\n")]
+    #[fail(display = "send video error")]
     SendVideoError,
-    #[fail(display = "send audio error\n")]
+    #[fail(display = "send audio error")]
     SendAudioError,
-    #[fail(display = "bytes read error\n")]
+    #[fail(display = "bytes read error")]
     BytesReadError(BytesReadError),
-    #[fail(display = "bytes write error\n")]
+    #[fail(display = "bytes write error")]
     BytesWriteError(BytesWriteError),
-    #[fail(display = "not correct data sender type\n")]
+    #[fail(display = "not correct data sender type")]
     NotCorrectDataSenderType,
 }
 #[derive(Debug)]

@@ -353,7 +353,7 @@ impl StreamsHub {
                                 .insert(info.id, PubSubInfo::Publish { identifier });
                         }
                         Err(err) => {
-                            log::error!("event_loop Publish err: {}\n", err);
+                            log::error!("event_loop Publish err: {}", err);
                             continue;
                         }
                     }
@@ -365,7 +365,7 @@ impl StreamsHub {
                 } => {
                     if let Err(err) = self.unpublish(&identifier) {
                         log::error!(
-                            "event_loop Unpublish err: {} with identifier: {} \n",
+                            "event_loop Unpublish err: {} with identifier: {}",
                             err,
                             identifier
                         );
@@ -489,7 +489,7 @@ impl StreamsHub {
             PubSubInfo::Publish { identifier } => {
                 if let Err(err) = self.unpublish(&identifier) {
                     log::error!(
-                        "event_loop ApiKickClient pub err: {} with identifier: {} \n",
+                        "event_loop ApiKickClient pub err: {} with identifier: {}",
                         err,
                         identifier
                     );
@@ -501,7 +501,7 @@ impl StreamsHub {
             } => {
                 if let Err(err) = self.unsubscribe(&identifier, sub_info) {
                     log::error!(
-                        "event_loop ApiKickClient pub err: {} with identifier: {}\n",
+                        "event_loop ApiKickClient pub err: {} with identifier: {}",
                         err,
                         identifier
                     );

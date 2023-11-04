@@ -536,7 +536,7 @@ impl RtspServerSession {
             info: self.get_subscriber_info(),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_stream_hub err {}\n", err);
+            log::error!("unsubscribe_from_stream_hub err {}", err);
         }
 
         Ok(())

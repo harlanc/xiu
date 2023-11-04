@@ -4,7 +4,7 @@ use std::fmt;
 
 #[derive(Debug, Fail)]
 pub enum H264ErrorValue {
-    #[fail(display = "bit error\n")]
+    #[fail(display = "bit error")]
     BitError(BitError),
 }
 #[derive(Debug)]

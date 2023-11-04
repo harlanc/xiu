@@ -6,7 +6,7 @@ use {
 
 #[derive(Debug, Fail)]
 pub enum UnpackErrorValue {
-    #[fail(display = "bytes read error: {}\n", _0)]
+    #[fail(display = "bytes read error: {}", _0)]
     BytesReadError(BytesReadError),
     #[fail(display = "unknow read state")]
     UnknowReadState,
@@ -40,7 +40,7 @@ pub enum PackErrorValue {
     NotExistHeader,
     #[fail(display = "unknow read state")]
     UnknowReadState,
-    #[fail(display = "bytes writer error: {}\n", _0)]
+    #[fail(display = "bytes writer error: {}", _0)]
     BytesWriteError(BytesWriteError),
 }
 
