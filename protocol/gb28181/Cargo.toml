@@ -2,6 +2,9 @@
 name = "gb28181"
 version = "0.1.0"
 edition = "2021"
+authors = ["HarlanC <wawacry@qq.com>"]
+license = "MIT"
+repository = "https://github.com/harlanc/xiu"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,5 +23,8 @@ async-trait = "0.1.70"
 base64 = "0.21.2"
 hex = "0.4.3"
 
-bytesio = { path = "../../library/bytesio/" }
-streamhub = { path = "../../library/streamhub/" }
+# bytesio = { path = "../../library/bytesio/" }
+# streamhub = { path = "../../library/streamhub/" }
+
+bytesio = "0.3.0"
+streamhub = "0.1.2"
