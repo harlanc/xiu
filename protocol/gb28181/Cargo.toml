@@ -1,12 +1,15 @@
 [package]
 name = "gb28181"
 version = "0.1.0"
+description = "gb28181 library."
 edition = "2021"
 authors = ["HarlanC <wawacry@qq.com>"]
 license = "MIT"
 repository = "https://github.com/harlanc/xiu"
 categories = ["multimedia", "multimedia::video", 'multimedia::audio']
 keywords = ["gb28181", "video", "streaming"]
+readme = "README.md"
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
