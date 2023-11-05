@@ -5,6 +5,8 @@ edition = "2021"
 authors = ["HarlanC <wawacry@qq.com>"]
 license = "MIT"
 repository = "https://github.com/harlanc/xiu"
+categories = ["multimedia", "multimedia::video", 'multimedia::audio']
+keywords = ["gb28181", "video", "streaming"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
