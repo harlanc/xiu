@@ -12,8 +12,11 @@ pub mod epsi_stream_type {
     pub const PSI_STREAM_MP3: u8 = 0x04; // ISO/IEC 13818-3 Audio
     pub const PSI_STREAM_PRIVATE_DATA: u8 = 0x06;
     pub const PSI_STREAM_H264: u8 = 0x1b; // H.264
+    pub const PSI_STREAM_H265: u8 = 0x24;
     pub const PSI_STREAM_AAC: u8 = 0x0f;
     pub const PSI_STREAM_MPEG4_AAC: u8 = 0x1c;
+    pub const PSI_STREAM_AUDIO_G711A: u8 = 0x90; // GBT 25724-2010 SVAC(2014)
+    pub const PSI_STREAM_AUDIO_G711U: u8 = 0x91;
     pub const PSI_STREAM_AUDIO_OPUS: u8 = 0x9c;
 }
 

@@ -1139,6 +1139,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "gb28181"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.21.2",
+ "byteorder",
+ "bytes",
+ "bytesio 0.3.0",
+ "chrono",
+ "failure",
+ "hex",
+ "http",
+ "indexmap",
+ "lazy_static",
+ "log",
+ "rand 0.8.5",
+ "streamhub 0.1.1",
+ "tokio",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

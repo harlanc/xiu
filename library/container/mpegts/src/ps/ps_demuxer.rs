@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use byteorder::BigEndian;
 
 use super::{
@@ -13,10 +15,24 @@ use {
 };
 
 use crate::{
-    define::epes_stream_id::{self, PES_SID_SYS},
+    define::{
+        epes_stream_id::{self, PES_SID_SYS},
+        epsi_stream_type,
+    },
     errors::MpegError,
     pes::Pes,
 };
+//(pts: u64,dts:u64, stream_type: u8, payload: BytesMut)
+pub type OnFrameFn = Box<dyn Fn(u64, u64, u8, &BytesMut) -> Result<(), MpegPsError> + Send + Sync>;
+
+#[derive(Default)]
+struct AVStream {
+    stream_id: u8,
+    stream_type: u8,
+    pts: u64,
+    dts: u64,
+    buffer: BytesMut,
+}
 
 pub struct PsDemuxer {
     reader: BytesReader,
@@ -25,6 +41,13 @@ pub struct PsDemuxer {
     psd: ProgramStreamDirectory,
     system_header: PsSystemHeader,
     pes: Pes,
+    streams: HashMap<u8, AVStream>,
+    on_frame_handler: OnFrameFn,
+}
+
+pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
+    let pattern = [0x00, 0x00, 0x01];
+    nalus.windows(pattern.len()).position(|w| w == pattern)
 }
 
 impl PsDemuxer {
@@ -48,6 +71,18 @@ impl PsDemuxer {
                 }
                 epes_stream_id::PES_SID_PSM => {
                     self.psm.parse(&mut self.reader)?;
+                    for stream in &self.psm.stream_map {
+                        if !self.streams.contains_key(&stream.elementary_stream_id) {
+                            self.streams.insert(
+                                stream.elementary_stream_id,
+                                AVStream {
+                                    stream_id: stream.elementary_stream_id,
+                                    stream_type: stream.stream_type,
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                    }
                 }
                 epes_stream_id::PES_SID_PSD => {
                     self.psd.parse(&mut self.reader)?;
@@ -82,6 +117,7 @@ impl PsDemuxer {
                             log::error!("unknow mpeg type");
                         }
                     }
+                    self.parse_avstream()?;
                 }
 
                 _ => {}
@@ -94,9 +130,69 @@ impl PsDemuxer {
     fn parse_packet(&mut self) -> Result<(), MpegPsError> {
         //start code + stream_id
         self.reader.read_bytes(4)?;
-
         let packet_length = self.reader.read_u16::<BigEndian>()?;
         self.reader.read_bytes(packet_length as usize)?;
+
+        Ok(())
+    }
+
+    fn parse_avstream(&mut self) -> Result<(), MpegPsError> {
+        if let Some(stream) = self.streams.get_mut(&self.pes.stream_id) {
+            match stream.stream_type {
+                epsi_stream_type::PSI_STREAM_H264 | epsi_stream_type::PSI_STREAM_H265 => {
+                    stream.buffer.extend_from_slice(&self.pes.payload[..]);
+
+                    while !stream.buffer.is_empty() {
+                        /* 0x02,...,0x00,0x00,0x01,0x02..,0x00,0x00,0x01  */
+                        /*  |         |              |      |             */
+                        /*  -----------              --------             */
+                        /*   first_pos         distance_to_first_pos      */
+                        if let Some(first_pos) = find_start_code(&stream.buffer[..]) {
+                            let mut nalu_with_start_code = if let Some(distance_to_first_pos) =
+                                find_start_code(&stream.buffer[first_pos + 3..])
+                            {
+                                let mut second_pos = first_pos + 3 + distance_to_first_pos;
+                                //judge if the start code is [0x00,0x00,0x00,0x01]
+                                if second_pos > 0 && stream.buffer[second_pos - 1] == 0 {
+                                    second_pos -= 1;
+                                }
+                                stream.buffer.split_to(second_pos)
+                            } else {
+                                break;
+                            };
+
+                            let nalu = nalu_with_start_code.split_off(first_pos + 3);
+                            (self.on_frame_handler)(
+                                stream.pts,
+                                stream.dts,
+                                stream.stream_type,
+                                &nalu,
+                            )?;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                epsi_stream_type::PSI_STREAM_AAC => {
+                    if stream.dts != self.pes.dts && stream.buffer.len() > 0 {
+                        (self.on_frame_handler)(
+                            stream.pts,
+                            stream.dts,
+                            stream.stream_type,
+                            &self.pes.payload,
+                        )?;
+                        stream.buffer.clear();
+                    }
+
+                    stream.buffer.extend_from_slice(&self.pes.payload[..]);
+                }
+                _ => {
+                    log::error!("unprocessed codec type: {}", stream.stream_type);
+                }
+            }
+            stream.pts = self.pes.pts;
+            stream.dts = self.pes.dts;
+        }
 
         Ok(())
     }

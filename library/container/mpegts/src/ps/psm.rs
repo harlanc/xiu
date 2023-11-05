@@ -10,9 +10,9 @@ use {
 };
 
 #[derive(Default)]
-struct ElementaryStreamMap {
-    stream_type: u8,
-    elementary_stream_id: u8,
+pub struct ElementaryStreamMap {
+    pub stream_type: u8,
+    pub elementary_stream_id: u8,
     elementary_stream_info_length: u16,
     pseudo_descriptor_tag: u8,
     pseudo_descriptor_length: u8,
@@ -67,7 +67,7 @@ pub struct ProgramStreamMap {
     program_stream_map_version: u8,
     program_stream_info_length: u16,
     elementary_stream_map_length: u16,
-    stream_map: Vec<ElementaryStreamMap>,
+    pub stream_map: Vec<ElementaryStreamMap>,
 }
 
 impl ProgramStreamMap {

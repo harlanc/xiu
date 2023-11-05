@@ -6,6 +6,7 @@ members = [
   "protocol/hls",
   "protocol/rtsp",
   "protocol/webrtc",
+  "protocol/gb28181",
   "library/bytesio",
   "application/xiu",
   "application/http-server",
