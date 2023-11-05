@@ -4,6 +4,7 @@ use {
     failure::{Backtrace, Fail},
     std::fmt,
     std::str::Utf8Error,
+    xmpegts::errors::MpegError,
 };
 
 #[derive(Debug)]
@@ -21,7 +22,8 @@ pub enum SessionErrorValue {
     BytesWriteError(#[cause] BytesWriteError),
     #[fail(display = "Utf8Error: {}\n", _0)]
     Utf8Error(#[cause] Utf8Error),
-
+    #[fail(display = "MpegError: {}\n", _0)]
+    MpegError(#[cause] MpegError),
     #[fail(display = "stream hub event send error\n")]
     StreamHubEventSendErr,
     #[fail(display = "cannot receive frame data from stream hub\n")]
@@ -48,6 +50,14 @@ impl From<BytesWriteError> for SessionError {
     fn from(error: BytesWriteError) -> Self {
         SessionError {
             value: SessionErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl From<MpegError> for SessionError {
+    fn from(error: MpegError) -> Self {
+        SessionError {
+            value: SessionErrorValue::MpegError(error),
         }
     }
 }

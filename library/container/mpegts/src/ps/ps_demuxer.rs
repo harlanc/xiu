@@ -23,7 +23,7 @@ use crate::{
     pes::Pes,
 };
 //(pts: u64,dts:u64, stream_type: u8, payload: BytesMut)
-pub type OnFrameFn = Box<dyn Fn(u64, u64, u8, &BytesMut) -> Result<(), MpegPsError> + Send + Sync>;
+pub type OnFrameFn = Box<dyn Fn(u64, u64, u8, BytesMut) -> Result<(), MpegPsError> + Send + Sync>;
 
 #[derive(Default)]
 struct AVStream {
@@ -51,6 +51,18 @@ pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
 }
 
 impl PsDemuxer {
+    pub fn new(on_frame_handler: OnFrameFn) -> Self {
+        Self {
+            reader: BytesReader::new(BytesMut::default()),
+            pack_header: PsPackHeader::default(),
+            psm: ProgramStreamMap::default(),
+            psd: ProgramStreamDirectory::default(),
+            system_header: PsSystemHeader::default(),
+            pes: Pes::default(),
+            streams: HashMap::default(),
+            on_frame_handler,
+        }
+    }
     pub fn demux(&mut self, data: BytesMut) -> Result<(), MpegError> {
         self.reader.extend_from_slice(&data[..]);
 
@@ -166,7 +178,7 @@ impl PsDemuxer {
                                 stream.pts,
                                 stream.dts,
                                 stream.stream_type,
-                                &nalu,
+                                nalu,
                             )?;
                         } else {
                             break;
@@ -179,7 +191,7 @@ impl PsDemuxer {
                             stream.pts,
                             stream.dts,
                             stream.stream_type,
-                            &self.pes.payload,
+                            self.pes.payload.clone(),
                         )?;
                         stream.buffer.clear();
                     }
