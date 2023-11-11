@@ -26,11 +26,21 @@ impl ChunkBasicHeader {
 //5.3.1.2
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ChunkMessageHeader {
+    //save the absolute timestamp of chunk type 0.
+    //or save the computed absolute timestamp of chunk type 1,2,3.
     pub timestamp: u32,
     pub msg_length: u32,
     pub msg_type_id: u8,
     pub msg_streamd_id: u32,
+    // Save the timestamp delta of chunk type 1,2.
+    // For chunk type 3, this field saves the timestamp
+    // delta inherited from the previous chunk type 1 or 2.
+    // NOTE: this value should be reset to 0 when the current chunk type is 0.
     pub timestamp_delta: u32,
+    // This field will be set for type 0,1,2 .If the timestamp/timestamp delta >= 0xFFFFFF
+    // then set this value to true else set it to false.
+    // Note that when the chunk format is 3, this value will be inherited from
+    // the most recent chunk 0, 1, or 2 chunk.(5.3.1.3 Extended Timestamp).
     pub is_extended_timestamp: bool,
 }
 

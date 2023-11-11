@@ -23,6 +23,8 @@ pub struct ChunkPacketizer {
     max_chunk_size: usize,
     //bytes: Cursor<Vec<u8>>,
     writer: AsyncBytesWriter,
+    //save timestamp need to be write for chunk
+    timestamp: u32,
 }
 
 impl ChunkPacketizer {
@@ -32,33 +34,46 @@ impl ChunkPacketizer {
             //chunk_info: ChunkInfo::new(),
             writer: AsyncBytesWriter::new(io),
             max_chunk_size: CHUNK_SIZE as usize,
+            timestamp: 0,
         }
     }
     fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
         chunk_info.basic_header.format = 0;
 
-        let pre_header = self
+        if let Some(pre_header) = self
             .csid_2_chunk_header
-            .get_mut(&chunk_info.basic_header.chunk_stream_id);
-
-        if let Some(val) = pre_header {
+            .get_mut(&chunk_info.basic_header.chunk_stream_id)
+        {
             let cur_msg_header = &mut chunk_info.message_header;
-            let pre_msg_header = &val.message_header;
+            let pre_msg_header = &mut pre_header.message_header;
 
             if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
                 chunk_info.basic_header.format = 1;
-                cur_msg_header.timestamp -= pre_msg_header.timestamp;
+                cur_msg_header.timestamp_delta =
+                    cur_msg_header.timestamp - pre_msg_header.timestamp;
 
                 if cur_msg_header.msg_type_id == pre_msg_header.msg_type_id
                     && cur_msg_header.msg_length == pre_msg_header.msg_length
                 {
                     chunk_info.basic_header.format = 2;
-                    if chunk_info.message_header.timestamp == pre_msg_header.timestamp {
+                    if cur_msg_header.timestamp_delta == pre_msg_header.timestamp_delta {
                         chunk_info.basic_header.format = 3;
                     }
                 }
             }
+        } else {
+            assert_eq!(chunk_info.message_header.timestamp_delta, 0);
         }
+
+        //update pre header
+        self.csid_2_chunk_header.insert(
+            chunk_info.basic_header.chunk_stream_id,
+            ChunkHeader {
+                basic_header: chunk_info.basic_header.clone(),
+                message_header: chunk_info.message_header.clone(),
+            },
+        );
+
         Ok(PackResult::Success)
     }
 
@@ -81,11 +96,18 @@ impl ChunkPacketizer {
         basic_header: &ChunkBasicHeader,
         message_header: &mut ChunkMessageHeader,
     ) -> Result<(), PackError> {
-        let timestamp = if message_header.timestamp >= 0xFFFFFF {
+        self.timestamp = if basic_header.format == 0 {
+            message_header.timestamp
+        } else {
+            message_header.timestamp_delta
+        };
+
+        let timestamp = if self.timestamp >= 0xFFFFFF {
             message_header.is_extended_timestamp = true;
             0xFFFFFF
         } else {
-            message_header.timestamp
+            message_header.is_extended_timestamp = false;
+            self.timestamp
         };
 
         match basic_header.format {
@@ -101,6 +123,7 @@ impl ChunkPacketizer {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
                 self.writer
                     .write_u24::<BigEndian>(message_header.msg_length)?;
+                self.writer.write_u8(message_header.msg_type_id)?;
             }
             2 => {
                 self.writer.write_u24::<BigEndian>(timestamp)?;
@@ -120,6 +143,11 @@ impl ChunkPacketizer {
     pub async fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
         self.zip_chunk_header(chunk_info)?;
 
+        log::trace!(
+            "write_chunk  current timestamp: {}",
+            chunk_info.message_header.timestamp,
+        );
+
         let mut whole_payload_size = chunk_info.payload.len();
 
         self.write_basic_header(
@@ -129,11 +157,10 @@ impl ChunkPacketizer {
         self.write_message_header(&chunk_info.basic_header, &mut chunk_info.message_header)?;
 
         if chunk_info.message_header.is_extended_timestamp {
-            self.write_extened_timestamp(chunk_info.message_header.timestamp)?;
+            self.write_extened_timestamp(self.timestamp)?;
         }
 
         let mut cur_payload_size: usize;
-
         while whole_payload_size > 0 {
             cur_payload_size = if whole_payload_size > self.max_chunk_size {
                 self.max_chunk_size
@@ -149,7 +176,7 @@ impl ChunkPacketizer {
             if whole_payload_size > 0 {
                 self.write_basic_header(3, chunk_info.basic_header.chunk_stream_id)?;
                 if chunk_info.message_header.is_extended_timestamp {
-                    self.write_extened_timestamp(chunk_info.message_header.timestamp)?;
+                    self.write_extened_timestamp(self.timestamp)?;
                 }
             }
         }
