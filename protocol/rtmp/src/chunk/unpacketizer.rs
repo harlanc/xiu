@@ -518,7 +518,7 @@ impl ChunkUnpacketizer {
         let cur_format_id = self.current_chunk_info.basic_header.format;
         if cur_format_id == 1
             || cur_format_id == 2
-            || (cur_format_id == 3 && self.current_chunk_info.payload.len() == 0)
+            || (cur_format_id == 3 && self.current_chunk_info.payload.is_empty())
         {
             let timestamp = self.current_message_header().timestamp;
             let timestamp_delta = self.current_message_header().timestamp_delta;
@@ -649,7 +649,7 @@ mod tests {
         let aa: u32 = u32::MAX;
         println!("{}", aa);
 
-        let (a, b) = aa.overflowing_add(5);
+        let (_a, _b) = aa.overflowing_add(5);
 
         let b = aa.wrapping_add(5);
 
