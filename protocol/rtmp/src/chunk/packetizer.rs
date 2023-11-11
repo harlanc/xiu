@@ -1,7 +1,7 @@
 use {
     super::{
         define::CHUNK_SIZE, errors::PackError, ChunkBasicHeader, ChunkHeader, ChunkInfo,
-        ChunkMessageHeader,
+        ChunkMessageHeader, ExtendTimestampType,
     },
     byteorder::{BigEndian, LittleEndian},
     bytesio::{bytes_writer::AsyncBytesWriter, bytesio::TNetIO},
@@ -23,18 +23,17 @@ pub struct ChunkPacketizer {
     max_chunk_size: usize,
     //bytes: Cursor<Vec<u8>>,
     writer: AsyncBytesWriter,
-    //save timestamp need to be write for chunk
-    timestamp: u32,
+    //save extended timestamp need to be write for chunk
+    extended_timestamp: Option<u32>,
 }
 
 impl ChunkPacketizer {
     pub fn new(io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>) -> Self {
         Self {
             csid_2_chunk_header: HashMap::new(),
-            //chunk_info: ChunkInfo::new(),
             writer: AsyncBytesWriter::new(io),
             max_chunk_size: CHUNK_SIZE as usize,
-            timestamp: 0,
+            extended_timestamp: None,
         }
     }
     fn zip_chunk_header(&mut self, chunk_info: &mut ChunkInfo) -> Result<PackResult, PackError> {
@@ -96,23 +95,41 @@ impl ChunkPacketizer {
         basic_header: &ChunkBasicHeader,
         message_header: &mut ChunkMessageHeader,
     ) -> Result<(), PackError> {
-        self.timestamp = if basic_header.format == 0 {
-            message_header.timestamp
-        } else {
-            message_header.timestamp_delta
-        };
-
-        let timestamp = if self.timestamp >= 0xFFFFFF {
-            message_header.is_extended_timestamp = true;
-            0xFFFFFF
-        } else {
-            message_header.is_extended_timestamp = false;
-            self.timestamp
+        let message_header_timestamp: u32;
+        (self.extended_timestamp, message_header_timestamp) = match basic_header.format {
+            0 => {
+                if message_header.timestamp >= 0xFFFFFF {
+                    message_header.extended_timestamp_type = ExtendTimestampType::FORMAT0;
+                    (Some(message_header.timestamp), 0xFFFFFF)
+                } else {
+                    (None, message_header.timestamp)
+                }
+            }
+            1 | 2 => {
+                if message_header.timestamp_delta >= 0xFFFFFF {
+                    //if use the format1,2's extended timestamp, there may be a problem for
+                    //av timestamp.
+                    log::warn!(
+                        "Now use extended timestamp for format {}, the value is: {}",
+                        basic_header.format,
+                        message_header.timestamp_delta
+                    );
+                    message_header.extended_timestamp_type = ExtendTimestampType::FORMAT12;
+                    (Some(message_header.timestamp_delta), 0xFFFFFF)
+                } else {
+                    (None, message_header.timestamp_delta)
+                }
+            }
+            _ => {
+                //should not be here
+                (None, 0)
+            }
         };
 
         match basic_header.format {
             0 => {
-                self.writer.write_u24::<BigEndian>(timestamp)?;
+                self.writer
+                    .write_u24::<BigEndian>(message_header_timestamp)?;
                 self.writer
                     .write_u24::<BigEndian>(message_header.msg_length)?;
                 self.writer.write_u8(message_header.msg_type_id)?;
@@ -120,13 +137,15 @@ impl ChunkPacketizer {
                     .write_u32::<LittleEndian>(message_header.msg_streamd_id)?;
             }
             1 => {
-                self.writer.write_u24::<BigEndian>(timestamp)?;
+                self.writer
+                    .write_u24::<BigEndian>(message_header_timestamp)?;
                 self.writer
                     .write_u24::<BigEndian>(message_header.msg_length)?;
                 self.writer.write_u8(message_header.msg_type_id)?;
             }
             2 => {
-                self.writer.write_u24::<BigEndian>(timestamp)?;
+                self.writer
+                    .write_u24::<BigEndian>(message_header_timestamp)?;
             }
             _ => {}
         }
@@ -154,10 +173,11 @@ impl ChunkPacketizer {
             chunk_info.basic_header.format,
             chunk_info.basic_header.chunk_stream_id,
         )?;
+
         self.write_message_header(&chunk_info.basic_header, &mut chunk_info.message_header)?;
 
-        if chunk_info.message_header.is_extended_timestamp {
-            self.write_extened_timestamp(self.timestamp)?;
+        if let Some(extended_timestamp) = self.extended_timestamp {
+            self.write_extened_timestamp(extended_timestamp)?;
         }
 
         let mut cur_payload_size: usize;
@@ -175,8 +195,9 @@ impl ChunkPacketizer {
 
             if whole_payload_size > 0 {
                 self.write_basic_header(3, chunk_info.basic_header.chunk_stream_id)?;
-                if chunk_info.message_header.is_extended_timestamp {
-                    self.write_extened_timestamp(self.timestamp)?;
+
+                if let Some(extended_timestamp) = self.extended_timestamp {
+                    self.write_extened_timestamp(extended_timestamp)?;
                 }
             }
         }

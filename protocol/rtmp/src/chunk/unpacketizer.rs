@@ -2,7 +2,7 @@ use {
     super::{
         define,
         errors::{UnpackError, UnpackErrorValue},
-        ChunkBasicHeader, ChunkInfo, ChunkMessageHeader,
+        ChunkBasicHeader, ChunkInfo, ChunkMessageHeader, ExtendTimestampType,
     },
     crate::messages::define::msg_type_id,
     byteorder::{BigEndian, LittleEndian},
@@ -356,7 +356,7 @@ impl ChunkUnpacketizer {
         //1, or 2 chunk for the same chunk stream ID indicated the presence of
         //an extended timestamp field. 5.3.1.3)
         if self.current_chunk_info.basic_header.format != 3 {
-            self.current_message_header().is_extended_timestamp = false;
+            self.current_message_header().extended_timestamp_type = ExtendTimestampType::NONE;
         }
 
         match self.current_chunk_info.basic_header.format {
@@ -410,7 +410,8 @@ impl ChunkUnpacketizer {
                 }
 
                 if self.current_message_header().timestamp >= 0xFFFFFF {
-                    self.current_message_header().is_extended_timestamp = true;
+                    self.current_message_header().extended_timestamp_type =
+                        ExtendTimestampType::FORMAT0;
                 }
             }
             /*****************************************************************/
@@ -460,7 +461,8 @@ impl ChunkUnpacketizer {
                 }
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
-                    self.current_message_header().is_extended_timestamp = true;
+                    self.current_message_header().extended_timestamp_type =
+                        ExtendTimestampType::FORMAT12;
                 }
             }
             /************************************************/
@@ -481,7 +483,8 @@ impl ChunkUnpacketizer {
                     self.reader.read_u24::<BigEndian>()?;
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
-                    self.current_message_header().is_extended_timestamp = true;
+                    self.current_message_header().extended_timestamp_type =
+                        ExtendTimestampType::FORMAT12;
                 }
             }
 
@@ -495,32 +498,24 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_extended_timestamp(&mut self) -> Result<UnpackResult, UnpackError> {
-        let mut extended_timestamp: u32 = 0;
-
-        if self.current_message_header().is_extended_timestamp {
-            extended_timestamp = self.reader.read_u32::<BigEndian>()?;
+        //The extended timestamp field is present in Type 3 chunks when the most recent Type 0,
+        //1, or 2 chunk for the same chunk stream ID indicated the presence of
+        //an extended timestamp field.
+        match self.current_message_header().extended_timestamp_type {
+            //the current fortmat type can be 0 or 3
+            ExtendTimestampType::FORMAT0 => {
+                self.current_message_header().timestamp = self.reader.read_u32::<BigEndian>()?;
+            }
+            //the current fortmat type can be 1,2 or 3
+            ExtendTimestampType::FORMAT12 => {
+                self.current_message_header().timestamp_delta =
+                    self.reader.read_u32::<BigEndian>()?;
+            }
+            ExtendTimestampType::NONE => {}
         }
 
+        //compute the abs timestamp
         let cur_format_id = self.current_chunk_info.basic_header.format;
-
-        match cur_format_id {
-            0 => {
-                if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp = extended_timestamp;
-                }
-            }
-            1 | 2 | 3 => {
-                //The extended timestamp field is present in Type 3 chunks when the most recent Type 0,
-                //1, or 2 chunk for the same chunk stream ID indicated the presence of
-                //an extended timestamp field.
-                if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp_delta = extended_timestamp;
-                }
-            }
-
-            _ => {}
-        }
-
         if cur_format_id == 1
             || cur_format_id == 2
             || (cur_format_id == 3 && self.current_chunk_info.payload.len() == 0)
