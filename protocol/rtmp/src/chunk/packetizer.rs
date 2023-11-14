@@ -46,7 +46,14 @@ impl ChunkPacketizer {
             let cur_msg_header = &mut chunk_info.message_header;
             let pre_msg_header = &mut pre_header.message_header;
 
-            if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
+            if cur_msg_header.timestamp < pre_msg_header.timestamp {
+                log::warn!(
+                    "Chunk stream id: {}, the current timestamp:{}  is smaller than pre chunk timestamp: {}",
+                    chunk_info.basic_header.chunk_stream_id,
+                    cur_msg_header.timestamp,
+                    pre_msg_header.timestamp
+                );
+            } else if cur_msg_header.msg_streamd_id == pre_msg_header.msg_streamd_id {
                 chunk_info.basic_header.format = 1;
                 cur_msg_header.timestamp_delta =
                     cur_msg_header.timestamp - pre_msg_header.timestamp;

@@ -309,7 +309,11 @@ impl ChunkUnpacketizer {
                 }
                 None => {
                     //The format id of the first chunk of a new chunk stream id must be zero.
-                    assert_eq!(format_id, 0);
+                    //assert_eq!(format_id, 0);
+                    log::warn!(
+                        "The chunk stream id: {}'s first chunk format is not 0.",
+                        csid
+                    );
                 }
             }
         }
