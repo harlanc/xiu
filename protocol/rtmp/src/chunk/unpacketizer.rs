@@ -362,9 +362,9 @@ impl ChunkUnpacketizer {
         //(This field is present in Type 3 chunks when the most recent Type 0,
         //1, or 2 chunk for the same chunk stream ID indicated the presence of
         //an extended timestamp field. 5.3.1.3)
-        if self.current_chunk_info.basic_header.format != 3 {
-            self.current_message_header().extended_timestamp_type = ExtendTimestampType::NONE;
-        }
+        //if self.current_chunk_info.basic_header.format != 3 {
+        self.current_message_header().extended_timestamp_type = ExtendTimestampType::NONE;
+        //}
 
         match self.current_chunk_info.basic_header.format {
             /*****************************************************************/
@@ -533,23 +533,15 @@ impl ChunkUnpacketizer {
             let (cur_abs_timestamp, is_overflow) = timestamp.overflowing_add(timestamp_delta);
             if is_overflow {
                 log::warn!(
-                    "the current timestamp is overflow, current timestamp: {}, timestamp delta: {}",
-                    timestamp,
-                    timestamp_delta
+                    "The current timestamp is overflow, current basic header: {:?}, current message header: {:?}, payload len: {}, abs timestamp: {}",
+                    self.current_chunk_info.basic_header,
+                    self.current_chunk_info.message_header,
+                    self.current_chunk_info.payload.len(),
+                    cur_abs_timestamp
                 );
             }
             self.current_message_header().timestamp = cur_abs_timestamp;
         }
-
-        let timestamp = self.current_message_header().timestamp;
-        let timestamp_delta = self.current_message_header().timestamp_delta;
-
-        log::trace!(
-            "the current timestamp is overflow,format: {}, current timestamp: {}. timestamp delta: {}",
-            self.current_chunk_info.basic_header.format,
-            timestamp,
-            timestamp_delta
-        );
 
         self.chunk_read_state = ChunkReadState::ReadMessagePayload;
         self.print_current_message_header(ChunkReadState::ReadExtendedTimestamp);
@@ -643,6 +635,8 @@ mod tests {
         body.extend_from_slice(&[00, 00, 10, 00]);
 
         let expected = ChunkInfo::new(2, 0, 0, 4, 1, 0, body);
+
+        println!("{:?}, {:?}", expected.basic_header, expected.message_header);
 
         assert_eq!(
             rv.unwrap(),
