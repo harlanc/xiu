@@ -9,7 +9,7 @@ pub struct RtmpUrlParseError {
 }
 #[derive(Debug, Fail)]
 pub enum RtmpUrlParseErrorValue {
-    #[fail(display = "The url is not valid\n")]
+    #[fail(display = "The url is not valid")]
     Notvalid,
 }
 

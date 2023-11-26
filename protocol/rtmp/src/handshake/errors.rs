@@ -6,19 +6,19 @@ use {
 
 #[derive(Debug, Fail)]
 pub enum HandshakeErrorValue {
-    #[fail(display = "bytes read error: {}\n", _0)]
+    #[fail(display = "bytes read error: {}", _0)]
     BytesReadError(BytesReadError),
-    #[fail(display = "bytes write error: {}\n", _0)]
+    #[fail(display = "bytes write error: {}", _0)]
     BytesWriteError(BytesWriteError),
-    #[fail(display = "system time error: {}\n", _0)]
+    #[fail(display = "system time error: {}", _0)]
     SysTimeError(SystemTimeError),
-    #[fail(display = "digest error: {}\n", _0)]
+    #[fail(display = "digest error: {}", _0)]
     DigestError(DigestError),
-    #[fail(display = "Digest not found error\n")]
+    #[fail(display = "Digest not found error")]
     DigestNotFound,
-    #[fail(display = "s0 version not correct error\n")]
+    #[fail(display = "s0 version not correct error")]
     S0VersionNotCorrect,
-    #[fail(display = "io error\n")]
+    #[fail(display = "io error")]
     IOError(Error),
 }
 
@@ -96,13 +96,13 @@ pub struct DigestError {
 
 #[derive(Debug, Fail)]
 pub enum DigestErrorValue {
-    #[fail(display = "bytes read error: {}\n", _0)]
+    #[fail(display = "bytes read error: {}", _0)]
     BytesReadError(BytesReadError),
-    #[fail(display = "digest length not correct\n")]
+    #[fail(display = "digest length not correct")]
     DigestLengthNotCorrect,
-    #[fail(display = "cannot generate digest\n")]
+    #[fail(display = "cannot generate digest")]
     CannotGenerate,
-    #[fail(display = "unknow schema\n")]
+    #[fail(display = "unknow schema")]
     UnknowSchema,
 }
 

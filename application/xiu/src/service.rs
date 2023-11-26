@@ -111,7 +111,7 @@ impl Service {
                     );
                     tokio::spawn(async move {
                         if let Err(err) = push_client.run().await {
-                            log::error!("push client error {}\n", err);
+                            log::error!("push client error {}", err);
                         }
                     });
 
@@ -135,7 +135,7 @@ impl Service {
 
                     tokio::spawn(async move {
                         if let Err(err) = pull_client.run().await {
-                            log::error!("pull client error {}\n", err);
+                            log::error!("pull client error {}", err);
                         }
                     });
 
@@ -149,7 +149,7 @@ impl Service {
             let mut rtmp_server = RtmpServer::new(address, producer, gop_num);
             tokio::spawn(async move {
                 if let Err(err) = rtmp_server.run().await {
-                    log::error!("rtmp server error: {}\n", err);
+                    log::error!("rtmp server error: {}", err);
                 }
             });
         }
@@ -186,7 +186,7 @@ impl Service {
 
         tokio::spawn(async move {
             if let Err(err) = remuxer.run().await {
-                log::error!("rtmp remuxer server error: {}\n", err);
+                log::error!("rtmp remuxer server error: {}", err);
             }
         });
         Ok(())
@@ -208,7 +208,7 @@ impl Service {
             let mut rtsp_server = RtspServer::new(address, producer);
             tokio::spawn(async move {
                 if let Err(err) = rtsp_server.run().await {
-                    log::error!("rtsp server error: {}\n", err);
+                    log::error!("rtsp server error: {}", err);
                 }
             });
         }
@@ -232,7 +232,7 @@ impl Service {
             let mut webrtc_server = WebRTCServer::new(address, producer);
             tokio::spawn(async move {
                 if let Err(err) = webrtc_server.run().await {
-                    log::error!("webrtc server error: {}\n", err);
+                    log::error!("webrtc server error: {}", err);
                 }
             });
         }
@@ -252,7 +252,7 @@ impl Service {
 
             tokio::spawn(async move {
                 if let Err(err) = httpflv_server::run(event_producer, port).await {
-                    log::error!("httpflv server error: {}\n", err);
+                    log::error!("httpflv server error: {}", err);
                 }
             });
         }
@@ -278,7 +278,7 @@ impl Service {
 
             tokio::spawn(async move {
                 if let Err(err) = hls_remuxer.run().await {
-                    log::error!("rtmp event processor error: {}\n", err);
+                    log::error!("rtmp event processor error: {}", err);
                 }
             });
 
@@ -286,7 +286,7 @@ impl Service {
 
             tokio::spawn(async move {
                 if let Err(err) = hls_server::run(port).await {
-                    log::error!("hls server error: {}\n", err);
+                    log::error!("hls server error: {}", err);
                 }
             });
             stream_hub.set_hls_enabled(true);

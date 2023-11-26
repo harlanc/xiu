@@ -11,13 +11,13 @@ pub enum BytesReadErrorValue {
     NotEnoughBytes,
     #[fail(display = "empty stream")]
     EmptyStream,
-    #[fail(display = "io error: {}\n", _0)]
+    #[fail(display = "io error: {}", _0)]
     IO(#[cause] io::Error),
     #[fail(display = "index out of range")]
     IndexOutofRange,
-    #[fail(display = "bytesio read error: {}\n", _0)]
+    #[fail(display = "bytesio read error: {}", _0)]
     BytesIOError(BytesIOError),
-    // #[fail(display = "elapsed: {}\n", _0)]
+    // #[fail(display = "elapsed: {}", _0)]
     // TimeoutError(#[cause] Elapsed),
 }
 
@@ -63,9 +63,9 @@ pub struct BytesWriteError {
 
 #[derive(Debug, Fail)]
 pub enum BytesWriteErrorValue {
-    #[fail(display = "io error\n")]
+    #[fail(display = "io error")]
     IO(io::Error),
-    #[fail(display = "not enough bytes to write: {}\n", _0)]
+    #[fail(display = "bytes io error: {}", _0)]
     BytesIOError(BytesIOError),
     #[fail(display = "write time out")]
     Timeout,

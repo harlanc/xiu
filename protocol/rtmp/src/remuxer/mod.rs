@@ -35,7 +35,7 @@ impl RtmpRemuxer {
                             Rtsp2RtmpRemuxerSession::new(stream_path, self.event_producer.clone());
                         tokio::spawn(async move {
                             if let Err(err) = session.run().await {
-                                log::error!("rtsp2rtmp session error: {}\n", err);
+                                log::error!("rtsp2rtmp session error: {}", err);
                             }
                         });
                     }

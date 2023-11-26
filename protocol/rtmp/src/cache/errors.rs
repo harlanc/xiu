@@ -9,17 +9,17 @@ use {
 
 #[derive(Debug, Fail)]
 pub enum CacheErrorValue {
-    #[fail(display = "cache tag parse error\n")]
+    #[fail(display = "cache tag parse error")]
     DemuxerError(FlvDemuxerError),
-    #[fail(display = "mpeg aac error\n")]
+    #[fail(display = "mpeg aac error")]
     MpegAacError(MpegAacError),
-    #[fail(display = "mpeg avc error\n")]
+    #[fail(display = "mpeg avc error")]
     MpegAvcError(Mpeg4AvcHevcError),
-    #[fail(display = "pack error\n")]
+    #[fail(display = "pack error")]
     PackError(PackError),
-    #[fail(display = "read bytes error\n")]
+    #[fail(display = "read bytes error")]
     BytesReadError(BytesReadError),
-    #[fail(display = "h264 error\n")]
+    #[fail(display = "h264 error")]
     H264Error(H264Error),
 }
 
@@ -93,11 +93,11 @@ impl Fail for CacheError {
 
 #[derive(Debug, Fail)]
 pub enum MetadataErrorValue {
-    #[fail(display = "metadata tag parse error\n")]
+    #[fail(display = "metadata tag parse error")]
     DemuxerError(FlvDemuxerError),
-    #[fail(display = "pack error\n")]
+    #[fail(display = "pack error")]
     PackError(PackError),
-    #[fail(display = "amf write error\n")]
+    #[fail(display = "amf write error")]
     Amf0WriteError(Amf0WriteError),
 }
 #[derive(Debug)]

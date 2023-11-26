@@ -11,11 +11,11 @@ pub struct NetStreamError {
 
 #[derive(Debug, Fail)]
 pub enum NetStreamErrorValue {
-    #[fail(display = "amf0 write error: {}\n", _0)]
+    #[fail(display = "amf0 write error: {}", _0)]
     Amf0WriteError(Amf0WriteError),
     #[fail(display = "invalid max chunk size")]
     InvalidMaxChunkSize { chunk_size: usize },
-    #[fail(display = "pack error\n")]
+    #[fail(display = "pack error")]
     PackError(PackError),
 }
 

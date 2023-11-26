@@ -149,7 +149,7 @@ impl HttpFlv {
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}\n", err);
+            log::error!("unsubscribe_from_channels err {}", err);
         }
 
         Ok(())

@@ -1,7 +1,7 @@
 use {
     super::{
         define::{msg_type_id, RtmpMessageData},
-        errors::{MessageError, MessageErrorValue},
+        errors::MessageError,
     },
     crate::{
         amf0::{amf0_markers, amf0_reader::Amf0Reader},
@@ -21,7 +21,7 @@ impl MessageParser {
     pub fn new(chunk_info: ChunkInfo) -> Self {
         Self { chunk_info }
     }
-    pub fn parse(self) -> Result<RtmpMessageData, MessageError> {
+    pub fn parse(self) -> Result<Option<RtmpMessageData>, MessageError> {
         let mut reader = BytesReader::new(self.chunk_info.payload);
 
         match self.chunk_info.message_header.msg_type_id {
@@ -50,12 +50,12 @@ impl MessageParser {
 
                 let others = amf_reader.read_all()?;
 
-                return Ok(RtmpMessageData::Amf0Command {
+                return Ok(Some(RtmpMessageData::Amf0Command {
                     command_name,
                     transaction_id,
                     command_object: command_obj,
                     others,
-                });
+                }));
             }
 
             msg_type_id::AUDIO => {
@@ -64,18 +64,18 @@ impl MessageParser {
                     self.chunk_info.message_header.msg_length
                 );
 
-                return Ok(RtmpMessageData::AudioData {
+                return Ok(Some(RtmpMessageData::AudioData {
                     data: reader.extract_remaining_bytes(),
-                });
+                }));
             }
             msg_type_id::VIDEO => {
                 log::trace!(
                     "receive video msg , msg length is{}\n",
                     self.chunk_info.message_header.msg_length
                 );
-                return Ok(RtmpMessageData::VideoData {
+                return Ok(Some(RtmpMessageData::VideoData {
                     data: reader.extract_remaining_bytes(),
-                });
+                }));
             }
             msg_type_id::USER_CONTROL_EVENT => {
                 log::trace!(
@@ -83,60 +83,50 @@ impl MessageParser {
                     self.chunk_info.message_header.msg_length
                 );
                 let data = EventMessagesReader::new(reader).parse_event()?;
-                return Ok(data);
+                return Ok(Some(data));
             }
             msg_type_id::SET_CHUNK_SIZE => {
                 let chunk_size = ProtocolControlMessageReader::new(reader).read_set_chunk_size()?;
-                return Ok(RtmpMessageData::SetChunkSize { chunk_size });
+                return Ok(Some(RtmpMessageData::SetChunkSize { chunk_size }));
             }
             msg_type_id::ABORT => {
                 let chunk_stream_id =
                     ProtocolControlMessageReader::new(reader).read_abort_message()?;
-                return Ok(RtmpMessageData::AbortMessage { chunk_stream_id });
+                return Ok(Some(RtmpMessageData::AbortMessage { chunk_stream_id }));
             }
             msg_type_id::ACKNOWLEDGEMENT => {
                 let sequence_number =
                     ProtocolControlMessageReader::new(reader).read_acknowledgement()?;
-                return Ok(RtmpMessageData::Acknowledgement { sequence_number });
+                return Ok(Some(RtmpMessageData::Acknowledgement { sequence_number }));
             }
             msg_type_id::WIN_ACKNOWLEDGEMENT_SIZE => {
                 let size =
                     ProtocolControlMessageReader::new(reader).read_window_acknowledgement_size()?;
-                return Ok(RtmpMessageData::WindowAcknowledgementSize { size });
+                return Ok(Some(RtmpMessageData::WindowAcknowledgementSize { size }));
             }
             msg_type_id::SET_PEER_BANDWIDTH => {
                 let properties =
                     ProtocolControlMessageReader::new(reader).read_set_peer_bandwidth()?;
-                return Ok(RtmpMessageData::SetPeerBandwidth { properties });
+                return Ok(Some(RtmpMessageData::SetPeerBandwidth { properties }));
             }
             msg_type_id::DATA_AMF0 | msg_type_id::DATA_AMF3 => {
                 //let values = Amf0Reader::new(reader).read_all()?;
-                return Ok(RtmpMessageData::AmfData {
+                return Ok(Some(RtmpMessageData::AmfData {
                     raw_data: reader.extract_remaining_bytes(),
-                });
+                }));
             }
 
             msg_type_id::SHARED_OBJ_AMF3 | msg_type_id::SHARED_OBJ_AMF0 => {}
 
             msg_type_id::AGGREGATE => {}
 
-            _ => {
-                log::error!(
-                    "the msg_type_id is not supported: {}",
-                    self.chunk_info.message_header.msg_type_id
-                );
-                return Err(MessageError {
-                    value: MessageErrorValue::UnknowMessageType,
-                });
-            }
+            _ => {}
         }
-        log::error!(
+        log::warn!(
             "the msg_type_id is not processed: {}",
             self.chunk_info.message_header.msg_type_id
         );
-        Err(MessageError {
-            value: MessageErrorValue::UnknowMessageType,
-        })
+        Ok(None)
     }
 }
 
