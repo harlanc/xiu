@@ -37,6 +37,8 @@ pub enum HttpFLvErrorValue {
     MetadataError(MetadataError),
     #[fail(display = "tokio mpsc error")]
     MpscSendError(SendError),
+    #[fail(display = "receiver being dropped")]
+    ReceiverDroppedError(SendError),
 }
 
 impl From<SessionError> for HttpFLvError {
