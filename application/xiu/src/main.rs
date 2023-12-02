@@ -182,8 +182,8 @@ async fn main() -> Result<()> {
     };
 
     /*run the service*/
-    let mut serivce = Service::new(config);
-    serivce.run().await?;
+    let mut service = Service::new(config);
+    service.run().await?;
 
     // log::info!("log info...");
     // log::warn!("log warn...");
