@@ -404,7 +404,7 @@ impl StreamsHub {
                         }
                     }
 
-                    if let Err(_) = eer_sender.send(rv) {
+                    if eer_sender.send(rv).is_err() {
                         log::error!("event_loop Subscribe error: The receiver dropped.")
                     }
                 }
