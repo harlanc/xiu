@@ -1,11 +1,13 @@
+use streamhub::errors::ChannelError;
+
 use {
     failure::Fail,
     futures::channel::mpsc::SendError,
-    xflv::errors::FlvMuxerError,
     rtmp::{
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
     std::fmt,
+    xflv::errors::FlvMuxerError,
 };
 
 #[derive(Debug)]
@@ -39,6 +41,10 @@ pub enum HttpFLvErrorValue {
     MpscSendError(SendError),
     #[fail(display = "receiver being dropped")]
     ReceiverDroppedError(SendError),
+    #[fail(display = "event execute error: {}", _0)]
+    ChannelError(ChannelError),
+    #[fail(display = "channel recv error")]
+    ChannelRecvError,
 }
 
 impl From<SessionError> for HttpFLvError {
@@ -77,6 +83,14 @@ impl From<MetadataError> for HttpFLvError {
     fn from(error: MetadataError) -> Self {
         HttpFLvError {
             value: HttpFLvErrorValue::MetadataError(error),
+        }
+    }
+}
+
+impl From<ChannelError> for HttpFLvError {
+    fn from(error: ChannelError) -> Self {
+        HttpFLvError {
+            value: HttpFLvErrorValue::ChannelError(error),
         }
     }
 }

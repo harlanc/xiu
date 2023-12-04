@@ -1,4 +1,5 @@
 use streamhub::define::{DataReceiver, DataSender};
+use tokio::sync::oneshot;
 
 use {
     super::{
@@ -309,10 +310,13 @@ impl Common {
             stream_name,
         };
 
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: self.get_subscriber_info(sub_id),
             sender: DataSender::Frame { sender },
+            eer_sender: event_result_sender,
         };
         let rv = self.event_producer.send(subscribe_event);
 
@@ -320,6 +324,11 @@ impl Common {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
+        }
+
+        match event_result_receiver.await {
+            Ok(v) => println!("got = {:?}", v),
+            Err(_) => println!("the sender dropped"),
         }
 
         self.data_receiver = receiver;

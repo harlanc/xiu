@@ -1,3 +1,5 @@
+use streamhub::errors::ChannelError;
+
 use {
     bytesio::bytes_errors::BytesReadError,
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
@@ -22,6 +24,8 @@ pub enum SessionErrorValue {
     BytesWriteError(#[cause] BytesWriteError),
     #[fail(display = "Utf8Error: {}", _0)]
     Utf8Error(#[cause] Utf8Error),
+    #[fail(display = "event execute error: {}", _0)]
+    ChannelError(#[cause] ChannelError),
     #[fail(display = "webrtc error: {}", _0)]
     RTCError(#[cause] RTCError),
     #[fail(display = "stream hub event send error")]
@@ -36,6 +40,8 @@ pub enum SessionErrorValue {
     HttpRequestEmptySdp,
     #[fail(display = "Cannot find Content-Length")]
     HttpRequestNoContentLength,
+    #[fail(display = "Channel receive error")]
+    ChannelRecvError,
 }
 
 impl From<RTCError> for SessionError {
@@ -74,6 +80,14 @@ impl From<Utf8Error> for SessionError {
     fn from(error: Utf8Error) -> Self {
         SessionError {
             value: SessionErrorValue::Utf8Error(error),
+        }
+    }
+}
+
+impl From<ChannelError> for SessionError {
+    fn from(error: ChannelError) -> Self {
+        SessionError {
+            value: SessionErrorValue::ChannelError(error),
         }
     }
 }

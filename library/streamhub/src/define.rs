@@ -163,7 +163,10 @@ pub type AvStatisticSender = mpsc::UnboundedSender<StreamStatistics>;
 pub type AvStatisticReceiver = mpsc::UnboundedReceiver<StreamStatistics>;
 
 pub type StreamStatisticSizeSender = oneshot::Sender<usize>;
-pub type StreamStatisticSizeReceiver = oneshot::Sender<usize>;
+pub type StreamStatisticSizeReceiver = oneshot::Receiver<usize>;
+
+pub type EventExecuteResultSender = oneshot::Sender<Result<(), ChannelError>>;
+pub type EventExecuteResultReceiver = oneshot::Sender<Result<(), ChannelError>>;
 
 #[async_trait]
 pub trait TStreamHandler: Send + Sync {
@@ -196,6 +199,8 @@ pub enum StreamHubEvent {
         info: SubscriberInfo,
         #[serde(skip_serializing)]
         sender: DataSender,
+        #[serde(skip_serializing)]
+        eer_sender: EventExecuteResultSender,
     },
     UnSubscribe {
         identifier: StreamIdentifier,

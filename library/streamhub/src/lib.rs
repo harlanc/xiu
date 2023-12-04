@@ -379,11 +379,13 @@ impl StreamsHub {
                     identifier,
                     info,
                     sender,
+                    eer_sender,
                 } => {
                     let sub_id = info.id;
                     let info_clone = info.clone();
                     let rv = self.subscribe(&identifier, info_clone, sender).await;
-                    match rv {
+
+                    match &rv {
                         Ok(()) => {
                             if let Some(notifier) = &self.notifier {
                                 notifier.on_play_notify(event_serialize_str).await;
@@ -399,8 +401,11 @@ impl StreamsHub {
                         }
                         Err(err) => {
                             log::error!("event_loop Subscribe error: {}", err);
-                            continue;
                         }
+                    }
+
+                    if let Err(_) = eer_sender.send(rv) {
+                        log::error!("event_loop Subscribe error: The receiver dropped.")
                     }
                 }
                 StreamHubEvent::UnSubscribe { identifier, info } => {

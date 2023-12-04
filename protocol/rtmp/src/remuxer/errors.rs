@@ -5,6 +5,7 @@ use {
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     failure::Fail,
     std::fmt,
+    streamhub::errors::ChannelError,
     tokio::sync::broadcast::error::RecvError,
     xflv::errors::FlvMuxerError,
     xflv::errors::Mpeg4AvcHevcError,
@@ -36,6 +37,10 @@ pub enum RtmpRemuxerErrorValue {
     FlvMuxerError(#[cause] FlvMuxerError),
     #[fail(display = "stream hub event send error")]
     StreamHubEventSendErr,
+    #[fail(display = "event execute error: {}", _0)]
+    ChannelError(#[cause] ChannelError),
+    #[fail(display = "Channel receive error")]
+    ChannelRecvError,
 }
 impl From<RecvError> for RtmpRemuxerError {
     fn from(error: RecvError) -> Self {
@@ -97,6 +102,14 @@ impl From<FlvMuxerError> for RtmpRemuxerError {
     fn from(error: FlvMuxerError) -> Self {
         RtmpRemuxerError {
             value: RtmpRemuxerErrorValue::FlvMuxerError(error),
+        }
+    }
+}
+
+impl From<ChannelError> for RtmpRemuxerError {
+    fn from(error: ChannelError) -> Self {
+        RtmpRemuxerError {
+            value: RtmpRemuxerErrorValue::ChannelError(error),
         }
     }
 }

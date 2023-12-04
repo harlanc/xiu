@@ -3,6 +3,7 @@ use bytesio::{bytes_reader::BytesReader, bytes_writer::BytesWriter};
 use h264_decoder::sps::SpsParser;
 use indexmap::IndexMap;
 use streamhub::define::{DataSender, VideoCodecType};
+use tokio::sync::oneshot;
 use xflv::{
     define::h264_nal_type::{H264_NAL_IDR, H264_NAL_PPS, H264_NAL_SPS},
     flv_tag_header::{AudioTagHeader, VideoTagHeader},
@@ -116,6 +117,7 @@ impl Rtsp2RtmpRemuxerSession {
 
     pub async fn subscribe_rtsp(&mut self) -> Result<(), RtmpRemuxerError> {
         let (sender, receiver) = mpsc::unbounded_channel();
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
 
         let sub_info = SubscriberInfo {
             id: self.subscribe_id,
@@ -132,12 +134,24 @@ impl Rtsp2RtmpRemuxerSession {
             },
             info: sub_info,
             sender: DataSender::Frame { sender },
+            eer_sender: event_result_sender,
         };
 
         if self.event_producer.send(subscribe_event).is_err() {
             return Err(RtmpRemuxerError {
                 value: RtmpRemuxerErrorValue::StreamHubEventSendErr,
             });
+        }
+
+        match event_result_receiver.await {
+            Ok(rv) => {
+                rv?;
+            }
+            Err(_) => {
+                return Err(RtmpRemuxerError {
+                    value: RtmpRemuxerErrorValue::ChannelRecvError,
+                });
+            }
         }
 
         self.data_receiver = receiver;

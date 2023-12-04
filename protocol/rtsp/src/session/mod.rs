@@ -32,6 +32,7 @@ use streamhub::define::DataReceiver;
 use streamhub::define::DataSender;
 use streamhub::define::MediaInfo;
 use streamhub::define::VideoCodecType;
+use tokio::sync::oneshot;
 
 use super::http::RtspRequest;
 use super::rtp::errors::UnPackerError;
@@ -466,18 +467,32 @@ impl RtspServerSession {
         // The sender is passsed to the stream hub, and using which send the a/v data from stream hub to the play session.
         // The receiver is used for receiving and send to the remote cient side.
         let (sender, mut receiver) = mpsc::unbounded_channel();
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let publish_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.path.clone(),
             },
             sender: DataSender::Frame { sender },
             info: self.get_subscriber_info(),
+            eer_sender: event_result_sender,
         };
 
         if self.event_producer.send(publish_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
+        }
+
+        match event_result_receiver.await {
+            Ok(rv) => {
+                rv?;
+            }
+            Err(_) => {
+                return Err(SessionError {
+                    value: SessionErrorValue::ChannelRecvError,
+                });
+            }
         }
 
         let mut retry_times = 0;

@@ -4,6 +4,7 @@ use {
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
     std::fmt,
+    streamhub::errors::ChannelError,
     tokio::sync::broadcast::error::RecvError,
     xflv::errors::FlvDemuxerError,
     xmpegts::errors::MpegTsError,
@@ -28,6 +29,8 @@ pub struct MediaError {
 pub enum MediaErrorValue {
     #[fail(display = "server error")]
     Error,
+    #[fail(display = "channel recv error")]
+    ChannelRecvError,
     #[fail(display = "session error:{}", _0)]
     SessionError(#[cause] SessionError),
     #[fail(display = "amf write error:{}", _0)]
@@ -114,6 +117,10 @@ pub struct HlsError {
 pub enum HlsErrorValue {
     #[fail(display = "hls error")]
     Error,
+    #[fail(display = "channel recv error")]
+    ChannelRecvError,
+    #[fail(display = "channel error:{}", _0)]
+    ChannelError(#[cause] ChannelError),
     #[fail(display = "session error:{}", _0)]
     SessionError(#[cause] SessionError),
     #[fail(display = "amf write error:{}", _0)]
@@ -171,6 +178,14 @@ impl From<MetadataError> for HlsError {
     fn from(error: MetadataError) -> Self {
         HlsError {
             value: HlsErrorValue::MetadataError(error),
+        }
+    }
+}
+
+impl From<ChannelError> for HlsError {
+    fn from(error: ChannelError) -> Self {
+        HlsError {
+            value: HlsErrorValue::ChannelError(error),
         }
     }
 }

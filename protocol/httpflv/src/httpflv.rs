@@ -1,3 +1,4 @@
+use tokio::sync::oneshot;
 use {
     super::{
         define::{tag_type, HttpResponseDataProducer},
@@ -131,13 +132,13 @@ impl HttpFlv {
         if let Err(err) = self.http_response_data_producer.start_send(Ok(data)) {
             return if err.is_disconnected() {
                 Err(HttpFLvError {
-                    value: HttpFLvErrorValue::ReceiverDroppedError(err)
+                    value: HttpFLvErrorValue::ReceiverDroppedError(err),
                 })
             } else {
                 Err(HttpFLvError {
-                    value: HttpFLvErrorValue::MpscSendError(err)
+                    value: HttpFLvErrorValue::MpscSendError(err),
                 })
-            }
+            };
         }
 
         Ok(())
@@ -186,14 +187,16 @@ impl HttpFlv {
             stream_name: self.stream_name.clone(),
         };
 
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: sub_info,
             sender: streamhub::define::DataSender::Frame { sender },
+            eer_sender: event_result_sender,
         };
 
         let rv = self.event_producer.send(subscribe_event);
-
         if rv.is_err() {
             let session_error = SessionError {
                 value: SessionErrorValue::SendFrameDataErr,
@@ -201,6 +204,17 @@ impl HttpFlv {
             return Err(HttpFLvError {
                 value: HttpFLvErrorValue::SessionError(session_error),
             });
+        }
+
+        match event_result_receiver.await {
+            Ok(rv) => {
+                rv?;
+            }
+            Err(_) => {
+                return Err(HttpFLvError {
+                    value: HttpFLvErrorValue::ChannelRecvError,
+                });
+            }
         }
 
         self.data_consumer = receiver;

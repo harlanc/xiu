@@ -9,8 +9,8 @@ use streamhub::{
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
 };
-use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use tokio::sync::{broadcast, oneshot};
 
 use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
@@ -336,6 +336,8 @@ impl WebRTCServerSession {
 
         let subscriber_info = self.get_subscriber_info();
 
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::WebRTC {
                 app_name: app_name.clone(),
@@ -343,12 +345,24 @@ impl WebRTCServerSession {
             },
             sender: DataSender::Packet { sender },
             info: subscriber_info.clone(),
+            eer_sender: event_result_sender,
         };
 
         if self.event_sender.send(subscribe_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
+        }
+
+        match event_result_receiver.await {
+            Ok(rv) => {
+                rv?;
+            }
+            Err(_) => {
+                return Err(SessionError {
+                    value: SessionErrorValue::ChannelRecvError,
+                });
+            }
         }
 
         let (pc_state_sender, mut pc_state_receiver) = broadcast::channel(1);

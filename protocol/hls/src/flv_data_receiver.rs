@@ -1,3 +1,5 @@
+use tokio::sync::oneshot;
+
 use {
     super::{
         errors::{HlsError, HlsErrorValue},
@@ -111,10 +113,13 @@ impl FlvDataReceiver {
             stream_name,
         };
 
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: sub_info,
             sender: streamhub::define::DataSender::Frame { sender },
+            eer_sender: event_result_sender,
         };
 
         let rv = self.event_producer.send(subscribe_event);
@@ -125,6 +130,17 @@ impl FlvDataReceiver {
             return Err(HlsError {
                 value: HlsErrorValue::SessionError(session_error),
             });
+        }
+
+        match event_result_receiver.await {
+            Ok(rv) => {
+                rv?;
+            }
+            Err(_) => {
+                return Err(HlsError {
+                    value: HlsErrorValue::ChannelRecvError,
+                });
+            }
         }
 
         self.data_consumer = receiver;
