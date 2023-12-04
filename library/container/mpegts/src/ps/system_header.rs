@@ -1,20 +1,14 @@
-use byteorder::BigEndian;
-
-use crate::define::epes_stream_id::PES_SID_SYS;
-
 use super::errors::MpegPsError;
-
-use {
-    bytes::{BufMut, BytesMut},
-    bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
-};
+use crate::define::epes_stream_id::PES_SID_SYS;
+use byteorder::BigEndian;
+use bytesio::bytes_reader::BytesReader;
 
 #[derive(Default)]
 pub struct PsStream {
-    stream_id: u8,
-    stream_id_extension: u8,
-    buffer_bound_scale: u8,
-    buffer_size_bound: u16,
+    pub stream_id: u8,
+    pub stream_id_extension: u8,
+    pub buffer_bound_scale: u8,
+    pub buffer_size_bound: u16,
 }
 
 #[derive(Default)]
@@ -140,7 +134,7 @@ mod tests {
         let v = [0xFF, 0x01, 0x02];
         let mut b = BytesMut::new();
         b.extend_from_slice(&v);
-        let mut reader1 = BytesReader::new(b.clone());
+        let reader1 = BytesReader::new(b.clone());
 
         let mut read2 = BytesReader::new(b);
 

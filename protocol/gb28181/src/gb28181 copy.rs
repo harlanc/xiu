@@ -1,19 +1,14 @@
 use super::session::GB28181ServerSession;
 use bytesio::bytesio::UdpIO;
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use streamhub::define::StreamHubEventSender;
-use streamhub::utils::Uuid;
 use tokio::io::Error;
-use tokio::sync::Mutex;
 
 pub struct GB28181Server {
     local_port: u16,
     event_producer: StreamHubEventSender,
     stream_name: String,
     need_dump: bool,
-    uuid_2_sessions: HashMap<Uuid, Arc<Mutex<GB28181ServerSession>>>,
 }
 
 impl GB28181Server {
@@ -29,35 +24,52 @@ impl GB28181Server {
             event_producer,
             stream_name,
             need_dump,
-            uuid_2_sessions: HashMap::new(),
         }
     }
 
     pub async fn run(&mut self) -> Result<Option<u16>, Error> {
+        // let socket_addr: &SocketAddr = &self.address.parse().unwrap();
+        // let listener = TcpListener::bind(socket_addr).await?;
+
+        //     if let Some(rtp_io) =
+        //     UdpIO::new(address.clone(), Some(rtp_port), 0).await
+        // {
+
         log::info!("GB28181Server run");
 
         if let Some(udp_id) = UdpIO::new(self.local_port, None).await {
             let local_port = udp_id.get_local_port();
 
-            let mut session = GB28181ServerSession::new(
+            if let Ok(mut session) = GB28181ServerSession::new(
                 udp_id,
                 self.event_producer.clone(),
                 self.stream_name.clone(),
                 self.need_dump,
-            );
-
-            // let session_arc = Arc::new(Mutex::new(session));
-            //self.uuid_2_sessions.insert(k, v)
-            log::info!("GB28181 server listening on udp://{}", self.local_port);
-            tokio::spawn(async move {
-                if let Err(err) = session.run().await {
-                    log::error!("session run error, err: {}", err);
-                }
-            });
+            ) {
+                log::info!("GB28181 server listening on udp://{}", self.local_port);
+                tokio::spawn(async move {
+                    if let Err(err) = session.run().await {
+                        log::error!("session run error, err: {}", err);
+                    }
+                });
+            }
 
             return Ok(local_port);
         }
 
+        // log::info!("GB28181 server listening on tcp://{}", socket_addr);
+        // loop {
+        //     let (tcp_stream, _) = listener.accept().await?;
+        //     if let Ok(mut session) =
+        //         GB28181ServerSession::new(tcp_stream, self.event_producer.clone())
+        //     {
+        //         tokio::spawn(async move {
+        //             if let Err(err) = session.run().await {
+        //                 log::error!("session run error, err: {}", err);
+        //             }
+        //         });
+        //     }
+        // }
         Ok(None)
     }
 }

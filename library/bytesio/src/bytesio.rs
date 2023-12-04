@@ -19,6 +19,8 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 
+use tokio::time::{self};
+
 pub enum NetType {
     TCP,
     UDP,
@@ -37,19 +39,27 @@ pub struct UdpIO {
 }
 
 impl UdpIO {
-    pub async fn new(remote_domain: String, remote_port: u16, local_port: u16) -> Option<Self> {
-        let remote_address = format!("{remote_domain}:{remote_port}");
-        log::info!("remote address: {}", remote_address);
+    pub async fn new(local_port: u16, remote_address: Option<String>) -> Option<Self> {
         let local_address = format!("0.0.0.0:{local_port}");
-        if let Ok(local_socket) = UdpSocket::bind(local_address).await {
-            if let Ok(remote_socket_addr) = remote_address.parse::<SocketAddr>() {
-                if let Err(err) = local_socket.connect(remote_socket_addr).await {
-                    log::info!("connect to remote udp socket error: {}", err);
+        match UdpSocket::bind(local_address).await {
+            Ok(local_socket) => {
+                if let Some(remote_address_value) = remote_address {
+                    log::info!("remote address: {}", remote_address_value);
+
+                    if let Ok(remote_socket_addr) = remote_address_value.parse::<SocketAddr>() {
+                        if let Err(err) = local_socket.connect(remote_socket_addr).await {
+                            log::error!("connect to remote udp socket error: {}", err);
+                        }
+                    }
                 }
+
+                return Some(Self {
+                    socket: local_socket,
+                });
             }
-            return Some(Self {
-                socket: local_socket,
-            });
+            Err(err) => {
+                log::error!("bind udp socket error: {}", err);
+            }
         }
 
         None

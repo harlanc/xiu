@@ -193,7 +193,7 @@ impl Common {
 
     pub async fn on_audio_data(
         &mut self,
-        data: &mut BytesMut,
+        data: &BytesMut,
         timestamp: &u32,
     ) -> Result<(), SessionError> {
         let channel_data = FrameData::Audio {

@@ -22,6 +22,9 @@ pub enum MpegPsErrorValue {
 
     #[fail(display = "start code not correct.\n")]
     StartCodeNotCorrect,
+
+    #[fail(display = "not enough bytes\n")]
+    NotEnoughBytes,
 }
 #[derive(Debug)]
 pub struct MpegPsError {

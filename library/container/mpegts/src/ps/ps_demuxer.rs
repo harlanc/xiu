@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-
-use byteorder::BigEndian;
-
 use super::{
     errors::MpegPsError,
     pack_header::{MpegType, PsPackHeader},
@@ -9,14 +5,13 @@ use super::{
     psm::ProgramStreamMap,
     system_header::PsSystemHeader,
 };
-use {
-    bytes::{BufMut, BytesMut},
-    bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
-};
+use byteorder::BigEndian;
+use std::collections::HashMap;
+use {bytes::BytesMut, bytesio::bytes_reader::BytesReader};
 
 use crate::{
     define::{
-        epes_stream_id::{self, PES_SID_SYS},
+        epes_stream_id::{self},
         epsi_stream_type,
     },
     errors::MpegError,
@@ -26,8 +21,8 @@ use crate::{
 pub type OnFrameFn = Box<dyn Fn(u64, u64, u8, BytesMut) -> Result<(), MpegPsError> + Send + Sync>;
 
 #[derive(Default)]
-struct AVStream {
-    stream_id: u8,
+pub struct AVStream {
+    pub stream_id: u8,
     stream_type: u8,
     pts: u64,
     dts: u64,
@@ -65,8 +60,9 @@ impl PsDemuxer {
     }
     pub fn demux(&mut self, data: BytesMut) -> Result<(), MpegError> {
         self.reader.extend_from_slice(&data[..]);
+        //log::info!("demux: {}", self.reader.len());
 
-        while data.len() > 0 {
+        while self.reader.len() > 0 {
             let prefix_code = self.reader.advance_bytes(4)?;
 
             if prefix_code[0] != 0x00 || prefix_code[1] != 0x00 || prefix_code[2] != 0x01 {
@@ -76,12 +72,15 @@ impl PsDemuxer {
 
             match prefix_code[3] {
                 epes_stream_id::PES_SID_START => {
+                    log::info!(" epes_stream_id::PES_SID_START");
                     self.pack_header.parse(&mut self.reader)?;
                 }
                 epes_stream_id::PES_SID_SYS => {
+                    log::info!(" epes_stream_id::PES_SID_SYS");
                     self.system_header.parse(&mut self.reader)?;
                 }
                 epes_stream_id::PES_SID_PSM => {
+                    log::info!(" epes_stream_id::PES_SID_PSM");
                     self.psm.parse(&mut self.reader)?;
                     for stream in &self.psm.stream_map {
                         if !self.streams.contains_key(&stream.elementary_stream_id) {
@@ -97,6 +96,7 @@ impl PsDemuxer {
                     }
                 }
                 epes_stream_id::PES_SID_PSD => {
+                    log::info!(" epes_stream_id::PES_SID_PSD");
                     self.psd.parse(&mut self.reader)?;
                 }
                 epes_stream_id::PES_SID_PRIVATE_1
@@ -118,15 +118,21 @@ impl PsDemuxer {
                 }
 
                 epes_stream_id::PES_SID_AUDIO | epes_stream_id::PES_SID_VIDEO => {
+                    // if prefix_code[3] != 224 {
+                    //     log::info!("code;{}", prefix_code[3]);
+                    // }
+                    //log::info!("stream_id: {}", prefix_code[3]);
                     match self.pack_header.mpeg_type {
                         MpegType::Mpeg1 => {
+                            // log::info!("mpeg1");
                             self.pes.parse_mpeg1(&mut self.reader)?;
                         }
                         MpegType::Mpeg2 => {
-                            self.pes.parse(&mut self.reader)?;
+                            // log::info!("mpeg2: {:?}",self.reader.get_remaining_bytes());
+                            self.pes.parse_mpeg2(&mut self.reader)?;
                         }
                         MpegType::Unknown => {
-                            log::error!("unknow mpeg type");
+                            log::warn!("unknow mpeg type");
                         }
                     }
                     self.parse_avstream()?;
@@ -186,6 +192,7 @@ impl PsDemuxer {
                     }
                 }
                 epsi_stream_type::PSI_STREAM_AAC => {
+                    log::info!(" receive aac");
                     if stream.dts != self.pes.dts && stream.buffer.len() > 0 {
                         (self.on_frame_handler)(
                             stream.pts,
@@ -193,6 +200,7 @@ impl PsDemuxer {
                             stream.stream_type,
                             self.pes.payload.clone(),
                         )?;
+                        log::info!(" receive aac 2");
                         stream.buffer.clear();
                     }
 

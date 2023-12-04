@@ -1,5 +1,5 @@
+use crate::ps::errors::{MpegPsError, MpegPsErrorValue};
 use byteorder::BigEndian;
-
 use {
     super::define, super::errors::MpegError, bytes::BytesMut, bytesio::bytes_reader::BytesReader,
     bytesio::bytes_writer::BytesWriter,
@@ -211,10 +211,22 @@ impl Pes {
     //             PES_packet_data_byte 8 bslbf
     //         }
     // }
-    pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegError> {
+    pub fn parse_mpeg2(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegError> {
+        bytes_reader.backup();
+        // log::info!("parse 0 : length: {}", bytes_reader.len());
         bytes_reader.read_bytes(3)?;
         self.stream_id = bytes_reader.read_u8()?;
         self.pes_packet_length = bytes_reader.read_u16::<BigEndian>()?;
+
+        if self.pes_packet_length as usize > bytes_reader.len() {
+            bytes_reader.restore();
+            let not_enouth_bytes_err = MpegPsError {
+                value: MpegPsErrorValue::NotEnoughBytes,
+            };
+            return Err(MpegError {
+                value: crate::errors::MpegErrorValue::MpegPsError(not_enouth_bytes_err),
+            });
+        }
 
         let bytes_5 = bytes_reader.read_u8()?;
         assert!(bytes_5 >> 6 == 0b10);
@@ -223,7 +235,7 @@ impl Pes {
         self.data_alignment_indicator = (bytes_5 >> 2) & 0x01;
         self.copyright = (bytes_5 >> 1) & 0x01;
         self.original_or_copy = bytes_5 & 0x01;
-
+        // log::info!("parse 1");
         let bytes_6 = bytes_reader.read_u8()?;
         self.pts_dts_flags = (bytes_6 >> 6) & 0x03;
         self.escr_flag = (bytes_6 >> 5) & 0x01;
@@ -234,6 +246,7 @@ impl Pes {
         self.pes_extension_flag = bytes_6 & 0x01;
 
         self.pes_header_data_length = bytes_reader.read_u8()?;
+        // log::info!("parse 2: {}", self.pes_header_data_length);
         let cur_bytes_len = bytes_reader.len();
 
         if self.pts_dts_flags == 0x02 {
@@ -255,7 +268,7 @@ impl Pes {
             self.dts = (self.dts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
             self.dts = (self.dts << 15) | (bytes_reader.read_u16::<BigEndian>()? as u64 >> 1);
         }
-
+        // log::info!("parse 3");
         if self.escr_flag == 0x01 {
             let next_byte = bytes_reader.read_u8()?;
             self.escr_base = (next_byte as u64 >> 3) & 0x07;
@@ -268,11 +281,11 @@ impl Pes {
             let next_2_bytes_2 = bytes_reader.read_u16::<BigEndian>()? as u64;
             self.escr_base = (self.escr_base << 13) | (next_2_bytes_2 >> 3);
 
-            self.escr_extension = (next_2_bytes as u32 & 0x03);
+            self.escr_extension = next_2_bytes as u32 & 0x03;
             self.escr_extension =
                 (self.escr_extension << 7) | (bytes_reader.read_u8()? as u32 >> 1);
         }
-
+        // log::info!("parse 4");
         if self.es_rate_flag == 0x01 {
             self.es_rate = (bytes_reader.read_u24::<BigEndian>()? >> 1) & 0x3FFFFF;
         }
@@ -281,7 +294,7 @@ impl Pes {
             let next_byte = bytes_reader.read_u8()?;
             self.trick_mode_control = next_byte >> 5;
         }
-
+        // log::info!("parse 5");
         if self.additional_copy_info_flag == 0x01 {
             self.additional_copy_info = bytes_reader.read_u8()? & 0x7F;
         }
@@ -294,12 +307,17 @@ impl Pes {
 
         let left_pes_header_len =
             self.pes_header_data_length as usize - (cur_bytes_len - bytes_reader.len());
-        bytes_reader.read_bytes(left_pes_header_len)?;
+        //log::info!("parse 6: {}", left_pes_header_len);
+        if left_pes_header_len > 0 {
+            bytes_reader.read_bytes(left_pes_header_len)?;
+        }
 
         let payload_len =
             self.pes_packet_length as usize - self.pes_header_data_length as usize - 3;
-
+        // log::info!("parse 7 : {}", payload_len);
         self.payload = bytes_reader.read_bytes(payload_len)?;
+
+        // log::info!("pes pts: {},dts: {}", self.pts / 90, self.dts / 90);
 
         Ok(())
     }

@@ -1,19 +1,13 @@
-use byteorder::BigEndian;
-
-use crate::define::epes_stream_id::PES_SID_START;
-
 use super::errors::MpegPsError;
-
-use {
-    bytes::{BufMut, BytesMut},
-    bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
-};
+use crate::define::epes_stream_id::PES_SID_START;
+use byteorder::BigEndian;
+use bytesio::bytes_reader::BytesReader;
 
 #[derive(Default)]
 pub enum MpegType {
     Mpeg1,
-    Mpeg2,
     #[default]
+    Mpeg2,
     Unknown,
 }
 #[derive(Default)]

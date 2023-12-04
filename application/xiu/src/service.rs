@@ -5,6 +5,7 @@ use {
     super::config::Config,
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
+    gb28181::api_service,
     hls::remuxer::HlsRemuxer,
     hls::server as hls_server,
     httpflv::server as httpflv_server,
@@ -50,6 +51,7 @@ impl Service {
         self.start_rtmp(&mut stream_hub).await?;
         self.start_rtsp(&mut stream_hub).await?;
         self.start_webrtc(&mut stream_hub).await?;
+        self.start_gb28181(&mut stream_hub).await?;
         self.start_http_api_server(&mut stream_hub).await?;
         self.start_rtmp_remuxer(&mut stream_hub).await?;
 
@@ -158,14 +160,21 @@ impl Service {
     }
 
     async fn start_rtmp_remuxer(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
-        //The remuxer now is used for rtsp2rtmp, so both rtsp/rtmp cfg need to be enabled.
+        //The remuxer now is used for rtsp2rtmp/gb281812rtmp, so both rtsp(or gb28181)/rtmp cfg need to be enabled.
         let mut rtsp_enabled = false;
         if let Some(rtsp_cfg_value) = &self.cfg.rtsp {
             if rtsp_cfg_value.enabled {
                 rtsp_enabled = true;
             }
         }
-        if !rtsp_enabled {
+
+        let mut gb28181_enabled = false;
+        if let Some(gb28181_cfg_value) = &self.cfg.gb28181 {
+            if gb28181_cfg_value.enabled {
+                gb28181_enabled = true;
+            }
+        }
+        if !rtsp_enabled && !gb28181_enabled {
             return Ok(());
         }
 
@@ -234,6 +243,24 @@ impl Service {
                 if let Err(err) = webrtc_server.run().await {
                     log::error!("webrtc server error: {}\n", err);
                 }
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn start_gb28181(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
+        let gb28181_cfg = &self.cfg.gb28181;
+
+        if let Some(gb28181_cfg_value) = gb28181_cfg {
+            if !gb28181_cfg_value.enabled {
+                return Ok(());
+            }
+
+            let producer = stream_hub.get_hub_event_sender();
+            let listen_port = gb28181_cfg_value.api_port;
+            tokio::spawn(async move {
+                api_service::run(producer, listen_port).await;
             });
         }
 

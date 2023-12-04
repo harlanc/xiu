@@ -10,6 +10,7 @@ pub struct Config {
     pub rtmp: Option<RtmpConfig>,
     pub rtsp: Option<RtspConfig>,
     pub webrtc: Option<WebRTCConfig>,
+    pub gb28181: Option<GB28181Config>,
     pub httpflv: Option<HttpFlvConfig>,
     pub hls: Option<HlsConfig>,
     pub httpapi: Option<HttpApiConfig>,
@@ -22,6 +23,7 @@ impl Config {
         rtmp_port: usize,
         rtsp_port: usize,
         webrtc_port: usize,
+        gb28181_port: usize,
         httpflv_port: usize,
         hls_port: usize,
         log_level: String,
@@ -53,6 +55,14 @@ impl Config {
             });
         }
 
+        let mut gb28181_config: Option<GB28181Config> = None;
+        if gb28181_port > 0 {
+            gb28181_config = Some(GB28181Config {
+                enabled: true,
+                api_port: gb28181_port,
+            });
+        }
+
         let mut httpflv_config: Option<HttpFlvConfig> = None;
         if httpflv_port > 0 {
             httpflv_config = Some(HttpFlvConfig {
@@ -79,6 +89,7 @@ impl Config {
             rtmp: rtmp_config,
             rtsp: rtsp_config,
             webrtc: webrtc_config,
+            gb28181: gb28181_config,
             httpflv: httpflv_config,
             hls: hls_config,
             httpapi: None,
@@ -119,6 +130,12 @@ pub struct RtspConfig {
 pub struct WebRTCConfig {
     pub enabled: bool,
     pub port: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GB28181Config {
+    pub enabled: bool,
+    pub api_port: usize,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -184,9 +201,7 @@ fn test_toml_parse() {
         Err(err) => print!("{}\n", err),
     }
 
-    let str = fs::read_to_string(
-        "./src/config/config.toml",
-    );
+    let str = fs::read_to_string("./src/config/config.toml");
 
     match str {
         Ok(val) => {

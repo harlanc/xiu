@@ -54,6 +54,15 @@ async fn main() -> Result<()> {
                 .conflicts_with("config_file_path"),
         )
         .arg(
+            Arg::new("gb28181")
+                .long("gb28181")
+                .short('g')
+                .value_name("port")
+                .help("Specify the gb28181 listening port.(e.g.:3000)")
+                .value_parser(value_parser!(usize))
+                .conflicts_with("config_file_path"),
+        )
+        .arg(
             Arg::new("httpflv")
                 .long("httpflv")
                 .short('f')
@@ -118,8 +127,13 @@ async fn main() -> Result<()> {
         let rtmp_port_o = matches.get_one::<usize>("rtmp");
         let rtsp_port_o = matches.get_one::<usize>("rtsp");
         let webrtc_port_o = matches.get_one::<usize>("webrtc");
+        let gb28181_port_o = matches.get_one::<usize>("gb28181");
 
-        if rtmp_port_o.is_none() && rtsp_port_o.is_none() && webrtc_port_o.is_none() {
+        if rtmp_port_o.is_none()
+            && rtsp_port_o.is_none()
+            && webrtc_port_o.is_none()
+            && gb28181_port_o.is_none()
+        {
             println!("If you do not specify the config Options, you must enable at least one protocol from RTSP and RTMP.");
             return Ok(());
         }
@@ -135,6 +149,11 @@ async fn main() -> Result<()> {
         };
 
         let webrtc_port = match webrtc_port_o {
+            Some(val) => *val,
+            None => 0,
+        };
+
+        let gb28181_port = match gb28181_port_o {
             Some(val) => *val,
             None => 0,
         };
@@ -156,6 +175,7 @@ async fn main() -> Result<()> {
             rtmp_port,
             rtsp_port,
             webrtc_port,
+            gb28181_port,
             httpflv_port,
             hls_port,
             log_level,

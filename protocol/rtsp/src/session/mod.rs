@@ -359,7 +359,9 @@ impl RtspServerSession {
                                 };
 
                             let address = rtsp_request.address.clone();
-                            if let Some(rtp_io) = UdpIO::new(address.clone(), rtp_port, 0).await {
+
+                            let remote_address = format!("{}:{rtp_port}", address.clone());
+                            if let Some(rtp_io) = UdpIO::new(0, Some(remote_address)).await {
                                 rtp_server_port = rtp_io.get_local_port();
 
                                 let box_udp_io: Box<dyn TNetIO + Send + Sync> = Box::new(rtp_io);
@@ -371,8 +373,9 @@ impl RtspServerSession {
                                 }
                             }
 
+                            let rtcp_remote_address = format!("{}:{rtcp_port}", address.clone());
                             if let Some(rtcp_io) =
-                                UdpIO::new(address.clone(), rtcp_port, rtp_server_port.unwrap() + 1)
+                                UdpIO::new(rtp_server_port.unwrap() + 1, Some(rtcp_remote_address))
                                     .await
                             {
                                 rtcp_server_port = rtcp_io.get_local_port();

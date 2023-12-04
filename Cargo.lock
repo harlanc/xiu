@@ -1142,7 +1142,9 @@ dependencies = [
 name = "gb28181"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
+ "axum",
  "base64 0.21.2",
  "byteorder",
  "bytes",
@@ -1155,6 +1157,10 @@ dependencies = [
  "lazy_static",
  "log",
  "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
  "streamhub 0.1.1",
  "tokio",
  "xmpegts",
@@ -3672,6 +3678,7 @@ dependencies = [
  "clap",
  "env_logger_extend",
  "failure",
+ "gb28181",
  "hls",
  "httpflv",
  "libc",

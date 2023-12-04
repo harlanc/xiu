@@ -1,22 +1,16 @@
-use byteorder::BigEndian;
-
-use crate::define::epes_stream_id::PES_SID_PSM;
-
 use super::errors::MpegPsError;
-
-use {
-    bytes::{BufMut, BytesMut},
-    bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
-};
+use crate::define::epes_stream_id::PES_SID_PSM;
+use byteorder::BigEndian;
+use {bytes::BytesMut, bytesio::bytes_reader::BytesReader};
 
 #[derive(Default)]
 pub struct ElementaryStreamMap {
     pub stream_type: u8,
     pub elementary_stream_id: u8,
-    elementary_stream_info_length: u16,
-    pseudo_descriptor_tag: u8,
-    pseudo_descriptor_length: u8,
-    elementary_stream_id_extension: u8,
+    pub elementary_stream_info_length: u16,
+    pub pseudo_descriptor_tag: u8,
+    pub pseudo_descriptor_length: u8,
+    pub elementary_stream_id_extension: u8,
 }
 //T-REC-H.222.0-201703-S!!PDF-E.pdf Table 2-41 P69
 // program_stream_map() {
@@ -70,29 +64,113 @@ pub struct ProgramStreamMap {
     pub stream_map: Vec<ElementaryStreamMap>,
 }
 
+pub fn print(data: BytesMut) {
+    println!("==========={}", data.len());
+    let mut idx = 0;
+    for i in data {
+        print!("{i:02X} ");
+        idx += 1;
+        if idx % 16 == 0 {
+            println!()
+        }
+    }
+
+    println!("===========")
+}
+
 impl ProgramStreamMap {
     pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
+        // let psm_length = (bytes_reader.get(4)? as usize) << 8 | bytes_reader.get(5)? as usize;
+        // log::info!(
+        //     "current pes packet length: {} : {}",
+        //     psm_length,
+        //     bytes_reader.len() - 6
+        // );
+        // print(bytes_reader.get_remaining_bytes());
+        // if psm_length > bytes_reader.len() - 6 {
+        //     return Err(MpegPsError {
+        //         value: crate::ps::errors::MpegPsErrorValue::NotEnoughBytes,
+        //     });
+        // }
+
+        // 00 00 01 BC
+        // 00 12
+        // E0
+        // FF 00 00 00 08 1B E0 00 00
+        // 90 C0 00 00 00 00 00 00
+
+        // 00 00 01 E0 00 1D 84 80
+        // 05 21 00 55 D4 79 00 00 00 01 67 42 C0 16 DA 82
+        // 80 F4 9A 81 01 01 03 C2 01 0A 80 00 00 01 E0 00
+        // 10 84 80 05 21 00 55 D4 79 00 00 00 01 68 CE 3C
+        // 80
+
+        bytes_reader.backup();
+
         let start = bytes_reader.read_bytes(4)?;
+
+        // log::info!("psm start");
 
         if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_PSM] {
             return Err(MpegPsError {
                 value: super::errors::MpegPsErrorValue::StartCodeNotCorrect,
             });
         }
+        // log::info!("psm start1");
         self.map_stream_id = PES_SID_PSM;
         self.program_stream_map_length = bytes_reader.read_u16::<BigEndian>()?;
+
+        if self.program_stream_map_length as usize > bytes_reader.len() {
+            bytes_reader.restore();
+            return Err(MpegPsError {
+                value: crate::ps::errors::MpegPsErrorValue::NotEnoughBytes,
+            });
+        }
 
         let byte_7 = bytes_reader.read_u8()?;
         self.current_next_indicator = byte_7 >> 7;
         self.single_extension_stream_flag = (byte_7 >> 6) & 0x01;
         self.program_stream_map_version = byte_7 & 0x1F;
+        bytes_reader.read_u8()?;
 
         self.program_stream_info_length = bytes_reader.read_u16::<BigEndian>()?;
+        // log::info!("psm start2 : {}", self.program_stream_info_length);
+        if self.program_stream_info_length as usize + 2 > bytes_reader.len() {
+            bytes_reader.restore();
+            return Err(MpegPsError {
+                value: crate::ps::errors::MpegPsErrorValue::NotEnoughBytes,
+            });
+        }
+
+        // if bs.RemainBytes() < int(psm.Program_stream_info_length)+2 {
+        //     bs.UnRead(10 * 8)
+        //     return errNeedMore
+        // }
+
         bytes_reader.read_bytes(self.program_stream_info_length as usize)?;
 
         self.elementary_stream_map_length = bytes_reader.read_u16::<BigEndian>()?;
 
-        while bytes_reader.len() > 0 {
+        // log::info!(
+        //     "elementary_stream_map_length: {}",
+        //     self.elementary_stream_map_length
+        // );
+
+        if self.elementary_stream_map_length as usize + 4 > bytes_reader.len() {
+            bytes_reader.restore();
+            return Err(MpegPsError {
+                value: crate::ps::errors::MpegPsErrorValue::NotEnoughBytes,
+            });
+        }
+
+        // if bs.RemainBytes() < int(psm.Elementary_stream_map_length)+4 {
+        //     bs.UnRead(12*8 + int(psm.Program_stream_info_length)*8)
+        //     return errNeedMore
+        // }
+
+        let remaining_bytes = bytes_reader.len() - self.elementary_stream_map_length as usize;
+
+        while bytes_reader.len() > remaining_bytes {
             let stream_type = bytes_reader.read_u8()?;
             let elementary_stream_id = bytes_reader.read_u8()?;
             let elementary_stream_info_length = bytes_reader.read_u16::<BigEndian>()?;
@@ -122,7 +200,8 @@ impl ProgramStreamMap {
                 elementary_stream_id_extension,
             });
         }
-
+        bytes_reader.read_bytes(4)?;
+        // log::info!("psm end");
         Ok(())
     }
 }

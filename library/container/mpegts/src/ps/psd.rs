@@ -1,13 +1,7 @@
-use byteorder::BigEndian;
-
-use crate::define::epes_stream_id::PES_SID_PSD;
-
 use super::errors::MpegPsError;
-
-use {
-    bytes::{BufMut, BytesMut},
-    bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
-};
+use crate::define::epes_stream_id::PES_SID_PSD;
+use byteorder::BigEndian;
+use bytesio::bytes_reader::BytesReader;
 
 // Syntax                                       No. of bits Mnemonic
 // directory_PES_packet(){
@@ -63,16 +57,16 @@ use {
 // }
 
 #[derive(Default)]
-struct AccessUnit {
-    packet_stream_id: u8,
-    pes_header_position_offset_sign: u8,
-    pes_header_position_offset: u64,
-    reference_offset: u16,
+pub struct AccessUnit {
+    pub packet_stream_id: u8,
+    pub pes_header_position_offset_sign: u8,
+    pub pes_header_position_offset: u64,
+    pub reference_offset: u16,
 
-    pts: u64,
-    bytes_to_read: u32,
-    intra_coded_indicator: u8,
-    coding_parameters_indicator: u8,
+    pub pts: u64,
+    pub bytes_to_read: u32,
+    pub intra_coded_indicator: u8,
+    pub coding_parameters_indicator: u8,
 }
 
 #[derive(Default)]
