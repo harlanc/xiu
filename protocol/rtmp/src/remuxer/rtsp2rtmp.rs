@@ -173,10 +173,9 @@ impl Rtsp2RtmpRemuxerSession {
         loop {
             if let Some(data) = self.data_receiver.recv().await {
                 match data {
-                    FrameData::Audio {
-                        timestamp,
-                        mut data,
-                    } => self.on_rtsp_audio(&mut data, timestamp).await?,
+                    FrameData::Audio { timestamp, data } => {
+                        self.on_rtsp_audio(&data, timestamp).await?
+                    }
                     FrameData::Video {
                         timestamp,
                         mut data,
@@ -225,7 +224,7 @@ impl Rtsp2RtmpRemuxerSession {
             self.base_audio_timestamp = timestamp;
         }
 
-        let audio_frame = self.rtmp_cooker.gen_audio_frame_data(&audio_data)?;
+        let audio_frame = self.rtmp_cooker.gen_audio_frame_data(audio_data)?;
 
         let timestamp_adjust =
             (timestamp - self.base_audio_timestamp) / (self.audio_clock_rate / 1000);

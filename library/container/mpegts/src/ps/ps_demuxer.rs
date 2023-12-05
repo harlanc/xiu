@@ -62,7 +62,7 @@ impl PsDemuxer {
         self.reader.extend_from_slice(&data[..]);
         //log::info!("demux: {}", self.reader.len());
 
-        while self.reader.len() > 0 {
+        while !self.reader.is_empty() {
             let prefix_code = self.reader.advance_bytes(4)?;
 
             if prefix_code[0] != 0x00 || prefix_code[1] != 0x00 || prefix_code[2] != 0x01 {
@@ -83,16 +83,11 @@ impl PsDemuxer {
                     log::info!(" epes_stream_id::PES_SID_PSM");
                     self.psm.parse(&mut self.reader)?;
                     for stream in &self.psm.stream_map {
-                        if !self.streams.contains_key(&stream.elementary_stream_id) {
-                            self.streams.insert(
-                                stream.elementary_stream_id,
-                                AVStream {
+                        self.streams.entry(stream.elementary_stream_id).or_insert(AVStream {
                                     stream_id: stream.elementary_stream_id,
                                     stream_type: stream.stream_type,
                                     ..Default::default()
-                                },
-                            );
-                        }
+                                });
                     }
                 }
                 epes_stream_id::PES_SID_PSD => {
@@ -193,7 +188,7 @@ impl PsDemuxer {
                 }
                 epsi_stream_type::PSI_STREAM_AAC => {
                     log::info!(" receive aac");
-                    if stream.dts != self.pes.dts && stream.buffer.len() > 0 {
+                    if stream.dts != self.pes.dts && !stream.buffer.is_empty() {
                         (self.on_frame_handler)(
                             stream.pts,
                             stream.dts,

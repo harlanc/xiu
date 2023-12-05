@@ -70,11 +70,7 @@ impl TsMuxer {
         flags: u16,
         payload: BytesMut,
     ) -> Result<(), MpegError> {
-        if (flags & define::MPEG_FLAG_H264_H265_WITH_AUD) > 0 {
-            self.h264_h265_with_aud = true;
-        } else {
-            self.h264_h265_with_aud = false;
-        }
+        self.h264_h265_with_aud = (flags & define::MPEG_FLAG_H264_H265_WITH_AUD) > 0;
 
         //print!("pes payload length {}\n", payload.len());
         //self.packet_number += payload.len();

@@ -60,12 +60,24 @@ impl RtpQueue {
         let cur_cache_size = self.cache.len();
 
         for (index, item) in self.cache.iter_mut().rev().enumerate() {
-            let delta = cur_seq_number.wrapping_sub(item.header.seq_number) as i16;
-            if delta == 0 {
-                break;
-            } else if delta > 0 {
-                self.cache.insert(cur_cache_size - index, packet);
-                break;
+            // let delta = cur_seq_number.wrapping_sub(item.header.seq_number) as i16;
+            // if delta == 0 {
+            //     break;
+            // } else if delta > 0 {
+            //     self.cache.insert(cur_cache_size - index, packet);
+            //     break;
+            // }
+
+            match cur_seq_number.wrapping_sub(item.header.seq_number) as i16 {
+                0 => {
+                    break;
+                }
+                1.. => {
+                    self.cache.insert(cur_cache_size - index, packet);
+                    break;
+                }
+
+                _ => {}
             }
         }
     }
@@ -209,11 +221,26 @@ mod tests {
             rtp_queue.write_queue(rtp_packet);
         }
 
-        loop {
-            if let Some(packet) = rtp_queue.read_queue() {
-                println!("rtp packet number: {}", packet.header.seq_number);
-            } else {
-                break;
+        while let Some(packet) = rtp_queue.read_queue() {
+            println!("rtp packet number: {}", packet.header.seq_number);
+        }
+
+        // aa.saturating_sub(rhs)
+    }
+
+    #[test]
+    pub fn test_match() {
+        let aa = -1;
+
+        match aa {
+            0 => {
+                println!("0")
+            }
+            1.. => {
+                println!("bigger than 0")
+            }
+            _ => {
+                println!("smaller than 0")
             }
         }
 

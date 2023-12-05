@@ -19,8 +19,6 @@ use async_trait::async_trait;
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 
-use tokio::time::{self};
-
 pub enum NetType {
     TCP,
     UDP,

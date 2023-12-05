@@ -39,11 +39,10 @@ use xrtsp::rtp::RtpPacket;
 use xrtsp::rtp::{rtp_queue::RtpQueue, utils::Unmarshal};
 
 pub struct GB28181ServerSession {
-    session_id: Uuid,
+    pub session_id: Uuid,
+    pub local_port: u16,
     stream_name: String,
     io: Box<dyn TNetIO + Send + Sync>,
-    // reader: BytesReader,
-    // rtp_queue: RtpQueue,
     event_sender: StreamHubEventSender,
     stream_handler: Arc<GB28181StreamHandler>,
     dump_file: Option<File>,
@@ -74,12 +73,13 @@ pub fn current_time() -> u64 {
 }
 
 impl GB28181ServerSession {
-    pub fn new(
-        stream: UdpIO,
+    pub async fn new(
+        // stream: UdpIO,
+        local_port: u16,
         event_sender: StreamHubEventSender,
         stream_name: String,
         need_dump: bool,
-    ) -> Self {
+    ) -> Option<Self> {
         let stream_handler = Arc::new(GB28181StreamHandler::new());
         let session_id = Uuid::new(RandomDigitCount::Zero);
 
@@ -90,21 +90,23 @@ impl GB28181ServerSession {
             None
         };
 
-        let net_io: Box<dyn TNetIO + Send + Sync> = Box::new(stream);
-        // let io = Arc::new(Mutex::new(net_io));
+        if let Some(udp_io) = UdpIO::new(local_port, None).await {
+            let local_port = udp_io.get_local_port().unwrap();
+            let io: Box<dyn TNetIO + Send + Sync> = Box::new(udp_io);
 
-        Self {
-            session_id,
-            io: net_io,
-            stream_name,
-            // reader: BytesReader::new(BytesMut::default()),
-            event_sender,
-            stream_handler,
-            // rtp_queue: RtpQueue::new(200),
-            dump_file,
-            dump_last_recv_timestamp: 0,
-            exit_sender: None,
+            return Some(Self {
+                local_port,
+                session_id,
+                io,
+                stream_name,
+                event_sender,
+                stream_handler,
+                dump_file,
+                dump_last_recv_timestamp: 0,
+                exit_sender: None,
+            });
         }
+        None
     }
 
     pub fn dump(&mut self, data: &BytesMut) {
@@ -141,10 +143,10 @@ impl GB28181ServerSession {
 
         let (sender, receiver) = mpsc::unbounded_channel();
         self.publish_to_stream_hub(receiver)?;
+        let mut ps_demuxer = self.new_ps_demuxer(sender);
 
         let mut bytes_reader = BytesReader::new(BytesMut::default());
         let mut rtp_queue = RtpQueue::new(200);
-        let mut ps_demuxer = self.new_ps_demuxer(sender);
 
         loop {
             tokio::select! {
@@ -198,7 +200,7 @@ impl GB28181ServerSession {
     fn new_ps_demuxer(&self, sender: UnboundedSender<FrameData>) -> PsDemuxer {
         let handler = Box::new(
             move |pts: u64,
-                  dts: u64,
+                  _dts: u64,
                   stream_type: u8,
                   payload: BytesMut|
                   -> Result<(), MpegPsError> {
@@ -237,7 +239,7 @@ impl GB28181ServerSession {
         receiver: UnboundedReceiver<FrameData>,
     ) -> Result<(), SessionError> {
         let publisher_info = PublisherInfo {
-            id: self.session_id.clone(),
+            id: self.session_id,
             pub_type: PublishType::PushPsStream,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -264,7 +266,7 @@ impl GB28181ServerSession {
         Ok(())
     }
 
-    pub fn unpublish_from_stream_hub(&self) -> Result<(), SessionError> {
+    pub fn unpublish_to_stream_hub(&self) -> Result<(), SessionError> {
         let unpublish_event = StreamHubEvent::UnPublish {
             identifier: StreamIdentifier::GB28181 {
                 stream_name: self.stream_name.clone(),
@@ -283,7 +285,7 @@ impl GB28181ServerSession {
         match rv {
             Err(_) => {
                 log::error!(
-                    "unpublish_gb28181_session error.stream_name: {}",
+                    "unpublish_to_stream_hub error.stream_name: {}",
                     self.stream_name
                 );
                 Err(SessionError {
@@ -292,7 +294,7 @@ impl GB28181ServerSession {
             }
             Ok(()) => {
                 log::info!(
-                    "unpublish_gb28181_session successfully.stream name: {}",
+                    "unpublish_to_stream_hub successfully.stream name: {}",
                     self.stream_name
                 );
                 Ok(())

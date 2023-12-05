@@ -111,7 +111,7 @@ impl ProgramStreamMap {
 
         // log::info!("psm start");
 
-        if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_PSM] {
+        if start.to_vec() != [0x00, 0x00, 0x01, PES_SID_PSM] {
             return Err(MpegPsError {
                 value: super::errors::MpegPsErrorValue::StartCodeNotCorrect,
             });

@@ -198,7 +198,7 @@ fn test_toml_parse() {
     let path = std::env::current_dir();
     match path {
         Ok(val) => println!("The current directory is {}\n", val.display()),
-        Err(err) => print!("{}\n", err),
+        Err(err) => println!("{}", err),
     }
 
     let str = fs::read_to_string("./src/config/config.toml");

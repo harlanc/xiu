@@ -23,7 +23,7 @@ impl PsPackHeader {
     pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
-        if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_START] {
+        if start.to_vec() != [0x00, 0x00, 0x01, PES_SID_START] {
             return Err(MpegPsError {
                 value: super::errors::MpegPsErrorValue::StartCodeNotCorrect,
             });

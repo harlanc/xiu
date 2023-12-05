@@ -63,7 +63,7 @@ impl PsSystemHeader {
     pub fn parse(&mut self, bytes_reader: &mut BytesReader) -> Result<(), MpegPsError> {
         let start = bytes_reader.read_bytes(4)?;
 
-        if start.to_vec() != &[0x00, 0x00, 0x01, PES_SID_SYS] {
+        if start.to_vec() != [0x00, 0x00, 0x01, PES_SID_SYS] {
             return Err(MpegPsError {
                 value: super::errors::MpegPsErrorValue::StartCodeNotCorrect,
             });
@@ -85,7 +85,7 @@ impl PsSystemHeader {
         let byte_12 = bytes_reader.read_u8()?;
         self.packet_rate_restriction_flag = byte_12 >> 7;
 
-        while bytes_reader.len() > 0 && (bytes_reader.advance_u8()? >> 7) == 0x01 {
+        while !bytes_reader.is_empty() && (bytes_reader.advance_u8()? >> 7) == 0x01 {
             let stream_id = bytes_reader.read_u8()?;
 
             let stream_id_extension = if stream_id == 0xB7 {
@@ -120,13 +120,13 @@ impl PsSystemHeader {
         Ok(())
     }
 }
-
+#[cfg(test)]
 mod tests {
     use byteorder::BigEndian;
 
     use {
-        bytes::{BufMut, BytesMut},
-        bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader, bytes_writer::BytesWriter},
+        bytes::BytesMut,
+        bytesio::{bits_reader::BitsReader, bytes_reader::BytesReader},
     };
 
     #[test]

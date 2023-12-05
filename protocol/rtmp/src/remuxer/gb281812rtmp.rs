@@ -161,10 +161,9 @@ impl GB281812RtmpRemuxerSession {
         loop {
             if let Some(data) = self.data_receiver.recv().await {
                 match data {
-                    FrameData::Audio {
-                        timestamp,
-                        mut data,
-                    } => self.on_gb28181_audio(&mut data, timestamp).await?,
+                    FrameData::Audio { timestamp, data } => {
+                        self.on_gb28181_audio(&data, timestamp).await?
+                    }
                     FrameData::Video { timestamp, data } => {
                         log::info!("video timestamp: {}", timestamp);
                         self.on_gb28181_video(data, timestamp).await?;
