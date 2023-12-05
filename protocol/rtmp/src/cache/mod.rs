@@ -139,7 +139,6 @@ impl Cache {
         chunk_body: &BytesMut,
         timestamp: u32,
     ) -> Result<(), CacheError> {
-        log::info!("save video data");
         let channel_data = FrameData::Video {
             timestamp,
             data: chunk_body.clone(),
@@ -152,7 +151,6 @@ impl Cache {
         self.gops.save_frame_data(channel_data, is_key_frame);
 
         if is_key_frame && tag_header.avc_packet_type == define::avc_packet_type::AVC_SEQHDR {
-            log::info!("save seq header");
             let mut avc_processor = Mpeg4AvcProcessor::default();
             avc_processor.decoder_configuration_record_load(&mut reader)?;
 

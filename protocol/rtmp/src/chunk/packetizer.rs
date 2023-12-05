@@ -167,7 +167,6 @@ impl ChunkPacketizer {
     }
 
     pub async fn write_chunk(&mut self, chunk_info: &mut ChunkInfo) -> Result<(), PackError> {
-        log::info!("write_chunk 0");
         self.zip_chunk_header(chunk_info)?;
 
         log::trace!(
@@ -187,7 +186,7 @@ impl ChunkPacketizer {
         if let Some(extended_timestamp) = self.extended_timestamp {
             self.write_extened_timestamp(extended_timestamp)?;
         }
-        log::info!("write_chunk 1");
+
         let mut cur_payload_size: usize;
         while whole_payload_size > 0 {
             cur_payload_size = if whole_payload_size > self.max_chunk_size {
@@ -195,40 +194,23 @@ impl ChunkPacketizer {
             } else {
                 whole_payload_size
             };
-            log::info!(
-                "write_chunk 2: whole_payload_size:{},cur_payload_size: {}",
-                whole_payload_size,
-                cur_payload_size
-            );
+
             let payload_bytes = chunk_info.payload.split_to(cur_payload_size);
             self.writer.write(&payload_bytes[0..])?;
-            log::info!("write_chunk 3: {}", self.writer.bytes_writer.len());
+
             whole_payload_size -= cur_payload_size;
 
             if whole_payload_size > 0 {
-                log::info!(
-                    "write_chunk 3: cisd:{}, timestamp: {}",
-                    chunk_info.basic_header.chunk_stream_id,
-                    chunk_info.message_header.timestamp
-                );
                 self.write_basic_header(3, chunk_info.basic_header.chunk_stream_id)?;
 
                 if let Some(extended_timestamp) = self.extended_timestamp {
                     self.write_extened_timestamp(extended_timestamp)?;
                 }
             }
-            // if self.writer.bytes_writer.len() > 0 {
-            //     log::info!("flush payload");
-            //     self.writer.flush().await?;
-            // }
-
-            log::info!("write_chunk 4");
         }
-        log::info!("write_chunk 5");
 
         self.writer.flush().await?;
 
-        log::info!("write_chunk 6");
         Ok(())
     }
 }

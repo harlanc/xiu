@@ -124,6 +124,7 @@ impl ApiService {
         &mut self,
         request_data: axum::extract::Form<RequestFormData>,
     ) -> Json<serde_json::Value> {
+        log::info!("open rtp server");
         if request_data.secret != self.secret {
             return Json(serde_json::json!({
             "code": -1,
@@ -247,9 +248,11 @@ pub async fn run(producer: StreamHubEventSender, port: usize) {
         .route("/index/api/openRtpServer", post(open_rtp_server))
         .route("/index/api/clostRtpServer", post(close_rtp_server));
 
-    log::info!("Http api server listening on http://:{}", port);
-    axum::Server::bind(&([192, 168, 0, 104], port as u16).into())
+    log::info!("GB28181 api server listening on http://:{}", port);
+    axum::Server::bind(&([127, 0, 0, 1], port as u16).into())
         .serve(app.into_make_service())
         .await
         .unwrap();
+
+    log::info!("GB28181 api server end...");
 }

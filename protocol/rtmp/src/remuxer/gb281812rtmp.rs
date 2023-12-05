@@ -165,7 +165,6 @@ impl GB281812RtmpRemuxerSession {
                         self.on_gb28181_audio(&data, timestamp).await?
                     }
                     FrameData::Video { timestamp, data } => {
-                        log::info!("video timestamp: {}", timestamp);
                         self.on_gb28181_video(data, timestamp).await?;
                     }
                     FrameData::MediaInfo { media_info } => {
@@ -240,7 +239,6 @@ impl GB281812RtmpRemuxerSession {
                 is_av = false;
             }
             H264_NAL_PPS => {
-                log::info!("receive PPS...");
                 self.pps = Some(nalu.clone());
                 is_av = false;
             }

@@ -47,7 +47,8 @@ pub struct GB28181ServerSession {
     stream_handler: Arc<GB28181StreamHandler>,
     dump_file: Option<File>,
     dump_last_recv_timestamp: u64,
-    exit_sender: Option<UnboundedSender<()>>,
+    pub exit_sender: UnboundedSender<()>,
+    exit_receiver: UnboundedReceiver<()>,
 }
 
 pub fn print(data: BytesMut) {
@@ -94,6 +95,8 @@ impl GB28181ServerSession {
             let local_port = udp_io.get_local_port().unwrap();
             let io: Box<dyn TNetIO + Send + Sync> = Box::new(udp_io);
 
+            let (exit_sender, exit_receiver) = mpsc::unbounded_channel::<()>();
+
             return Some(Self {
                 local_port,
                 session_id,
@@ -103,7 +106,8 @@ impl GB28181ServerSession {
                 stream_handler,
                 dump_file,
                 dump_last_recv_timestamp: 0,
-                exit_sender: None,
+                exit_sender,
+                exit_receiver,
             });
         }
         None
@@ -138,9 +142,6 @@ impl GB28181ServerSession {
     }
 
     pub async fn run(&mut self) -> Result<(), SessionError> {
-        let (exit_sender, mut exit) = mpsc::unbounded_channel::<()>();
-        self.exit_sender = Some(exit_sender);
-
         let (sender, receiver) = mpsc::unbounded_channel();
         self.publish_to_stream_hub(receiver)?;
         let mut ps_demuxer = self.new_ps_demuxer(sender);
@@ -180,21 +181,14 @@ impl GB28181ServerSession {
                         }
                     }
                 }
-                _ = exit.recv()=>{
+                _ = self.exit_receiver.recv()=>{
+                    self.unpublish_to_stream_hub()?;
                     break;
                 }
             }
         }
 
         Ok(())
-    }
-
-    pub fn exit(&self) {
-        if let Some(exit_sender) = &self.exit_sender {
-            if let Err(err) = exit_sender.send(()) {
-                log::error!("exit: send error: {}", err);
-            }
-        }
     }
 
     fn new_ps_demuxer(&self, sender: UnboundedSender<FrameData>) -> PsDemuxer {

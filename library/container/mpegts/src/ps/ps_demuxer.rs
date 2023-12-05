@@ -72,26 +72,28 @@ impl PsDemuxer {
 
             match prefix_code[3] {
                 epes_stream_id::PES_SID_START => {
-                    log::info!(" epes_stream_id::PES_SID_START");
+                    log::trace!(" epes_stream_id::PES_SID_START");
                     self.pack_header.parse(&mut self.reader)?;
                 }
                 epes_stream_id::PES_SID_SYS => {
-                    log::info!(" epes_stream_id::PES_SID_SYS");
+                    log::trace!(" epes_stream_id::PES_SID_SYS");
                     self.system_header.parse(&mut self.reader)?;
                 }
                 epes_stream_id::PES_SID_PSM => {
-                    log::info!(" epes_stream_id::PES_SID_PSM");
+                    log::trace!(" epes_stream_id::PES_SID_PSM");
                     self.psm.parse(&mut self.reader)?;
                     for stream in &self.psm.stream_map {
-                        self.streams.entry(stream.elementary_stream_id).or_insert(AVStream {
-                                    stream_id: stream.elementary_stream_id,
-                                    stream_type: stream.stream_type,
-                                    ..Default::default()
-                                });
+                        self.streams
+                            .entry(stream.elementary_stream_id)
+                            .or_insert(AVStream {
+                                stream_id: stream.elementary_stream_id,
+                                stream_type: stream.stream_type,
+                                ..Default::default()
+                            });
                     }
                 }
                 epes_stream_id::PES_SID_PSD => {
-                    log::info!(" epes_stream_id::PES_SID_PSD");
+                    log::trace!(" epes_stream_id::PES_SID_PSD");
                     self.psd.parse(&mut self.reader)?;
                 }
                 epes_stream_id::PES_SID_PRIVATE_1
