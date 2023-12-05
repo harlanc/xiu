@@ -42,7 +42,7 @@ async fn handle_connection(
 
             tokio::spawn(async move {
                 if let Err(err) = flv_hanlder.run().await {
-                    log::error!("flv handler run error {}\n", err);
+                    log::error!("flv handler run error {}", err);
                 }
             });
 

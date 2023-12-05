@@ -12,11 +12,11 @@ pub struct WebRTCError {
 
 #[derive(Debug, Fail)]
 pub enum WebRTCErrorValue {
-    #[fail(display = "webrtc error: {}\n", _0)]
+    #[fail(display = "webrtc error: {}", _0)]
     RTCError(#[cause] RTCError),
-    #[fail(display = "webrtc util error: {}\n", _0)]
+    #[fail(display = "webrtc util error: {}", _0)]
     RTCUtilError(#[cause] RTCUtilError),
-    #[fail(display = "cannot get local description\n")]
+    #[fail(display = "cannot get local description")]
     CanNotGetLocalDescription,
 }
 

@@ -8,11 +8,11 @@ use {
 
 #[derive(Debug, Fail)]
 pub enum TagParseErrorValue {
-    #[fail(display = "bytes read error\n")]
+    #[fail(display = "bytes read error")]
     BytesReadError(BytesReadError),
-    #[fail(display = "tag data length error\n")]
+    #[fail(display = "tag data length error")]
     TagDataLength,
-    #[fail(display = "unknow tag type error\n")]
+    #[fail(display = "unknow tag type error")]
     UnknownTagType,
 }
 #[derive(Debug)]
@@ -89,13 +89,13 @@ pub struct FlvDemuxerError {
 pub enum DemuxerErrorValue {
     // #[fail(display = "server error")]
     // Error,
-    #[fail(display = "bytes write error:{}\n", _0)]
+    #[fail(display = "bytes write error:{}", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    #[fail(display = "bytes read error:{}\n", _0)]
+    #[fail(display = "bytes read error:{}", _0)]
     BytesReadError(#[cause] BytesReadError),
-    #[fail(display = "mpeg avc error:{}\n", _0)]
+    #[fail(display = "mpeg avc error:{}", _0)]
     MpegAvcError(#[cause] Mpeg4AvcHevcError),
-    #[fail(display = "mpeg aac error:{}\n", _0)]
+    #[fail(display = "mpeg aac error:{}", _0)]
     MpegAacError(#[cause] MpegAacError),
 }
 
@@ -149,19 +149,19 @@ impl Fail for FlvDemuxerError {
 
 #[derive(Debug, Fail)]
 pub enum MpegErrorValue {
-    #[fail(display = "bytes read error:{}\n", _0)]
+    #[fail(display = "bytes read error:{}", _0)]
     BytesReadError(#[cause] BytesReadError),
-    #[fail(display = "bytes write error:{}\n", _0)]
+    #[fail(display = "bytes write error:{}", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    #[fail(display = "bits error:{}\n", _0)]
+    #[fail(display = "bits error:{}", _0)]
     BitError(#[cause] BitError),
-    #[fail(display = "h264 error:{}\n", _0)]
+    #[fail(display = "h264 error:{}", _0)]
     H264Error(#[cause] H264Error),
-    #[fail(display = "there is not enough bits to read\n")]
+    #[fail(display = "there is not enough bits to read")]
     NotEnoughBitsToRead,
-    #[fail(display = "should not come here\n")]
+    #[fail(display = "should not come here")]
     ShouldNotComeHere,
-    #[fail(display = "the sps nal unit type is not correct\n")]
+    #[fail(display = "the sps nal unit type is not correct")]
     SPSNalunitTypeNotCorrect,
 }
 #[derive(Debug)]
@@ -256,7 +256,7 @@ impl Fail for MpegAacError {
 
 #[derive(Debug, Fail)]
 pub enum BitVecErrorValue {
-    #[fail(display = "not enough bits left\n")]
+    #[fail(display = "not enough bits left")]
     NotEnoughBits,
 }
 #[derive(Debug)]

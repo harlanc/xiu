@@ -77,6 +77,10 @@ impl HttpFlv {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 if let Err(err) = self.write_flv_tag(data) {
+                    if let HttpFLvErrorValue::ReceiverDroppedError(_) = err.value {
+                        log::info!("write_flv_tag: {}", err);
+                        break;
+                    }
                     log::error!("write_flv_tag err: {}", err);
                     retry_count += 1;
                 } else {
@@ -124,7 +128,17 @@ impl HttpFlv {
 
     pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
         let data = self.muxer.writer.extract_current_bytes();
-        self.http_response_data_producer.start_send(Ok(data))?;
+        if let Err(err) = self.http_response_data_producer.start_send(Ok(data)) {
+            return if err.is_disconnected() {
+                Err(HttpFLvError {
+                    value: HttpFLvErrorValue::ReceiverDroppedError(err)
+                })
+            } else {
+                Err(HttpFLvError {
+                    value: HttpFLvErrorValue::MpscSendError(err)
+                })
+            }
+        }
 
         Ok(())
     }
@@ -149,7 +163,7 @@ impl HttpFlv {
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}\n", err);
+            log::error!("unsubscribe_from_channels err {}", err);
         }
 
         Ok(())

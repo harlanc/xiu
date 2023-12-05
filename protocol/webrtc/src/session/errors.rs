@@ -14,27 +14,27 @@ pub struct SessionError {
 
 #[derive(Debug, Fail)]
 pub enum SessionErrorValue {
-    #[fail(display = "net io error: {}\n", _0)]
+    #[fail(display = "net io error: {}", _0)]
     BytesIOError(#[cause] BytesIOError),
-    #[fail(display = "bytes read error: {}\n", _0)]
+    #[fail(display = "bytes read error: {}", _0)]
     BytesReadError(#[cause] BytesReadError),
-    #[fail(display = "bytes write error: {}\n", _0)]
+    #[fail(display = "bytes write error: {}", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    #[fail(display = "Utf8Error: {}\n", _0)]
+    #[fail(display = "Utf8Error: {}", _0)]
     Utf8Error(#[cause] Utf8Error),
-    #[fail(display = "webrtc error: {}\n", _0)]
+    #[fail(display = "webrtc error: {}", _0)]
     RTCError(#[cause] RTCError),
-    #[fail(display = "stream hub event send error\n")]
+    #[fail(display = "stream hub event send error")]
     StreamHubEventSendErr,
-    #[fail(display = "cannot receive frame data from stream hub\n")]
+    #[fail(display = "cannot receive frame data from stream hub")]
     CannotReceiveFrameData,
-    #[fail(display = "Http Request path error\n")]
+    #[fail(display = "Http Request path error")]
     HttpRequestPathError,
-    #[fail(display = "Not supported\n")]
+    #[fail(display = "Not supported")]
     HttpRequestNotSupported,
-    #[fail(display = "Empty sdp data\n")]
+    #[fail(display = "Empty sdp data")]
     HttpRequestEmptySdp,
-    #[fail(display = "Cannot find Content-Length\n")]
+    #[fail(display = "Cannot find Content-Length")]
     HttpRequestNoContentLength,
 }
 

@@ -204,7 +204,7 @@ impl Common {
         match self.data_sender.send(channel_data) {
             Ok(_) => {}
             Err(err) => {
-                log::error!("receive audio err {}\n", err);
+                log::error!("receive audio err {}", err);
                 return Err(SessionError {
                     value: SessionErrorValue::SendFrameDataErr,
                 });
@@ -343,7 +343,7 @@ impl Common {
             info: self.get_subscriber_info(sub_id),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}\n", err);
+            log::error!("unsubscribe_from_channels err {}", err);
         }
 
         Ok(())

@@ -188,9 +188,10 @@ impl ServerSession {
                         let timestamp = chunk_info.message_header.timestamp;
                         let msg_stream_id = chunk_info.message_header.msg_streamd_id;
 
-                        let mut msg = MessageParser::new(chunk_info).parse()?;
-                        self.process_messages(&mut msg, &msg_stream_id, &timestamp)
-                            .await?;
+                        if let Some(mut msg) = MessageParser::new(chunk_info).parse()? {
+                            self.process_messages(&mut msg, &msg_stream_id, &timestamp)
+                                .await?;
+                        }
                     }
                 }
             } else {

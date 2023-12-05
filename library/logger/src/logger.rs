@@ -3,7 +3,7 @@ use {
     anyhow::Result,
     chrono::prelude::*,
     env_logger::{Builder, Env, Target},
-    job_scheduler::{Job, JobScheduler},
+    job_scheduler_ng::{Job, JobScheduler},
     std::{
         env, fs,
         fs::{File, OpenOptions},

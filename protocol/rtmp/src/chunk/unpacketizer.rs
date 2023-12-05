@@ -2,7 +2,7 @@ use {
     super::{
         define,
         errors::{UnpackError, UnpackErrorValue},
-        ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader,
+        ChunkBasicHeader, ChunkInfo, ChunkMessageHeader, ExtendTimestampType,
     },
     crate::messages::define::msg_type_id,
     byteorder::{BigEndian, LittleEndian},
@@ -67,8 +67,16 @@ pub struct ChunkUnpacketizer {
 
     //https://doc.rust-lang.org/stable/rust-by-example/scope/lifetime/fn.html
     //https://zhuanlan.zhihu.com/p/165976086
+    //We use this member to generate a complete message:
+    // - basic_header:   the 2 fields will be updated from each chunk.
+    // - message_header: whose fields need to be updated for current chunk
+    //                   depends on the format id from basic header.
+    //                   Each field can inherit the value from the previous chunk.
+    // - payload:        If the message's payload size is longger than the max chunk size,
+    //                   the whole payload will be splitted into several chunks.
+    //
     pub current_chunk_info: ChunkInfo,
-    chunk_headers: HashMap<u32, ChunkHeader>,
+    chunk_message_headers: HashMap<u32, ChunkMessageHeader>,
     chunk_read_state: ChunkReadState,
     msg_header_read_state: MessageHeaderReadState,
     max_chunk_size: usize,
@@ -87,7 +95,7 @@ impl ChunkUnpacketizer {
         Self {
             reader: BytesReader::new(BytesMut::new()),
             current_chunk_info: ChunkInfo::default(),
-            chunk_headers: HashMap::new(),
+            chunk_message_headers: HashMap::new(),
             chunk_read_state: ChunkReadState::ReadBasicHeader,
             msg_header_read_state: MessageHeaderReadState::ReadTimeStamp,
             max_chunk_size: define::INIT_CHUNK_SIZE as usize,
@@ -280,6 +288,10 @@ impl ChunkUnpacketizer {
         }
 
         //todo
+        //Only when the csid is changed, we restore the chunk message header
+        //One AV message may be splitted into serval chunks, the csid
+        //will be updated when one av message's chunks are completely
+        //sent/received??
         if csid != self.current_chunk_info.basic_header.chunk_stream_id {
             log::trace!(
                 "read_basic_header, chunk stream id update, new: {}, old:{}, byte: {}",
@@ -287,13 +299,31 @@ impl ChunkUnpacketizer {
                 self.current_chunk_info.basic_header.chunk_stream_id,
                 byte
             );
-            if let Some(header) = self.chunk_headers.get_mut(&csid) {
-                self.current_chunk_info.basic_header = header.basic_header.clone();
-                self.current_chunk_info.message_header = header.message_header.clone();
-                self.print_current_basic_header();
+            //If the chunk stream id is changed, then we should
+            //restore the cached chunk message header used for
+            //getting the correct message header fields.
+            match self.chunk_message_headers.get_mut(&csid) {
+                Some(header) => {
+                    self.current_chunk_info.message_header = header.clone();
+                    self.print_current_basic_header();
+                }
+                None => {
+                    //The format id of the first chunk of a new chunk stream id must be zero.
+                    //assert_eq!(format_id, 0);
+                    if format_id != 0 {
+                        log::warn!(
+                            "The chunk stream id: {}'s first chunk format is {}.",
+                            csid,
+                            format_id
+                        );
+                    }
+                }
             }
         }
-
+        if format_id == 0 {
+            self.current_message_header().timestamp_delta = 0;
+        }
+        // each chunk will read and update the csid and format id
         self.current_chunk_info.basic_header.chunk_stream_id = csid;
         self.current_chunk_info.basic_header.format = format_id;
         self.print_current_basic_header();
@@ -327,10 +357,14 @@ impl ChunkUnpacketizer {
             self.reader.len(),
         );
 
-        //fix bug: the is_extended_timestamp flag should be set in the read_message_header process
-        //each time and should not be saved which will lead to incorrectly reading an extra 4 bytes,
-        //so here at the start of the read_message_header process, reset this flag.
-        self.current_message_header().is_extended_timestamp = false;
+        //Reset is_extended_timestamp for type 0 ,1 ,2 , for type 3 ,this field will
+        //inherited from the most recent chunk 0, 1, or 2.
+        //(This field is present in Type 3 chunks when the most recent Type 0,
+        //1, or 2 chunk for the same chunk stream ID indicated the presence of
+        //an extended timestamp field. 5.3.1.3)
+        //if self.current_chunk_info.basic_header.format != 3 {
+        self.current_message_header().extended_timestamp_type = ExtendTimestampType::NONE;
+        //}
 
         match self.current_chunk_info.basic_header.format {
             /*****************************************************************/
@@ -383,7 +417,8 @@ impl ChunkUnpacketizer {
                 }
 
                 if self.current_message_header().timestamp >= 0xFFFFFF {
-                    self.current_message_header().is_extended_timestamp = true;
+                    self.current_message_header().extended_timestamp_type =
+                        ExtendTimestampType::FORMAT0;
                 }
             }
             /*****************************************************************/
@@ -433,7 +468,8 @@ impl ChunkUnpacketizer {
                 }
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
-                    self.current_message_header().is_extended_timestamp = true;
+                    self.current_message_header().extended_timestamp_type =
+                        ExtendTimestampType::FORMAT12;
                 }
             }
             /************************************************/
@@ -454,7 +490,8 @@ impl ChunkUnpacketizer {
                     self.reader.read_u24::<BigEndian>()?;
 
                 if self.current_message_header().timestamp_delta >= 0xFFFFFF {
-                    self.current_message_header().is_extended_timestamp = true;
+                    self.current_message_header().extended_timestamp_type =
+                        ExtendTimestampType::FORMAT12;
                 }
             }
 
@@ -468,40 +505,42 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_extended_timestamp(&mut self) -> Result<UnpackResult, UnpackError> {
-        let mut extended_timestamp: u32 = 0;
-
-        if self.current_message_header().is_extended_timestamp {
-            extended_timestamp = self.reader.read_u32::<BigEndian>()?;
+        //The extended timestamp field is present in Type 3 chunks when the most recent Type 0,
+        //1, or 2 chunk for the same chunk stream ID indicated the presence of
+        //an extended timestamp field.
+        match self.current_message_header().extended_timestamp_type {
+            //the current fortmat type can be 0 or 3
+            ExtendTimestampType::FORMAT0 => {
+                self.current_message_header().timestamp = self.reader.read_u32::<BigEndian>()?;
+            }
+            //the current fortmat type can be 1,2 or 3
+            ExtendTimestampType::FORMAT12 => {
+                self.current_message_header().timestamp_delta =
+                    self.reader.read_u32::<BigEndian>()?;
+            }
+            ExtendTimestampType::NONE => {}
         }
 
-        match self.current_chunk_info.basic_header.format {
-            0 => {
-                if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp = extended_timestamp;
-                }
+        //compute the abs timestamp
+        let cur_format_id = self.current_chunk_info.basic_header.format;
+        if cur_format_id == 1
+            || cur_format_id == 2
+            || (cur_format_id == 3 && self.current_chunk_info.payload.is_empty())
+        {
+            let timestamp = self.current_message_header().timestamp;
+            let timestamp_delta = self.current_message_header().timestamp_delta;
+
+            let (cur_abs_timestamp, is_overflow) = timestamp.overflowing_add(timestamp_delta);
+            if is_overflow {
+                log::warn!(
+                    "The current timestamp is overflow, current basic header: {:?}, current message header: {:?}, payload len: {}, abs timestamp: {}",
+                    self.current_chunk_info.basic_header,
+                    self.current_chunk_info.message_header,
+                    self.current_chunk_info.payload.len(),
+                    cur_abs_timestamp
+                );
             }
-            1 => {
-                if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp += extended_timestamp - 0xFFFFFF;
-                } else {
-                    self.current_message_header().timestamp +=
-                        self.current_message_header().timestamp_delta;
-                }
-            }
-            2 => {
-                if self.current_message_header().is_extended_timestamp {
-                    self.current_message_header().timestamp =
-                        self.current_message_header().timestamp - 0xFFFFFF + extended_timestamp;
-                } else {
-                    self.current_message_header().timestamp +=
-                        self.current_message_header().timestamp_delta;
-                }
-            }
-            3 => {
-                //log::info!("format 3==============");
-            }
-            //todo: 3 should also be processed
-            _ => {}
+            self.current_message_header().timestamp = cur_abs_timestamp;
         }
 
         self.chunk_read_state = ChunkReadState::ReadMessagePayload;
@@ -549,26 +588,13 @@ impl ChunkUnpacketizer {
 
         if self.current_chunk_info.payload.len() == whole_msg_length {
             self.chunk_read_state = ChunkReadState::Finish;
+            //get the complete chunk and clear the current chunk payload
             let chunk_info = self.current_chunk_info.clone();
             self.current_chunk_info.payload.clear();
 
             let csid = self.current_chunk_info.basic_header.chunk_stream_id;
-
-            //todo
-            if let Some(header) = self.chunk_headers.get_mut(&csid) {
-                header.basic_header = self.current_chunk_info.basic_header.clone();
-                header.message_header = self.current_chunk_info.message_header.clone();
-            } else {
-                let chunk_header = ChunkHeader {
-                    basic_header: self.current_chunk_info.basic_header.clone(),
-                    message_header: self.current_chunk_info.message_header.clone(),
-                };
-                self.chunk_headers.insert(csid, chunk_header);
-            }
-
-            // self.chunk_headers
-            //     .entry(self.current_chunk_info.basic_header.chunk_stream_id)
-            //     .or_insert(chunk_header);
+            self.chunk_message_headers
+                .insert(csid, self.current_chunk_info.message_header.clone());
 
             return Ok(UnpackResult::ChunkInfo(chunk_info));
         }
@@ -610,11 +636,25 @@ mod tests {
 
         let expected = ChunkInfo::new(2, 0, 0, 4, 1, 0, body);
 
+        println!("{:?}, {:?}", expected.basic_header, expected.message_header);
+
         assert_eq!(
             rv.unwrap(),
             UnpackResult::ChunkInfo(expected),
             "not correct"
         )
+    }
+
+    #[test]
+    fn test_overflow_add() {
+        let aa: u32 = u32::MAX;
+        println!("{}", aa);
+
+        let (_a, _b) = aa.overflowing_add(5);
+
+        let b = aa.wrapping_add(5);
+
+        println!("{}", b);
     }
 
     // #[test]

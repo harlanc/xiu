@@ -64,7 +64,7 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 
 ### 用cargo命令安装
 
-执行下面的命令来安转xiu:
+执行下面的命令来安装xiu:
 
     cargo install xiu
     
