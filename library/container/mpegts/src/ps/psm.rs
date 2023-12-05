@@ -142,11 +142,6 @@ impl ProgramStreamMap {
             });
         }
 
-        // if bs.RemainBytes() < int(psm.Program_stream_info_length)+2 {
-        //     bs.UnRead(10 * 8)
-        //     return errNeedMore
-        // }
-
         bytes_reader.read_bytes(self.program_stream_info_length as usize)?;
 
         self.elementary_stream_map_length = bytes_reader.read_u16::<BigEndian>()?;
@@ -162,11 +157,6 @@ impl ProgramStreamMap {
                 value: crate::ps::errors::MpegPsErrorValue::NotEnoughBytes,
             });
         }
-
-        // if bs.RemainBytes() < int(psm.Elementary_stream_map_length)+4 {
-        //     bs.UnRead(12*8 + int(psm.Program_stream_info_length)*8)
-        //     return errNeedMore
-        // }
 
         let remaining_bytes = bytes_reader.len() - self.elementary_stream_map_length as usize;
 

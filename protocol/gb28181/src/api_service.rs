@@ -171,7 +171,7 @@ impl ApiService {
             Err(err) => {
                 let response_body = serde_json::json!({
                 "code": -3,
-                "err_msg":format!("{:?}",err)
+                "err_msg": format!("{:?}",err)
                 });
 
                 Json(response_body)
