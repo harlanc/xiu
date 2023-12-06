@@ -207,10 +207,17 @@ impl HttpFlv {
         }
 
         match event_result_receiver.await {
-            Ok(rv) => {
-                rv?;
-            }
+            Ok(rv) => match rv {
+                Ok(()) => {}
+                Err(err) => {
+                    self.unsubscribe_from_rtmp_channels().await?;
+                    return Err(HttpFLvError {
+                        value: HttpFLvErrorValue::ChannelError(err),
+                    });
+                }
+            },
             Err(_) => {
+                self.unsubscribe_from_rtmp_channels().await?;
                 return Err(HttpFLvError {
                     value: HttpFLvErrorValue::ChannelRecvError,
                 });
