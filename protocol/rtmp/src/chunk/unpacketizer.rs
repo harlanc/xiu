@@ -127,10 +127,19 @@ impl ChunkUnpacketizer {
         );
     }
 
-    fn print_dump_data(&self) {
+    fn print_dump_data(&mut self) {
         for (idx, data) in self.dump_data.iter().enumerate() {
-            log::info!("The dump data: {idx}-{}", hex::encode(data));
+            let hex_string = hex::encode(data);
+
+            let formatted_string = hex_string
+                .as_bytes()
+                .chunks(2)
+                .map(|chunk| format!("0x{}{}", chunk[0] as char, chunk[1] as char))
+                .collect::<Vec<_>>()
+                .join(", ");
+            log::info!("The dump data: {idx}-{formatted_string}",);
         }
+        self.dump_data.clear();
     }
 
     pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
