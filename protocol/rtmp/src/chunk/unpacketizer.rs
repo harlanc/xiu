@@ -9,6 +9,7 @@ use {
     bytes::{BufMut, BytesMut},
     bytesio::bytes_reader::BytesReader,
     chrono::prelude::*,
+    std::collections::VecDeque,
     std::{cmp::min, collections::HashMap, fmt, vec::Vec},
 };
 
@@ -82,6 +83,7 @@ pub struct ChunkUnpacketizer {
     max_chunk_size: usize,
     chunk_index: u32,
     pub session_type: u8,
+    dump_data: VecDeque<BytesMut>,
 }
 
 impl Default for ChunkUnpacketizer {
@@ -101,10 +103,19 @@ impl ChunkUnpacketizer {
             max_chunk_size: define::INIT_CHUNK_SIZE as usize,
             chunk_index: 0,
             session_type: 0,
+            dump_data: VecDeque::new(),
         }
     }
 
     pub fn extend_data(&mut self, data: &[u8]) {
+        //save data
+        if self.dump_data.len() > 5 {
+            self.dump_data.pop_front();
+        }
+        let mut dump_bytes = BytesMut::new();
+        dump_bytes.extend_from_slice(data);
+        self.dump_data.push_back(dump_bytes);
+
         self.reader.extend_from_slice(data);
         log::trace!(
             "extend_data length: {}: content:{:X?}",
@@ -114,6 +125,12 @@ impl ChunkUnpacketizer {
                 .split_to(self.reader.len())
                 .to_vec()
         );
+    }
+
+    fn print_dump_data(&self) {
+        for (idx, data) in self.dump_data.iter().enumerate() {
+            log::info!("The dump data: {idx}-{}", hex::encode(data));
+        }
     }
 
     pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
@@ -316,6 +333,8 @@ impl ChunkUnpacketizer {
                             csid,
                             format_id
                         );
+
+                        self.print_dump_data();
                     }
                 }
             }
