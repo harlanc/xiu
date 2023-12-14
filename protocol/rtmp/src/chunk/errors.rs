@@ -13,6 +13,8 @@ pub enum UnpackErrorValue {
     #[fail(display = "empty chunks")]
     EmptyChunks,
     //IO(io::Error),
+    #[fail(display = "cannot parse")]
+    CannotParse,
 }
 
 #[derive(Debug)]

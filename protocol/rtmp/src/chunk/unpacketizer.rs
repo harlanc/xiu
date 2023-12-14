@@ -13,6 +13,8 @@ use {
     std::{cmp::min, collections::HashMap, fmt, vec::Vec},
 };
 
+const PARSE_ERROR_NUMVER: usize = 5;
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {
     ChunkBasicHeaderResult(ChunkBasicHeader),
@@ -84,6 +86,7 @@ pub struct ChunkUnpacketizer {
     chunk_index: u32,
     pub session_type: u8,
     dump_data: VecDeque<BytesMut>,
+    parse_error_number: usize,
 }
 
 impl Default for ChunkUnpacketizer {
@@ -104,6 +107,7 @@ impl ChunkUnpacketizer {
             chunk_index: 0,
             session_type: 0,
             dump_data: VecDeque::new(),
+            parse_error_number: 0,
         }
     }
 
@@ -161,18 +165,28 @@ impl ChunkUnpacketizer {
 
         let mut chunks: Vec<ChunkInfo> = Vec::new();
 
-        while let Ok(chunk) = self.read_chunk() {
-            match chunk {
-                UnpackResult::ChunkInfo(chunk_info) => {
-                    let msg_type_id = chunk_info.message_header.msg_type_id;
-                    chunks.push(chunk_info);
+        loop {
+            match self.read_chunk() {
+                Ok(chunk) => {
+                    match chunk {
+                        UnpackResult::ChunkInfo(chunk_info) => {
+                            let msg_type_id = chunk_info.message_header.msg_type_id;
+                            chunks.push(chunk_info);
 
-                    //if the chunk_size is changed, then break and update chunk_size
-                    if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
-                        break;
+                            //if the chunk_size is changed, then break and update chunk_size
+                            if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
+                                break;
+                            }
+                        }
+                        _ => continue,
                     }
                 }
-                _ => continue,
+                Err(err) => {
+                    if let UnpackErrorValue::CannotParse = err.value {
+                        return Err(err);
+                    }
+                    break;
+                }
             }
         }
 
@@ -344,10 +358,20 @@ impl ChunkUnpacketizer {
                         );
 
                         self.print_dump_data();
+
+                        if self.parse_error_number > PARSE_ERROR_NUMVER {
+                            return Err(UnpackError {
+                                value: UnpackErrorValue::CannotParse,
+                            });
+                        }
+                        self.parse_error_number += 1;
                     }
                 }
             }
         }
+
+        //reset
+        self.parse_error_number = 0;
         if format_id == 0 {
             self.current_message_header().timestamp_delta = 0;
         }
