@@ -86,6 +86,7 @@ pub struct ChunkUnpacketizer {
     chunk_index: u32,
     pub session_type: u8,
     dump_data: VecDeque<BytesMut>,
+    dump_data2: VecDeque<BytesMut>,
     parse_error_number: usize,
 }
 
@@ -107,6 +108,7 @@ impl ChunkUnpacketizer {
             chunk_index: 0,
             session_type: 0,
             dump_data: VecDeque::new(),
+            dump_data2: VecDeque::new(),
             parse_error_number: 0,
         }
     }
@@ -115,12 +117,14 @@ impl ChunkUnpacketizer {
         //save data
         if self.dump_data.len() > 5 {
             self.dump_data.pop_front();
+            self.dump_data2.pop_front();
         }
         let mut dump_bytes = BytesMut::new();
         dump_bytes.extend_from_slice(data);
         self.dump_data.push_back(dump_bytes);
 
         self.reader.extend_from_slice(data);
+        self.dump_data2.push_back(self.reader.get_remaining_bytes());
         log::trace!(
             "extend_data length: {}: content:{:X?}",
             self.reader.len(),
@@ -141,7 +145,17 @@ impl ChunkUnpacketizer {
                 .map(|chunk| format!("0x{}{}", chunk[0] as char, chunk[1] as char))
                 .collect::<Vec<_>>()
                 .join(", ");
-            log::info!("The dump data: {idx}-{formatted_string}",);
+            log::info!("The dump data: {idx}-{formatted_string}");
+
+            let hex_string2 = hex::encode(self.dump_data2.get(idx).unwrap());
+
+            let formatted_string2 = hex_string2
+                .as_bytes()
+                .chunks(2)
+                .map(|chunk| format!("0x{}{}", chunk[0] as char, chunk[1] as char))
+                .collect::<Vec<_>>()
+                .join(", ");
+            log::info!("The dump whole data: {idx}-{formatted_string2}");
         }
         self.dump_data.clear();
     }
@@ -365,13 +379,14 @@ impl ChunkUnpacketizer {
                             });
                         }
                         self.parse_error_number += 1;
+                    } else {
+                        //reset
+                        self.parse_error_number = 0;
                     }
                 }
             }
         }
 
-        //reset
-        self.parse_error_number = 0;
         if format_id == 0 {
             self.current_message_header().timestamp_delta = 0;
         }
