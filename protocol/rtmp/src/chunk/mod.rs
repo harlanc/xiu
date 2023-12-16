@@ -6,6 +6,7 @@ pub mod unpacketizer;
 // pub use chunk::{ChunkBasicHeader, ChunkHeader, ChunkInfo, ChunkMessageHeader};
 
 use bytes::BytesMut;
+use std::fmt;
 
 //5.3.1.1
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -93,11 +94,30 @@ impl ChunkHeader {
 //     raw_data: BytesMut,
 // }
 
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Clone)]
 pub struct ChunkInfo {
     pub basic_header: ChunkBasicHeader,
     pub message_header: ChunkMessageHeader,
     pub payload: BytesMut,
+}
+
+impl fmt::Debug for ChunkInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_payload = hex::encode(&self.payload);
+
+        let formatted_payload = hex_payload
+            .as_bytes()
+            .chunks(2)
+            .map(|chunk| format!("0x{}{}", chunk[0] as char, chunk[1] as char))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        write!(
+            f,
+            "ChunkInfo {{ basic_header: {:?}, message_header: {:?}, payload: {} }}",
+            self.basic_header, self.message_header, formatted_payload
+        )
+    }
 }
 
 impl Default for ChunkInfo {
