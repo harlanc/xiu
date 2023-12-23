@@ -63,6 +63,7 @@ pub struct SubscriberInfo {
     pub id: Uuid,
     pub sub_type: SubscribeType,
     pub notify_info: NotifyInfo,
+    pub sub_data_type: SubDataType,
 }
 
 impl Serialize for SubscriberInfo {
@@ -84,6 +85,7 @@ impl Serialize for SubscriberInfo {
 pub struct PublisherInfo {
     pub id: Uuid,
     pub pub_type: PublishType,
+    pub pub_data_type: PubDataType,
     pub notify_info: NotifyInfo,
 }
 
@@ -163,7 +165,11 @@ pub type AvStatisticSender = mpsc::UnboundedSender<StreamStatistics>;
 pub type AvStatisticReceiver = mpsc::UnboundedReceiver<StreamStatistics>;
 
 pub type StreamStatisticSizeSender = oneshot::Sender<usize>;
-pub type StreamStatisticSizeReceiver = oneshot::Sender<usize>;
+pub type StreamStatisticSizeReceiver = oneshot::Receiver<usize>;
+
+pub type SubEventExecuteResultSender = oneshot::Sender<Result<DataReceiver, ChannelError>>;
+pub type PubEventExecuteResultSender =
+    oneshot::Sender<Result<(Option<FrameDataSender>, Option<PacketDataSender>), ChannelError>>;
 
 #[async_trait]
 pub trait TStreamHandler: Send + Sync {
@@ -188,6 +194,19 @@ pub enum DataSender {
     Frame { sender: FrameDataSender },
     Packet { sender: PacketDataSender },
 }
+//we can only sub one kind of stream.
+#[derive(Debug, Clone, Serialize)]
+pub enum SubDataType {
+    Frame,
+    Packet,
+}
+//we can pub frame or packet or both.
+#[derive(Debug, Clone, Serialize)]
+pub enum PubDataType {
+    Frame,
+    Packet,
+    Both,
+}
 
 #[derive(Serialize)]
 pub enum StreamHubEvent {
@@ -195,7 +214,7 @@ pub enum StreamHubEvent {
         identifier: StreamIdentifier,
         info: SubscriberInfo,
         #[serde(skip_serializing)]
-        sender: DataSender,
+        result_sender: SubEventExecuteResultSender,
     },
     UnSubscribe {
         identifier: StreamIdentifier,
@@ -205,7 +224,7 @@ pub enum StreamHubEvent {
         identifier: StreamIdentifier,
         info: PublisherInfo,
         #[serde(skip_serializing)]
-        receiver: DataReceiver,
+        result_sender: PubEventExecuteResultSender,
         #[serde(skip_serializing)]
         stream_handler: Arc<dyn TStreamHandler>,
     },

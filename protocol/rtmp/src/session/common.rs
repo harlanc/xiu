@@ -1,4 +1,5 @@
-use streamhub::define::{DataReceiver, DataSender};
+use streamhub::define::DataSender;
+use tokio::sync::oneshot;
 
 use {
     super::{
@@ -259,6 +260,7 @@ impl Common {
             /*rtmp local client subscribe from local rtmp session
             and publish(relay) the rtmp steam to remote RTMP server*/
             sub_type,
+            sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: self.request_url.clone(),
                 remote_addr,
@@ -281,6 +283,7 @@ impl Common {
         PublisherInfo {
             id: sub_id,
             pub_type,
+            pub_data_type: streamhub::define::PubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: self.request_url.clone(),
                 remote_addr,
@@ -302,17 +305,17 @@ impl Common {
             sub_id
         );
 
-        let (sender, receiver) = mpsc::unbounded_channel();
-
         let identifier = StreamIdentifier::Rtmp {
             app_name,
             stream_name,
         };
 
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: self.get_subscriber_info(sub_id),
-            sender: DataSender::Frame { sender },
+            result_sender: event_result_sender,
         };
         let rv = self.event_producer.send(subscribe_event);
 
@@ -322,7 +325,8 @@ impl Common {
             });
         }
 
-        self.data_receiver = receiver;
+        let recv = event_result_receiver.await??;
+        self.data_receiver = recv.frame_receiver.unwrap();
 
         Ok(())
     }
@@ -361,8 +365,7 @@ impl Common {
             .set_cache(Cache::new(app_name.clone(), stream_name.clone(), gop_num))
             .await;
 
-        let (sender, receiver) = mpsc::unbounded_channel();
-
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtmp {
                 app_name,
@@ -370,10 +373,7 @@ impl Common {
             },
             info: self.get_publisher_info(pub_id),
             stream_handler: self.stream_handler.clone(),
-            receiver: DataReceiver {
-                packet_receiver: None,
-                frame_receiver: Some(receiver),
-            },
+            result_sender: event_result_sender,
         };
 
         if self.event_producer.send(publish_event).is_err() {
@@ -382,7 +382,8 @@ impl Common {
             });
         }
 
-        self.data_sender = sender;
+        let result = event_result_receiver.await??;
+        self.data_sender = result.0.unwrap();
         Ok(())
     }
 

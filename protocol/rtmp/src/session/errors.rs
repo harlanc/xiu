@@ -13,6 +13,8 @@ use {
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
     failure::{Backtrace, Fail},
     std::fmt,
+    streamhub::errors::ChannelError,
+    tokio::sync::oneshot::error::RecvError,
 };
 
 #[derive(Debug)]
@@ -50,6 +52,10 @@ pub enum SessionErrorValue {
     HandshakeError(#[cause] HandshakeError),
     #[fail(display = "cache error name: {}", _0)]
     CacheError(#[cause] CacheError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    RecvError(#[cause] RecvError),
+    #[fail(display = "streamhub channel err: {}", _0)]
+    ChannelError(#[cause] ChannelError),
 
     #[fail(display = "amf0 count not correct error")]
     Amf0ValueCountNotCorrect,
@@ -175,6 +181,22 @@ impl From<CacheError> for SessionError {
     fn from(error: CacheError) -> Self {
         SessionError {
             value: SessionErrorValue::CacheError(error),
+        }
+    }
+}
+
+impl From<RecvError> for SessionError {
+    fn from(error: RecvError) -> Self {
+        SessionError {
+            value: SessionErrorValue::RecvError(error),
+        }
+    }
+}
+
+impl From<ChannelError> for SessionError {
+    fn from(error: ChannelError) -> Self {
+        SessionError {
+            value: SessionErrorValue::ChannelError(error),
         }
     }
 }

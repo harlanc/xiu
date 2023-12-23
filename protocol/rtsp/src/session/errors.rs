@@ -5,6 +5,8 @@ use {
     failure::{Backtrace, Fail},
     std::fmt,
     std::str::Utf8Error,
+    streamhub::errors::ChannelError,
+    tokio::sync::oneshot::error::RecvError,
 };
 
 #[derive(Debug)]
@@ -30,6 +32,12 @@ pub enum SessionErrorValue {
     CannotReceiveFrameData,
     #[fail(display = "pack error: {}", _0)]
     PackerError(#[cause] PackerError),
+    #[fail(display = "event execute error: {}", _0)]
+    ChannelError(#[cause] ChannelError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    RecvError(#[cause] RecvError),
+    #[fail(display = "Channel receive error")]
+    ChannelRecvError,
 }
 
 impl From<BytesIOError> for SessionError {
@@ -76,6 +84,22 @@ impl From<UnPackerError> for SessionError {
     fn from(error: UnPackerError) -> Self {
         SessionError {
             value: SessionErrorValue::UnPackerError(error),
+        }
+    }
+}
+
+impl From<ChannelError> for SessionError {
+    fn from(error: ChannelError) -> Self {
+        SessionError {
+            value: SessionErrorValue::ChannelError(error),
+        }
+    }
+}
+
+impl From<RecvError> for SessionError {
+    fn from(error: RecvError) -> Self {
+        SessionError {
+            value: SessionErrorValue::RecvError(error),
         }
     }
 }

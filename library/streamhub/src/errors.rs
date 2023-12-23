@@ -1,5 +1,6 @@
 use bytesio::bytes_errors::BytesReadError;
 use bytesio::bytes_errors::BytesWriteError;
+use failure::Backtrace;
 
 use {failure::Fail, std::fmt};
 #[derive(Debug, Fail)]
@@ -33,6 +34,16 @@ pub struct ChannelError {
 impl fmt::Display for ChannelError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
+    }
+}
+
+impl Fail for ChannelError {
+    fn cause(&self) -> Option<&dyn Fail> {
+        self.value.cause()
+    }
+
+    fn backtrace(&self) -> Option<&Backtrace> {
+        self.value.backtrace()
     }
 }
 

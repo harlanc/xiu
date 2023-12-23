@@ -28,10 +28,10 @@ use bytesio::bytesio::UdpIO;
 use errors::SessionError;
 use errors::SessionErrorValue;
 use http::StatusCode;
-use streamhub::define::DataReceiver;
 use streamhub::define::DataSender;
 use streamhub::define::MediaInfo;
 use streamhub::define::VideoCodecType;
+use tokio::sync::oneshot;
 
 use super::http::RtspRequest;
 use super::rtp::errors::UnPackerError;
@@ -275,9 +275,25 @@ impl RtspServerSession {
         //new tracks for publish session
         self.new_tracks()?;
 
-        // The sender is used for sending audio/video frame data to the stream hub
-        // receiver is passed to the stream hub for receiving the a/v frame data
-        let (sender, receiver) = mpsc::unbounded_channel();
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
+        let publish_event = StreamHubEvent::Publish {
+            identifier: StreamIdentifier::Rtsp {
+                stream_path: rtsp_request.path.clone(),
+            },
+            result_sender: event_result_sender,
+            info: self.get_publisher_info(),
+            stream_handler: self.stream_handler.clone(),
+        };
+
+        if self.event_producer.send(publish_event).is_err() {
+            return Err(SessionError {
+                value: SessionErrorValue::StreamHubEventSendErr,
+            });
+        }
+
+        let sender = event_result_receiver.await??.0.unwrap();
+
         for track in self.tracks.values_mut() {
             let sender_out = sender.clone();
             let mut rtp_channel_guard = track.rtp_channel.lock().await;
@@ -298,24 +314,6 @@ impl RtspServerSession {
                     rtcp_channel_in.lock().await.on_packet(packet);
                 })
             }));
-        }
-
-        let publish_event = StreamHubEvent::Publish {
-            identifier: StreamIdentifier::Rtsp {
-                stream_path: rtsp_request.path.clone(),
-            },
-            receiver: DataReceiver {
-                frame_receiver: Some(receiver),
-                packet_receiver: None,
-            },
-            info: self.get_publisher_info(),
-            stream_handler: self.stream_handler.clone(),
-        };
-
-        if self.event_producer.send(publish_event).is_err() {
-            return Err(SessionError {
-                value: SessionErrorValue::StreamHubEventSendErr,
-            });
         }
 
         let status_code = http::StatusCode::OK;
@@ -463,15 +461,14 @@ impl RtspServerSession {
 
         self.send_response(&response).await?;
 
-        // The sender is passsed to the stream hub, and using which send the a/v data from stream hub to the play session.
-        // The receiver is used for receiving and send to the remote cient side.
-        let (sender, mut receiver) = mpsc::unbounded_channel();
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let publish_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.path.clone(),
             },
-            sender: DataSender::Frame { sender },
             info: self.get_subscriber_info(),
+            result_sender: event_result_sender,
         };
 
         if self.event_producer.send(publish_event).is_err() {
@@ -479,6 +476,8 @@ impl RtspServerSession {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
         }
+
+        let mut receiver = event_result_receiver.await??.frame_receiver.unwrap();
 
         let mut retry_times = 0;
         loop {
@@ -669,6 +668,7 @@ impl RtspServerSession {
         SubscriberInfo {
             id,
             sub_type: SubscribeType::PlayerRtsp,
+            sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
@@ -686,6 +686,7 @@ impl RtspServerSession {
         PublisherInfo {
             id,
             pub_type: PublishType::PushRtsp,
+            pub_data_type: streamhub::define::PubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
