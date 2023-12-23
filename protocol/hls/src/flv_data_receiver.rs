@@ -97,11 +97,11 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
     ) -> Result<(), HlsError> {
-        let (sender, receiver) = mpsc::unbounded_channel();
         /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
             sub_type: SubscribeType::GenerateHls,
+            sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
@@ -118,8 +118,7 @@ impl FlvDataReceiver {
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: sub_info,
-            sender: streamhub::define::DataSender::Frame { sender },
-            eer_sender: event_result_sender,
+            result_sender: event_result_sender,
         };
 
         let rv = self.event_producer.send(subscribe_event);
@@ -132,16 +131,7 @@ impl FlvDataReceiver {
             });
         }
 
-        match event_result_receiver.await {
-            Ok(rv) => {
-                rv?;
-            }
-            Err(_) => {
-                return Err(HlsError {
-                    value: HlsErrorValue::ChannelRecvError,
-                });
-            }
-        }
+        let receiver = event_result_receiver.await??.frame_receiver.unwrap();
 
         self.data_consumer = receiver;
 
@@ -152,6 +142,7 @@ impl FlvDataReceiver {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
             sub_type: SubscribeType::PlayerHls,
+            sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),

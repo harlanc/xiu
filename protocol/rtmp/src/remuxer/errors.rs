@@ -7,6 +7,7 @@ use {
     std::fmt,
     streamhub::errors::ChannelError,
     tokio::sync::broadcast::error::RecvError,
+    tokio::sync::oneshot::error::RecvError as OneshotRecvError,
     xflv::errors::FlvMuxerError,
     xflv::errors::Mpeg4AvcHevcError,
 };
@@ -39,6 +40,8 @@ pub enum RtmpRemuxerErrorValue {
     StreamHubEventSendErr,
     #[fail(display = "event execute error: {}", _0)]
     ChannelError(#[cause] ChannelError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    OneshotRecvError(#[cause] OneshotRecvError),
     #[fail(display = "Channel receive error")]
     ChannelRecvError,
 }
@@ -110,6 +113,14 @@ impl From<ChannelError> for RtmpRemuxerError {
     fn from(error: ChannelError) -> Self {
         RtmpRemuxerError {
             value: RtmpRemuxerErrorValue::ChannelError(error),
+        }
+    }
+}
+
+impl From<OneshotRecvError> for RtmpRemuxerError {
+    fn from(error: OneshotRecvError) -> Self {
+        RtmpRemuxerError {
+            value: RtmpRemuxerErrorValue::OneshotRecvError(error),
         }
     }
 }

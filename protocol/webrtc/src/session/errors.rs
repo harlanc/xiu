@@ -1,11 +1,11 @@
 use streamhub::errors::ChannelError;
-
 use {
     bytesio::bytes_errors::BytesReadError,
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
     failure::{Backtrace, Fail},
     std::fmt,
     std::str::Utf8Error,
+    tokio::sync::oneshot::error::RecvError,
     webrtc::error::Error as RTCError,
 };
 
@@ -28,6 +28,8 @@ pub enum SessionErrorValue {
     ChannelError(#[cause] ChannelError),
     #[fail(display = "webrtc error: {}", _0)]
     RTCError(#[cause] RTCError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    RecvError(#[cause] RecvError),
     #[fail(display = "stream hub event send error")]
     StreamHubEventSendErr,
     #[fail(display = "cannot receive frame data from stream hub")]
@@ -88,6 +90,14 @@ impl From<ChannelError> for SessionError {
     fn from(error: ChannelError) -> Self {
         SessionError {
             value: SessionErrorValue::ChannelError(error),
+        }
+    }
+}
+
+impl From<RecvError> for SessionError {
+    fn from(error: RecvError) -> Self {
+        SessionError {
+            value: SessionErrorValue::RecvError(error),
         }
     }
 }

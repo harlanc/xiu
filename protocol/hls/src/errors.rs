@@ -6,6 +6,7 @@ use {
     std::fmt,
     streamhub::errors::ChannelError,
     tokio::sync::broadcast::error::RecvError,
+    tokio::sync::oneshot::error::RecvError as OneshotRecvError,
     xflv::errors::FlvDemuxerError,
     xmpegts::errors::MpegTsError,
 };
@@ -133,6 +134,8 @@ pub enum HlsErrorValue {
     MediaError(#[cause] MediaError),
     #[fail(display = "receive error:{}", _0)]
     RecvError(#[cause] RecvError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    OneshotRecvError(#[cause] OneshotRecvError),
 }
 impl From<RecvError> for HlsError {
     fn from(error: RecvError) -> Self {
@@ -186,6 +189,14 @@ impl From<ChannelError> for HlsError {
     fn from(error: ChannelError) -> Self {
         HlsError {
             value: HlsErrorValue::ChannelError(error),
+        }
+    }
+}
+
+impl From<OneshotRecvError> for HlsError {
+    fn from(error: OneshotRecvError) -> Self {
+        HlsError {
+            value: HlsErrorValue::OneshotRecvError(error),
         }
     }
 }

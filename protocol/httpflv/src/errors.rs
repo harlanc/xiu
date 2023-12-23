@@ -7,6 +7,7 @@ use {
         amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
     },
     std::fmt,
+    tokio::sync::oneshot::error::RecvError,
     xflv::errors::FlvMuxerError,
 };
 
@@ -39,10 +40,10 @@ pub enum HttpFLvErrorValue {
     MetadataError(MetadataError),
     #[fail(display = "tokio mpsc error")]
     MpscSendError(SendError),
-    #[fail(display = "receiver being dropped")]
-    ReceiverDroppedError(SendError),
     #[fail(display = "event execute error: {}", _0)]
     ChannelError(ChannelError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    RecvError(#[cause] RecvError),
     #[fail(display = "channel recv error")]
     ChannelRecvError,
 }
@@ -91,6 +92,14 @@ impl From<ChannelError> for HttpFLvError {
     fn from(error: ChannelError) -> Self {
         HttpFLvError {
             value: HttpFLvErrorValue::ChannelError(error),
+        }
+    }
+}
+
+impl From<RecvError> for HttpFLvError {
+    fn from(error: RecvError) -> Self {
+        HttpFLvError {
+            value: HttpFLvErrorValue::RecvError(error),
         }
     }
 }

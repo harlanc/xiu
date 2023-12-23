@@ -12,7 +12,7 @@ use {
     std::net::SocketAddr,
     streamhub::define::{
         FrameData, FrameDataReceiver, NotifyInfo, StreamHubEvent, StreamHubEventSender,
-        SubscribeType, SubscriberInfo,
+        SubDataType, SubscribeType, SubscriberInfo,
     },
     streamhub::{
         stream::StreamIdentifier,
@@ -78,9 +78,11 @@ impl HttpFlv {
         loop {
             if let Some(data) = self.data_consumer.recv().await {
                 if let Err(err) = self.write_flv_tag(data) {
-                    if let HttpFLvErrorValue::ReceiverDroppedError(_) = err.value {
-                        log::info!("write_flv_tag: {}", err);
-                        break;
+                    if let HttpFLvErrorValue::MpscSendError(err_in) = &err.value {
+                        if err_in.is_disconnected() {
+                            log::info!("write_flv_tag: {}", err_in);
+                            break;
+                        }
                     }
                     log::error!("write_flv_tag err: {}", err);
                     retry_count += 1;
@@ -129,17 +131,7 @@ impl HttpFlv {
 
     pub fn flush_response_data(&mut self) -> Result<(), HttpFLvError> {
         let data = self.muxer.writer.extract_current_bytes();
-        if let Err(err) = self.http_response_data_producer.start_send(Ok(data)) {
-            return if err.is_disconnected() {
-                Err(HttpFLvError {
-                    value: HttpFLvErrorValue::ReceiverDroppedError(err),
-                })
-            } else {
-                Err(HttpFLvError {
-                    value: HttpFLvErrorValue::MpscSendError(err),
-                })
-            };
-        }
+        self.http_response_data_producer.start_send(Ok(data))?;
 
         Ok(())
     }
@@ -148,6 +140,7 @@ impl HttpFlv {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
             sub_type: SubscribeType::PlayerHttpFlv,
+            sub_data_type: SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: self.request_url.clone(),
                 remote_addr: self.remote_addr.to_string(),
@@ -171,11 +164,10 @@ impl HttpFlv {
     }
 
     pub async fn subscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
-        let (sender, receiver) = mpsc::unbounded_channel();
-
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
             sub_type: SubscribeType::PlayerHttpFlv,
+            sub_data_type: SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: self.request_url.clone(),
                 remote_addr: self.remote_addr.to_string(),
@@ -192,8 +184,7 @@ impl HttpFlv {
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier,
             info: sub_info,
-            sender: streamhub::define::DataSender::Frame { sender },
-            eer_sender: event_result_sender,
+            result_sender: event_result_sender,
         };
 
         let rv = self.event_producer.send(subscribe_event);
@@ -206,24 +197,7 @@ impl HttpFlv {
             });
         }
 
-        match event_result_receiver.await {
-            Ok(rv) => match rv {
-                Ok(()) => {}
-                Err(err) => {
-                    self.unsubscribe_from_rtmp_channels().await?;
-                    return Err(HttpFLvError {
-                        value: HttpFLvErrorValue::ChannelError(err),
-                    });
-                }
-            },
-            Err(_) => {
-                self.unsubscribe_from_rtmp_channels().await?;
-                return Err(HttpFLvError {
-                    value: HttpFLvErrorValue::ChannelRecvError,
-                });
-            }
-        }
-
+        let receiver = event_result_receiver.await??.frame_receiver.unwrap();
         self.data_consumer = receiver;
 
         Ok(())
