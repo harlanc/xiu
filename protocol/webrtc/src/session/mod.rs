@@ -279,9 +279,6 @@ impl WebRTCServerSession {
 
                 response
                     .headers
-                    .insert("Connection".to_string(), "Close".to_string());
-                response
-                    .headers
                     .insert("Content-Type".to_string(), "application/sdp".to_string());
                 response.headers.insert("Location".to_string(), path);
                 response.body = Some(session_description.sdp);
