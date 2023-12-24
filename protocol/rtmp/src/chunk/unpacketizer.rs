@@ -9,7 +9,6 @@ use {
     bytes::{BufMut, BytesMut},
     bytesio::bytes_reader::BytesReader,
     chrono::prelude::*,
-    std::collections::VecDeque,
     std::{cmp::min, collections::HashMap, fmt, vec::Vec},
 };
 
@@ -94,10 +93,6 @@ pub struct ChunkUnpacketizer {
     max_chunk_size: usize,
     chunk_index: u32,
     pub session_type: u8,
-    dump_data: VecDeque<BytesMut>,
-    dump_data2: VecDeque<BytesMut>,
-    dump_cur_chunk: VecDeque<UnPackInfo>,
-    need_dump: bool,
     parse_error_number: usize,
 }
 
@@ -118,41 +113,12 @@ impl ChunkUnpacketizer {
             max_chunk_size: define::INIT_CHUNK_SIZE as usize,
             chunk_index: 0,
             session_type: 0,
-            dump_data: VecDeque::new(),
-            dump_data2: VecDeque::new(),
-            dump_cur_chunk: VecDeque::new(),
-            need_dump: false,
             parse_error_number: 0,
         }
     }
 
     pub fn extend_data(&mut self, data: &[u8]) {
-        //save data
-        // if self.need_dump > 5 {
-        //     self.dump_data.pop_front();
-        //     self.dump_data2.pop_front();
-        //     self.dump_cur_chunk.pop_front();
-        // }
-        let mut dump_bytes = BytesMut::new();
-        dump_bytes.extend_from_slice(data);
-
-        if self.need_dump {
-            self.dump_data.push_back(dump_bytes);
-        }
-
         self.reader.extend_from_slice(data);
-        if self.need_dump {
-            self.dump_data2.push_back(self.reader.get_remaining_bytes());
-
-            let cur_unpack_info = UnPackInfo {
-                current_chunk_info: self.current_chunk_info.clone(),
-                chunk_message_headers: self.chunk_message_headers.clone(),
-                chunk_read_state: self.chunk_read_state,
-                msg_header_read_state: self.msg_header_read_state,
-                max_chunk_size: self.max_chunk_size,
-            };
-            self.dump_cur_chunk.push_back(cur_unpack_info.clone());
-        }
 
         log::trace!(
             "extend_data length: {}: content:{:X?}",
@@ -162,34 +128,6 @@ impl ChunkUnpacketizer {
                 .split_to(self.reader.len())
                 .to_vec()
         );
-    }
-
-    fn print_dump_data(&mut self) {
-        for (idx, data) in self.dump_data.iter().enumerate() {
-            let hex_string = hex::encode(data);
-            let formatted_string = hex_string
-                .as_bytes()
-                .chunks(2)
-                .map(|chunk| format!("0x{}{}", chunk[0] as char, chunk[1] as char))
-                .collect::<Vec<_>>()
-                .join(", ");
-            log::info!("The dump data: {idx}-{formatted_string}");
-
-            let hex_string2 = hex::encode(self.dump_data2.get(idx).unwrap());
-            let formatted_string2 = hex_string2
-                .as_bytes()
-                .chunks(2)
-                .map(|chunk| format!("0x{}{}", chunk[0] as char, chunk[1] as char))
-                .collect::<Vec<_>>()
-                .join(", ");
-            log::info!("The dump whole data: {idx}-{formatted_string2}");
-
-            let unpackinfo = self.dump_cur_chunk.get(idx).unwrap();
-            log::info!("The dump unpack data: {idx}-{:?}", unpackinfo);
-        }
-        self.dump_data.clear();
-        self.dump_data2.clear();
-        self.dump_cur_chunk.clear();
     }
 
     pub fn update_max_chunk_size(&mut self, chunk_size: usize) {
@@ -403,8 +341,6 @@ impl ChunkUnpacketizer {
                             format_id
                         );
 
-                        self.print_dump_data();
-
                         if self.parse_error_number > PARSE_ERROR_NUMVER {
                             return Err(UnpackError {
                                 value: UnpackErrorValue::CannotParse,
@@ -601,8 +537,6 @@ impl ChunkUnpacketizer {
         self.print_current_message_header(ChunkReadState::ReadMessageHeader);
 
         if self.current_message_header().extended_timestamp_type != ExtendTimestampType::NONE {
-            self.need_dump = true;
-
             let cur_unpack_info = UnPackInfo {
                 current_chunk_info: self.current_chunk_info.clone(),
                 chunk_message_headers: self.chunk_message_headers.clone(),
