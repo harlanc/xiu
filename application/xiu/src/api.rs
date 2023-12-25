@@ -114,8 +114,8 @@ pub async fn run(producer: StreamHubEventSender, port: usize) {
         .route("/get_stream_status", get(status))
         .route("/kick_off_client", post(kick));
 
-    log::info!("Http api server listening on http://:{}", port);
-    axum::Server::bind(&([127, 0, 0, 1], port as u16).into())
+    log::info!("Http api server listening on http://0.0.0.0:{}", port);
+    axum::Server::bind(&([0, 0, 0, 0], port as u16).into())
         .serve(app.into_make_service())
         .await
         .unwrap();
