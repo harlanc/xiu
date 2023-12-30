@@ -63,15 +63,6 @@ enum MessageHeaderReadState {
     ReadMsgTypeID = 3,
     ReadMsgStreamID = 4,
 }
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-struct UnPackInfo {
-    pub current_chunk_info: ChunkInfo,
-    chunk_message_headers: HashMap<u32, ChunkMessageHeader>,
-    chunk_read_state: ChunkReadState,
-    msg_header_read_state: MessageHeaderReadState,
-    max_chunk_size: usize,
-}
 
 pub struct ChunkUnpacketizer {
     pub reader: BytesReader,
@@ -535,21 +526,6 @@ impl ChunkUnpacketizer {
 
         self.chunk_read_state = ChunkReadState::ReadExtendedTimestamp;
         self.print_current_message_header(ChunkReadState::ReadMessageHeader);
-
-        if self.current_message_header().extended_timestamp_type != ExtendTimestampType::NONE {
-            let cur_unpack_info = UnPackInfo {
-                current_chunk_info: self.current_chunk_info.clone(),
-                chunk_message_headers: self.chunk_message_headers.clone(),
-                chunk_read_state: self.chunk_read_state,
-                msg_header_read_state: self.msg_header_read_state,
-                max_chunk_size: self.max_chunk_size,
-            };
-
-            log::info!(
-                "begin dump data. and current chunk info: {:?}",
-                cur_unpack_info
-            );
-        }
 
         Ok(UnpackResult::Success)
     }
