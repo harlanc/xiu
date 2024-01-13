@@ -12,6 +12,8 @@ use {
     std::{cmp::min, collections::HashMap, fmt, vec::Vec},
 };
 
+const PARSE_ERROR_NUMVER: usize = 5;
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum UnpackResult {
     ChunkBasicHeaderResult(ChunkBasicHeader),
@@ -23,7 +25,7 @@ pub enum UnpackResult {
     Empty,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum ChunkReadState {
     ReadBasicHeader = 1,
     ReadMessageHeader = 2,
@@ -54,12 +56,21 @@ impl fmt::Display for ChunkReadState {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum MessageHeaderReadState {
     ReadTimeStamp = 1,
     ReadMsgLength = 2,
     ReadMsgTypeID = 3,
     ReadMsgStreamID = 4,
+}
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct UnPackInfo {
+    pub current_chunk_info: ChunkInfo,
+    chunk_message_headers: HashMap<u32, ChunkMessageHeader>,
+    chunk_read_state: ChunkReadState,
+    msg_header_read_state: MessageHeaderReadState,
+    max_chunk_size: usize,
 }
 
 pub struct ChunkUnpacketizer {
@@ -82,6 +93,7 @@ pub struct ChunkUnpacketizer {
     max_chunk_size: usize,
     chunk_index: u32,
     pub session_type: u8,
+    parse_error_number: usize,
 }
 
 impl Default for ChunkUnpacketizer {
@@ -101,11 +113,13 @@ impl ChunkUnpacketizer {
             max_chunk_size: define::INIT_CHUNK_SIZE as usize,
             chunk_index: 0,
             session_type: 0,
+            parse_error_number: 0,
         }
     }
 
     pub fn extend_data(&mut self, data: &[u8]) {
         self.reader.extend_from_slice(data);
+
         log::trace!(
             "extend_data length: {}: content:{:X?}",
             self.reader.len(),
@@ -135,18 +149,28 @@ impl ChunkUnpacketizer {
 
         let mut chunks: Vec<ChunkInfo> = Vec::new();
 
-        while let Ok(chunk) = self.read_chunk() {
-            match chunk {
-                UnpackResult::ChunkInfo(chunk_info) => {
-                    let msg_type_id = chunk_info.message_header.msg_type_id;
-                    chunks.push(chunk_info);
+        loop {
+            match self.read_chunk() {
+                Ok(chunk) => {
+                    match chunk {
+                        UnpackResult::ChunkInfo(chunk_info) => {
+                            let msg_type_id = chunk_info.message_header.msg_type_id;
+                            chunks.push(chunk_info);
 
-                    //if the chunk_size is changed, then break and update chunk_size
-                    if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
-                        break;
+                            //if the chunk_size is changed, then break and update chunk_size
+                            if msg_type_id == msg_type_id::SET_CHUNK_SIZE {
+                                break;
+                            }
+                        }
+                        _ => continue,
                     }
                 }
-                _ => continue,
+                Err(err) => {
+                    if let UnpackErrorValue::CannotParse = err.value {
+                        return Err(err);
+                    }
+                    break;
+                }
             }
         }
 
@@ -316,10 +340,21 @@ impl ChunkUnpacketizer {
                             csid,
                             format_id
                         );
+
+                        if self.parse_error_number > PARSE_ERROR_NUMVER {
+                            return Err(UnpackError {
+                                value: UnpackErrorValue::CannotParse,
+                            });
+                        }
+                        self.parse_error_number += 1;
+                    } else {
+                        //reset
+                        self.parse_error_number = 0;
                     }
                 }
             }
         }
+
         if format_id == 0 {
             self.current_message_header().timestamp_delta = 0;
         }
@@ -362,9 +397,9 @@ impl ChunkUnpacketizer {
         //(This field is present in Type 3 chunks when the most recent Type 0,
         //1, or 2 chunk for the same chunk stream ID indicated the presence of
         //an extended timestamp field. 5.3.1.3)
-        //if self.current_chunk_info.basic_header.format != 3 {
-        self.current_message_header().extended_timestamp_type = ExtendTimestampType::NONE;
-        //}
+        if self.current_chunk_info.basic_header.format != 3 {
+            self.current_message_header().extended_timestamp_type = ExtendTimestampType::NONE;
+        }
 
         match self.current_chunk_info.basic_header.format {
             /*****************************************************************/
@@ -500,6 +535,21 @@ impl ChunkUnpacketizer {
 
         self.chunk_read_state = ChunkReadState::ReadExtendedTimestamp;
         self.print_current_message_header(ChunkReadState::ReadMessageHeader);
+
+        if self.current_message_header().extended_timestamp_type != ExtendTimestampType::NONE {
+            let cur_unpack_info = UnPackInfo {
+                current_chunk_info: self.current_chunk_info.clone(),
+                chunk_message_headers: self.chunk_message_headers.clone(),
+                chunk_read_state: self.chunk_read_state,
+                msg_header_read_state: self.msg_header_read_state,
+                max_chunk_size: self.max_chunk_size,
+            };
+
+            log::info!(
+                "begin dump data. and current chunk info: {:?}",
+                cur_unpack_info
+            );
+        }
 
         Ok(UnpackResult::Success)
     }
@@ -655,6 +705,20 @@ mod tests {
         let b = aa.wrapping_add(5);
 
         println!("{}", b);
+    }
+
+    use std::collections::VecDeque;
+
+    #[test]
+    fn test_unpacketizer2() {
+        let mut queue = VecDeque::new();
+        queue.push_back(2);
+        queue.push_back(3);
+        queue.push_back(4);
+
+        for (_idx, data) in queue.iter().enumerate() {
+            println!("{}", data);
+        }
     }
 
     // #[test]

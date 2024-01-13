@@ -2,8 +2,8 @@ pub mod errors;
 
 use streamhub::{
     define::{
-        FrameData, InformationSender, NotifyInfo, PublishType, PublisherInfo, StreamHubEvent,
-        StreamHubEventSender, SubscribeType, TStreamHandler,
+        FrameData, FrameDataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo,
+        StreamHubEvent, StreamHubEventSender, SubscribeType, TStreamHandler,
     },
     errors::ChannelError,
     statistics::StreamStatistics,
@@ -19,8 +19,8 @@ use errors::SessionErrorValue;
 
 use std::fs::File;
 use std::{sync::Arc, time::SystemTime};
-use streamhub::define::DataReceiver;
 use streamhub::define::DataSender;
+use tokio::sync::oneshot;
 
 use tokio::sync::mpsc;
 
@@ -142,8 +142,7 @@ impl GB28181ServerSession {
     }
 
     pub async fn run(&mut self) -> Result<(), SessionError> {
-        let (sender, receiver) = mpsc::unbounded_channel();
-        self.publish_to_stream_hub(receiver)?;
+        let sender = self.publish_to_stream_hub().await?;
         let mut ps_demuxer = self.new_ps_demuxer(sender);
 
         let mut bytes_reader = BytesReader::new(BytesMut::default());
@@ -228,36 +227,36 @@ impl GB28181ServerSession {
         PsDemuxer::new(handler)
     }
 
-    pub fn publish_to_stream_hub(
-        &mut self,
-        receiver: UnboundedReceiver<FrameData>,
-    ) -> Result<(), SessionError> {
+    pub async fn publish_to_stream_hub(&mut self) -> Result<FrameDataSender, SessionError> {
         let publisher_info = PublisherInfo {
             id: self.session_id,
             pub_type: PublishType::PushPsStream,
+            pub_data_type: streamhub::define::PubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
             },
         };
 
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
+
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::GB28181 {
                 stream_name: self.stream_name.clone(),
             },
-            receiver: DataReceiver {
-                frame_receiver: Some(receiver),
-                packet_receiver: None,
-            },
+            result_sender: event_result_sender,
             info: publisher_info,
             stream_handler: self.stream_handler.clone(),
         };
+
         if self.event_sender.send(publish_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
         }
-        Ok(())
+
+        let sender = event_result_receiver.await??.0.unwrap();
+        Ok(sender)
     }
 
     pub fn unpublish_to_stream_hub(&self) -> Result<(), SessionError> {
@@ -268,6 +267,7 @@ impl GB28181ServerSession {
             info: PublisherInfo {
                 id: self.session_id,
                 pub_type: PublishType::PushPsStream,
+                pub_data_type: streamhub::define::PubDataType::Frame,
                 notify_info: NotifyInfo {
                     request_url: String::from(""),
                     remote_addr: String::from(""),

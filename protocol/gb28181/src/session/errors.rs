@@ -4,6 +4,8 @@ use {
     failure::{Backtrace, Fail},
     std::fmt,
     std::str::Utf8Error,
+    streamhub::errors::ChannelError,
+    tokio::sync::oneshot::error::RecvError,
     xmpegts::errors::MpegError,
 };
 
@@ -14,16 +16,20 @@ pub struct SessionError {
 
 #[derive(Debug, Fail)]
 pub enum SessionErrorValue {
-    #[fail(display = "net io error: {}\n", _0)]
+    #[fail(display = "net io error: {}", _0)]
     BytesIOError(#[cause] BytesIOError),
-    #[fail(display = "bytes read error: {}\n", _0)]
+    #[fail(display = "bytes read error: {}", _0)]
     BytesReadError(#[cause] BytesReadError),
-    #[fail(display = "bytes write error: {}\n", _0)]
+    #[fail(display = "bytes write error: {}", _0)]
     BytesWriteError(#[cause] BytesWriteError),
-    #[fail(display = "Utf8Error: {}\n", _0)]
+    #[fail(display = "Utf8Error: {}", _0)]
     Utf8Error(#[cause] Utf8Error),
-    #[fail(display = "MpegError: {}\n", _0)]
+    #[fail(display = "MpegError: {}", _0)]
     MpegError(#[cause] MpegError),
+    #[fail(display = "event execute error: {}", _0)]
+    ChannelError(#[cause] ChannelError),
+    #[fail(display = "tokio: oneshot receiver err: {}", _0)]
+    RecvError(#[cause] RecvError),
     #[fail(display = "stream hub event send error\n")]
     StreamHubEventSendErr,
     #[fail(display = "cannot receive frame data from stream hub\n")]
@@ -66,6 +72,22 @@ impl From<Utf8Error> for SessionError {
     fn from(error: Utf8Error) -> Self {
         SessionError {
             value: SessionErrorValue::Utf8Error(error),
+        }
+    }
+}
+
+impl From<ChannelError> for SessionError {
+    fn from(error: ChannelError) -> Self {
+        SessionError {
+            value: SessionErrorValue::ChannelError(error),
+        }
+    }
+}
+
+impl From<RecvError> for SessionError {
+    fn from(error: RecvError) -> Self {
+        SessionError {
+            value: SessionErrorValue::RecvError(error),
         }
     }
 }

@@ -1,16 +1,16 @@
 pub mod errors;
 use streamhub::{
     define::{
-        DataReceiver, DataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo,
-        StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
+        DataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo, StreamHubEvent,
+        StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
     errors::ChannelError,
     statistics::StreamStatistics,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
 };
-use tokio::sync::broadcast;
 use tokio::sync::Mutex;
+use tokio::sync::{broadcast, oneshot};
 
 use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
@@ -32,7 +32,6 @@ use bytesio::bytes_writer::AsyncBytesWriter;
 use errors::SessionError;
 use errors::SessionErrorValue;
 use http::StatusCode;
-use tokio::sync::mpsc;
 use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::{sdp::session_description::RTCSessionDescription, RTCPeerConnection};
 
@@ -251,19 +250,14 @@ impl WebRTCServerSession {
         path: String,
         offer: RTCSessionDescription,
     ) -> Result<(), SessionError> {
-        // The sender is used for sending audio/video frame data to the stream hub
-        // receiver is passed to the stream hub for receiving the a/v packet data
-        let (sender, receiver) = mpsc::unbounded_channel();
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
 
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::WebRTC {
                 app_name,
                 stream_name,
             },
-            receiver: DataReceiver {
-                packet_receiver: Some(receiver),
-                frame_receiver: None,
-            },
+            result_sender: event_result_sender,
             info: self.get_publisher_info(),
             stream_handler: self.stream_handler.clone(),
         };
@@ -274,6 +268,8 @@ impl WebRTCServerSession {
             });
         }
 
+        let sender = event_result_receiver.await??.1.unwrap();
+
         let response = match handle_whip(offer, sender).await {
             Ok((session_description, peer_connection)) => {
                 self.peer_connection = Some(peer_connection);
@@ -281,9 +277,6 @@ impl WebRTCServerSession {
                 let status_code = http::StatusCode::CREATED;
                 let mut response = Self::gen_response(status_code);
 
-                response
-                    .headers
-                    .insert("Connection".to_string(), "Close".to_string());
                 response
                     .headers
                     .insert("Content-Type".to_string(), "application/sdp".to_string());
@@ -332,17 +325,17 @@ impl WebRTCServerSession {
         path: String,
         offer: RTCSessionDescription,
     ) -> Result<(), SessionError> {
-        let (sender, receiver) = mpsc::unbounded_channel();
-
         let subscriber_info = self.get_subscriber_info();
+
+        let (event_result_sender, event_result_receiver) = oneshot::channel();
 
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::WebRTC {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
             },
-            sender: DataSender::Packet { sender },
             info: subscriber_info.clone(),
+            result_sender: event_result_sender,
         };
 
         if self.event_sender.send(subscribe_event).is_err() {
@@ -350,6 +343,8 @@ impl WebRTCServerSession {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
         }
+
+        let receiver = event_result_receiver.await??.packet_receiver.unwrap();
 
         let (pc_state_sender, mut pc_state_receiver) = broadcast::channel(1);
 
@@ -445,6 +440,7 @@ impl WebRTCServerSession {
         SubscriberInfo {
             id,
             sub_type: SubscribeType::PlayerWebrtc,
+            sub_data_type: streamhub::define::SubDataType::Packet,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
@@ -462,6 +458,7 @@ impl WebRTCServerSession {
         PublisherInfo {
             id,
             pub_type: PublishType::PushWebRTC,
+            pub_data_type: streamhub::define::PubDataType::Packet,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),

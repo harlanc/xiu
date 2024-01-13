@@ -1,4 +1,4 @@
-use crate::chunk::packetizer::ChunkPacketizer;
+use crate::chunk::{errors::UnpackErrorValue, packetizer::ChunkPacketizer};
 
 use {
     super::{
@@ -180,22 +180,33 @@ impl ServerSession {
         self.has_remaing_data = false;
 
         loop {
-            let result = self.unpacketizer.read_chunks();
+            match self.unpacketizer.read_chunks() {
+                Ok(rv) => {
+                    if let UnpackResult::Chunks(chunks) = rv {
+                        for chunk_info in chunks {
+                            let timestamp = chunk_info.message_header.timestamp;
+                            let msg_stream_id = chunk_info.message_header.msg_streamd_id;
 
-            if let Ok(rv) = result {
-                if let UnpackResult::Chunks(chunks) = rv {
-                    for chunk_info in chunks {
-                        let timestamp = chunk_info.message_header.timestamp;
-                        let msg_stream_id = chunk_info.message_header.msg_streamd_id;
-
-                        if let Some(mut msg) = MessageParser::new(chunk_info).parse()? {
-                            self.process_messages(&mut msg, &msg_stream_id, &timestamp)
-                                .await?;
+                            if let Some(mut msg) = MessageParser::new(chunk_info).parse()? {
+                                self.process_messages(&mut msg, &msg_stream_id, &timestamp)
+                                    .await?;
+                            }
                         }
                     }
                 }
-            } else {
-                break;
+                Err(err) => {
+                    if let UnpackErrorValue::CannotParse = err.value {
+                        self.common
+                            .unpublish_to_channels(
+                                self.app_name.clone(),
+                                self.stream_name.clone(),
+                                self.session_id,
+                            )
+                            .await?;
+                        return Err(err)?;
+                    }
+                    break;
+                }
             }
         }
         Ok(())

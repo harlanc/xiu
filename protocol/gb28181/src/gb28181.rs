@@ -78,7 +78,7 @@ mod tests {
     use std::io::Read;
     use std::net::UdpSocket;
 
-    use std::thread::{self, sleep};
+    use std::thread::{self};
     use std::time::Duration;
     #[test]
     fn send_dump_file() {

@@ -2262,6 +2262,7 @@ dependencies = [
  "chrono",
  "failure",
  "h264-decoder 0.2.0",
+ "hex",
  "hmac 0.11.0",
  "indexmap",
  "log",

@@ -8,6 +8,7 @@ use {
     xiu::{config, config::Config, service::Service},
 };
 
+// #[tokio::main(flavor = "current_thread")]
 #[tokio::main]
 async fn main() -> Result<()> {
     let log_levels = vec!["trace", "debug", "info", "warn", "error"];

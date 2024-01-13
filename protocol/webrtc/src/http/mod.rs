@@ -211,13 +211,13 @@ impl Marshal for HttpResponse {
         );
 
         for (header_name, header_value) in &self.headers {
-            if header_name == &"Content-Length".to_string() {
-                if let Some(body) = &self.body {
-                    response_str += &format!("Content-Length: {}\r\n", body.len());
-                }
-            } else {
+            if header_name != &"Content-Length".to_string() {
                 response_str += &format!("{header_name}: {header_value}\r\n");
             }
+        }
+
+        if let Some(body) = &self.body {
+            response_str += &format!("Content-Length: {}\r\n", body.len());
         }
 
         response_str += "\r\n";
