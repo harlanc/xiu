@@ -1,4 +1,6 @@
 pub mod errors;
+
+pub mod rtmp_cooker;
 pub mod rtsp2rtmp;
 
 use streamhub::{
@@ -29,8 +31,8 @@ impl RtmpRemuxer {
             let val = self.receiver.recv().await?;
             log::info!("{:?}", val);
             match val {
-                BroadcastEvent::Publish { identifier } => {
-                    if let StreamIdentifier::Rtsp { stream_path } = identifier {
+                BroadcastEvent::Publish { identifier } => match identifier {
+                    StreamIdentifier::Rtsp { stream_path } => {
                         let mut session =
                             Rtsp2RtmpRemuxerSession::new(stream_path, self.event_producer.clone());
                         tokio::spawn(async move {
@@ -39,7 +41,9 @@ impl RtmpRemuxer {
                             }
                         });
                     }
-                }
+
+                    _ => {}
+                },
                 _ => {
                     log::trace!("other infos...");
                 }
