@@ -1,3 +1,5 @@
+use crate::ps::errors::MpegPsError;
+
 use {
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     failure::{Backtrace, Fail},
@@ -6,8 +8,8 @@ use {
 };
 
 #[derive(Debug, Fail)]
-pub enum MpegTsErrorValue {
-    #[fail(display = "bytes read error")]
+pub enum MpegErrorValue {
+    #[fail(display = "bytes read error\n")]
     BytesReadError(BytesReadError),
 
     #[fail(display = "bytes write error")]
@@ -27,43 +29,54 @@ pub enum MpegTsErrorValue {
 
     #[fail(display = "stream not found")]
     StreamNotFound,
+
+    #[fail(display = "mpeg ps error\n")]
+    MpegPsError(MpegPsError),
 }
 #[derive(Debug)]
-pub struct MpegTsError {
-    pub value: MpegTsErrorValue,
+pub struct MpegError {
+    pub value: MpegErrorValue,
 }
 
-impl From<BytesReadError> for MpegTsError {
+impl From<BytesReadError> for MpegError {
     fn from(error: BytesReadError) -> Self {
-        MpegTsError {
-            value: MpegTsErrorValue::BytesReadError(error),
+        MpegError {
+            value: MpegErrorValue::BytesReadError(error),
         }
     }
 }
 
-impl From<BytesWriteError> for MpegTsError {
+impl From<BytesWriteError> for MpegError {
     fn from(error: BytesWriteError) -> Self {
-        MpegTsError {
-            value: MpegTsErrorValue::BytesWriteError(error),
+        MpegError {
+            value: MpegErrorValue::BytesWriteError(error),
         }
     }
 }
 
-impl From<Error> for MpegTsError {
+impl From<Error> for MpegError {
     fn from(error: Error) -> Self {
-        MpegTsError {
-            value: MpegTsErrorValue::IOError(error),
+        MpegError {
+            value: MpegErrorValue::IOError(error),
         }
     }
 }
 
-impl fmt::Display for MpegTsError {
+impl From<MpegPsError> for MpegError {
+    fn from(error: MpegPsError) -> Self {
+        MpegError {
+            value: MpegErrorValue::MpegPsError(error),
+        }
+    }
+}
+
+impl fmt::Display for MpegError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
     }
 }
 
-impl Fail for MpegTsError {
+impl Fail for MpegError {
     fn cause(&self) -> Option<&dyn Fail> {
         self.value.cause()
     }

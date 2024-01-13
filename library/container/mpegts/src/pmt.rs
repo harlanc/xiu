@@ -2,7 +2,7 @@ use {
     super::{
         crc32,
         define::{epat_pid, epsi_stream_type},
-        errors::MpegTsError,
+        errors::MpegError,
         pes,
     },
     byteorder::{BigEndian, LittleEndian},
@@ -57,7 +57,7 @@ impl PmtMuxer {
         }
     }
 
-    pub fn write(&mut self, pmt: &Pmt) -> Result<BytesMut, MpegTsError> {
+    pub fn write(&mut self, pmt: &Pmt) -> Result<BytesMut, MpegError> {
         /*table id*/
         self.bytes_writer.write_u8(epat_pid::PAT_TID_PMS as u8)?;
 
@@ -108,7 +108,7 @@ impl PmtMuxer {
         Ok(self.bytes_writer.extract_current_bytes())
     }
 
-    pub fn write_descriptor(&mut self) -> Result<(), MpegTsError> {
+    pub fn write_descriptor(&mut self) -> Result<(), MpegError> {
         Ok(())
     }
 }

@@ -31,6 +31,7 @@ streamhub = { path = "../../library/streamhub/" }
 rtmp = { path = "../../protocol/rtmp/" }
 xrtsp = { path = "../../protocol/rtsp/" }
 xwebrtc = { path = "../../protocol/webrtc/" }
+gb28181 = { path = "../../protocol/gb28181/" }
 httpflv = { path = "../../protocol/httpflv/" }
 hls = { path = "../../protocol/hls/" }
 

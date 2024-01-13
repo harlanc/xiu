@@ -2,7 +2,7 @@ use {
     super::{
         define,
         define::{epat_pid, epes_stream_id, ts},
-        errors::{MpegTsError, MpegTsErrorValue},
+        errors::{MpegError, MpegErrorValue},
         pat, pes,
         pes::PesMuxer,
         pmt, utils,
@@ -17,7 +17,7 @@ pub struct TsMuxer {
     pmt_continuity_counter: u8,
     h264_h265_with_aud: bool,
     pid: u16,
-    pat_period: i64,
+    pat_period: u64,
     pcr_period: i64,
     pcr_clock: i64,
     pat: pat::Pat,
@@ -65,11 +65,11 @@ impl TsMuxer {
     pub fn write(
         &mut self,
         pid: u16,
-        pts: i64,
-        dts: i64,
+        pts: u64,
+        dts: u64,
         flags: u16,
         payload: BytesMut,
-    ) -> Result<(), MpegTsError> {
+    ) -> Result<(), MpegError> {
         self.h264_h265_with_aud = (flags & define::MPEG_FLAG_H264_H265_WITH_AUD) > 0;
 
         //print!("pes payload length {}\n", payload.len());
@@ -137,7 +137,7 @@ impl TsMuxer {
         pid: u16,
         payload: BytesMut,
         continuity_counter: u8,
-    ) -> Result<(), MpegTsError> {
+    ) -> Result<(), MpegError> {
         /*sync byte*/
         self.bytes_writer.write_u8(0x47)?; //0
                                            /*PID 13 bits*/
@@ -161,7 +161,7 @@ impl TsMuxer {
         Ok(())
     }
     //2.4.3.6 PES packet P35
-    pub fn write_pes(&mut self, payload: BytesMut) -> Result<(), MpegTsError> {
+    pub fn write_pes(&mut self, payload: BytesMut) -> Result<(), MpegError> {
         let mut is_start: bool = true;
         let mut payload_reader = BytesReader::new(payload);
 
@@ -208,7 +208,7 @@ impl TsMuxer {
         pes_header_length: usize,
         payload_data_length: usize,
         is_start: bool,
-    ) -> Result<usize, MpegTsError> {
+    ) -> Result<usize, MpegError> {
         let cur_pmt = self.pat.pmt.get_mut(self.cur_pmt_index).unwrap();
         let stream_data = cur_pmt.streams.get_mut(self.cur_stream_index).unwrap();
 
@@ -241,7 +241,7 @@ impl TsMuxer {
 
             if (stream_data.pid == pcr_pid)
                 || ((stream_data.data_alignment_indicator > 0)
-                    && define::PTS_NO_VALUE != stream_data.pts)
+                    && define::PTS_NO_VALUE != stream_data.pts as i64)
             {
                 /*adaption field control*/
                 ts_header.or_u8_at(3, 0x20)?;
@@ -256,7 +256,7 @@ impl TsMuxer {
                     /*adaption field flags*/
                     ts_header.or_u8_at(5, define::AF_FLAG_PCR)?;
 
-                    let pcr = if define::PTS_NO_VALUE == stream_data.dts {
+                    let pcr = if define::PTS_NO_VALUE == stream_data.dts as i64 {
                         stream_data.pts
                     } else {
                         stream_data.dts
@@ -269,7 +269,7 @@ impl TsMuxer {
                 }
 
                 if (stream_data.data_alignment_indicator > 0)
-                    && define::PTS_NO_VALUE != stream_data.pts
+                    && define::PTS_NO_VALUE != stream_data.pts as i64
                 {
                     /*adaption field flags*/
                     ts_header.or_u8_at(5, define::AF_FLAG_RANDOM_ACCESS_INDICATOR)?;
@@ -319,7 +319,7 @@ impl TsMuxer {
         Ok(payload_data_length)
     }
 
-    pub fn find_stream(&mut self, pid: u16) -> Result<(), MpegTsError> {
+    pub fn find_stream(&mut self, pid: u16) -> Result<(), MpegError> {
         // let mut pmt_index: usize = 0;
         let mut stream_index: usize = 0;
 
@@ -348,34 +348,29 @@ impl TsMuxer {
         //     pmt_index += 1;
         // }
 
-        Err(MpegTsError {
-            value: MpegTsErrorValue::StreamNotFound,
+        Err(MpegError {
+            value: MpegErrorValue::StreamNotFound,
         })
     }
 
-    pub fn add_stream(&mut self, codecid: u8, extra_data: BytesMut) -> Result<u16, MpegTsError> {
+    pub fn add_stream(&mut self, codecid: u8) -> Result<u16, MpegError> {
         if self.pat.pmt.is_empty() {
             self.add_program(1, BytesMut::new())?;
         }
 
-        self.pmt_add_stream(0, codecid, extra_data)
+        self.pmt_add_stream(0, codecid)
     }
 
-    pub fn pmt_add_stream(
-        &mut self,
-        pmt_index: usize,
-        codecid: u8,
-        extra_data: BytesMut,
-    ) -> Result<u16, MpegTsError> {
+    pub fn pmt_add_stream(&mut self, pmt_index: usize, codecid: u8) -> Result<u16, MpegError> {
         let pmt = &mut self.pat.pmt[pmt_index];
 
         if pmt.streams.len() == 4 {
-            return Err(MpegTsError {
-                value: MpegTsErrorValue::StreamCountExeceed,
+            return Err(MpegError {
+                value: MpegErrorValue::StreamCountExeceed,
             });
         }
 
-        let mut cur_stream = pes::Pes::new(); //&mut pmt.streams[pmt.stream_count];
+        let mut cur_stream = pes::Pes::default(); //&mut pmt.streams[pmt.stream_count];
 
         cur_stream.codec_id = codecid;
         cur_stream.pid = self.pid;
@@ -389,9 +384,9 @@ impl TsMuxer {
             cur_stream.stream_id = epes_stream_id::PES_SID_PRIVATE_1;
         }
 
-        if !extra_data.is_empty() {
-            cur_stream.esinfo.put(extra_data);
-        }
+        // if !extra_data.is_empty() {
+        //     cur_stream.esinfo.put(extra_data);
+        // }
 
         pmt.streams.push(cur_stream);
         pmt.version_number = (pmt.version_number + 1) % 32;
@@ -401,18 +396,18 @@ impl TsMuxer {
         Ok(self.pid - 1)
     }
 
-    pub fn add_program(&mut self, program_number: u16, info: BytesMut) -> Result<(), MpegTsError> {
+    pub fn add_program(&mut self, program_number: u16, info: BytesMut) -> Result<(), MpegError> {
         for cur_pmt in self.pat.pmt.iter() {
             if cur_pmt.program_number == program_number {
-                return Err(MpegTsError {
-                    value: MpegTsErrorValue::ProgramNumberExists,
+                return Err(MpegError {
+                    value: MpegErrorValue::ProgramNumberExists,
                 });
             }
         }
 
         if self.pat.pmt.len() == 4 {
-            return Err(MpegTsError {
-                value: MpegTsErrorValue::PmtCountExeceed,
+            return Err(MpegError {
+                value: MpegErrorValue::PmtCountExeceed,
             });
         }
         let mut cur_pmt = pmt::Pmt::new(); //&mut self.pat.pmt[self.pat.pmt_count];

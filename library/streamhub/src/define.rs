@@ -50,6 +50,8 @@ pub enum PublishType {
     PushWebRTC,
     /* It used for publishing raw rtp data of rtsp/whbrtc(whip) */
     PushRtp,
+    /* Receive ps stream from remote push client(GB28181),  */
+    PushPsStream,
 }
 
 #[derive(Debug, Serialize, Clone)]

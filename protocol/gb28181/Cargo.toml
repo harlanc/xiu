@@ -1,0 +1,51 @@
+[package]
+name = "gb28181"
+version = "0.1.0"
+description = "gb28181 library."
+edition = "2021"
+authors = ["HarlanC <wawacry@qq.com>"]
+license = "MIT"
+repository = "https://github.com/harlanc/xiu"
+categories = ["multimedia", "multimedia::video", 'multimedia::audio']
+keywords = ["gb28181", "video", "streaming"]
+readme = "README.md"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8"
+byteorder = "1.4.2"
+tokio = "1.4.0"
+bytes = "1.0.0"
+log = "0.4"
+failure = "0.1.1"
+http = "0.2.9"
+indexmap = "1.9.3"
+lazy_static = "1.4.0"
+chrono = "0.4"
+async-trait = "0.1.70"
+base64 = "0.21.2"
+hex = "0.4.3"
+axum = "0.6.10"
+serde_derive = "1.0"
+serde = { version = "1.0.101", optional = true, features = ["derive"] }
+anyhow = "^1.0"
+serde_json = { version = "1", default-features = false, features = [
+    "alloc",
+    "raw_value",
+    "std",
+] }
+reqwest = "0.11.14"
+
+
+bytesio = { path = "../../library/bytesio/" }
+streamhub = { path = "../../library/streamhub/" }
+xmpegts = { path = "../../library/container/mpegts/" }
+xrtsp = { path = "../rtsp/" }
+
+[features]
+default = ["std"]
+std = ["serde"]
+
+

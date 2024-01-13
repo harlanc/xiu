@@ -16,6 +16,9 @@ pub enum StreamIdentifier {
         app_name: String,
         stream_name: String,
     },
+    GB28181 {
+        stream_name: String,
+    },
 }
 impl fmt::Display for StreamIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -39,6 +42,9 @@ impl fmt::Display for StreamIdentifier {
                     f,
                     "WebRTC - app_name: {app_name}, stream_name: {stream_name}"
                 )
+            }
+            StreamIdentifier::GB28181 { stream_name } => {
+                write!(f, "GB28181 -  stream_name: {stream_name}")
             }
             StreamIdentifier::Unkonwn => {
                 write!(f, "Unkonwn")

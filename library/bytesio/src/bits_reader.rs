@@ -51,6 +51,14 @@ impl BitsReader {
         Ok((self.cur_byte >> self.cur_bit_left) & 0x01)
     }
 
+    pub fn advance_bit(&mut self) -> Result<u8, BitError> {
+        if self.cur_bit_left == 0 {
+            self.cur_byte = self.reader.read_u8()?;
+            self.cur_bit_left = 8;
+        }
+        Ok((self.cur_byte >> self.cur_bit_left) & 0x01)
+    }
+
     pub fn read_n_bits(&mut self, n: usize) -> Result<u64, BitError> {
         let mut result: u64 = 0;
         for _ in 0..n {

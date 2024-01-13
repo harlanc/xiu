@@ -91,7 +91,8 @@ pub async fn split_annexb_and_process<T: TVideoPacker>(
             let mut nalu_with_start_code =
                 if let Some(distance_to_first_pos) = find_start_code(&nalus[first_pos + 3..]) {
                     let mut second_pos = first_pos + 3 + distance_to_first_pos;
-                    while second_pos > 0 && nalus[second_pos - 1] == 0 {
+                    //judge if the start code is [0x00,0x00,0x00,0x01]
+                    if second_pos > 0 && nalus[second_pos - 1] == 0 {
                         second_pos -= 1;
                     }
                     nalus.split_to(second_pos)
@@ -131,8 +132,8 @@ mod tests {
     pub fn test_annexb_split() {
         let mut nalus = BytesMut::new();
         nalus.extend_from_slice(&[
-            0x00, 0x00, 0x01, 0x02, 0x03, 0x05, 0x06, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
-            0x00, 0x00, 0x01, 0x02, 0x03,
+            0x00, 0x00, 0x01, 0x02, 0x03, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03,
+            0x04, 0x00, 0x00, 0x01, 0x02, 0x03,
         ]);
 
         while !nalus.is_empty() {
@@ -145,7 +146,7 @@ mod tests {
                     if let Some(distance_to_first_pos) = find_start_code(&nalus[first_pos + 3..]) {
                         let mut second_pos = first_pos + 3 + distance_to_first_pos;
                         println!("left: {first_pos} right: {distance_to_first_pos}");
-                        while second_pos > 0 && nalus[second_pos - 1] == 0 {
+                        if second_pos > 0 && nalus[second_pos - 1] == 0 {
                             second_pos -= 1;
                         }
                         // while nalus[pos_right ]

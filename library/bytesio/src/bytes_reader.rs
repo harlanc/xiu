@@ -11,10 +11,14 @@ use {
 
 pub struct BytesReader {
     buffer: BytesMut,
+    backup: BytesMut,
 }
 impl BytesReader {
     pub fn new(input: BytesMut) -> Self {
-        Self { buffer: input }
+        Self {
+            buffer: input,
+            backup: BytesMut::new(),
+        }
     }
 
     pub fn extend_from_slice(&mut self, extend: &[u8]) {
@@ -144,8 +148,17 @@ impl BytesReader {
     pub fn extract_remaining_bytes(&mut self) -> BytesMut {
         self.buffer.split_to(self.buffer.len())
     }
+
     pub fn get_remaining_bytes(&self) -> BytesMut {
         self.buffer.clone()
+    }
+
+    pub fn backup(&mut self) {
+        self.backup = self.buffer.clone();
+    }
+
+    pub fn restore(&mut self) {
+        self.buffer = self.backup.clone();
     }
 }
 pub struct AsyncBytesReader<T1: TNetIO> {

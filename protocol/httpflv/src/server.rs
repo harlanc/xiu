@@ -49,6 +49,8 @@ async fn handle_connection(
             let mut resp = Response::new(Body::wrap_stream(http_response_data_consumer));
             resp.headers_mut()
                 .insert("Access-Control-Allow-Origin", "*".parse().unwrap());
+            resp.headers_mut()
+                .insert("Transfer-Encoding", "chunked".parse().unwrap());
 
             Ok(resp)
         }

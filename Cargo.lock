@@ -1128,6 +1128,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "gb28181"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.21.2",
+ "byteorder",
+ "bytes",
+ "bytesio 0.3.0",
+ "chrono",
+ "failure",
+ "hex",
+ "http",
+ "indexmap",
+ "lazy_static",
+ "log",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "streamhub 0.1.1",
+ "tokio",
+ "xmpegts",
+ "xrtsp",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1982,8 +2011,8 @@ dependencies = [
  "clap",
  "env_logger",
  "log",
- "rtmp 0.4.0",
- "streamhub 0.1.0",
+ "rtmp 0.4.2",
+ "streamhub 0.1.2",
  "tokio",
 ]
 
@@ -2224,32 +2253,6 @@ dependencies = [
 
 [[package]]
 name = "rtmp"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93e619cfc092d254ad1b5f08f99b88af0721a10ab257822109adc4f7a16e0db1"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes",
- "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "chrono",
- "failure",
- "h264-decoder 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hmac 0.11.0",
- "indexmap",
- "log",
- "rand 0.3.23",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "streamhub 0.1.0",
- "tokio",
- "xflv 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rtmp"
 version = "0.4.1"
 dependencies = [
  "async-trait",
@@ -2271,6 +2274,32 @@ dependencies = [
  "streamhub 0.1.1",
  "tokio",
  "xflv 0.3.0",
+]
+
+[[package]]
+name = "rtmp"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a416cf84b0982b7356a4af93f02bf1ea46b4e0b57cd8601a9da73a0bdfeb0dc7"
+dependencies = [
+ "async-trait",
+ "byteorder",
+ "bytes",
+ "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chrono",
+ "failure",
+ "h264-decoder 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hmac 0.11.0",
+ "indexmap",
+ "log",
+ "rand 0.3.23",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.9.9",
+ "streamhub 0.1.2",
+ "tokio",
+ "xflv 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2593,28 +2622,6 @@ dependencies = [
 
 [[package]]
 name = "streamhub"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2ed21d266e3a637f461a706bb1bfa6eb01b7acf57c1b42f8c0aa5bb05f00d71"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes",
- "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "chrono",
- "failure",
- "indexmap",
- "log",
- "rand 0.8.5",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "xflv 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "streamhub"
 version = "0.1.1"
 dependencies = [
  "async-trait",
@@ -2631,6 +2638,28 @@ dependencies = [
  "serde_json",
  "tokio",
  "xflv 0.3.0",
+]
+
+[[package]]
+name = "streamhub"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "011995bde7e1273e01650a117f13e3d8ae0e7532a19b1ccf54d56919601a4251"
+dependencies = [
+ "async-trait",
+ "byteorder",
+ "bytes",
+ "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chrono",
+ "failure",
+ "indexmap",
+ "log",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "xflv 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3695,6 +3724,7 @@ dependencies = [
  "clap",
  "env_logger_extend",
  "failure",
+ "gb28181",
  "hls",
  "httpflv",
  "libc",
@@ -3719,6 +3749,7 @@ dependencies = [
  "bytes",
  "bytesio 0.3.0",
  "failure",
+ "log",
 ]
 
 [[package]]

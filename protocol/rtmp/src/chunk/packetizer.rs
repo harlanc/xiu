@@ -208,6 +208,7 @@ impl ChunkPacketizer {
                 }
             }
         }
+
         self.writer.flush().await?;
 
         Ok(())
