@@ -73,53 +73,47 @@ impl GB28181Server {
 
 #[cfg(test)]
 mod tests {
-    use byteorder::{BigEndian, ReadBytesExt};
-    use std::fs::File;
-    use std::io::Read;
-    use std::net::UdpSocket;
 
-    use std::thread::{self};
-    use std::time::Duration;
     #[test]
     fn send_dump_file() {
-        let file_path = "/Users/hailiang8/dump2"; // 替换为实际的文件路径
-        let mut file = File::open(file_path).unwrap();
+        // let file_path = ""; // 替换为实际的文件路径
+        // let mut file = File::open(file_path).unwrap();
 
-        // 创建 UDP socket
-        let socket = UdpSocket::bind("127.0.0.1:0").unwrap(); // 绑定到任意可用端口
+        // // 创建 UDP socket
+        // let socket = UdpSocket::bind("127.0.0.1:0").unwrap(); // 绑定到任意可用端口
 
-        loop {
-            // let time_delta = match file.read_u16::<BigEndian>() {
-            //     Ok(value) => value,
-            //     Err(err) => {
-            //         log::error!("file read error: {}", err);
-            //         break;
-            //     } // 文件已读取完毕或发生错误
-            // };
-            // sleep(Duration::from_millis(time_delta as u64));
+        // loop {
+        //     // let time_delta = match file.read_u16::<BigEndian>() {
+        //     //     Ok(value) => value,
+        //     //     Err(err) => {
+        //     //         log::error!("file read error: {}", err);
+        //     //         break;
+        //     //     } // 文件已读取完毕或发生错误
+        //     // };
+        //     // sleep(Duration::from_millis(time_delta as u64));
 
-            // 读取 10 个字节
-            // 读取 4 个字节作为大端 u32
-            let length = match file.read_u16::<BigEndian>() {
-                Ok(value) => value,
-                Err(err) => {
-                    log::error!("file read error: {}", err);
-                    break;
-                } // 文件已读取完毕或发生错误
-            };
-            println!("length:{}", length);
+        //     // 读取 10 个字节
+        //     // 读取 4 个字节作为大端 u32
+        //     let length = match file.read_u16::<BigEndian>() {
+        //         Ok(value) => value,
+        //         Err(err) => {
+        //             log::error!("file read error: {}", err);
+        //             break;
+        //         } // 文件已读取完毕或发生错误
+        //     };
+        //     println!("length:{}", length);
 
-            // 读取指定长度的字节
-            let mut buffer = vec![0u8; length as usize];
-            if let Err(err) = file.read_exact(&mut buffer) {
-                log::error!("read file err: {err}");
-            }
+        //     // 读取指定长度的字节
+        //     let mut buffer = vec![0u8; length as usize];
+        //     if let Err(err) = file.read_exact(&mut buffer) {
+        //         log::error!("read file err: {err}");
+        //     }
 
-            // 发送数据到 UDP 端口
-            let addr = "127.0.0.1:30000"; // UDP 目标地址
-            let _sent_bytes = socket.send_to(&buffer, addr).unwrap();
-            //  println!("Sent {} bytes to {}: {:?}", sent_bytes, addr, buffer);
-            thread::sleep(Duration::from_millis(2));
-        }
+        //     // 发送数据到 UDP 端口
+        //     let addr = "127.0.0.1:30000"; // UDP 目标地址
+        //     let _sent_bytes = socket.send_to(&buffer, addr).unwrap();
+        //     //  println!("Sent {} bytes to {}: {:?}", sent_bytes, addr, buffer);
+        //     thread::sleep(Duration::from_millis(2));
+        // }
     }
 }
