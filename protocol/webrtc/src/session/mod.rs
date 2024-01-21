@@ -1,10 +1,10 @@
 pub mod errors;
 use streamhub::{
     define::{
-        DataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo, StreamHubEvent,
-        StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
+        DataSender, FrameData, InformationSender, NotifyInfo, PublishType, PublisherInfo,
+        StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
-    errors::ChannelError,
+    errors::{ChannelError, ChannelErrorValue},
     statistics::StreamStatistics,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
@@ -12,6 +12,7 @@ use streamhub::{
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, oneshot};
 
+use bytesio::bytes_writer::BytesWriter;
 use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
 use std::io::Read;
@@ -58,7 +59,7 @@ impl WebRTCServerSession {
             reader: BytesReader::new(BytesMut::default()),
             writer: AsyncBytesWriter::new(io),
             event_sender: event_producer,
-            stream_handler: Arc::new(WebRTCStreamHandler::new()),
+            stream_handler: Arc::new(WebRTCStreamHandler::default()),
             session_id: None,
             http_request_data: None,
             peer_connection: None,
@@ -176,7 +177,10 @@ impl WebRTCServerSession {
                         }
                     }
                 }
-                http_method_name::OPTIONS => {}
+                http_method_name::OPTIONS => {
+                    self.send_response(&Self::gen_response(http::StatusCode::OK))
+                        .await?
+                }
                 http_method_name::PATCH => {}
                 http_method_name::DELETE => {
                     if let Some(session_id) = pars_map.get("session_id") {
@@ -268,29 +272,30 @@ impl WebRTCServerSession {
             });
         }
 
-        let sender = event_result_receiver.await??.1.unwrap();
+        let sender = event_result_receiver.await??;
 
-        let response = match handle_whip(offer, sender).await {
-            Ok((session_description, peer_connection)) => {
-                self.peer_connection = Some(peer_connection);
+        let response =
+            match handle_whip(offer, sender.0, sender.1, self.stream_handler.clone()).await {
+                Ok((session_description, peer_connection)) => {
+                    self.peer_connection = Some(peer_connection);
 
-                let status_code = http::StatusCode::CREATED;
-                let mut response = Self::gen_response(status_code);
+                    let status_code = http::StatusCode::CREATED;
+                    let mut response = Self::gen_response(status_code);
 
-                response
-                    .headers
-                    .insert("Content-Type".to_string(), "application/sdp".to_string());
-                response.headers.insert("Location".to_string(), path);
-                response.body = Some(session_description.sdp);
+                    response
+                        .headers
+                        .insert("Content-Type".to_string(), "application/sdp".to_string());
+                    response.headers.insert("Location".to_string(), path);
+                    response.body = Some(session_description.sdp);
 
-                response
-            }
-            Err(err) => {
-                log::error!("handle whip err: {}", err);
-                let status_code = http::StatusCode::SERVICE_UNAVAILABLE;
-                Self::gen_response(status_code)
-            }
-        };
+                    response
+                }
+                Err(err) => {
+                    log::error!("handle whip err: {}", err);
+                    let status_code = http::StatusCode::SERVICE_UNAVAILABLE;
+                    Self::gen_response(status_code)
+                }
+            };
 
         self.send_response(&response).await
     }
@@ -458,7 +463,7 @@ impl WebRTCServerSession {
         PublisherInfo {
             id,
             pub_type: PublishType::PushWebRTC,
-            pub_data_type: streamhub::define::PubDataType::Packet,
+            pub_data_type: streamhub::define::PubDataType::Both,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
@@ -473,12 +478,24 @@ impl WebRTCServerSession {
             "".to_string()
         };
 
-        HttpResponse {
+        let mut response = HttpResponse {
             version: "HTTP/1.1".to_string(),
             status_code: status_code.as_u16(),
             reason_phrase,
             ..Default::default()
-        }
+        };
+
+        response
+            .headers
+            .insert("Access-Control-Allow-Origin".to_owned(), "*".to_owned());
+        response.headers.insert(
+            "Access-Control-Allow-Headers".to_owned(),
+            "content-type".to_owned(),
+        );
+        response
+            .headers
+            .insert("Access-Control-Allow-Method".to_owned(), "POST".to_owned());
+        response
     }
 
     fn gen_file_response(file_path: &str) -> HttpResponse {
@@ -507,11 +524,17 @@ impl WebRTCServerSession {
 }
 
 #[derive(Default)]
-pub struct WebRTCStreamHandler {}
+pub struct WebRTCStreamHandler {
+    sps: Mutex<Vec<u8>>,
+    pps: Mutex<Vec<u8>>,
+}
 
 impl WebRTCStreamHandler {
-    pub fn new() -> Self {
-        Self {}
+    pub async fn set_sps(&self, sps: Vec<u8>) {
+        *self.sps.lock().await = sps;
+    }
+    pub async fn set_pps(&self, pps: Vec<u8>) {
+        *self.pps.lock().await = pps;
     }
 }
 
@@ -519,9 +542,37 @@ impl WebRTCStreamHandler {
 impl TStreamHandler for WebRTCStreamHandler {
     async fn send_prior_data(
         &self,
-        _sender: DataSender,
-        _sub_type: SubscribeType,
+        data_sender: DataSender,
+        sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
+        let sender = match data_sender {
+            DataSender::Frame { sender } => sender,
+            DataSender::Packet { sender: _ } => {
+                return Err(ChannelError {
+                    value: ChannelErrorValue::NotCorrectDataSenderType,
+                });
+            }
+        };
+
+        match sub_type {
+            SubscribeType::PlayerRtmp => {
+                let mut bytes_writer = BytesWriter::new();
+
+                bytes_writer.write(&self.sps.lock().await)?;
+                bytes_writer.write(&self.pps.lock().await)?;
+
+                let frame_data = FrameData::Video {
+                    timestamp: 0,
+                    data: bytes_writer.extract_current_bytes(),
+                };
+                if let Err(err) = sender.send(frame_data) {
+                    log::error!("send sps/pps error: {}", err);
+                }
+            }
+            SubscribeType::PlayerHls => {}
+            _ => {}
+        }
+
         Ok(())
     }
     async fn get_statistic_data(&self) -> Option<StreamStatistics> {

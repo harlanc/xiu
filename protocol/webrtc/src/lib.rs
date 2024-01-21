@@ -4,3 +4,4 @@ pub mod session;
 pub mod webrtc;
 pub mod whep;
 pub mod whip;
+pub mod opus2aac;

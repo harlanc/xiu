@@ -1,9 +1,14 @@
+use crate::opus2aac::Opus2AacTranscoder;
+
 use super::errors::WebRTCError;
 use super::errors::WebRTCErrorValue;
 use bytes::BytesMut;
 use std::sync::Arc;
-use streamhub::define::{PacketData, PacketDataSender};
+use streamhub::define::{FrameData, PacketData};
+use tokio::sync::mpsc::UnboundedSender;
+use webrtc::rtp::codecs::opus::OpusPacket;
 
+use super::session::WebRTCStreamHandler;
 use tokio::time::Duration;
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
@@ -16,6 +21,9 @@ use webrtc::peer_connection::peer_connection_state::RTCPeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
+use webrtc::rtp::codecs::h264::H264Packet;
+use webrtc::rtp::packet::Packet;
+use webrtc::rtp::packetizer::Depacketizer;
 use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_transceiver_direction::RTCRtpTransceiverDirection;
 use webrtc::rtp_transceiver::RTCRtpTransceiverInit;
@@ -23,9 +31,18 @@ use webrtc::util::Marshal;
 
 pub type Result<T> = std::result::Result<T, WebRTCError>;
 
+mod nal_unit_type {
+    pub const SPS: u8 = 0x07; //0x67
+    pub const PPS: u8 = 0x08; //0x68
+    pub const IDR_FRAME: u8 = 0x05; //0x65
+    pub const NO_IDR_FRAME: u8 = 0x01; //0x41 B/P frame
+}
+
 pub async fn handle_whip(
     offer: RTCSessionDescription,
-    sender: PacketDataSender,
+    frame_sender: Option<UnboundedSender<FrameData>>,
+    packet_sender: Option<UnboundedSender<PacketData>>,
+    stream_handler: Arc<WebRTCStreamHandler>,
 ) -> Result<(RTCSessionDescription, Arc<RTCPeerConnection>)> {
     // Create a MediaEngine object to configure the supported codec
     let mut m = MediaEngine::default();
@@ -107,10 +124,21 @@ pub async fn handle_whip(
                 };
             }
         });
-        let sender_clone = sender.clone();
+        let packet_sender_clone = packet_sender.clone().unwrap();
+        let frame_sender_clone = frame_sender.clone().unwrap();
+        let stream_handler_clone = stream_handler.clone();
 
         tokio::spawn(async move {
             let mut b = vec![0u8; 3000];
+            let mut h264_packet = H264Packet::default();
+            let mut opus_packet = OpusPacket::default();
+            let mut opus2aac_transcoder = Opus2AacTranscoder::new(
+                48000,
+                opus::Channels::Stereo,
+                48000,
+                fdk_aac::enc::ChannelMode::Stereo,
+            )
+            .unwrap();
 
             while let Ok((rtp_packet, _)) = track.read(&mut b).await {
                 // Update the PayloadType
@@ -127,18 +155,93 @@ pub async fn handle_whip(
                             timestamp: rtp_packet.header.timestamp,
                             data: BytesMut::from(&b[..n]),
                         };
-                        if let Err(err) = sender_clone.send(video_packet) {
+                        if let Err(err) = packet_sender_clone.send(video_packet) {
                             log::error!("send video packet error: {}", err);
                         }
+
+                        match h264_packet.depacketize(&rtp_packet.payload) {
+                            Ok(rv) => {
+                                if rv.len() > 0 {
+                                    let byte_array = rv.to_vec();
+                                    let nal_type = byte_array[4] & 0x1F;
+                                    // let hex_string = hex::encode(byte_array);
+
+                                    match nal_type {
+                                        nal_unit_type::SPS => {
+                                            stream_handler_clone.set_sps(byte_array).await;
+                                        }
+                                        nal_unit_type::PPS => {
+                                            stream_handler_clone.set_pps(byte_array).await;
+                                        }
+                                        _ => {
+                                            let video_frame = FrameData::Video {
+                                                timestamp: rtp_packet.header.timestamp,
+                                                data: BytesMut::from(&byte_array[..]),
+                                            };
+
+                                            if let Err(err) = frame_sender_clone.send(video_frame) {
+                                                log::error!("send video frame error: {}", err);
+                                            }
+                                        }
+                                    }
+
+                                    // if nal_type == 0x07 || nal_type == 0x08 {
+                                    //     log::info!(
+                                    //         "The h264 packet payload SPS/PPS :{}",
+                                    //         hex_string
+                                    //     );
+                                    // } else {
+                                    //     log::info!(
+                                    //         "The h264 packet other payload  :{} / {}",
+                                    //         nal_type,
+                                    //         hex_string
+                                    //     );
+                                    // }
+                                }
+                            }
+                            Err(err) => {
+                                // log::error!("The h264 packet payload err:{}", err);
+                                // let hex_string = hex::encode(b.to_vec());
+                                // log::error!("The h264 packet payload err string :{}", hex_string);
+                            }
+                        }
                     }
-                    //aac
+                    //aac 111(opus)
                     97 | 111 => {
                         let audio_packet = PacketData::Audio {
                             timestamp: rtp_packet.header.timestamp,
                             data: BytesMut::from(&b[..n]),
                         };
-                        if let Err(err) = sender_clone.send(audio_packet) {
+                        if let Err(err) = packet_sender_clone.send(audio_packet) {
                             log::error!("send audio packet error: {}", err);
+                        }
+
+                        match opus_packet.depacketize(&rtp_packet.payload) {
+                            Ok(rv) => {
+                                if rv.len() > 0 {
+                                    let byte_array = rv.to_vec();
+                                    match opus2aac_transcoder.transcode(&byte_array) {
+                                        Ok(data) => {
+                                            if let Some(data_val) = data {
+                                                let audio_frame = FrameData::Audio {
+                                                    timestamp: rtp_packet.header.timestamp,
+                                                    data: BytesMut::from(&data_val[..]),
+                                                };
+
+                                                if let Err(err) =
+                                                    frame_sender_clone.send(audio_frame)
+                                                {
+                                                    log::error!("send audio frame error: {}", err);
+                                                }
+                                            }
+                                        }
+                                        Err(err) => {
+                                            log::error!("opus2aac transcode error: {:?}", err);
+                                        }
+                                    }
+                                }
+                            }
+                            Err(err) => {}
                         }
                     }
                     _ => {}
@@ -218,7 +321,6 @@ mod tests {
     use bytesio::bytes_writer::BytesWriter;
     use fdk_aac::dec::Decoder as AacDecoder;
     use fdk_aac::enc::Encoder as AacEncoder;
-    use ogg::reading::PacketReader;
     use opus::Decoder as OpusDecoder;
     use opus::Encoder as OpusEncoder;
     use std::collections::VecDeque;
@@ -686,90 +788,5 @@ mod tests {
 
         println!("{:?}", pcm2);
         println!("{:?}", audio_pcm_data);
-    }
-    #[test]
-    fn test_rtmp_url_parser2() {
-        // 打开待解码的文件
-        let mut file = File::open("/Users/hailiang8/output.ogg").unwrap();
-
-        // let mut pck_rdr = PacketReader::new(&mut file);
-
-        // let mut ctr = 0;
-        // loop {
-        //     let r = pck_rdr.read_packet();
-        //     match r {
-        //         Ok(Some(p)) => {
-        //             println!("some");
-        //             //  dump_pck_info(&p, ctr);
-        //             // Why do we not check p.last_packet here, and break the loop if false?
-        //             // Well, first, this is only an example.
-        //             // Second, the codecs may end streams in the middle of the file,
-        //             // while still continuing other streams.
-        //             // Therefore, don't do a probably too-early break.
-        //             // Applications which know the codec may know after which
-        //             // ended stream to stop decoding the file and thus not
-        //             // encounter an error.
-        //         }
-        //         // End of stream
-        //         Ok(None) => {
-        //             println!("none");
-        //             break;
-        //         }
-        //         Err(e) => {
-        //             println!("Encountered Error: {:?}", e);
-        //             break;
-        //         }
-        //     }
-        //     ctr += 1;
-        // }
-
-        // 创建Ogg PacketReader
-        let mut packet_reader = PacketReader::new(&mut file);
-
-        // 创建Opus解码器
-        let mut decoder = OpusDecoder::new(48000, opus::Channels::Stereo).unwrap();
-
-        // 创建输出文件
-        let mut output_file = File::create("decoded.pcm").unwrap();
-        println!("test 1");
-        // 解码循环
-        // let mut state = PacketReaderState::new();
-        loop {
-            match packet_reader.read_packet() {
-                Ok(Some(packet)) => {
-                    // 检查是否为Opus数据包
-                    //if packet.stream_serial() == 0
-                    {
-                        // 解码Opus数据包
-                        let mut output: [i16; 4096] = [0; 4096];
-                        match decoder.decode(&packet.data, &mut output, false) {
-                            Ok(len) => {
-                                println!("decode len: {}", len);
-                            }
-                            Err(err) => {
-                                println!("decode err: {}", err);
-                                return;
-                            }
-                        }
-
-                        // 将解码后的样本写入输出文件
-                        // output_file.write_all(samples)?;
-
-                        // // 检查是否有更多的解码数据
-                        // if decoder.is_empty() {
-                        //     break;
-                        // }
-                    }
-                }
-                Ok(None) => {
-                    println!("test 2");
-                    break;
-                } // 文件结束
-                Err(error) => {
-                    println!("decode err: {}", error);
-                    return;
-                }
-            }
-        }
     }
 }

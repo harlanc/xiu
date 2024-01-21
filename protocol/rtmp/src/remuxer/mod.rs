@@ -2,6 +2,7 @@ pub mod errors;
 
 pub mod rtmp_cooker;
 pub mod rtsp2rtmp;
+pub mod whip2rtmp;
 
 use streamhub::{
     define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},

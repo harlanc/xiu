@@ -1,5 +1,7 @@
 use {
     failure::{Backtrace, Fail},
+    fdk_aac::enc::EncoderError as AacEncoderError,
+    opus::Error as OpusError,
     std::fmt,
     webrtc::error::Error as RTCError,
     webrtc::util::Error as RTCUtilError,
@@ -18,6 +20,8 @@ pub enum WebRTCErrorValue {
     RTCUtilError(#[cause] RTCUtilError),
     #[fail(display = "cannot get local description")]
     CanNotGetLocalDescription,
+    #[fail(display = "opus2aac error")]
+    Opus2AacError,
 }
 
 impl From<RTCError> for WebRTCError {
@@ -51,3 +55,36 @@ impl Fail for WebRTCError {
         self.value.backtrace()
     }
 }
+
+#[derive(Debug)]
+pub struct Opus2AacError {
+    pub value: Opus2AacErrorValue,
+}
+
+#[derive(Debug)]
+pub enum Opus2AacErrorValue {
+    OpusError(OpusError),
+    AacEncoderError(AacEncoderError),
+}
+
+impl From<OpusError> for Opus2AacError {
+    fn from(error: OpusError) -> Self {
+        Opus2AacError {
+            value: Opus2AacErrorValue::OpusError(error),
+        }
+    }
+}
+
+impl From<AacEncoderError> for Opus2AacError {
+    fn from(error: AacEncoderError) -> Self {
+        Opus2AacError {
+            value: Opus2AacErrorValue::AacEncoderError(error),
+        }
+    }
+}
+
+// impl fmt::Display for Opus2AacError {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         fmt::Display::fmt(&self.value, f)
+//     }
+// }
