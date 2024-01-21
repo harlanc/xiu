@@ -140,6 +140,9 @@ pub async fn handle_whip(
             )
             .unwrap();
 
+            let mut sps_sent: bool = false;
+            let mut pps_sent: bool = false;
+
             while let Ok((rtp_packet, _)) = track.read(&mut b).await {
                 // Update the PayloadType
                 //rtp_packet.header.payload_type = c.payload_type;
@@ -165,25 +168,51 @@ pub async fn handle_whip(
                                     let byte_array = rv.to_vec();
                                     let nal_type = byte_array[4] & 0x1F;
                                     // let hex_string = hex::encode(byte_array);
+                                    //log::info!("nal type: {}",nal_type);
 
-                                    match nal_type {
-                                        nal_unit_type::SPS => {
-                                            stream_handler_clone.set_sps(byte_array).await;
-                                        }
-                                        nal_unit_type::PPS => {
-                                            stream_handler_clone.set_pps(byte_array).await;
-                                        }
-                                        _ => {
-                                            let video_frame = FrameData::Video {
-                                                timestamp: rtp_packet.header.timestamp,
-                                                data: BytesMut::from(&byte_array[..]),
-                                            };
+                                    if nal_type != 0x0C {
+                                        let video_frame = FrameData::Video {
+                                            timestamp: rtp_packet.header.timestamp,
+                                            data: BytesMut::from(&byte_array[..]),
+                                        };
 
-                                            if let Err(err) = frame_sender_clone.send(video_frame) {
-                                                log::error!("send video frame error: {}", err);
-                                            }
+                                        if let Err(err) = frame_sender_clone.send(video_frame) {
+                                            log::error!("send video frame error: {}", err);
+                                        } else {
+                                            // log::info!("send video frame suceess: {}", nal_type);
                                         }
                                     }
+
+                                    // match nal_type {
+                                    //     nal_unit_type::SPS => {
+                                    //         log::info!("send SPS suceess");
+                                    //         stream_handler_clone.set_sps(byte_array).await;
+                                    //         sps_sent = true;
+                                    //     }
+                                    //     nal_unit_type::PPS => {
+                                    //         log::info!("send PPS suceess");
+                                    //         stream_handler_clone.set_pps(byte_array).await;
+                                    //         pps_sent = true;
+                                    //     }
+                                    //     _ => {
+                                    //         if !sps_sent || !pps_sent {
+                                    //             continue;
+                                    //         }
+                                    //         let video_frame = FrameData::Video {
+                                    //             timestamp: rtp_packet.header.timestamp,
+                                    //             data: BytesMut::from(&byte_array[..]),
+                                    //         };
+
+                                    //         if let Err(err) = frame_sender_clone.send(video_frame) {
+                                    //             log::error!("send video frame error: {}", err);
+                                    //         } else {
+                                    //             log::info!(
+                                    //                 "send video frame suceess: {}",
+                                    //                 nal_type
+                                    //             );
+                                    //         }
+                                    //     }
+                                    // }
 
                                     // if nal_type == 0x07 || nal_type == 0x08 {
                                     //     log::info!(
@@ -191,11 +220,11 @@ pub async fn handle_whip(
                                     //         hex_string
                                     //     );
                                     // } else {
-                                    //     log::info!(
-                                    //         "The h264 packet other payload  :{} / {}",
-                                    //         nal_type,
-                                    //         hex_string
-                                    //     );
+                                    //     // log::info!(
+                                    //     //     "The h264 packet other payload  :{} / {}",
+                                    //     //     nal_type,
+                                    //     //     hex_string
+                                    //     // );
                                     // }
                                 }
                             }
@@ -232,6 +261,8 @@ pub async fn handle_whip(
                                                     frame_sender_clone.send(audio_frame)
                                                 {
                                                     log::error!("send audio frame error: {}", err);
+                                                } else {
+                                                    // log::info!("send aidop frame suceess");
                                                 }
                                             }
                                         }

@@ -9,6 +9,8 @@ use streamhub::{
     stream::StreamIdentifier,
 };
 
+use crate::remuxer::whip2rtmp::Whip2RtmpRemuxerSession;
+
 use self::{errors::RtmpRemuxerError, rtsp2rtmp::Rtsp2RtmpRemuxerSession};
 
 //Receive publish event from stream hub and
@@ -39,6 +41,21 @@ impl RtmpRemuxer {
                         tokio::spawn(async move {
                             if let Err(err) = session.run().await {
                                 log::error!("rtsp2rtmp session error: {}", err);
+                            }
+                        });
+                    }
+                    StreamIdentifier::WebRTC {
+                        app_name,
+                        stream_name,
+                    } => {
+                        let mut session = Whip2RtmpRemuxerSession::new(
+                            app_name,
+                            stream_name,
+                            self.event_producer.clone(),
+                        );
+                        tokio::spawn(async move {
+                            if let Err(err) = session.run().await {
+                                log::error!("whip2rtmp session error: {}", err);
                             }
                         });
                     }

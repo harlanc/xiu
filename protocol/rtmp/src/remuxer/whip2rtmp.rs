@@ -34,7 +34,7 @@ pub struct Whip2RtmpRemuxerSession {
     publishe_id: Uuid,
     //WHIP
     data_receiver: FrameDataReceiver,
-    stream_path: String,
+
     subscribe_id: Uuid,
     video_clock_rate: u32,
     audio_clock_rate: u32,
@@ -43,6 +43,10 @@ pub struct Whip2RtmpRemuxerSession {
 
     rtmp_handler: Common,
     rtmp_cooker: RtmpCooker,
+
+    sps: Option<BytesMut>,
+    pps: Option<BytesMut>,
+    video_seq_header_generated: bool,
 }
 
 pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
@@ -50,23 +54,29 @@ pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
     nalus.windows(pattern.len()).position(|w| w == pattern)
 }
 
+pub fn print(data: BytesMut) {
+    println!("==========={}", data.len());
+    let mut idx = 0;
+    for i in data {
+        print!("{i:02X} ");
+        idx += 1;
+        if idx % 16 == 0 {
+            println!()
+        }
+    }
+
+    println!("===========")
+}
+
 impl Whip2RtmpRemuxerSession {
-    pub fn new(stream_path: String, event_producer: StreamHubEventSender) -> Self {
+    pub fn new(
+        app_name: String,
+        stream_name: String,
+        event_producer: StreamHubEventSender,
+    ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
 
-        let eles: Vec<&str> = stream_path.splitn(2, '/').collect();
-        let (app_name, stream_name) = if eles.len() < 2 {
-            log::warn!(
-                "publish_rtmp: the rtsp path only contains stream name: {}",
-                stream_path
-            );
-            (String::from("rtsp"), String::from(eles[0]))
-        } else {
-            (String::from(eles[0]), String::from(eles[1]))
-        };
-
         Self {
-            stream_path,
             app_name,
             stream_name,
             data_receiver: data_consumer,
@@ -74,12 +84,15 @@ impl Whip2RtmpRemuxerSession {
 
             subscribe_id: Uuid::new(RandomDigitCount::Four),
             publishe_id: Uuid::new(RandomDigitCount::Four),
-            video_clock_rate: 1000,
-            audio_clock_rate: 1000,
+            video_clock_rate: 90000,
+            audio_clock_rate: 48000,
             base_audio_timestamp: 0,
             base_video_timestamp: 0,
             rtmp_handler: Common::new(None, event_producer, SessionType::Server, None),
             rtmp_cooker: RtmpCooker::default(),
+            sps: None,
+            pps: None,
+            video_seq_header_generated: false,
         }
     }
 
@@ -245,6 +258,8 @@ impl Whip2RtmpRemuxerSession {
         nalus: &mut BytesMut,
         timestamp: u32,
     ) -> Result<(), RtmpRemuxerError> {
+        // print(nalus.clone());
+        // log::info!("on_whip_video begin");
         if self.base_video_timestamp == 0 {
             self.base_video_timestamp = timestamp;
         }
@@ -273,8 +288,7 @@ impl Whip2RtmpRemuxerSession {
         let mut height: u32 = 0;
         let mut level: u8 = 0;
         let mut profile: u8 = 0;
-        let mut sps = None;
-        let mut pps = None;
+
         let mut contains_idr = false;
 
         for nalu in &nalu_vec {
@@ -283,6 +297,7 @@ impl Whip2RtmpRemuxerSession {
             let nalu_type = nalu_reader.read_u8()?;
             match nalu_type & 0x1F {
                 H264_NAL_SPS => {
+                    log::info!("on_whip_video: sps");
                     let mut sps_parser = SpsParser::new(nalu_reader);
                     (width, height) = if let Ok((width, height)) = sps_parser.parse() {
                         (width, height)
@@ -294,27 +309,32 @@ impl Whip2RtmpRemuxerSession {
                     level = sps_parser.sps.level_idc;
                     profile = sps_parser.sps.profile_idc;
 
-                    sps = Some(nalu.clone());
+                    self.sps = Some(nalu.clone());
                 }
-                H264_NAL_PPS => pps = Some(nalu.clone()),
+                H264_NAL_PPS => {
+                    log::info!("on_whip_video: pps");
+                    self.pps = Some(nalu.clone())
+                }
                 H264_NAL_IDR => {
+                    log::info!("on_whip_video: key");
                     contains_idr = true;
                 }
                 _ => {}
             }
         }
 
-        if sps.is_some() && pps.is_some() {
+        if !self.video_seq_header_generated && self.sps.is_some() && self.pps.is_some() {
             let mut meta_data = self.rtmp_cooker.gen_meta_data(width, height)?;
             self.rtmp_handler.on_meta_data(&mut meta_data, &0).await?;
 
             let mut seq_header = self.rtmp_cooker.gen_video_seq_header(
-                sps.unwrap(),
-                pps.unwrap(),
+                self.sps.clone().unwrap(),
+                self.pps.clone().unwrap(),
                 profile,
                 level,
             )?;
             self.rtmp_handler.on_video_data(&mut seq_header, &0).await?;
+            self.video_seq_header_generated = true;
         } else {
             let mut frame_data = self
                 .rtmp_cooker

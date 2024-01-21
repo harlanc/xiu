@@ -1012,8 +1012,6 @@ dependencies = [
 [[package]]
 name = "fdk-aac"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3f3f988fa4114a728dbab7b64ef6d3adf5f4401f946c90dc17168f6e73b716c"
 dependencies = [
  "fdk-aac-sys",
 ]
@@ -1021,8 +1019,6 @@ dependencies = [
 [[package]]
 name = "fdk-aac-sys"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24516d2611506d5cb1833555adc75f6baf9fe2706b9c13e6fc33a6b22c51ca83"
 dependencies = [
  "cc",
 ]
@@ -3812,6 +3808,7 @@ dependencies = [
  "bytesio 0.3.0",
  "failure",
  "fdk-aac",
+ "hex",
  "http",
  "indexmap",
  "log",

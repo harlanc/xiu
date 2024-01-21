@@ -545,17 +545,17 @@ impl TStreamHandler for WebRTCStreamHandler {
         data_sender: DataSender,
         sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
-        let sender = match data_sender {
-            DataSender::Frame { sender } => sender,
-            DataSender::Packet { sender: _ } => {
-                return Err(ChannelError {
-                    value: ChannelErrorValue::NotCorrectDataSenderType,
-                });
-            }
-        };
-
         match sub_type {
             SubscribeType::PlayerRtmp => {
+                let sender = match data_sender {
+                    DataSender::Frame { sender } => sender,
+                    DataSender::Packet { sender: _ } => {
+                        return Err(ChannelError {
+                            value: ChannelErrorValue::NotCorrectDataSenderType,
+                        });
+                    }
+                };
+
                 let mut bytes_writer = BytesWriter::new();
 
                 bytes_writer.write(&self.sps.lock().await)?;
@@ -565,9 +565,11 @@ impl TStreamHandler for WebRTCStreamHandler {
                     timestamp: 0,
                     data: bytes_writer.extract_current_bytes(),
                 };
-                if let Err(err) = sender.send(frame_data) {
-                    log::error!("send sps/pps error: {}", err);
-                }
+                // if let Err(err) = sender.send(frame_data) {
+                //     log::error!("send sps/pps error: {}", err);
+                // }else{
+                //     log::info!("send sps/pps successfully.");
+                // }
             }
             SubscribeType::PlayerHls => {}
             _ => {}
