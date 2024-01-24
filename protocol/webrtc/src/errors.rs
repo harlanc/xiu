@@ -3,6 +3,7 @@ use {
     fdk_aac::enc::EncoderError as AacEncoderError,
     opus::Error as OpusError,
     std::fmt,
+    std::num::ParseIntError,
     webrtc::error::Error as RTCError,
     webrtc::util::Error as RTCUtilError,
 };
@@ -18,10 +19,16 @@ pub enum WebRTCErrorValue {
     RTCError(#[cause] RTCError),
     #[fail(display = "webrtc util error: {}", _0)]
     RTCUtilError(#[cause] RTCUtilError),
+    #[fail(display = "webrtc util error: {}", _0)]
+    ParseIntError(#[cause] ParseIntError),
     #[fail(display = "cannot get local description")]
     CanNotGetLocalDescription,
     #[fail(display = "opus2aac error")]
     Opus2AacError,
+    #[fail(display = "missing whitespace")]
+    MissingWhitespace,
+    #[fail(display = "missing colon")]
+    MissingColon,
 }
 
 impl From<RTCError> for WebRTCError {
@@ -36,6 +43,14 @@ impl From<RTCUtilError> for WebRTCError {
     fn from(error: RTCUtilError) -> Self {
         WebRTCError {
             value: WebRTCErrorValue::RTCUtilError(error),
+        }
+    }
+}
+
+impl From<ParseIntError> for WebRTCError {
+    fn from(error: ParseIntError) -> Self {
+        WebRTCError {
+            value: WebRTCErrorValue::ParseIntError(error),
         }
     }
 }

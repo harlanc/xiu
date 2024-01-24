@@ -4,11 +4,11 @@ use super::errors::WebRTCError;
 use super::errors::WebRTCErrorValue;
 use bytes::BytesMut;
 use std::sync::Arc;
+use streamhub::define::VideoCodecType;
 use streamhub::define::{FrameData, PacketData};
 use tokio::sync::mpsc::UnboundedSender;
 use webrtc::rtp::codecs::opus::OpusPacket;
 
-use super::session::WebRTCStreamHandler;
 use tokio::time::Duration;
 use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
@@ -22,27 +22,73 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
 use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndication;
 use webrtc::rtp::codecs::h264::H264Packet;
-use webrtc::rtp::packet::Packet;
+use webrtc::sdp::util::Codec;
+
 use webrtc::rtp::packetizer::Depacketizer;
 use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_transceiver_direction::RTCRtpTransceiverDirection;
 use webrtc::rtp_transceiver::RTCRtpTransceiverInit;
 use webrtc::util::Marshal;
+use xflv::mpeg4_aac::Mpeg4Aac;
 
 pub type Result<T> = std::result::Result<T, WebRTCError>;
 
-mod nal_unit_type {
-    pub const SPS: u8 = 0x07; //0x67
-    pub const PPS: u8 = 0x08; //0x68
-    pub const IDR_FRAME: u8 = 0x05; //0x65
-    pub const NO_IDR_FRAME: u8 = 0x01; //0x41 B/P frame
+// mod nal_unit_type {
+//     pub const SPS: u8 = 0x07; //0x67
+//     pub const PPS: u8 = 0x08; //0x68
+//     pub const IDR_FRAME: u8 = 0x05; //0x65
+//     pub const NO_IDR_FRAME: u8 = 0x01; //0x41 B/P frame
+// }
+
+mod nal_payload_type {
+    pub const H264: u8 = 96;
+    pub const OPUS: u8 = 111;
+}
+
+pub(crate) fn parse_rtpmap(rtpmap: &str) -> Result<Codec> {
+    // a=rtpmap:<payload type> <encoding name>/<clock rate>[/<encoding parameters>]
+    let split: Vec<&str> = rtpmap.split_whitespace().collect();
+    if split.len() != 2 {
+        return Err(WebRTCError {
+            value: WebRTCErrorValue::MissingWhitespace,
+        });
+    }
+
+    let pt_split: Vec<&str> = split[0].split(':').collect();
+    if pt_split.len() != 2 {
+        return Err(WebRTCError {
+            value: WebRTCErrorValue::MissingColon,
+        });
+    }
+    let payload_type = pt_split[1].parse::<u8>()?;
+
+    let split: Vec<&str> = split[1].split('/').collect();
+    let name = split[0].to_string();
+    let parts = split.len();
+    let clock_rate = if parts > 1 {
+        split[1].parse::<u32>()?
+    } else {
+        0
+    };
+    let encoding_parameters = if parts > 2 {
+        split[2].to_string()
+    } else {
+        "".to_string()
+    };
+
+    Ok(Codec {
+        payload_type,
+        name,
+        clock_rate,
+        encoding_parameters,
+        ..Default::default()
+    })
 }
 
 pub async fn handle_whip(
     offer: RTCSessionDescription,
     frame_sender: Option<UnboundedSender<FrameData>>,
     packet_sender: Option<UnboundedSender<PacketData>>,
-    stream_handler: Arc<WebRTCStreamHandler>,
 ) -> Result<(RTCSessionDescription, Arc<RTCPeerConnection>)> {
     // Create a MediaEngine object to configure the supported codec
     let mut m = MediaEngine::default();
@@ -96,6 +142,7 @@ pub async fn handle_whip(
         )
         .await?;
 
+    let offer_in = offer.clone();
     // Set a handler for when a new remote track starts, this handler will forward data to
     // our UDP listeners.
     // In your application this is where you would handle/process audio/video
@@ -126,12 +173,15 @@ pub async fn handle_whip(
         });
         let packet_sender_clone = packet_sender.clone().unwrap();
         let frame_sender_clone = frame_sender.clone().unwrap();
-        let stream_handler_clone = stream_handler.clone();
-
+        let offer_clone = offer_in.clone();
         tokio::spawn(async move {
             let mut b = vec![0u8; 3000];
             let mut h264_packet = H264Packet::default();
-            let mut opus_packet = OpusPacket::default();
+            let mut opus_packet = OpusPacket;
+
+            let mut video_codec = Codec::default();
+            let mut audio_codec = Codec::default();
+            let mut vcodec: VideoCodecType = VideoCodecType::H264;
             let mut opus2aac_transcoder = Opus2AacTranscoder::new(
                 48000,
                 opus::Channels::Stereo,
@@ -140,20 +190,74 @@ pub async fn handle_whip(
             )
             .unwrap();
 
-            let mut sps_sent: bool = false;
-            let mut pps_sent: bool = false;
+            //111 OPUS/48000/2
+            //96 H264/90000
+            if let Ok(session_description) = offer_clone.unmarshal() {
+                for m in session_description.media_descriptions {
+                    for a in &m.attributes {
+                        let attr = a.to_string();
+                        if attr.starts_with("rtpmap:") {
+                            if let Ok(codec) = parse_rtpmap(&attr) {
+                                log::info!("codec: {}", codec);
+                                match codec.name.as_str() {
+                                    "H264" => {
+                                        video_codec = codec;
+                                    }
+                                    "H265" => {
+                                        video_codec = codec;
+                                        vcodec = VideoCodecType::H265;
+                                    }
+                                    "OPUS" => {
+                                        audio_codec = codec;
+                                        let channels =
+                                            match audio_codec.encoding_parameters.as_str() {
+                                                "1" => opus::Channels::Mono,
+                                                "2" => opus::Channels::Stereo,
+                                                _ => opus::Channels::Stereo,
+                                            };
+
+                                        opus2aac_transcoder = Opus2AacTranscoder::new(
+                                            audio_codec.clock_rate,
+                                            channels,
+                                            audio_codec.clock_rate,
+                                            fdk_aac::enc::ChannelMode::Stereo,
+                                        )
+                                        .unwrap();
+                                    }
+                                    _ => {
+                                        log::warn!("not supported codec: {}", codec);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let media_info = FrameData::MediaInfo {
+                media_info: streamhub::define::MediaInfo {
+                    audio_clock_rate: audio_codec.clock_rate,
+                    video_clock_rate: video_codec.clock_rate,
+                    vcodec,
+                },
+            };
+
+            if let Err(err) = frame_sender_clone.send(media_info) {
+                log::error!("send media info error: {}", err);
+            } else {
+                log::info!("send media info suceess: {:?} {}", audio_codec, video_codec);
+            }
+
+            let _sps_sent: bool = false;
+            let _pps_sent: bool = false;
+            let mut aac_asc_sent: bool = false;
 
             while let Ok((rtp_packet, _)) = track.read(&mut b).await {
-                // Update the PayloadType
-                //rtp_packet.header.payload_type = c.payload_type;
-
-                // Marshal into original buffer with updated PayloadType
-
                 let n = rtp_packet.marshal_to(&mut b)?;
 
                 match rtp_packet.header.payload_type {
                     //video h264
-                    96 => {
+                    nal_payload_type::H264 => {
                         let video_packet = PacketData::Video {
                             timestamp: rtp_packet.header.timestamp,
                             data: BytesMut::from(&b[..n]),
@@ -164,13 +268,17 @@ pub async fn handle_whip(
 
                         match h264_packet.depacketize(&rtp_packet.payload) {
                             Ok(rv) => {
-                                if rv.len() > 0 {
+                                if !rv.is_empty() {
                                     let byte_array = rv.to_vec();
                                     let nal_type = byte_array[4] & 0x1F;
                                     // let hex_string = hex::encode(byte_array);
                                     //log::info!("nal type: {}",nal_type);
 
                                     if nal_type != 0x0C {
+                                        // log::info!(
+                                        //     "video timestamp: {}",
+                                        //     rtp_packet.header.timestamp
+                                        // );
                                         let video_frame = FrameData::Video {
                                             timestamp: rtp_packet.header.timestamp,
                                             data: BytesMut::from(&byte_array[..]),
@@ -182,53 +290,9 @@ pub async fn handle_whip(
                                             // log::info!("send video frame suceess: {}", nal_type);
                                         }
                                     }
-
-                                    // match nal_type {
-                                    //     nal_unit_type::SPS => {
-                                    //         log::info!("send SPS suceess");
-                                    //         stream_handler_clone.set_sps(byte_array).await;
-                                    //         sps_sent = true;
-                                    //     }
-                                    //     nal_unit_type::PPS => {
-                                    //         log::info!("send PPS suceess");
-                                    //         stream_handler_clone.set_pps(byte_array).await;
-                                    //         pps_sent = true;
-                                    //     }
-                                    //     _ => {
-                                    //         if !sps_sent || !pps_sent {
-                                    //             continue;
-                                    //         }
-                                    //         let video_frame = FrameData::Video {
-                                    //             timestamp: rtp_packet.header.timestamp,
-                                    //             data: BytesMut::from(&byte_array[..]),
-                                    //         };
-
-                                    //         if let Err(err) = frame_sender_clone.send(video_frame) {
-                                    //             log::error!("send video frame error: {}", err);
-                                    //         } else {
-                                    //             log::info!(
-                                    //                 "send video frame suceess: {}",
-                                    //                 nal_type
-                                    //             );
-                                    //         }
-                                    //     }
-                                    // }
-
-                                    // if nal_type == 0x07 || nal_type == 0x08 {
-                                    //     log::info!(
-                                    //         "The h264 packet payload SPS/PPS :{}",
-                                    //         hex_string
-                                    //     );
-                                    // } else {
-                                    //     // log::info!(
-                                    //     //     "The h264 packet other payload  :{} / {}",
-                                    //     //     nal_type,
-                                    //     //     hex_string
-                                    //     // );
-                                    // }
                                 }
                             }
-                            Err(err) => {
+                            Err(_err) => {
                                 // log::error!("The h264 packet payload err:{}", err);
                                 // let hex_string = hex::encode(b.to_vec());
                                 // log::error!("The h264 packet payload err string :{}", hex_string);
@@ -236,7 +300,7 @@ pub async fn handle_whip(
                         }
                     }
                     //aac 111(opus)
-                    97 | 111 => {
+                    nal_payload_type::OPUS => {
                         let audio_packet = PacketData::Audio {
                             timestamp: rtp_packet.header.timestamp,
                             data: BytesMut::from(&b[..n]),
@@ -245,13 +309,29 @@ pub async fn handle_whip(
                             log::error!("send audio packet error: {}", err);
                         }
 
+                        if !aac_asc_sent {
+                            if let Ok(aac) = Mpeg4Aac::new(2, 48000, 2) {
+                                if let Ok(asc) = aac.gen_audio_specific_config() {
+                                    let audio_frame = FrameData::Audio {
+                                        timestamp: 0,
+                                        data: asc,
+                                    };
+                                    if let Err(err) = frame_sender_clone.send(audio_frame) {
+                                        log::error!("send audio frame error: {}", err);
+                                    }
+                                }
+                            }
+                            aac_asc_sent = true;
+                        }
+
                         match opus_packet.depacketize(&rtp_packet.payload) {
                             Ok(rv) => {
-                                if rv.len() > 0 {
+                                if !rv.is_empty() {
+                                    // log::info!("audio timestamp: {}", rtp_packet.header.timestamp);
                                     let byte_array = rv.to_vec();
                                     match opus2aac_transcoder.transcode(&byte_array) {
                                         Ok(data) => {
-                                            if let Some(data_val) = data {
+                                            for data_val in data {
                                                 let audio_frame = FrameData::Audio {
                                                     timestamp: rtp_packet.header.timestamp,
                                                     data: BytesMut::from(&data_val[..]),
@@ -272,7 +352,7 @@ pub async fn handle_whip(
                                     }
                                 }
                             }
-                            Err(err) => {}
+                            Err(_err) => {}
                         }
                     }
                     _ => {}
@@ -337,487 +417,5 @@ pub async fn handle_whip(
         Err(WebRTCError {
             value: WebRTCErrorValue::CanNotGetLocalDescription,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    // use ogg::reading::PacketReader;
-    // use std::fs::File;
-    // use std::io::BufReader;
-
-    // use opus::Decoder;
-
-    use bytes::{BufMut, BytesMut};
-    use bytesio::bytes_writer::BytesWriter;
-    use fdk_aac::dec::Decoder as AacDecoder;
-    use fdk_aac::enc::Encoder as AacEncoder;
-    use opus::Decoder as OpusDecoder;
-    use opus::Encoder as OpusEncoder;
-    use std::collections::VecDeque;
-    use std::fs::File;
-    use std::io::{self, Read};
-    use std::io::{BufReader, BufWriter, Write};
-    use webrtc::media::audio;
-    use xflv::demuxer::{FlvAudioTagDemuxer, FlvDemuxer};
-    use xflv::flv_tag_header::AudioTagHeader;
-    use xflv::muxer::FlvMuxer;
-    use xflv::Marshal;
-
-    #[test]
-    fn test_flv_2_opus() {
-        let mut file = File::open("/Users/hailiang8/xgplayer-demo-360p.flv").unwrap();
-
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).expect("Failed to read file");
-
-        let mut bytes = BytesMut::from(&buffer[..]);
-
-        let mut flv_demuxer = FlvDemuxer::new(bytes);
-
-        flv_demuxer.read_flv_header();
-
-        let mut aac_decoder = AacDecoder::new(fdk_aac::dec::Transport::Adts);
-        let mut aac_encoder = AacEncoder::new(fdk_aac::enc::EncoderParams {
-            bit_rate: fdk_aac::enc::BitRate::VbrMedium,
-            sample_rate: 48000,
-            transport: fdk_aac::enc::Transport::Raw,
-            channels: fdk_aac::enc::ChannelMode::Stereo,
-        })
-        .unwrap();
-
-        let mut i = 0;
-
-        let mut audio_demuxer = FlvAudioTagDemuxer::new();
-
-        let mut audio_pcm_data_from_decoded_aac: Vec<i16> = Vec::new();
-
-        let mut audio_pcm_data_from_decoded_opus: Vec<i16> = Vec::new();
-
-        let mut opus_encoder =
-            OpusEncoder::new(48000, opus::Channels::Stereo, opus::Application::Voip).unwrap();
-
-        let mut opus_decoder = OpusDecoder::new(48000, opus::Channels::Stereo).unwrap();
-        let mut i = 0;
-
-        let mut file = File::create("/Users/hailiang8/xgplayer-demo-360p-aac.flv").unwrap();
-
-        let mut flv_muxer = FlvMuxer::default();
-        flv_muxer.write_flv_header();
-        flv_muxer.write_previous_tag_size(0);
-
-        //  let mut buffer = VecDeque::new();
-
-        let mut time: u32 = 0;
-
-        loop {
-            match flv_demuxer.read_flv_tag() {
-                Ok(data) => {
-                    if let Some(flvtag) = data {
-                        match flvtag {
-                            xflv::define::FlvData::Audio { timestamp, data } => {
-                                println!("audio: time:{}", timestamp);
-                                let len = data.len() as u32;
-
-                                match audio_demuxer.demux(timestamp, data.clone()) {
-                                    Ok(d) => {
-                                        // i = i + 1;
-                                        // if i > 50 {
-                                        //     return;
-                                        // }
-
-                                        if !d.has_data {
-                                            flv_muxer.write_flv_tag_header(8, len, timestamp);
-                                            flv_muxer.write_flv_tag_body(data);
-                                            flv_muxer.write_previous_tag_size(len + 11);
-
-                                            let data = flv_muxer.writer.extract_current_bytes();
-                                            file.write_all(&data[..]);
-
-                                            continue;
-                                        }
-
-                                        println!("aac demux len: {}", d.data.len());
-                                        aac_decoder.fill(&d.data);
-                                        let mut decode_frame = vec![0_i16; 1024 * 3];
-
-                                        match aac_decoder.decode_frame(&mut decode_frame[..]) {
-                                            Ok(()) => {
-                                                let len = aac_decoder.decoded_frame_size();
-
-                                                // for i in 0..len {
-                                                //     buffer.push_back(decode_frame[i]);
-                                                // }
-
-                                                println!("aac decoder ok : {}", len);
-                                                audio_pcm_data_from_decoded_aac
-                                                    .extend_from_slice(&decode_frame[..len]);
-
-                                                while audio_pcm_data_from_decoded_aac.len()
-                                                    >= 960 * 2
-                                                {
-                                                    let pcm = audio_pcm_data_from_decoded_aac
-                                                        .split_off(960 * 2);
-
-                                                    let mut encoded_opus = vec![0; 1500];
-
-                                                    println!(
-                                                        "input len: {}",
-                                                        audio_pcm_data_from_decoded_aac.len()
-                                                    );
-
-                                                    match opus_encoder.encode(
-                                                        &audio_pcm_data_from_decoded_aac,
-                                                        &mut encoded_opus,
-                                                    ) {
-                                                        Ok(l) => {
-                                                            let samples = opus_decoder
-                                                                .get_nb_samples(&encoded_opus)
-                                                                .unwrap();
-                                                            println!(
-                                                                "opus encode ok : {} {} samples:{}",
-                                                                l,
-                                                                audio_pcm_data_from_decoded_aac
-                                                                    .len(),
-                                                                samples
-                                                            );
-                                                            audio_pcm_data_from_decoded_aac = pcm;
-
-                                                            let mut output = vec![0; 5670]; //960 * 2];
-
-                                                            match opus_decoder.decode(
-                                                                &encoded_opus[..l],
-                                                                &mut output,
-                                                                false,
-                                                            ) {
-                                                                Ok(size) => {
-                                                                    println!(
-                                                                        "opus decode ok : {}",
-                                                                        size
-                                                                    );
-
-                                                                    audio_pcm_data_from_decoded_opus.extend_from_slice(&output[..size*2]);
-
-                                                                    while audio_pcm_data_from_decoded_opus.len() >= 2048
-                                                {
-                                                    let pcm = audio_pcm_data_from_decoded_opus
-                                                        .split_off(2048);
-
-                                                    let mut encoded_aac: Vec<u8> = vec![0; 1500];
-                                                    match aac_encoder.encode(
-                                                        &audio_pcm_data_from_decoded_opus,
-                                                        &mut encoded_aac[..],
-                                                    ) {
-                                                        Ok(info) => {
-                                                            println!("aac encode ok : {:?}", info);
-                                                            audio_pcm_data_from_decoded_opus = pcm; //audio_pcm_data_from_decoded_opus[info.input_consumed..].to_vec();
-
-                                                            if info.output_size > 0 {
-                                                                let audio_tag_header =
-                                                                    AudioTagHeader {
-                                                                        sound_format: 10,
-                                                                        sound_rate: 3,
-                                                                        sound_size: 1,
-                                                                        sound_type: 1,
-                                                                        aac_packet_type: 1,
-                                                                    };
-
-                                                                let tag_header_data =
-                                                                    audio_tag_header
-                                                                        .marshal()
-                                                                        .unwrap();
-
-                                                                let mut writer = BytesWriter::new();
-                                                                writer.write(&tag_header_data);
-
-                                                                let audio_data = &encoded_aac
-                                                                    [..info.output_size];
-                                                                writer.write(audio_data);
-
-                                                                let body =
-                                                                    writer.extract_current_bytes();
-
-                                                                let len = body.len() as u32;
-
-                                                                flv_muxer.write_flv_tag_header(
-                                                                    8, len, time,
-                                                                );
-                                                                flv_muxer.write_flv_tag_body(body);
-                                                                flv_muxer.write_previous_tag_size(
-                                                                    len + 11,
-                                                                );
-
-                                                                time += 21;
-
-                                                                let data = flv_muxer
-                                                                    .writer
-                                                                    .extract_current_bytes();
-                                                                file.write_all(&data[..]);
-                                                            }
-                                                            if info.input_consumed > 0
-                                                                && info.output_size > 0
-                                                            {
-                                                            } else {
-                                                                break;
-                                                            }
-                                                        }
-                                                        Err(err) => {
-                                                            println!("aac encode err : {}", err);
-                                                        }
-                                                    }
-                                                }
-                                                                }
-                                                                Err(err) => {
-                                                                    println!(
-                                                                        "opus decode err : {}",
-                                                                        err
-                                                                    );
-                                                                }
-                                                            }
-                                                        }
-                                                        Err(err) => {
-                                                            println!("opus encode err : {}", err);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            Err(err) => {
-                                                println!("decoder error: {}", err);
-                                                // return;
-                                            }
-                                        }
-                                    }
-                                    Err(err) => {
-                                        println!("demux error: {}", err);
-                                    }
-                                }
-                            }
-                            xflv::define::FlvData::Video { timestamp, data } => {
-                                println!("video");
-                            }
-                            xflv::define::FlvData::MetaData { timestamp, data } => {
-                                println!("metadata");
-                            }
-                        }
-                    } else {
-                        println!("read none");
-                    }
-                }
-                Err(err) => {
-                    println!("read error: {}", err);
-                    // file.w
-                    return;
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_demux_decode_encode_mux_aac() {
-        let mut file = File::open("/Users/hailiang8/xgplayer-demo-360p.flv").unwrap();
-
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).expect("Failed to read file");
-
-        let mut bytes = BytesMut::from(&buffer[..]);
-
-        let mut flv_demuxer = FlvDemuxer::new(bytes);
-
-        flv_demuxer.read_flv_header();
-
-        let mut aac_decoder = AacDecoder::new(fdk_aac::dec::Transport::Adts);
-        let mut aac_encoder = AacEncoder::new(fdk_aac::enc::EncoderParams {
-            bit_rate: fdk_aac::enc::BitRate::VbrMedium,
-            sample_rate: 48000,
-            transport: fdk_aac::enc::Transport::Raw,
-            channels: fdk_aac::enc::ChannelMode::Stereo,
-        })
-        .unwrap();
-
-        let mut i = 0;
-
-        let mut audio_demuxer = FlvAudioTagDemuxer::new();
-
-        let mut audio_pcm_data_from_decoded_aac: Vec<i16> = Vec::new();
-
-        let mut audio_pcm_data_from_decoded_opus: Vec<i16> = Vec::new();
-
-        let mut opus_encoder =
-            OpusEncoder::new(48000, opus::Channels::Stereo, opus::Application::Voip).unwrap();
-
-        let mut opus_decoder = OpusDecoder::new(48000, opus::Channels::Stereo).unwrap();
-        let mut i = 0;
-
-        let mut file = File::create("/Users/hailiang8/xgplayer-demo-360p-aac.flv").unwrap();
-
-        let mut flv_muxer = FlvMuxer::default();
-        flv_muxer.write_flv_header();
-        flv_muxer.write_previous_tag_size(0);
-
-        //  let mut buffer = VecDeque::new();
-
-        let mut time: u32 = 0;
-
-        loop {
-            match flv_demuxer.read_flv_tag() {
-                Ok(data) => {
-                    if let Some(flvtag) = data {
-                        match flvtag {
-                            xflv::define::FlvData::Audio { timestamp, data } => {
-                                println!("audio: time:{}", timestamp);
-                                let len = data.len() as u32;
-
-                                match audio_demuxer.demux(timestamp, data.clone()) {
-                                    Ok(d) => {
-                                        if !d.has_data {
-                                            flv_muxer.write_flv_tag_header(8, len, timestamp);
-                                            flv_muxer.write_flv_tag_body(data);
-                                            flv_muxer.write_previous_tag_size(len + 11);
-
-                                            let data = flv_muxer.writer.extract_current_bytes();
-                                            file.write_all(&data[..]);
-
-                                            continue;
-                                        }
-
-                                        println!("aac demux len: {}", d.data.len());
-                                        aac_decoder.fill(&d.data);
-                                        let mut decode_frame = vec![0_i16; 1024 * 3];
-
-                                        match aac_decoder.decode_frame(&mut decode_frame[..]) {
-                                            Ok(()) => {
-                                                let len = aac_decoder.decoded_frame_size();
-
-                                                audio_pcm_data_from_decoded_opus
-                                                    .extend_from_slice(&decode_frame[..len]);
-                                                //                     // audio_pcm_data_from_decoded_opus.extend_from_slice(&output[..size]);
-
-                                                while audio_pcm_data_from_decoded_opus.len() >= 2048
-                                                {
-                                                    let pcm = audio_pcm_data_from_decoded_opus
-                                                        .split_off(2048);
-
-                                                    let mut encoded_aac: Vec<u8> = vec![0; 1500];
-                                                    match aac_encoder.encode(
-                                                        &audio_pcm_data_from_decoded_opus,
-                                                        &mut encoded_aac[..],
-                                                    ) {
-                                                        Ok(info) => {
-                                                            println!("aac encode ok : {:?}", info);
-                                                            audio_pcm_data_from_decoded_opus = pcm; //audio_pcm_data_from_decoded_opus[info.input_consumed..].to_vec();
-
-                                                            if info.output_size > 0 {
-                                                                let audio_tag_header =
-                                                                    AudioTagHeader {
-                                                                        sound_format: 10,
-                                                                        sound_rate: 3,
-                                                                        sound_size: 1,
-                                                                        sound_type: 1,
-                                                                        aac_packet_type: 1,
-                                                                    };
-
-                                                                let tag_header_data =
-                                                                    audio_tag_header
-                                                                        .marshal()
-                                                                        .unwrap();
-
-                                                                let mut writer = BytesWriter::new();
-                                                                writer.write(&tag_header_data);
-
-                                                                let audio_data = &encoded_aac
-                                                                    [..info.output_size];
-                                                                writer.write(audio_data);
-
-                                                                let body =
-                                                                    writer.extract_current_bytes();
-
-                                                                let len = body.len() as u32;
-
-                                                                flv_muxer.write_flv_tag_header(
-                                                                    8, len, time,
-                                                                );
-                                                                flv_muxer.write_flv_tag_body(body);
-                                                                flv_muxer.write_previous_tag_size(
-                                                                    len + 11,
-                                                                );
-
-                                                                time += 21;
-
-                                                                let data = flv_muxer
-                                                                    .writer
-                                                                    .extract_current_bytes();
-                                                                file.write_all(&data[..]);
-                                                            }
-                                                            if info.input_consumed > 0
-                                                                && info.output_size > 0
-                                                            {
-                                                            } else {
-                                                                break;
-                                                            }
-                                                        }
-                                                        Err(err) => {
-                                                            println!("aac encode err : {}", err);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            Err(err) => {
-                                                println!("decoder error: {}", err);
-                                                // return;
-                                            }
-                                        }
-                                    }
-                                    Err(err) => {
-                                        println!("demux error: {}", err);
-                                    }
-                                }
-                            }
-                            xflv::define::FlvData::Video { timestamp, data } => {
-                                println!("video");
-                            }
-                            xflv::define::FlvData::MetaData { timestamp, data } => {
-                                println!("metadata");
-                            }
-                        }
-                    } else {
-                        println!("read none");
-                    }
-                }
-                Err(err) => {
-                    println!("read error: {}", err);
-                    // file.w
-                    return;
-                }
-            }
-        }
-    }
-    #[test]
-    fn test_vec() {
-        let mut decode_frame = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A];
-
-        let mut buffer = VecDeque::new();
-
-        for i in 0..decode_frame.len() {
-            buffer.push_back(decode_frame[i]);
-        }
-
-        let mut pcm = vec![0; 5 * 2];
-        for i in 0..5 {
-            pcm[i * 2] = buffer.pop_front().unwrap();
-            pcm[i * 2 + 1] = buffer.pop_front().unwrap();
-        }
-
-        println!("{:?}", pcm);
-
-        let mut audio_pcm_data: Vec<u8> = Vec::new();
-
-        audio_pcm_data.extend_from_slice(&decode_frame[..]);
-
-        println!("{:?}", audio_pcm_data);
-
-        let pcm2 = audio_pcm_data.split_off(10);
-
-        println!("{:?}", pcm2);
-        println!("{:?}", audio_pcm_data);
     }
 }

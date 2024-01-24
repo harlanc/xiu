@@ -38,6 +38,7 @@ pub struct Whip2RtmpRemuxerSession {
     subscribe_id: Uuid,
     video_clock_rate: u32,
     audio_clock_rate: u32,
+    //because
     base_video_timestamp: u32,
     base_audio_timestamp: u32,
 
@@ -84,8 +85,8 @@ impl Whip2RtmpRemuxerSession {
 
             subscribe_id: Uuid::new(RandomDigitCount::Four),
             publishe_id: Uuid::new(RandomDigitCount::Four),
-            video_clock_rate: 90000,
-            audio_clock_rate: 48000,
+            video_clock_rate: 1000,
+            audio_clock_rate: 1000,
             base_audio_timestamp: 0,
             base_video_timestamp: 0,
             rtmp_handler: Common::new(None, event_producer, SessionType::Server, None),
@@ -187,7 +188,7 @@ impl Whip2RtmpRemuxerSession {
 
     pub async fn receive_whip_data(&mut self) -> Result<(), RtmpRemuxerError> {
         let mut retry_count = 0;
-
+        log::info!("begin receive whip data...");
         loop {
             if let Some(data) = self.data_receiver.recv().await {
                 match data {
@@ -246,6 +247,7 @@ impl Whip2RtmpRemuxerSession {
 
         let timestamp_adjust =
             (timestamp - self.base_audio_timestamp) / (self.audio_clock_rate / 1000);
+
         self.rtmp_handler
             .on_audio_data(&mut audio_frame, &timestamp_adjust)
             .await?;
@@ -258,8 +260,6 @@ impl Whip2RtmpRemuxerSession {
         nalus: &mut BytesMut,
         timestamp: u32,
     ) -> Result<(), RtmpRemuxerError> {
-        // print(nalus.clone());
-        // log::info!("on_whip_video begin");
         if self.base_video_timestamp == 0 {
             self.base_video_timestamp = timestamp;
         }
@@ -297,7 +297,6 @@ impl Whip2RtmpRemuxerSession {
             let nalu_type = nalu_reader.read_u8()?;
             match nalu_type & 0x1F {
                 H264_NAL_SPS => {
-                    log::info!("on_whip_video: sps");
                     let mut sps_parser = SpsParser::new(nalu_reader);
                     (width, height) = if let Ok((width, height)) = sps_parser.parse() {
                         (width, height)
@@ -305,18 +304,13 @@ impl Whip2RtmpRemuxerSession {
                         (0, 0)
                     };
 
-                    log::info!("width:{}x{}", width, height);
                     level = sps_parser.sps.level_idc;
                     profile = sps_parser.sps.profile_idc;
 
                     self.sps = Some(nalu.clone());
                 }
-                H264_NAL_PPS => {
-                    log::info!("on_whip_video: pps");
-                    self.pps = Some(nalu.clone())
-                }
+                H264_NAL_PPS => self.pps = Some(nalu.clone()),
                 H264_NAL_IDR => {
-                    log::info!("on_whip_video: key");
                     contains_idr = true;
                 }
                 _ => {}
@@ -342,6 +336,7 @@ impl Whip2RtmpRemuxerSession {
 
             let timestamp_adjust =
                 (timestamp - self.base_video_timestamp) / (self.video_clock_rate / 1000);
+
             self.rtmp_handler
                 .on_video_data(&mut frame_data, &timestamp_adjust)
                 .await?;

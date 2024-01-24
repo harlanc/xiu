@@ -96,7 +96,19 @@ impl Transmitter {
                                         }
                                     }
                                 }
-                                FrameData::MediaInfo { media_info: _ } => {}
+                                FrameData::MediaInfo { media_info: info_value } => {
+                                    let data = FrameData::MediaInfo {
+                                        media_info: info_value
+                                    };
+                                    for (_, v) in frame_senders.lock().await.iter() {
+                                        if let Err(media_err) = v.send(data.clone()).map_err(|_| ChannelError {
+                                            value: ChannelErrorValue::SendVideoError,
+                                        }) {
+                                            log::error!("Transmiter send error: {}", media_err);
+                                        }
+                                    }
+
+                                }
                             }
                         }
                     }

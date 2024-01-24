@@ -1,10 +1,10 @@
 pub mod errors;
 use streamhub::{
     define::{
-        DataSender, FrameData, InformationSender, NotifyInfo, PublishType, PublisherInfo,
-        StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
+        DataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo, StreamHubEvent,
+        StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
-    errors::{ChannelError, ChannelErrorValue},
+    errors::ChannelError,
     statistics::StreamStatistics,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
@@ -12,7 +12,6 @@ use streamhub::{
 use tokio::sync::Mutex;
 use tokio::sync::{broadcast, oneshot};
 
-use bytesio::bytes_writer::BytesWriter;
 use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
 use std::io::Read;
@@ -274,28 +273,27 @@ impl WebRTCServerSession {
 
         let sender = event_result_receiver.await??;
 
-        let response =
-            match handle_whip(offer, sender.0, sender.1, self.stream_handler.clone()).await {
-                Ok((session_description, peer_connection)) => {
-                    self.peer_connection = Some(peer_connection);
+        let response = match handle_whip(offer, sender.0, sender.1).await {
+            Ok((session_description, peer_connection)) => {
+                self.peer_connection = Some(peer_connection);
 
-                    let status_code = http::StatusCode::CREATED;
-                    let mut response = Self::gen_response(status_code);
+                let status_code = http::StatusCode::CREATED;
+                let mut response = Self::gen_response(status_code);
 
-                    response
-                        .headers
-                        .insert("Content-Type".to_string(), "application/sdp".to_string());
-                    response.headers.insert("Location".to_string(), path);
-                    response.body = Some(session_description.sdp);
+                response
+                    .headers
+                    .insert("Content-Type".to_string(), "application/sdp".to_string());
+                response.headers.insert("Location".to_string(), path);
+                response.body = Some(session_description.sdp);
 
-                    response
-                }
-                Err(err) => {
-                    log::error!("handle whip err: {}", err);
-                    let status_code = http::StatusCode::SERVICE_UNAVAILABLE;
-                    Self::gen_response(status_code)
-                }
-            };
+                response
+            }
+            Err(err) => {
+                log::error!("handle whip err: {}", err);
+                let status_code = http::StatusCode::SERVICE_UNAVAILABLE;
+                Self::gen_response(status_code)
+            }
+        };
 
         self.send_response(&response).await
     }
@@ -542,39 +540,9 @@ impl WebRTCStreamHandler {
 impl TStreamHandler for WebRTCStreamHandler {
     async fn send_prior_data(
         &self,
-        data_sender: DataSender,
-        sub_type: SubscribeType,
+        _data_sender: DataSender,
+        _sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
-        match sub_type {
-            SubscribeType::PlayerRtmp => {
-                let sender = match data_sender {
-                    DataSender::Frame { sender } => sender,
-                    DataSender::Packet { sender: _ } => {
-                        return Err(ChannelError {
-                            value: ChannelErrorValue::NotCorrectDataSenderType,
-                        });
-                    }
-                };
-
-                let mut bytes_writer = BytesWriter::new();
-
-                bytes_writer.write(&self.sps.lock().await)?;
-                bytes_writer.write(&self.pps.lock().await)?;
-
-                let frame_data = FrameData::Video {
-                    timestamp: 0,
-                    data: bytes_writer.extract_current_bytes(),
-                };
-                // if let Err(err) = sender.send(frame_data) {
-                //     log::error!("send sps/pps error: {}", err);
-                // }else{
-                //     log::info!("send sps/pps successfully.");
-                // }
-            }
-            SubscribeType::PlayerHls => {}
-            _ => {}
-        }
-
         Ok(())
     }
     async fn get_statistic_data(&self) -> Option<StreamStatistics> {

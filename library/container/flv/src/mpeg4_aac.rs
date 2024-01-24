@@ -27,6 +27,40 @@ pub struct Mpeg4Aac {
 }
 
 impl Mpeg4Aac {
+    pub fn new(
+        object_type: u8,
+        sampling_frequency: u32,
+        channel_configuration: u8,
+    ) -> Result<Self, MpegAacError> {
+        let sampling_frequency_index = match sampling_frequency {
+            96000 => 0,
+            88200 => 1,
+            64000 => 2,
+            48000 => 3,
+            44100 => 4,
+            32000 => 5,
+            24000 => 6,
+            22050 => 7,
+            16000 => 8,
+            12000 => 9,
+            11025 => 10,
+            8000 => 11,
+            7350 => 12,
+            _ => {
+                return Err(MpegAacError {
+                    value: MpegErrorValue::NotSupportedSamplingFrequency,
+                });
+            }
+        };
+
+        Ok(Self {
+            object_type,
+            sampling_frequency_index,
+            channel_configuration,
+            sampling_frequency,
+            ..Default::default()
+        })
+    }
     // 11 90
     // 00010 0011 0010 000
     // 2   3  2
