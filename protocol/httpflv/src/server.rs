@@ -1,13 +1,16 @@
 use {
     super::httpflv::HttpFlv,
-    futures::channel::mpsc::unbounded,
-    hyper::{
-        server::conn::AddrStream,
-        service::{make_service_fn, service_fn},
-        Body, Request, Response, Server, StatusCode,
+    axum::{
+        body::Body,
+        extract::{ConnectInfo, Request, State},
+        handler::Handler,
+        http::StatusCode,
+        response::Response,
     },
+    futures::channel::mpsc::unbounded,
     std::net::SocketAddr,
     streamhub::define::StreamHubEventSender,
+    tokio::net::TcpListener,
 };
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
@@ -15,10 +18,10 @@ type Result<T> = std::result::Result<T, GenericError>;
 static NOTFOUND: &[u8] = b"Not Found";
 
 async fn handle_connection(
+    State(event_producer): State<StreamHubEventSender>, // event_producer: ChannelEventProducer
+    ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
-    event_producer: StreamHubEventSender, // event_producer: ChannelEventProducer
-    remote_addr: SocketAddr,
-) -> Result<Response<Body>> {
+) -> Response<Body> {
     let path = req.uri().path();
 
     match path.find(".flv") {
@@ -46,39 +49,31 @@ async fn handle_connection(
                 }
             });
 
-            let mut resp = Response::new(Body::wrap_stream(http_response_data_consumer));
+            let mut resp = Response::new(Body::from_stream(http_response_data_consumer));
             resp.headers_mut()
                 .insert("Access-Control-Allow-Origin", "*".parse().unwrap());
 
-            Ok(resp)
+            resp
         }
 
-        _ => Ok(Response::builder()
+        _ => Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(NOTFOUND.into())
-            .unwrap()),
+            .unwrap(),
     }
 }
 
 pub async fn run(event_producer: StreamHubEventSender, port: usize) -> Result<()> {
     let listen_address = format!("0.0.0.0:{port}");
-    let sock_addr = listen_address.parse().unwrap();
+    let sock_addr: SocketAddr = listen_address.parse().unwrap();
 
-    let new_service = make_service_fn(move |socket: &AddrStream| {
-        let remote_addr = socket.remote_addr();
-        let flv_copy = event_producer.clone();
-        async move {
-            Ok::<_, GenericError>(service_fn(move |req| {
-                handle_connection(req, flv_copy.clone(), remote_addr)
-            }))
-        }
-    });
-
-    let server = Server::bind(&sock_addr).serve(new_service);
+    let listener = TcpListener::bind(sock_addr).await?;
 
     log::info!("Httpflv server listening on http://{}", sock_addr);
 
-    server.await?;
+    let handle_connection = handle_connection.with_state(event_producer.clone());
+
+    axum::serve(listener, handle_connection.into_make_service()).await?;
 
     Ok(())
 }

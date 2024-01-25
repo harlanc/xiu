@@ -1478,11 +1478,11 @@ checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 name = "httpflv"
 version = "0.3.1"
 dependencies = [
+ "axum 0.7.4",
  "byteorder",
  "bytes",
  "failure",
  "futures",
- "hyper 0.14.25",
  "log",
  "rtmp 0.4.1",
  "streamhub 0.1.1",

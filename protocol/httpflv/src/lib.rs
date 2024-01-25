@@ -1,4 +1,3 @@
-extern crate hyper;
 extern crate rtmp;
 
 pub mod define;
