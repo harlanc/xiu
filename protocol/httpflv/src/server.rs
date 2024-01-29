@@ -73,7 +73,11 @@ pub async fn run(event_producer: StreamHubEventSender, port: usize) -> Result<()
 
     let handle_connection = handle_connection.with_state(event_producer.clone());
 
-    axum::serve(listener, handle_connection.into_make_service()).await?;
+    axum::serve(
+        listener,
+        handle_connection.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }
