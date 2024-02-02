@@ -111,7 +111,7 @@ impl Whip2RtmpRemuxerSession {
                 self.app_name.clone(),
                 self.stream_name.clone(),
                 self.publishe_id,
-                0,
+                1,
             )
             .await?;
         Ok(())
@@ -317,19 +317,26 @@ impl Whip2RtmpRemuxerSession {
             }
         }
 
-        if !self.video_seq_header_generated && self.sps.is_some() && self.pps.is_some() {
-            let mut meta_data = self.rtmp_cooker.gen_meta_data(width, height)?;
-            self.rtmp_handler.on_meta_data(&mut meta_data, &0).await?;
+        nalu_vec.retain(|nalu| {
+            let nalu_type = nalu[0] & 0x1F;
+            nalu_type != H264_NAL_SPS && nalu_type != H264_NAL_PPS
+        });
 
-            let mut seq_header = self.rtmp_cooker.gen_video_seq_header(
-                self.sps.clone().unwrap(),
-                self.pps.clone().unwrap(),
-                profile,
-                level,
-            )?;
-            self.rtmp_handler.on_video_data(&mut seq_header, &0).await?;
-            self.video_seq_header_generated = true;
-        } else {
+        if !self.video_seq_header_generated {
+            if self.sps.is_some() && self.pps.is_some() {
+                let mut meta_data = self.rtmp_cooker.gen_meta_data(width, height)?;
+                self.rtmp_handler.on_meta_data(&mut meta_data, &0).await?;
+
+                let mut seq_header = self.rtmp_cooker.gen_video_seq_header(
+                    self.sps.clone().unwrap(),
+                    self.pps.clone().unwrap(),
+                    profile,
+                    level,
+                )?;
+                self.rtmp_handler.on_video_data(&mut seq_header, &0).await?;
+                self.video_seq_header_generated = true;
+            }
+        } else if nalu_vec.len() > 0 {
             let mut frame_data = self
                 .rtmp_cooker
                 .gen_video_frame_data(nalu_vec, contains_idr)?;

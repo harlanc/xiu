@@ -24,6 +24,7 @@ use webrtc::rtcp::payload_feedbacks::picture_loss_indication::PictureLossIndicat
 use webrtc::rtp::codecs::h264::H264Packet;
 use webrtc::sdp::util::Codec;
 
+use super::rtp_queue::RtpQueue;
 use webrtc::rtp::packetizer::Depacketizer;
 use webrtc::rtp_transceiver::rtp_codec::RTPCodecType;
 use webrtc::rtp_transceiver::rtp_transceiver_direction::RTCRtpTransceiverDirection;
@@ -252,6 +253,8 @@ pub async fn handle_whip(
             let _pps_sent: bool = false;
             let mut aac_asc_sent: bool = false;
 
+            let mut rtp_queue = RtpQueue::new(100);
+
             while let Ok((rtp_packet, _)) = track.read(&mut b).await {
                 let n = rtp_packet.marshal_to(&mut b)?;
 
@@ -266,36 +269,37 @@ pub async fn handle_whip(
                             log::error!("send video packet error: {}", err);
                         }
 
-                        match h264_packet.depacketize(&rtp_packet.payload) {
-                            Ok(rv) => {
-                                if !rv.is_empty() {
-                                    let byte_array = rv.to_vec();
-                                    let nal_type = byte_array[4] & 0x1F;
-                                    // let hex_string = hex::encode(byte_array);
-                                    //log::info!("nal type: {}",nal_type);
+                        rtp_queue.write_queue(rtp_packet);
 
-                                    if nal_type != 0x0C {
-                                        // log::info!(
-                                        //     "video timestamp: {}",
-                                        //     rtp_packet.header.timestamp
-                                        // );
-                                        let video_frame = FrameData::Video {
-                                            timestamp: rtp_packet.header.timestamp,
-                                            data: BytesMut::from(&byte_array[..]),
-                                        };
+                        while let Some(rtp_packet_ordered) = rtp_queue.read_queue() {
+                            match h264_packet.depacketize(&rtp_packet_ordered.payload) {
+                                Ok(rv) => {
+                                    if !rv.is_empty() {
+                                        let byte_array = rv.to_vec();
+                                        let nal_type = byte_array[4] & 0x1F;
 
-                                        if let Err(err) = frame_sender_clone.send(video_frame) {
-                                            log::error!("send video frame error: {}", err);
-                                        } else {
-                                            // log::info!("send video frame suceess: {}", nal_type);
+                                        if nal_type != 0x0C {
+                                            let video_frame = FrameData::Video {
+                                                timestamp: rtp_packet_ordered.header.timestamp,
+                                                data: BytesMut::from(&byte_array[..]),
+                                            };
+
+                                            if let Err(err) = frame_sender_clone.send(video_frame) {
+                                                log::error!("send video frame error: {}", err);
+                                            } else {
+                                                // log::info!("send video frame suceess: {}", nal_type);
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            Err(_err) => {
-                                // log::error!("The h264 packet payload err:{}", err);
-                                // let hex_string = hex::encode(b.to_vec());
-                                // log::error!("The h264 packet payload err string :{}", hex_string);
+                                Err(_err) => {
+                                    // log::error!("The h264 packet payload err:{}", err);
+                                    // let hex_string = hex::encode(b.to_vec());
+                                    // log::error!(
+                                    //     "The h264 packet payload err string :{}",
+                                    //     hex_string
+                                    // );
+                                }
                             }
                         }
                     }
