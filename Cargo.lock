@@ -464,7 +464,7 @@ checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
 
 [[package]]
 name = "bytesio"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -480,9 +480,9 @@ dependencies = [
 
 [[package]]
 name = "bytesio"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6034c2a687656b4915aa70216b26a4f0b70dd2f1adb883c1019bd2b44d3a6ad5"
+checksum = "ff19234db41a12c2dedbfda4b113b7e4bc39a3dba3ce29ff0ce258cad0a54129"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -1013,7 +1013,7 @@ dependencies = [
 
 [[package]]
 name = "env_logger_extend"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1332,20 +1332,20 @@ version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "failure",
  "log",
 ]
 
 [[package]]
 name = "h264-decoder"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e52d72a73d5bdea735c5a5406161fc5da9d8a76332e722266052c69d61a0036b"
+checksum = "c8f343949d0d608d23ba6ebf2d79337ef188749bae7143c187da2851e80bc171"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure",
  "log",
 ]
@@ -2458,10 +2458,10 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono",
  "failure",
- "h264-decoder 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "h264-decoder 0.2.1",
  "hmac 0.11.0",
  "indexmap 1.9.3",
  "log",
@@ -2482,7 +2482,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "chrono",
  "failure",
  "h264-decoder 0.2.0",
@@ -2837,7 +2837,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono",
  "failure",
  "indexmap 1.9.3",
@@ -2857,7 +2857,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "chrono",
  "failure",
  "indexmap 1.9.3",
@@ -3901,7 +3901,7 @@ version = "0.3.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "failure",
  "h264-decoder 0.2.0",
  "log",
@@ -3916,9 +3916,9 @@ checksum = "99aa4657821f6191a4640e7f7566f8aece2efd6269845403b520dd26266a7577"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytesio 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure",
- "h264-decoder 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "h264-decoder 0.2.1",
  "log",
  "serde",
 ]
@@ -3954,7 +3954,7 @@ version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "failure",
 ]
 
@@ -3966,7 +3966,7 @@ dependencies = [
  "base64 0.21.2",
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "chrono",
  "failure",
  "hex",
@@ -3986,10 +3986,9 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.0",
+ "bytesio 0.3.1",
  "failure",
  "fdk-aac",
- "hex",
  "http 0.2.9",
  "indexmap 1.9.3",
  "log",

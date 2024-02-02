@@ -336,7 +336,7 @@ impl Whip2RtmpRemuxerSession {
                 self.rtmp_handler.on_video_data(&mut seq_header, &0).await?;
                 self.video_seq_header_generated = true;
             }
-        } else if nalu_vec.len() > 0 {
+        } else if !nalu_vec.is_empty() {
             let mut frame_data = self
                 .rtmp_cooker
                 .gen_video_frame_data(nalu_vec, contains_idr)?;

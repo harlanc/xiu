@@ -10,6 +10,8 @@ Remove no used dependences.
 - Refactor codes.
 ## v0.2.0
 - Reference bytesio v0.3.0.
+## v0.2.1
+- Remove no used "\n" for error message.
 
 
 

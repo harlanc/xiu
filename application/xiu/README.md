@@ -347,6 +347,9 @@ Open issues if you have any problems. Star and pull requests are welcomed. Your 
 - Support HLS record.
 ## v0.9.1
 - Support WebRTC(whip/whep).
+## v0.10.0
+- Remove no used "\n" for error message.
+- Support remux from WHIP to RTMP.
 
 
 

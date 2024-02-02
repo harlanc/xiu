@@ -10,3 +10,6 @@ A flv library.
 ## v0.3.0
 - Reference bytesio v0.3.0.
 - Do some refactoring for rtsp2rtmp.
+## v0.4.0
+- Remove no used "\n" for error message.
+- Add audio specific config generator.

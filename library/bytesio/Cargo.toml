@@ -1,6 +1,6 @@
 [package]
 name = "bytesio"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"
 description = "a network io library using tokio."

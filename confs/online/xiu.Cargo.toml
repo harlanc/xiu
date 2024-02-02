@@ -1,7 +1,7 @@
 [package]
 name = "xiu"
 description = "A powerful live server by Rust ."
-version = "0.9.1"
+version = "0.10.0"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -27,12 +27,12 @@ axum = "0.6.10"
 tokio-metrics = { version = "0.2.0", default-features = false }
 
 env_logger_extend = "0.1.1"
-streamhub = "0.1.2"
-rtmp = "0.4.2"
-xrtsp = "0.1.2"
-httpflv = "0.3.2"
-hls = "0.4.2"
-xwebrtc = "0.1.1"
+streamhub = "0.2.0"
+rtmp = "0.5.0"
+xrtsp = "0.1.3"
+httpflv = "0.3.3"
+hls = "0.4.3"
+xwebrtc = "0.2.0"
 
 [features]
 default = ["std"]

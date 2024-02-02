@@ -164,6 +164,13 @@ async fn main() -> Result<()> {
 - Do some refactoring.
 ## 0.4.2
 - Reference streamhub new version v0.1.2.
+## v0.5.0
+- Remove no used "\n" for error message.
+- Receive and process sub event result.
+- Fix RTMP chunk parse error.
+- Fix RTMP chunks are uncompressed in packetizer mod.
+- Fix err: when encountering an unknown RTMP message type, it should be skipped rather than returning an error.
+- Support remuxing from WHIP to rtmp.
 
 
 
