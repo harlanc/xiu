@@ -12,9 +12,9 @@ const AAC_FREQUENCE: [u32; AAC_FREQUENCE_SIZE] = [
     96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350,
 ];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Mpeg4Aac {
-    pub profile: u8,
+    pub object_type: u8,
     pub sampling_frequency_index: u8,
     pub channel_configuration: u8,
 
@@ -26,26 +26,52 @@ pub struct Mpeg4Aac {
     pub npce: usize,
 }
 
-impl Default for Mpeg4Aac {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Mpeg4Aac {
-    pub fn new() -> Self {
-        Self {
-            profile: 0,
-            sampling_frequency_index: 0,
-            channel_configuration: 0,
-            sampling_frequency: 0,
-            channels: 0,
-            sbr: 0,
-            ps: 0,
+    pub fn new(
+        object_type: u8,
+        sampling_frequency: u32,
+        channel_configuration: u8,
+    ) -> Result<Self, MpegAacError> {
+        let sampling_frequency_index = match sampling_frequency {
+            96000 => 0,
+            88200 => 1,
+            64000 => 2,
+            48000 => 3,
+            44100 => 4,
+            32000 => 5,
+            24000 => 6,
+            22050 => 7,
+            16000 => 8,
+            12000 => 9,
+            11025 => 10,
+            8000 => 11,
+            7350 => 12,
+            _ => {
+                return Err(MpegAacError {
+                    value: MpegErrorValue::NotSupportedSamplingFrequency,
+                });
+            }
+        };
 
-            pce: BytesMut::new(),
-            npce: 0,
-        }
+        Ok(Self {
+            object_type,
+            sampling_frequency_index,
+            channel_configuration,
+            sampling_frequency,
+            ..Default::default()
+        })
+    }
+    // 11 90
+    // 00010 0011 0010 000
+    // 2   3  2
+    //https://wiki.multimedia.cx/index.php?title=MPEG-4_Audio#Audio_Specific_Config
+    pub fn gen_audio_specific_config(&self) -> Result<BytesMut, MpegAacError> {
+        let mut writer = BytesWriter::default();
+        writer.write_u8(self.object_type << 3 | (self.sampling_frequency_index >> 1))?;
+        writer.write_u8(
+            (self.sampling_frequency_index & 0x01) << 7 | (self.channel_configuration << 3),
+        )?;
+        Ok(writer.extract_current_bytes())
     }
 }
 
@@ -68,7 +94,7 @@ impl Mpeg4AacProcessor {
             bytes_reader: BytesReader::new(BytesMut::new()),
             bytes_writer: BytesWriter::new(),
             bits_reader: BitsReader::new(BytesReader::new(BytesMut::new())),
-            mpeg4_aac: Mpeg4Aac::new(),
+            mpeg4_aac: Mpeg4Aac::default(),
         }
     }
 
@@ -78,9 +104,9 @@ impl Mpeg4AacProcessor {
     }
 
     pub fn audio_specific_config_load(&mut self) -> Result<&mut Self, MpegAacError> {
-        //11 88 56 E5  
+        //11 88 56 E5
         let byte_0 = self.bytes_reader.read_u8()?;
-        self.mpeg4_aac.profile = (byte_0 >> 3) & 0x1F;
+        self.mpeg4_aac.object_type = (byte_0 >> 3) & 0x1F;
 
         let byte_1 = self.bytes_reader.read_u8()?;
         self.mpeg4_aac.sampling_frequency_index = ((byte_0 & 0x07) << 1) | ((byte_1 >> 7) & 0x01);
@@ -108,7 +134,7 @@ impl Mpeg4AacProcessor {
         // self.bits_reader.extend_from_bytesmut(remain_bytes);
         self.bits_reader.extend_data(remain_bytes);
 
-        self.mpeg4_aac.profile = self.get_audio_object_type()?;
+        self.mpeg4_aac.object_type = self.get_audio_object_type()?;
         self.mpeg4_aac.sampling_frequency_index = self.get_sampling_frequency()?;
         self.mpeg4_aac.channel_configuration = self.bits_reader.read_n_bits(4)? as u8;
 
@@ -116,17 +142,17 @@ impl Mpeg4AacProcessor {
         let mut extension_sampling_frequency_index: u8 = 0;
         let mut extension_channel_configuration: u8 = 0;
 
-        if self.mpeg4_aac.profile == 5 || self.mpeg4_aac.profile == 29 {
+        if self.mpeg4_aac.object_type == 5 || self.mpeg4_aac.object_type == 29 {
             extension_audio_object_type = 5;
             self.mpeg4_aac.sbr = 1;
             {
-                if self.mpeg4_aac.profile == 29 {
+                if self.mpeg4_aac.object_type == 29 {
                     self.mpeg4_aac.ps = 1;
                 }
                 extension_sampling_frequency_index = self.get_sampling_frequency()?;
-                self.mpeg4_aac.profile = self.get_audio_object_type()?;
+                self.mpeg4_aac.object_type = self.get_audio_object_type()?;
 
-                if self.mpeg4_aac.profile == 22 {
+                if self.mpeg4_aac.object_type == 22 {
                     extension_channel_configuration = self.bits_reader.read_n_bits(4)? as u8;
                 }
             }
@@ -136,7 +162,7 @@ impl Mpeg4AacProcessor {
 
         let ep_config: u64;
 
-        match self.mpeg4_aac.profile {
+        match self.mpeg4_aac.object_type {
             1 | 2 | 3 | 4 | 5 | 6 | 7 | 17 | 19 | 20 | 21 | 22 | 23 => {
                 self.ga_specific_config_load()?;
             }
@@ -146,7 +172,7 @@ impl Mpeg4AacProcessor {
             _ => {}
         }
 
-        match self.mpeg4_aac.profile {
+        match self.mpeg4_aac.object_type {
             17 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 39 => {
                 ep_config = self.bits_reader.read_n_bits(2)?;
 
@@ -251,12 +277,12 @@ impl Mpeg4AacProcessor {
             self.pce_load()?;
         }
 
-        if self.mpeg4_aac.profile == 6 || self.mpeg4_aac.profile == 20 {
+        if self.mpeg4_aac.object_type == 6 || self.mpeg4_aac.object_type == 20 {
             self.bits_reader.read_n_bits(3)?;
         }
 
         if extension_flag > 0 {
-            match self.mpeg4_aac.profile {
+            match self.mpeg4_aac.object_type {
                 22 => {
                     self.bits_reader.read_n_bits(5)?;
                     self.bits_reader.read_n_bits(11)?;
@@ -410,7 +436,7 @@ impl Mpeg4AacProcessor {
             0xF0 /* 12-syncword */ | (id << 3)/*1-ID*/| 0x01, /*1-protection_absent*/
         )?; //1
 
-        let profile = self.mpeg4_aac.profile;
+        let profile = self.mpeg4_aac.object_type;
         let sampling_frequency_index = self.mpeg4_aac.sampling_frequency_index;
         let channel_configuration = self.mpeg4_aac.channel_configuration;
         self.bytes_writer.write_u8(

@@ -163,6 +163,8 @@ pub enum MpegErrorValue {
     ShouldNotComeHere,
     #[fail(display = "the sps nal unit type is not correct")]
     SPSNalunitTypeNotCorrect,
+    #[fail(display = "not supported sampling frequency")]
+    NotSupportedSamplingFrequency,
 }
 #[derive(Debug)]
 pub struct Mpeg4AvcHevcError {

@@ -158,14 +158,22 @@ impl Service {
     }
 
     async fn start_rtmp_remuxer(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
-        //The remuxer now is used for rtsp2rtmp, so both rtsp/rtmp cfg need to be enabled.
+        //The remuxer now is used for rtsp2rtmp/whip2rtmp, so both rtsp(or whip)/rtmp cfg need to be enabled.
         let mut rtsp_enabled = false;
         if let Some(rtsp_cfg_value) = &self.cfg.rtsp {
             if rtsp_cfg_value.enabled {
                 rtsp_enabled = true;
             }
         }
-        if !rtsp_enabled {
+
+        let mut whip_enabled = false;
+        if let Some(whip_cfg_value) = &self.cfg.webrtc {
+            if whip_cfg_value.enabled {
+                whip_enabled = true;
+            }
+        }
+
+        if !rtsp_enabled && !whip_enabled {
             return Ok(());
         }
 

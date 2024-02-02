@@ -1,6 +1,9 @@
 use {
     failure::{Backtrace, Fail},
+    fdk_aac::enc::EncoderError as AacEncoderError,
+    opus::Error as OpusError,
     std::fmt,
+    std::num::ParseIntError,
     webrtc::error::Error as RTCError,
     webrtc::util::Error as RTCUtilError,
 };
@@ -16,8 +19,16 @@ pub enum WebRTCErrorValue {
     RTCError(#[cause] RTCError),
     #[fail(display = "webrtc util error: {}", _0)]
     RTCUtilError(#[cause] RTCUtilError),
+    #[fail(display = "webrtc util error: {}", _0)]
+    ParseIntError(#[cause] ParseIntError),
     #[fail(display = "cannot get local description")]
     CanNotGetLocalDescription,
+    #[fail(display = "opus2aac error")]
+    Opus2AacError,
+    #[fail(display = "missing whitespace")]
+    MissingWhitespace,
+    #[fail(display = "missing colon")]
+    MissingColon,
 }
 
 impl From<RTCError> for WebRTCError {
@@ -32,6 +43,14 @@ impl From<RTCUtilError> for WebRTCError {
     fn from(error: RTCUtilError) -> Self {
         WebRTCError {
             value: WebRTCErrorValue::RTCUtilError(error),
+        }
+    }
+}
+
+impl From<ParseIntError> for WebRTCError {
+    fn from(error: ParseIntError) -> Self {
+        WebRTCError {
+            value: WebRTCErrorValue::ParseIntError(error),
         }
     }
 }
@@ -51,3 +70,36 @@ impl Fail for WebRTCError {
         self.value.backtrace()
     }
 }
+
+#[derive(Debug)]
+pub struct Opus2AacError {
+    pub value: Opus2AacErrorValue,
+}
+
+#[derive(Debug)]
+pub enum Opus2AacErrorValue {
+    OpusError(OpusError),
+    AacEncoderError(AacEncoderError),
+}
+
+impl From<OpusError> for Opus2AacError {
+    fn from(error: OpusError) -> Self {
+        Opus2AacError {
+            value: Opus2AacErrorValue::OpusError(error),
+        }
+    }
+}
+
+impl From<AacEncoderError> for Opus2AacError {
+    fn from(error: AacEncoderError) -> Self {
+        Opus2AacError {
+            value: Opus2AacErrorValue::AacEncoderError(error),
+        }
+    }
+}
+
+// impl fmt::Display for Opus2AacError {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         fmt::Display::fmt(&self.value, f)
+//     }
+// }

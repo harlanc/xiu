@@ -58,7 +58,7 @@ impl WebRTCServerSession {
             reader: BytesReader::new(BytesMut::default()),
             writer: AsyncBytesWriter::new(io),
             event_sender: event_producer,
-            stream_handler: Arc::new(WebRTCStreamHandler::new()),
+            stream_handler: Arc::new(WebRTCStreamHandler::default()),
             session_id: None,
             http_request_data: None,
             peer_connection: None,
@@ -176,7 +176,10 @@ impl WebRTCServerSession {
                         }
                     }
                 }
-                http_method_name::OPTIONS => {}
+                http_method_name::OPTIONS => {
+                    self.send_response(&Self::gen_response(http::StatusCode::OK))
+                        .await?
+                }
                 http_method_name::PATCH => {}
                 http_method_name::DELETE => {
                     if let Some(session_id) = pars_map.get("session_id") {
@@ -268,9 +271,9 @@ impl WebRTCServerSession {
             });
         }
 
-        let sender = event_result_receiver.await??.1.unwrap();
+        let sender = event_result_receiver.await??;
 
-        let response = match handle_whip(offer, sender).await {
+        let response = match handle_whip(offer, sender.0, sender.1).await {
             Ok((session_description, peer_connection)) => {
                 self.peer_connection = Some(peer_connection);
 
@@ -458,7 +461,7 @@ impl WebRTCServerSession {
         PublisherInfo {
             id,
             pub_type: PublishType::PushWebRTC,
-            pub_data_type: streamhub::define::PubDataType::Packet,
+            pub_data_type: streamhub::define::PubDataType::Both,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
                 remote_addr: String::from(""),
@@ -473,12 +476,24 @@ impl WebRTCServerSession {
             "".to_string()
         };
 
-        HttpResponse {
+        let mut response = HttpResponse {
             version: "HTTP/1.1".to_string(),
             status_code: status_code.as_u16(),
             reason_phrase,
             ..Default::default()
-        }
+        };
+
+        response
+            .headers
+            .insert("Access-Control-Allow-Origin".to_owned(), "*".to_owned());
+        response.headers.insert(
+            "Access-Control-Allow-Headers".to_owned(),
+            "content-type".to_owned(),
+        );
+        response
+            .headers
+            .insert("Access-Control-Allow-Method".to_owned(), "POST".to_owned());
+        response
     }
 
     fn gen_file_response(file_path: &str) -> HttpResponse {
@@ -507,11 +522,17 @@ impl WebRTCServerSession {
 }
 
 #[derive(Default)]
-pub struct WebRTCStreamHandler {}
+pub struct WebRTCStreamHandler {
+    sps: Mutex<Vec<u8>>,
+    pps: Mutex<Vec<u8>>,
+}
 
 impl WebRTCStreamHandler {
-    pub fn new() -> Self {
-        Self {}
+    pub async fn set_sps(&self, sps: Vec<u8>) {
+        *self.sps.lock().await = sps;
+    }
+    pub async fn set_pps(&self, pps: Vec<u8>) {
+        *self.pps.lock().await = pps;
     }
 }
 
@@ -519,7 +540,7 @@ impl WebRTCStreamHandler {
 impl TStreamHandler for WebRTCStreamHandler {
     async fn send_prior_data(
         &self,
-        _sender: DataSender,
+        _data_sender: DataSender,
         _sub_type: SubscribeType,
     ) -> Result<(), ChannelError> {
         Ok(())

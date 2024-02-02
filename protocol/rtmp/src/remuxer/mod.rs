@@ -1,10 +1,15 @@
 pub mod errors;
+
+pub mod rtmp_cooker;
 pub mod rtsp2rtmp;
+pub mod whip2rtmp;
 
 use streamhub::{
     define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
     stream::StreamIdentifier,
 };
+
+use crate::remuxer::whip2rtmp::Whip2RtmpRemuxerSession;
 
 use self::{errors::RtmpRemuxerError, rtsp2rtmp::Rtsp2RtmpRemuxerSession};
 
@@ -29,8 +34,8 @@ impl RtmpRemuxer {
             let val = self.receiver.recv().await?;
             log::info!("{:?}", val);
             match val {
-                BroadcastEvent::Publish { identifier } => {
-                    if let StreamIdentifier::Rtsp { stream_path } = identifier {
+                BroadcastEvent::Publish { identifier } => match identifier {
+                    StreamIdentifier::Rtsp { stream_path } => {
                         let mut session =
                             Rtsp2RtmpRemuxerSession::new(stream_path, self.event_producer.clone());
                         tokio::spawn(async move {
@@ -39,7 +44,24 @@ impl RtmpRemuxer {
                             }
                         });
                     }
-                }
+                    StreamIdentifier::WebRTC {
+                        app_name,
+                        stream_name,
+                    } => {
+                        let mut session = Whip2RtmpRemuxerSession::new(
+                            app_name,
+                            stream_name,
+                            self.event_producer.clone(),
+                        );
+                        tokio::spawn(async move {
+                            if let Err(err) = session.run().await {
+                                log::error!("whip2rtmp session error: {}", err);
+                            }
+                        });
+                    }
+
+                    _ => {}
+                },
                 _ => {
                     log::trace!("other infos...");
                 }

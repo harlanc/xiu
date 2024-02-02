@@ -25,24 +25,29 @@ use {
     },
     tokio::{sync::mpsc, time::sleep},
 };
-pub struct Rtsp2RtmpRemuxerSession {
+pub struct Whip2RtmpRemuxerSession {
     event_producer: StreamHubEventSender,
     //RTMP
     app_name: String,
     stream_name: String,
 
     publishe_id: Uuid,
-    //RTSP
+    //WHIP
     data_receiver: FrameDataReceiver,
-    stream_path: String,
+
     subscribe_id: Uuid,
     video_clock_rate: u32,
     audio_clock_rate: u32,
+    //because
     base_video_timestamp: u32,
     base_audio_timestamp: u32,
 
     rtmp_handler: Common,
     rtmp_cooker: RtmpCooker,
+
+    sps: Option<BytesMut>,
+    pps: Option<BytesMut>,
+    video_seq_header_generated: bool,
 }
 
 pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
@@ -50,23 +55,29 @@ pub fn find_start_code(nalus: &[u8]) -> Option<usize> {
     nalus.windows(pattern.len()).position(|w| w == pattern)
 }
 
-impl Rtsp2RtmpRemuxerSession {
-    pub fn new(stream_path: String, event_producer: StreamHubEventSender) -> Self {
+pub fn print(data: BytesMut) {
+    println!("==========={}", data.len());
+    let mut idx = 0;
+    for i in data {
+        print!("{i:02X} ");
+        idx += 1;
+        if idx % 16 == 0 {
+            println!()
+        }
+    }
+
+    println!("===========")
+}
+
+impl Whip2RtmpRemuxerSession {
+    pub fn new(
+        app_name: String,
+        stream_name: String,
+        event_producer: StreamHubEventSender,
+    ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
 
-        let eles: Vec<&str> = stream_path.splitn(2, '/').collect();
-        let (app_name, stream_name) = if eles.len() < 2 {
-            log::warn!(
-                "publish_rtmp: the rtsp path only contains stream name: {}",
-                stream_path
-            );
-            (String::from("rtsp"), String::from(eles[0]))
-        } else {
-            (String::from(eles[0]), String::from(eles[1]))
-        };
-
         Self {
-            stream_path,
             app_name,
             stream_name,
             data_receiver: data_consumer,
@@ -80,13 +91,16 @@ impl Rtsp2RtmpRemuxerSession {
             base_video_timestamp: 0,
             rtmp_handler: Common::new(None, event_producer, SessionType::Server, None),
             rtmp_cooker: RtmpCooker::default(),
+            sps: None,
+            pps: None,
+            video_seq_header_generated: false,
         }
     }
 
     pub async fn run(&mut self) -> Result<(), RtmpRemuxerError> {
         self.publish_rtmp().await?;
-        self.subscribe_rtsp().await?;
-        self.receive_rtsp_data().await?;
+        self.subscribe_whip().await?;
+        self.receive_whip_data().await?;
 
         Ok(())
     }
@@ -97,7 +111,7 @@ impl Rtsp2RtmpRemuxerSession {
                 self.app_name.clone(),
                 self.stream_name.clone(),
                 self.publishe_id,
-                0,
+                1,
             )
             .await?;
         Ok(())
@@ -114,7 +128,7 @@ impl Rtsp2RtmpRemuxerSession {
         Ok(())
     }
 
-    pub async fn subscribe_rtsp(&mut self) -> Result<(), RtmpRemuxerError> {
+    pub async fn subscribe_whip(&mut self) -> Result<(), RtmpRemuxerError> {
         let (event_result_sender, event_result_receiver) = oneshot::channel();
 
         let sub_info = SubscriberInfo {
@@ -128,8 +142,9 @@ impl Rtsp2RtmpRemuxerSession {
         };
 
         let subscribe_event = StreamHubEvent::Subscribe {
-            identifier: StreamIdentifier::Rtsp {
-                stream_path: self.stream_path.clone(),
+            identifier: StreamIdentifier::WebRTC {
+                app_name: self.app_name.clone(),
+                stream_name: self.stream_name.clone(),
             },
             info: sub_info,
             result_sender: event_result_sender,
@@ -146,10 +161,10 @@ impl Rtsp2RtmpRemuxerSession {
         Ok(())
     }
 
-    pub async fn unsubscribe_rtsp(&mut self) -> Result<(), RtmpRemuxerError> {
+    pub async fn unsubscribe_whip(&mut self) -> Result<(), RtmpRemuxerError> {
         let sub_info = SubscriberInfo {
             id: self.subscribe_id,
-            sub_type: SubscribeType::PlayerRtsp,
+            sub_type: SubscribeType::PlayerRtmp,
             sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -158,8 +173,9 @@ impl Rtsp2RtmpRemuxerSession {
         };
 
         let subscribe_event = StreamHubEvent::UnSubscribe {
-            identifier: StreamIdentifier::Rtsp {
-                stream_path: self.stream_path.clone(),
+            identifier: StreamIdentifier::WebRTC {
+                app_name: self.app_name.clone(),
+                stream_name: self.stream_name.clone(),
             },
             info: sub_info,
         };
@@ -170,20 +186,20 @@ impl Rtsp2RtmpRemuxerSession {
         Ok(())
     }
 
-    pub async fn receive_rtsp_data(&mut self) -> Result<(), RtmpRemuxerError> {
+    pub async fn receive_whip_data(&mut self) -> Result<(), RtmpRemuxerError> {
         let mut retry_count = 0;
-
+        log::info!("begin receive whip data...");
         loop {
             if let Some(data) = self.data_receiver.recv().await {
                 match data {
                     FrameData::Audio { timestamp, data } => {
-                        self.on_rtsp_audio(&data, timestamp).await?
+                        self.on_whip_audio(&data, timestamp).await?
                     }
                     FrameData::Video {
                         timestamp,
                         mut data,
                     } => {
-                        self.on_rtsp_video(&mut data, timestamp).await?;
+                        self.on_whip_video(&mut data, timestamp).await?;
                     }
                     FrameData::MediaInfo { media_info } => {
                         self.video_clock_rate = media_info.video_clock_rate;
@@ -214,11 +230,11 @@ impl Rtsp2RtmpRemuxerSession {
             }
         }
 
-        self.unsubscribe_rtsp().await?;
+        self.unsubscribe_whip().await?;
         self.unpublish_rtmp().await
     }
 
-    async fn on_rtsp_audio(
+    async fn on_whip_audio(
         &mut self,
         audio_data: &BytesMut,
         timestamp: u32,
@@ -231,6 +247,7 @@ impl Rtsp2RtmpRemuxerSession {
 
         let timestamp_adjust =
             (timestamp - self.base_audio_timestamp) / (self.audio_clock_rate / 1000);
+
         self.rtmp_handler
             .on_audio_data(&mut audio_frame, &timestamp_adjust)
             .await?;
@@ -238,7 +255,7 @@ impl Rtsp2RtmpRemuxerSession {
         Ok(())
     }
 
-    async fn on_rtsp_video(
+    async fn on_whip_video(
         &mut self,
         nalus: &mut BytesMut,
         timestamp: u32,
@@ -271,8 +288,7 @@ impl Rtsp2RtmpRemuxerSession {
         let mut height: u32 = 0;
         let mut level: u8 = 0;
         let mut profile: u8 = 0;
-        let mut sps = None;
-        let mut pps = None;
+
         let mut contains_idr = false;
 
         for nalu in &nalu_vec {
@@ -288,13 +304,12 @@ impl Rtsp2RtmpRemuxerSession {
                         (0, 0)
                     };
 
-                    log::info!("width:{}x{}", width, height);
                     level = sps_parser.sps.level_idc;
                     profile = sps_parser.sps.profile_idc;
 
-                    sps = Some(nalu.clone());
+                    self.sps = Some(nalu.clone());
                 }
-                H264_NAL_PPS => pps = Some(nalu.clone()),
+                H264_NAL_PPS => self.pps = Some(nalu.clone()),
                 H264_NAL_IDR => {
                     contains_idr = true;
                 }
@@ -302,24 +317,33 @@ impl Rtsp2RtmpRemuxerSession {
             }
         }
 
-        if sps.is_some() && pps.is_some() {
-            let mut meta_data = self.rtmp_cooker.gen_meta_data(width, height)?;
-            self.rtmp_handler.on_meta_data(&mut meta_data, &0).await?;
+        nalu_vec.retain(|nalu| {
+            let nalu_type = nalu[0] & 0x1F;
+            nalu_type != H264_NAL_SPS && nalu_type != H264_NAL_PPS
+        });
 
-            let mut seq_header = self.rtmp_cooker.gen_video_seq_header(
-                sps.unwrap(),
-                pps.unwrap(),
-                profile,
-                level,
-            )?;
-            self.rtmp_handler.on_video_data(&mut seq_header, &0).await?;
-        } else {
+        if !self.video_seq_header_generated {
+            if self.sps.is_some() && self.pps.is_some() {
+                let mut meta_data = self.rtmp_cooker.gen_meta_data(width, height)?;
+                self.rtmp_handler.on_meta_data(&mut meta_data, &0).await?;
+
+                let mut seq_header = self.rtmp_cooker.gen_video_seq_header(
+                    self.sps.clone().unwrap(),
+                    self.pps.clone().unwrap(),
+                    profile,
+                    level,
+                )?;
+                self.rtmp_handler.on_video_data(&mut seq_header, &0).await?;
+                self.video_seq_header_generated = true;
+            }
+        } else if nalu_vec.len() > 0 {
             let mut frame_data = self
                 .rtmp_cooker
                 .gen_video_frame_data(nalu_vec, contains_idr)?;
 
             let timestamp_adjust =
                 (timestamp - self.base_video_timestamp) / (self.video_clock_rate / 1000);
+
             self.rtmp_handler
                 .on_video_data(&mut frame_data, &timestamp_adjust)
                 .await?;

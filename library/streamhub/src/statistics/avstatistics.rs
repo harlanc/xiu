@@ -47,7 +47,7 @@ impl AvStatistics {
 
     pub async fn notify_audio_codec_info(&mut self, codec_info: &Mpeg4Aac) {
         let audio_info = &mut self.stream_statistics.lock().await.audio;
-        audio_info.profile = define::u8_2_aac_profile(codec_info.profile);
+        audio_info.profile = define::u8_2_aac_profile(codec_info.object_type);
         audio_info.samplerate = codec_info.sampling_frequency;
         audio_info.sound_format = SoundFormat::AAC;
         audio_info.channels = codec_info.channels;
