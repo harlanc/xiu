@@ -40,6 +40,7 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 - [x] 支持WebRTC（Whip/Whep）
    - [x] 支持使用Whip发布rtc流；
    - [x] 支持使用Whep订阅rtc流；
+   - [x] 支持转换到RTMP/HLS/HTTP-FLV协议；
 - [x] 支持订阅HLS/HTTPFLV直播流
 - [x] 支持命令行或者配置文件配置服务
 - [x] 支持HTTP API/notify

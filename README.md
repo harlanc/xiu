@@ -45,6 +45,7 @@ Xiu is a simple,high performance and secure live media server written in pure Ru
 - [x] Support WebRTC(Whip/Whep).
   - [x] Support publishing rtc stream using Whip.
   - [x] Support subscribing rtc stream using Whep.
+  - [x] Support protocol conversion from WHIP to RTMP/HLS/HTTP-FLV.
 - [x] Support HTTP-FLV/HLS protocols(Transferred from RTMP/RTSP).
 - [x] Support configuring the service using command line or a configuration file.
 - [x] Support HTTP API/Notifications.
