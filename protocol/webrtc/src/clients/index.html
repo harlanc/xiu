@@ -89,6 +89,8 @@
         <input type="text" id="app-name" name="app-name" value="live">
         <label for="stream-name">Stream Name:</label>
         <input type="text" id="stream-name" name="stream-name" value="test">
+        <label for="token">Token:</label>
+        <input type="text" id="token" name="token" value="123">
         <br><br>
         <button id="start-whep-btn">Start WHEP</button>
     </div>
@@ -103,6 +105,7 @@
         startWhepBtn.addEventListener("click", () => {
             const appName = document.getElementById("app-name").value;
             const streamName = document.getElementById("stream-name").value;
+            const token = document.getElementById("token").value;
 
             //Create peerconnection
             const pc = window.pc = new RTCPeerConnection();
@@ -123,8 +126,8 @@
             //Create whep client
             const whep = new WHEPClient();
 
-            const url = location.origin + "/whep?app=" + appName + "&stream=" + streamName;
-            const token = ""
+            const url = location.origin + "/whep?app=" + appName + "&stream=" + streamName + "&token=" + token;
+            //const token = ""
 
             //Start viewing
             whep.view(pc, url, token);

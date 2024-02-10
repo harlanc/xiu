@@ -16,8 +16,9 @@ pub trait Marshal {
 pub enum Schema {
     //used for webrtc(WHIP/WHEP)
     WEBRTC,
-    #[default]
     RTSP,
+    #[default]
+    UNKNOWN,
 }
 
 impl fmt::Display for Schema {
@@ -29,6 +30,9 @@ impl fmt::Display for Schema {
             //Because webrtc request uri does not contain the schema name, so here write empty string.
             Schema::WEBRTC => {
                 write!(f, "")
+            }
+            Schema::UNKNOWN => {
+                write!(f, "unknown")
             }
         }
     }
@@ -65,8 +69,8 @@ impl Unmarshal for Uri {
         } else if url.starts_with("/whip") || url.starts_with("/whep") {
             uri.schema = Schema::WEBRTC;
         } else {
-            log::error!("cannot judge the schema: {}", url);
-            return None;
+            log::warn!("cannot judge the schema: {}", url);
+            uri.schema = Schema::UNKNOWN;
         }
 
         let path_with_query = match uri.schema {
@@ -75,7 +79,8 @@ impl Unmarshal for Uri {
                     url.strip_prefix("rtsp://")
                 {
                     /*split host:port and path?query*/
-                    let path_with_query = if let Some(index) = rtsp_url_without_prefix.find('/') {
+                    
+                    if let Some(index) = rtsp_url_without_prefix.find('/') {
                         let path_with_query = &rtsp_url_without_prefix[index + 1..];
                         /*parse host and port*/
                         let host_with_port = &rtsp_url_without_prefix[..index];
@@ -87,13 +92,11 @@ impl Unmarshal for Uri {
                             uri.port = Some(port);
                         }
 
-                        print!("host_with_port: {host_with_port}");
                         path_with_query
                     } else {
                         log::error!("cannot find split '/' for host:port and path?query.");
                         return None;
-                    };
-                    path_with_query
+                    }
                 } else {
                     log::error!("cannot find RTSP prefix.");
                     return None;
@@ -101,6 +104,7 @@ impl Unmarshal for Uri {
                 rtsp_path_with_query
             }
             Schema::WEBRTC => url,
+            Schema::UNKNOWN => url,
         };
 
         let path_data: Vec<&str> = path_with_query.splitn(2, '?').collect();
@@ -133,6 +137,7 @@ impl Marshal for Uri {
                 format!("{}://{}/{}", self.schema, host_with_port, path_with_query)
             }
             Schema::WEBRTC => path_with_query,
+            Schema::UNKNOWN => path_with_query,
         }
     }
 }

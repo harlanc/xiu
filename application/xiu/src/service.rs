@@ -247,7 +247,8 @@ impl Service {
             let listen_port = rtsp_cfg_value.port;
             let address = format!("0.0.0.0:{listen_port}");
 
-            let mut rtsp_server = RtspServer::new(address, producer);
+            let auth = Self::gen_auth(&rtsp_cfg_value.auth, &self.cfg.authsecret);
+            let mut rtsp_server = RtspServer::new(address, producer, auth);
             tokio::spawn(async move {
                 if let Err(err) = rtsp_server.run().await {
                     log::error!("rtsp server error: {}", err);
@@ -271,7 +272,8 @@ impl Service {
             let listen_port = webrtc_cfg_value.port;
             let address = format!("0.0.0.0:{listen_port}");
 
-            let mut webrtc_server = WebRTCServer::new(address, producer);
+            let auth = Self::gen_auth(&webrtc_cfg_value.auth, &self.cfg.authsecret);
+            let mut webrtc_server = WebRTCServer::new(address, producer, auth);
             tokio::spawn(async move {
                 if let Err(err) = webrtc_server.run().await {
                     log::error!("webrtc server error: {}", err);

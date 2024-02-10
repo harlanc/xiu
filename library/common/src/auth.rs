@@ -70,7 +70,7 @@ impl Auth {
                 }
 
                 if let Some(token) = query_pairs.get("token") {
-                    if self.check(stream_name, &token) {
+                    if self.check(stream_name, token) {
                         return Ok(());
                     }
                     auth_err_reason = format!("token is not correct: {}", token);
@@ -93,12 +93,12 @@ impl Auth {
     fn check(&self, stream_name: &String, auth_str: &str) -> bool {
         match self.algorithm {
             AuthAlgorithm::Simple => {
-                return self.password == auth_str;
+                self.password == auth_str
             }
             AuthAlgorithm::Md5 => {
                 let raw_data = format!("{}{}", self.key, stream_name);
                 let digest_str = format!("{:x}", md5::compute(raw_data));
-                return auth_str == digest_str;
+                auth_str == digest_str
             }
         }
     }

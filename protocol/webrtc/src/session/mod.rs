@@ -18,9 +18,13 @@ use std::io::Read;
 use std::{collections::HashMap, fs::File, sync::Arc};
 use tokio::net::TcpStream;
 
-use super::http::define::http_method_name;
-use super::http::parse_content_length;
-use super::http::{HttpRequest, HttpResponse, Marshal, Unmarshal};
+use commonlib::define::http_method_name;
+use commonlib::http::{parse_content_length, HttpRequest, HttpResponse};
+
+use commonlib::http::Marshal as HttpMarshal;
+use commonlib::http::Unmarshal as HttpUnmarshal;
+
+use commonlib::auth::Auth;
 
 use super::whep::handle_whep;
 use super::whip::handle_whip;
@@ -46,10 +50,16 @@ pub struct WebRTCServerSession {
     pub session_id: Option<Uuid>,
     pub http_request_data: Option<HttpRequest>,
     pub peer_connection: Option<Arc<RTCPeerConnection>>,
+
+    auth: Option<Auth>,
 }
 
 impl WebRTCServerSession {
-    pub fn new(stream: TcpStream, event_producer: StreamHubEventSender) -> Self {
+    pub fn new(
+        stream: TcpStream,
+        event_producer: StreamHubEventSender,
+        auth: Option<Auth>,
+    ) -> Self {
         let net_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
         let io = Arc::new(Mutex::new(net_io));
 
@@ -62,6 +72,7 @@ impl WebRTCServerSession {
             session_id: None,
             http_request_data: None,
             peer_connection: None,
+            auth,
         }
     }
 
@@ -100,17 +111,20 @@ impl WebRTCServerSession {
 
         if let Some(http_request) = HttpRequest::unmarshal(std::str::from_utf8(&request_data)?) {
             //POST /whip?app=live&stream=test HTTP/1.1
-            let eles: Vec<&str> = http_request.path.splitn(2, '/').collect();
-            let pars_map = &http_request.path_parameters_map;
+            let eles: Vec<&str> = http_request.uri.path.splitn(2, '/').collect();
+            let pars_map = &http_request.query_pairs;
 
             let request_method = http_request.method.as_str();
             if request_method == http_method_name::GET {
-                let response = match http_request.path.as_str() {
+                let response = match http_request.uri.path.as_str() {
                     "/" => Self::gen_file_response("./index.html"),
                     "/whip.js" => Self::gen_file_response("./whip.js"),
                     "/whep.js" => Self::gen_file_response("./whep.js"),
                     _ => {
-                        log::warn!("the http get path: {} is not supported.", http_request.path);
+                        log::warn!(
+                            "the http get path: {} is not supported.",
+                            http_request.uri.path
+                        );
                         return Ok(());
                     }
                 };
@@ -122,7 +136,7 @@ impl WebRTCServerSession {
             if eles.len() < 2 || pars_map.get("app").is_none() || pars_map.get("stream").is_none() {
                 log::error!(
                     "WebRTCServerSession::run the http path is not correct: {}",
-                    http_request.path
+                    http_request.uri.path
                 );
 
                 return Err(SessionError {
@@ -149,25 +163,31 @@ impl WebRTCServerSession {
 
                     let path = format!(
                         "{}?{}&session_id={}",
-                        http_request.path,
-                        http_request.path_parameters.as_ref().unwrap(),
+                        http_request.uri.path,
+                        http_request.uri.query.as_ref().unwrap(),
                         self.session_id.unwrap()
                     );
                     let offer = RTCSessionDescription::offer(sdp_data.clone())?;
 
                     match t.to_lowercase().as_str() {
                         "whip" => {
+                            if let Some(auth) = &self.auth {
+                                auth.authenticate(&stream_name, &http_request.uri.query, false)?;
+                            }
                             self.publish_whip(app_name, stream_name, path, offer)
                                 .await?;
                         }
                         "whep" => {
+                            if let Some(auth) = &self.auth {
+                                auth.authenticate(&stream_name, &http_request.uri.query, true)?;
+                            }
                             self.subscribe_whep(app_name, stream_name, path, offer)
                                 .await?;
                         }
                         _ => {
                             log::error!(
                                 "current path: {}, method: {}",
-                                http_request.path,
+                                http_request.uri.path,
                                 t.to_lowercase()
                             );
                             return Err(SessionError {
@@ -201,8 +221,8 @@ impl WebRTCServerSession {
                     } else {
                         log::error!(
                             "the delete path does not contain session id: {}?{}",
-                            http_request.path,
-                            http_request.path_parameters.as_ref().unwrap()
+                            http_request.uri.path,
+                            http_request.uri.query.as_ref().unwrap()
                         );
                     }
 
@@ -219,7 +239,7 @@ impl WebRTCServerSession {
                         _ => {
                             log::error!(
                                 "current path: {}, method: {}",
-                                http_request.path,
+                                http_request.uri.path,
                                 t.to_lowercase()
                             );
                             return Err(SessionError {

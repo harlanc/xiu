@@ -2,6 +2,7 @@ use {
     crate::rtp::errors::{PackerError, UnPackerError},
     bytesio::bytes_errors::BytesReadError,
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
+    commonlib::errors::AuthError,
     failure::{Backtrace, Fail},
     std::fmt,
     std::str::Utf8Error,
@@ -36,6 +37,8 @@ pub enum SessionErrorValue {
     ChannelError(#[cause] ChannelError),
     #[fail(display = "tokio: oneshot receiver err: {}", _0)]
     RecvError(#[cause] RecvError),
+    #[fail(display = "auth err: {}", _0)]
+    AuthError(#[cause] AuthError),
     #[fail(display = "Channel receive error")]
     ChannelRecvError,
 }
@@ -100,6 +103,14 @@ impl From<RecvError> for SessionError {
     fn from(error: RecvError) -> Self {
         SessionError {
             value: SessionErrorValue::RecvError(error),
+        }
+    }
+}
+
+impl From<AuthError> for SessionError {
+    fn from(error: AuthError) -> Self {
+        SessionError {
+            value: SessionErrorValue::AuthError(error),
         }
     }
 }

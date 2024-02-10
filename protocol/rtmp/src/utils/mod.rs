@@ -73,9 +73,7 @@ impl RtmpUrlParser {
         Ok(())
     }
     /*parse the stream name and query to get real stream name and query*/
-    pub fn parse_stream_name_with_query(
-        stream_name_with_query: &String,
-    ) -> (String, Option<String>) {
+    pub fn parse_stream_name_with_query(stream_name_with_query: &str) -> (String, Option<String>) {
         let data: Vec<&str> = stream_name_with_query.split('?').collect();
         let stream_name = data[0].to_string();
         let query = if data.len() > 1 {

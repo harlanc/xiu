@@ -2,6 +2,7 @@ use crate::global_trait::Marshal;
 use crate::global_trait::Unmarshal;
 use crate::rtsp_utils;
 use indexmap::IndexMap;
+use std::str;
 
 #[derive(Debug, Clone, Default)]
 pub struct RtspRequest {
@@ -28,7 +29,9 @@ impl Unmarshal for RtspRequest {
         let header_end_idx = if let Some(idx) = request_data.find("\r\n\r\n") {
             let data_except_body = &request_data[..idx];
             let mut lines = data_except_body.lines();
+
             //parse the first line
+            //"ANNOUNCE rtsp://127.0.0.1:5544/stream RTSP/1.0\r\n\
             if let Some(request_first_line) = lines.next() {
                 let mut fields = request_first_line.split_ascii_whitespace();
                 if let Some(method) = fields.next() {
