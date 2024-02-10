@@ -10,10 +10,6 @@ use bytesio::bytesio::TNetIO;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub trait Track {
-    fn create_packer(&mut self, writer: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>);
-    fn create_unpacker(&mut self);
-}
 #[derive(Debug, Clone, Default, Hash, Eq, PartialEq)]
 pub enum TrackType {
     #[default]

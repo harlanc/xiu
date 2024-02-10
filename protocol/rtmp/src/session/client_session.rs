@@ -119,10 +119,7 @@ impl ClientSession {
         };
 
         let common = Common::new(packetizer, event_producer, SessionType::Client, remote_addr);
-
-        let (stream_name, _) = RtmpUrlParser::default()
-            .set_raw_stream_name(raw_stream_name.clone())
-            .parse_raw_stream_name();
+        let (stream_name, _) = RtmpUrlParser::parse_stream_name_with_query(&raw_stream_name);
 
         Self {
             io: Arc::clone(&net_io),

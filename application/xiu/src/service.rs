@@ -1,10 +1,14 @@
+use commonlib::auth::AuthType;
 use rtmp::remuxer::RtmpRemuxer;
+
+use crate::config::{AuthConfig, AuthSecretConfig};
 
 use {
     super::api,
     super::config::Config,
     //https://rustcc.cn/article?id=6dcbf032-0483-4980-8bfe-c64a7dfb33c7
     anyhow::Result,
+    commonlib::auth::Auth,
     hls::remuxer::HlsRemuxer,
     hls::server as hls_server,
     httpflv::server as httpflv_server,
@@ -25,6 +29,35 @@ pub struct Service {
 impl Service {
     pub fn new(cfg: Config) -> Self {
         Service { cfg }
+    }
+
+    fn gen_auth(auth_config: &Option<AuthConfig>, authsecret: &AuthSecretConfig) -> Option<Auth> {
+        if let Some(cfg) = auth_config {
+            let auth_type = if let Some(push_enabled) = cfg.push_enabled {
+                if push_enabled && cfg.pull_enabled {
+                    AuthType::Both
+                } else if !push_enabled && !cfg.pull_enabled {
+                    AuthType::None
+                } else if push_enabled && !cfg.pull_enabled {
+                    AuthType::Push
+                } else {
+                    AuthType::Pull
+                }
+            } else {
+                match cfg.pull_enabled {
+                    true => AuthType::Pull,
+                    false => AuthType::None,
+                }
+            };
+            Some(Auth::new(
+                authsecret.key.clone(),
+                authsecret.password.clone(),
+                cfg.algorithm.clone(),
+                auth_type,
+            ))
+        } else {
+            None
+        }
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -146,7 +179,8 @@ impl Service {
             let listen_port = rtmp_cfg_value.port;
             let address = format!("0.0.0.0:{listen_port}");
 
-            let mut rtmp_server = RtmpServer::new(address, producer, gop_num);
+            let auth = Self::gen_auth(&rtmp_cfg_value.auth, &self.cfg.authsecret);
+            let mut rtmp_server = RtmpServer::new(address, producer, gop_num, auth);
             tokio::spawn(async move {
                 if let Err(err) = rtmp_server.run().await {
                     log::error!("rtmp server error: {}", err);
@@ -258,8 +292,9 @@ impl Service {
             let port = httpflv_cfg_value.port;
             let event_producer = stream_hub.get_hub_event_sender();
 
+            let auth = Self::gen_auth(&httpflv_cfg_value.auth, &self.cfg.authsecret);
             tokio::spawn(async move {
-                if let Err(err) = httpflv_server::run(event_producer, port).await {
+                if let Err(err) = httpflv_server::run(event_producer, port, auth).await {
                     log::error!("httpflv server error: {}", err);
                 }
             });
@@ -291,9 +326,9 @@ impl Service {
             });
 
             let port = hls_cfg_value.port;
-
+            let auth = Self::gen_auth(&hls_cfg_value.auth, &self.cfg.authsecret);
             tokio::spawn(async move {
-                if let Err(err) = hls_server::run(port).await {
+                if let Err(err) = hls_server::run(port, auth).await {
                     log::error!("hls server error: {}", err);
                 }
             });

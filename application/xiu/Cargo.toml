@@ -28,6 +28,7 @@ tokio-metrics = { version = "0.2.0", default-features = false }
 
 env_logger_extend = { path = "../../library/logger/" }
 streamhub = { path = "../../library/streamhub/" }
+commonlib = { path = "../../library/common/" }
 rtmp = { path = "../../protocol/rtmp/" }
 xrtsp = { path = "../../protocol/rtsp/" }
 xwebrtc = { path = "../../protocol/webrtc/" }

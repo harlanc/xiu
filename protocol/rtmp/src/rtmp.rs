@@ -1,6 +1,7 @@
 use streamhub::define::StreamHubEventSender;
 
 use super::session::server_session;
+use commonlib::auth::Auth;
 use std::net::SocketAddr;
 use tokio::io::Error;
 use tokio::net::TcpListener;
@@ -9,14 +10,21 @@ pub struct RtmpServer {
     address: String,
     event_producer: StreamHubEventSender,
     gop_num: usize,
+    auth: Option<Auth>,
 }
 
 impl RtmpServer {
-    pub fn new(address: String, event_producer: StreamHubEventSender, gop_num: usize) -> Self {
+    pub fn new(
+        address: String,
+        event_producer: StreamHubEventSender,
+        gop_num: usize,
+        auth: Option<Auth>,
+    ) -> Self {
         Self {
             address,
             event_producer,
             gop_num,
+            auth,
         }
     }
 
@@ -33,6 +41,7 @@ impl RtmpServer {
                 tcp_stream,
                 self.event_producer.clone(),
                 self.gop_num,
+                self.auth.clone(),
             );
             tokio::spawn(async move {
                 if let Err(err) = session.run().await {
