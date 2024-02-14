@@ -1,6 +1,6 @@
 [package]
 name = "xwebrtc"
-version = "0.2.0"
+version = "0.3.0"
 description = "A whip/whep library."
 edition = "2021"
 authors = ["HarlanC <wawacry@qq.com>"]
@@ -25,3 +25,4 @@ opus = "0.3.0"
 bytesio = "0.3.1"
 streamhub = "0.2.0"
 xflv = "0.4.0"
+commonlib = "0.1.0"

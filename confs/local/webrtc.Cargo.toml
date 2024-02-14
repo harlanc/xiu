@@ -25,3 +25,4 @@ opus = "0.3.0"
 bytesio = { path = "../../library/bytesio/" }
 streamhub = { path = "../../library/streamhub/" }
 xflv = { path = "../../library/container/flv/" }
+commonlib = { path = "../../library/common/" }

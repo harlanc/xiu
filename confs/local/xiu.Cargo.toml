@@ -33,6 +33,7 @@ xrtsp = { path = "../../protocol/rtsp/" }
 xwebrtc = { path = "../../protocol/webrtc/" }
 httpflv = { path = "../../protocol/httpflv/" }
 hls = { path = "../../protocol/hls/" }
+commonlib = { path = "../../library/common/" }
 
 [features]
 default = ["std"]

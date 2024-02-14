@@ -171,6 +171,10 @@ async fn main() -> Result<()> {
 - Fix RTMP chunks are uncompressed in packetizer mod.
 - Fix err: when encountering an unknown RTMP message type, it should be skipped rather than returning an error.
 - Support remuxing from WHIP to rtmp.
+## 0.6.0
+- Support auth.
+## 0.6.1
+- Fix RTMP build error.
 
 
 

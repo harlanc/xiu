@@ -33,6 +33,10 @@ Change the listening port type.
 - Remove no used "\n" for error message.
 - Replace hyper HTTP library with axum.
 - Receive and process sub event result.
+## 0.5.0
+- Support auth.
+## 0.5.1
+- Fix RTMP build error.
 
 
 
