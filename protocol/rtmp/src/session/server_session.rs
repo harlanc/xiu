@@ -27,6 +27,7 @@ use {
         bytes_writer::AsyncBytesWriter,
         bytesio::{TNetIO, TcpIO},
     },
+    commonlib::auth::Auth,
     indexmap::IndexMap,
     std::{sync::Arc, time::Duration},
     streamhub::{
@@ -49,7 +50,7 @@ enum ServerSessionState {
 pub struct ServerSession {
     pub app_name: String,
     pub stream_name: String,
-    pub url_parameters: String,
+    pub query: Option<String>,
     io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
     handshaker: HandshakeServer,
     unpacketizer: ChunkUnpacketizer,
@@ -64,10 +65,16 @@ pub struct ServerSession {
     pub common: Common,
     /*configure how many gops will be cached.*/
     gop_num: usize,
+    auth: Option<Auth>,
 }
 
 impl ServerSession {
-    pub fn new(stream: TcpStream, event_producer: StreamHubEventSender, gop_num: usize) -> Self {
+    pub fn new(
+        stream: TcpStream,
+        event_producer: StreamHubEventSender,
+        gop_num: usize,
+        auth: Option<Auth>,
+    ) -> Self {
         let remote_addr = if let Ok(addr) = stream.peer_addr() {
             log::info!("server session: {}", addr.to_string());
             Some(addr)
@@ -81,7 +88,7 @@ impl ServerSession {
         Self {
             app_name: String::from(""),
             stream_name: String::from(""),
-            url_parameters: String::from(""),
+            query: None,
             io: Arc::clone(&net_io),
             handshaker: HandshakeServer::new(Arc::clone(&net_io)),
             unpacketizer: ChunkUnpacketizer::new(),
@@ -97,6 +104,7 @@ impl ServerSession {
             has_remaing_data: false,
             connect_properties: ConnectProperties::default(),
             gop_num,
+            auth,
         }
     }
 
@@ -634,15 +642,23 @@ impl ServerSession {
 
         let raw_stream_name = stream_name.unwrap();
 
-        (self.stream_name, self.url_parameters) = RtmpUrlParser::default()
-            .set_raw_stream_name(raw_stream_name.clone())
-            .parse_raw_stream_name();
+        (self.stream_name, self.query) =
+            RtmpUrlParser::parse_stream_name_with_query(&raw_stream_name);
+        if let Some(auth) = &self.auth {
+            auth.authenticate(&self.stream_name, &self.query, true)?
+        }
+
+        let query = if let Some(query_val) = &self.query {
+            query_val.clone()
+        } else {
+            String::from("none")
+        };
 
         log::info!(
-            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}, url parameters: {}",
+            "[ S->C ] [stream is record]  app_name: {}, stream_name: {}, query: {}",
             self.app_name,
             self.stream_name,
-            self.url_parameters
+            query
         );
 
         /*Now it can update the request url*/
@@ -674,7 +690,7 @@ impl ServerSession {
             });
         }
 
-        let raw_stream_name = match other_values.remove(0) {
+        let stream_name_with_query = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
             _ => {
                 return Err(SessionError {
@@ -683,12 +699,15 @@ impl ServerSession {
             }
         };
 
-        (self.stream_name, self.url_parameters) = RtmpUrlParser::default()
-            .set_raw_stream_name(raw_stream_name.clone())
-            .parse_raw_stream_name();
+        (self.stream_name, self.query) =
+            RtmpUrlParser::parse_stream_name_with_query(&stream_name_with_query);
+
+        if let Some(auth) = &self.auth {
+            auth.authenticate(&self.stream_name, &self.query, false)?
+        }
 
         /*Now it can update the request url*/
-        self.common.request_url = self.get_request_url(raw_stream_name);
+        self.common.request_url = self.get_request_url(stream_name_with_query);
 
         let _ = match other_values.remove(0) {
             Amf0ValueType::UTF8String(val) => val,
@@ -699,18 +718,24 @@ impl ServerSession {
             }
         };
 
+        let query = if let Some(query_val) = &self.query {
+            query_val.clone()
+        } else {
+            String::from("none")
+        };
+
         log::info!(
-            "[ S<-C ] [publish]  app_name: {}, stream_name: {}, url parameters: {}",
+            "[ S<-C ] [publish]  app_name: {}, stream_name: {}, query: {}",
             self.app_name,
             self.stream_name,
-            self.url_parameters
+            query
         );
 
         log::info!(
-            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}, url parameters: {}",
+            "[ S->C ] [stream begin]  app_name: {}, stream_name: {}, query: {}",
             self.app_name,
             self.stream_name,
-            self.url_parameters
+            query
         );
 
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));

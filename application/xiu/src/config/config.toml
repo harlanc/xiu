@@ -6,6 +6,11 @@
 enabled = true
 port = 1935
 gop_num = 0
+[rtmp.auth]
+pull_enabled = true
+push_enabled = true
+# simple or md5
+algorithm = "simple"
 # pull streams from other server node.
 [rtmp.pull]
 enabled = false
@@ -28,6 +33,12 @@ on_unpublish = "http://localhost:3001/on_unpuslish"
 on_play = "http://localhost:3001/on_play"
 on_stop = "http://localhost:3001/on_stop"
 
+[authsecret]
+# used for md5 authentication
+key = ""
+# used for simple authentication
+password = ""
+
 
 ##########################
 #    RTSP configurations  #
@@ -35,6 +46,11 @@ on_stop = "http://localhost:3001/on_stop"
 [rtsp]
 enabled = false
 port = 445
+[rtsp.auth]
+pull_enabled = true
+push_enabled = true
+# simple or md5
+algorithm = "simple"
 
 ##########################
 #    WebRTC configurations  #
@@ -42,6 +58,11 @@ port = 445
 [webrtc]
 enabled = false
 port = 8083
+[webrtc.auth]
+pull_enabled = true
+push_enabled = true
+# simple or md5
+algorithm = "simple"
 
 ##########################
 # HTTPFLV configurations #
@@ -49,6 +70,11 @@ port = 8083
 [httpflv]
 enabled = false
 port = 8081
+[httpflv.auth]
+pull_enabled = true
+# simple or md5
+algorithm = "simple"
+
 
 ##########################
 #    HLS configurations  #
@@ -56,7 +82,12 @@ port = 8081
 [hls]
 enabled = false
 port = 8080
-need_record = true
+need_record = false
+[hls.auth]
+pull_enabled = true
+# simple or md5
+algorithm = "simple"
+
 
 ##########################
 #   LOG configurations   #

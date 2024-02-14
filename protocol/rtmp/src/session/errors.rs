@@ -11,6 +11,7 @@ use {
         user_control_messages::errors::EventMessagesError,
     },
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
+    commonlib::errors::AuthError,
     failure::{Backtrace, Fail},
     std::fmt,
     streamhub::errors::ChannelError,
@@ -79,6 +80,8 @@ pub enum SessionErrorValue {
 
     #[fail(display = "session is finished.")]
     Finish,
+    #[fail(display = "Auth err: {}", _0)]
+    AuthError(#[cause] AuthError),
 }
 
 impl From<Amf0WriteError> for SessionError {
@@ -197,6 +200,13 @@ impl From<ChannelError> for SessionError {
     fn from(error: ChannelError) -> Self {
         SessionError {
             value: SessionErrorValue::ChannelError(error),
+        }
+    }
+}
+impl From<AuthError> for SessionError {
+    fn from(error: AuthError) -> Self {
+        SessionError {
+            value: SessionErrorValue::AuthError(error),
         }
     }
 }

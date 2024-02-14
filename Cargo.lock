@@ -613,6 +613,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "commonlib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "env_logger",
+ "failure",
+ "indexmap 1.9.3",
+ "job_scheduler_ng",
+ "log",
+ "md5",
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1399,6 +1415,7 @@ dependencies = [
  "axum 0.7.4",
  "byteorder",
  "bytes",
+ "commonlib",
  "failure",
  "log",
  "rtmp 0.4.1",
@@ -1522,6 +1539,7 @@ dependencies = [
  "axum 0.7.4",
  "byteorder",
  "bytes",
+ "commonlib",
  "failure",
  "futures",
  "log",
@@ -1832,6 +1850,12 @@ dependencies = [
  "cfg-if 1.0.0",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "md5"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
 name = "memchr"
@@ -2484,6 +2508,7 @@ dependencies = [
  "bytes",
  "bytesio 0.3.1",
  "chrono",
+ "commonlib",
  "failure",
  "h264-decoder 0.2.0",
  "hex",
@@ -3930,6 +3955,7 @@ dependencies = [
  "anyhow",
  "axum 0.6.10",
  "clap",
+ "commonlib",
  "env_logger_extend",
  "failure",
  "hls",
@@ -3968,6 +3994,7 @@ dependencies = [
  "bytes",
  "bytesio 0.3.1",
  "chrono",
+ "commonlib",
  "failure",
  "hex",
  "http 0.2.9",
@@ -3987,6 +4014,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "bytesio 0.3.1",
+ "commonlib",
  "failure",
  "fdk-aac",
  "http 0.2.9",

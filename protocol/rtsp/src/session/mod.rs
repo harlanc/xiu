@@ -3,9 +3,13 @@ pub mod errors;
 use super::rtsp_codec;
 use crate::global_trait::Marshal;
 use crate::global_trait::Unmarshal;
-use crate::http::RtspResponse;
+
 use crate::rtp::define::ANNEXB_NALU_START_CODE;
 use crate::rtp::utils::Marshal as RtpMarshal;
+use commonlib::http::HttpRequest as RtspRequest;
+use commonlib::http::HttpResponse as RtspResponse;
+use commonlib::http::Marshal as RtspMarshal;
+use commonlib::http::Unmarshal as RtspUnmarshal;
 
 use crate::rtp::RtpPacket;
 use crate::rtsp_range::RtspRange;
@@ -33,7 +37,6 @@ use streamhub::define::MediaInfo;
 use streamhub::define::VideoCodecType;
 use tokio::sync::oneshot;
 
-use super::http::RtspRequest;
 use super::rtp::errors::UnPackerError;
 use super::sdp::Sdp;
 
@@ -46,6 +49,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
+use commonlib::auth::Auth;
 use streamhub::{
     define::{
         FrameData, Information, InformationSender, NotifyInfo, PublishType, PublisherInfo,
@@ -70,6 +74,8 @@ pub struct RtspServerSession {
 
     stream_handler: Arc<RtspStreamHandler>,
     event_producer: StreamHubEventSender,
+
+    auth: Option<Auth>,
 }
 
 pub struct InterleavedBinaryData {
@@ -102,7 +108,11 @@ impl InterleavedBinaryData {
 }
 
 impl RtspServerSession {
-    pub fn new(stream: TcpStream, event_producer: StreamHubEventSender) -> Self {
+    pub fn new(
+        stream: TcpStream,
+        event_producer: StreamHubEventSender,
+        auth: Option<Auth>,
+    ) -> Self {
         // let remote_addr = if let Ok(addr) = stream.peer_addr() {
         //     log::info!("server session: {}", addr.to_string());
         //     Some(addr)
@@ -122,6 +132,7 @@ impl RtspServerSession {
             session_id: None,
             event_producer,
             stream_handler: Arc::new(RtspStreamHandler::new()),
+            auth,
         }
     }
 
@@ -193,7 +204,7 @@ impl RtspServerSession {
                 }
                 rtsp_method_name::PLAY => {
                     if self.handle_play(&rtsp_request).await.is_err() {
-                        self.unsubscribe_from_stream_hub(rtsp_request.path)?;
+                        self.unsubscribe_from_stream_hub(rtsp_request.uri.path)?;
                     }
                 }
                 rtsp_method_name::RECORD => {
@@ -233,7 +244,7 @@ impl RtspServerSession {
 
         let request_event = StreamHubEvent::Request {
             identifier: StreamIdentifier::Rtsp {
-                stream_path: rtsp_request.path.clone(),
+                stream_path: rtsp_request.uri.path.clone(),
             },
             sender,
         };
@@ -265,6 +276,11 @@ impl RtspServerSession {
     }
 
     async fn handle_announce(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
+        if let Some(auth) = &self.auth {
+            let stream_name = rtsp_request.uri.path.clone();
+            auth.authenticate(&stream_name, &rtsp_request.uri.query, false)?;
+        }
+
         if let Some(request_body) = &rtsp_request.body {
             if let Some(sdp) = Sdp::unmarshal(request_body) {
                 self.sdp = sdp.clone();
@@ -279,7 +295,7 @@ impl RtspServerSession {
 
         let publish_event = StreamHubEvent::Publish {
             identifier: StreamIdentifier::Rtsp {
-                stream_path: rtsp_request.path.clone(),
+                stream_path: rtsp_request.uri.path.clone(),
             },
             result_sender: event_result_sender,
             info: self.get_publisher_info(),
@@ -328,7 +344,7 @@ impl RtspServerSession {
         let mut response = Self::gen_response(status_code, rtsp_request);
 
         for track in self.tracks.values_mut() {
-            if !rtsp_request.url.contains(&track.media_control) {
+            if !rtsp_request.uri.marshal().contains(&track.media_control) {
                 continue;
             }
 
@@ -356,7 +372,7 @@ impl RtspServerSession {
                                     (0, 0)
                                 };
 
-                            let address = rtsp_request.address.clone();
+                            let address = rtsp_request.uri.host.clone();
                             if let Some(rtp_io) = UdpIO::new(address.clone(), rtp_port, 0).await {
                                 rtp_server_port = rtp_io.get_local_port();
 
@@ -411,6 +427,11 @@ impl RtspServerSession {
     }
 
     async fn handle_play(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
+        if let Some(auth) = &self.auth {
+            let stream_name = rtsp_request.uri.path.clone();
+            auth.authenticate(&stream_name, &rtsp_request.uri.query, true)?;
+        }
+
         for track in self.tracks.values_mut() {
             let protocol_type = track.transport.protocol_type.clone();
 
@@ -465,7 +486,7 @@ impl RtspServerSession {
 
         let publish_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::Rtsp {
-                stream_path: rtsp_request.path.clone(),
+                stream_path: rtsp_request.uri.path.clone(),
             },
             info: self.get_subscriber_info(),
             result_sender: event_result_sender,
@@ -561,7 +582,7 @@ impl RtspServerSession {
     }
 
     fn handle_teardown(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
-        let stream_path = &rtsp_request.path;
+        let stream_path = &rtsp_request.uri.path;
         let unpublish_event = StreamHubEvent::UnPublish {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: stream_path.clone(),

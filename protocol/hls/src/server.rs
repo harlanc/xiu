@@ -1,8 +1,12 @@
 use {
     axum::{
-        body::Body, extract::Request, handler::HandlerWithoutStateExt, http::StatusCode,
+        body::Body,
+        extract::{Request, State},
+        handler::Handler,
+        http::StatusCode,
         response::Response,
     },
+    commonlib::auth::Auth,
     std::net::SocketAddr,
     tokio::{fs::File, net::TcpListener},
     tokio_util::codec::{BytesCodec, FramedRead},
@@ -11,10 +15,12 @@ use {
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, GenericError>;
 static NOTFOUND: &[u8] = b"Not Found";
+static UNAUTHORIZED: &[u8] = b"Unauthorized";
 
-async fn handle_connection(req: Request<Body>) -> Response<Body> {
+async fn handle_connection(State(auth): State<Option<Auth>>, req: Request<Body>) -> Response<Body> {
     let path = req.uri().path();
 
+    let query_string: Option<String> = req.uri().query().map(|s| s.to_string());
     let mut file_path: String = String::from("");
 
     if path.ends_with(".m3u8") {
@@ -27,6 +33,18 @@ async fn handle_connection(req: Request<Body>) -> Response<Body> {
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
+
+            if let Some(auth_val) = auth {
+                if auth_val
+                    .authenticate(&stream_name, &query_string, true)
+                    .is_err()
+                {
+                    return Response::builder()
+                        .status(StatusCode::UNAUTHORIZED)
+                        .body(UNAUTHORIZED.into())
+                        .unwrap();
+                }
+            }
 
             file_path = format!("./{app_name}/{stream_name}/{stream_name}.m3u8");
         }
@@ -69,7 +87,7 @@ async fn simple_file_send(filename: &str) -> Response<Body> {
     not_found()
 }
 
-pub async fn run(port: usize) -> Result<()> {
+pub async fn run(port: usize, auth: Option<Auth>) -> Result<()> {
     let listen_address = format!("0.0.0.0:{port}");
     let sock_addr: SocketAddr = listen_address.parse().unwrap();
 
@@ -77,7 +95,9 @@ pub async fn run(port: usize) -> Result<()> {
 
     log::info!("Hls server listening on http://{}", sock_addr);
 
-    axum::serve(listener, handle_connection.into_service()).await?;
+    let handle_connection = handle_connection.with_state(auth);
+
+    axum::serve(listener, handle_connection.into_make_service()).await?;
 
     Ok(())
 }

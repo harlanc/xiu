@@ -35,6 +35,7 @@ bytesio = { path = "../../library/bytesio/" }
 streamhub = { path = "../../library/streamhub/" }
 h264-decoder = { path = "../../library/codec/h264/" }
 xflv = { path = "../../library/container/flv/" }
+commonlib = { path = "../../library/common/" }
 
 [dependencies.tokio]
 version = "1.4.0"

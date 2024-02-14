@@ -8,7 +8,6 @@ use {
     byteorder::{BigEndian, LittleEndian},
     bytes::{BufMut, BytesMut},
     bytesio::bytes_reader::BytesReader,
-    chrono::prelude::*,
     std::{cmp::min, collections::HashMap, fmt, vec::Vec},
 };
 
@@ -127,12 +126,6 @@ impl ChunkUnpacketizer {
     }
 
     pub fn read_chunks(&mut self) -> Result<UnpackResult, UnpackError> {
-        log::trace!(
-            "read chunks begin, current time: {}, and read state: {}",
-            Local::now().timestamp_nanos(),
-            self.chunk_read_state
-        );
-
         // log::trace!(
         //     "read chunks, reader remaining data: {}",
         //     self.reader.get_remaining_bytes()
@@ -165,12 +158,6 @@ impl ChunkUnpacketizer {
             }
         }
 
-        log::trace!(
-            "read chunks end, current time: {}, and read state: {}",
-            Local::now().timestamp_nanos(),
-            self.chunk_read_state
-        );
-
         if !chunks.is_empty() {
             Ok(UnpackResult::Chunks(chunks))
         } else {
@@ -191,13 +178,6 @@ impl ChunkUnpacketizer {
     pub fn read_chunk(&mut self) -> Result<UnpackResult, UnpackError> {
         let mut result: UnpackResult = UnpackResult::Empty;
 
-        log::trace!(
-            "read chunk begin, current time: {}, and read state: {}, and chunk index: {}",
-            Local::now().timestamp_nanos(),
-            self.chunk_read_state,
-            self.chunk_index,
-        );
-
         self.chunk_index += 1;
 
         loop {
@@ -213,12 +193,6 @@ impl ChunkUnpacketizer {
             };
         }
 
-        log::trace!(
-            "read chunk end, current time: {}, and read state: {}, and chunk index: {}",
-            Local::now().timestamp_nanos(),
-            self.chunk_read_state,
-            self.chunk_index,
-        );
         Ok(result)
 
         // Ok(UnpackResult::Success)

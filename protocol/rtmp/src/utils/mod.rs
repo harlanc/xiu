@@ -1,48 +1,46 @@
 pub mod errors;
 pub mod print;
 
+use commonlib::scanf;
 use errors::RtmpUrlParseError;
 use errors::RtmpUrlParseErrorValue;
+use indexmap::IndexMap;
 
 #[derive(Debug, Clone, Default)]
 pub struct RtmpUrlParser {
-    pub raw_url: String,
-    // raw_domain_name = format!("{}:{}",domain_name,port)
-    pub raw_domain_name: String,
-    pub domain_name: String,
-    pub port: String,
+    pub url: String,
+    // host_with_port = format!("{}:{}",host,port)
+    pub host_with_port: String,
+    pub host: String,
+    pub port: Option<String>,
     pub app_name: String,
-    // raw_stream_name = format!("{}?{}",stream_name,url_parameters)
-    pub raw_stream_name: String,
+    // / = format!("{}?{}",stream_name,query)
+    pub stream_name_with_query: String,
     pub stream_name: String,
-    pub parameters: String,
+    pub query: Option<String>,
 }
 
 impl RtmpUrlParser {
     pub fn new(url: String) -> Self {
         Self {
-            raw_url: url,
+            url,
             ..Default::default()
         }
     }
 
-    pub fn set_raw_stream_name(&mut self, raw_stream_name: String) -> &mut Self {
-        self.raw_stream_name = raw_stream_name;
-        self
-    }
-
     /*
      example;rtmp://domain.name.cn:1935/app_name/stream_name?auth_key=test_Key
-     raw_domain_name: domain.name.cn:1935
-     domain_name: domain.name.cn
+     host_with_port: domain.name.cn:1935
+     host: domain.name.cn
+     port: 1935
      app_name: app_name
-     raw_stream_name: stream_name?auth_key=test_Key
+     stream_name_with_query: stream_name?auth_key=test_Key
      stream_name: stream_name
-     url_parameters: auth_key=test_Key
+     query: auth_key=test_Key
     */
     pub fn parse_url(&mut self) -> Result<(), RtmpUrlParseError> {
-        if let Some(idx) = self.raw_url.find("rtmp://") {
-            let remove_header_left = &self.raw_url[idx + 7..];
+        if let Some(idx) = self.url.find("rtmp://") {
+            let remove_header_left = &self.url[idx + 7..];
             let url_parts: Vec<&str> = remove_header_left.split('/').collect();
             if url_parts.len() != 3 {
                 return Err(RtmpUrlParseError {
@@ -50,12 +48,13 @@ impl RtmpUrlParser {
                 });
             }
 
-            self.raw_domain_name = url_parts[0].to_string();
+            self.host_with_port = url_parts[0].to_string();
             self.app_name = url_parts[1].to_string();
-            self.raw_stream_name = url_parts[2].to_string();
+            self.stream_name_with_query = url_parts[2].to_string();
 
-            self.parse_raw_domain_name()?;
-            self.parse_raw_stream_name();
+            self.parse_host_with_port()?;
+            (self.stream_name, self.query) =
+                Self::parse_stream_name_with_query(&self.stream_name_with_query);
         } else {
             return Err(RtmpUrlParseError {
                 value: RtmpUrlParseErrorValue::Notvalid,
@@ -65,28 +64,41 @@ impl RtmpUrlParser {
         Ok(())
     }
 
-    pub fn parse_raw_domain_name(&mut self) -> Result<(), RtmpUrlParseError> {
-        let data: Vec<&str> = self.raw_domain_name.split(':').collect();
-        self.domain_name = data[0].to_string();
+    pub fn parse_host_with_port(&mut self) -> Result<(), RtmpUrlParseError> {
+        let data: Vec<&str> = self.host_with_port.split(':').collect();
+        self.host = data[0].to_string();
         if data.len() > 1 {
-            self.port = data[1].to_string();
+            self.port = Some(data[1].to_string());
         }
         Ok(())
     }
-    /*parse the raw stream name to get real stream name and the URL parameters*/
-    pub fn parse_raw_stream_name(&mut self) -> (String, String) {
-        let data: Vec<&str> = self.raw_stream_name.split('?').collect();
-        self.stream_name = data[0].to_string();
-        if data.len() > 1 {
-            self.parameters = data[1].to_string();
-        }
-        (self.stream_name.clone(), self.parameters.clone())
+    /*parse the stream name and query to get real stream name and query*/
+    pub fn parse_stream_name_with_query(stream_name_with_query: &str) -> (String, Option<String>) {
+        let data: Vec<&str> = stream_name_with_query.split('?').collect();
+        let stream_name = data[0].to_string();
+        let query = if data.len() > 1 {
+            let query_val = data[1].to_string();
+
+            let mut query_pairs = IndexMap::new();
+            let pars_array: Vec<&str> = query_val.split('&').collect();
+            for ele in pars_array {
+                let (k, v) = scanf!(ele, '=', String, String);
+                if k.is_none() || v.is_none() {
+                    continue;
+                }
+                query_pairs.insert(k.unwrap(), v.unwrap());
+            }
+            Some(data[1].to_string())
+        } else {
+            None
+        };
+        (stream_name, query)
     }
 
     pub fn append_port(&mut self, port: String) {
-        if !self.raw_domain_name.contains(':') {
-            self.raw_domain_name = format!("{}:{}", self.raw_domain_name, port);
-            self.port = port;
+        if !self.host_with_port.contains(':') {
+            self.host_with_port = format!("{}:{}", self.host_with_port, port);
+            self.port = Some(port);
         }
     }
 }
@@ -103,13 +115,17 @@ mod tests {
 
         parser.parse_url().unwrap();
 
-        println!(" raw_domain_name: {}", parser.raw_domain_name);
-        println!(" port: {}", parser.port);
-        println!(" domain_name: {}", parser.domain_name);
+        println!(" raw_domain_name: {}", parser.host_with_port);
+        if parser.port.is_some() {
+            println!(" port: {}", parser.port.unwrap());
+        }
+        println!(" domain_name: {}", parser.host);
         println!(" app_name: {}", parser.app_name);
-        println!(" raw_stream_name: {}", parser.raw_stream_name);
+        println!(" stream_name_with_query: {}", parser.stream_name_with_query);
         println!(" stream_name: {}", parser.stream_name);
-        println!(" url_parameters: {}", parser.parameters);
+        if parser.query.is_some() {
+            println!(" query: {}", parser.query.unwrap());
+        }
     }
     #[test]
     fn test_rtmp_url_parser2() {
@@ -118,12 +134,16 @@ mod tests {
 
         parser.parse_url().unwrap();
 
-        println!(" raw_domain_name: {}", parser.raw_domain_name);
-        println!(" port: {}", parser.port);
-        println!(" domain_name: {}", parser.domain_name);
+        println!(" raw_domain_name: {}", parser.host_with_port);
+        if parser.port.is_some() {
+            println!(" port: {}", parser.port.unwrap());
+        }
+        println!(" domain_name: {}", parser.host);
         println!(" app_name: {}", parser.app_name);
-        println!(" raw_stream_name: {}", parser.raw_stream_name);
+        println!(" stream_name_with_query: {}", parser.stream_name_with_query);
         println!(" stream_name: {}", parser.stream_name);
-        println!(" url_parameters: {}", parser.parameters);
+        if parser.query.is_some() {
+            println!(" query: {}", parser.query.unwrap());
+        }
     }
 }

@@ -7,6 +7,7 @@ use {
         http::StatusCode,
         response::Response,
     },
+    commonlib::auth::Auth,
     futures::channel::mpsc::unbounded,
     std::net::SocketAddr,
     streamhub::define::StreamHubEventSender,
@@ -16,13 +17,15 @@ use {
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, GenericError>;
 static NOTFOUND: &[u8] = b"Not Found";
+static UNAUTHORIZED: &[u8] = b"Unauthorized";
 
 async fn handle_connection(
-    State(event_producer): State<StreamHubEventSender>, // event_producer: ChannelEventProducer
+    State((event_producer, auth)): State<(StreamHubEventSender, Option<Auth>)>, // event_producer: ChannelEventProducer
     ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
     req: Request<Body>,
 ) -> Response<Body> {
     let path = req.uri().path();
+    let query_string: Option<String> = req.uri().query().map(|s| s.to_string());
 
     match path.find(".flv") {
         Some(index) if index > 0 => {
@@ -31,6 +34,18 @@ async fn handle_connection(
 
             let app_name = String::from(rv[1]);
             let stream_name = String::from(rv[2]);
+
+            if let Some(auth_val) = auth {
+                if auth_val
+                    .authenticate(&stream_name, &query_string, true)
+                    .is_err()
+                {
+                    return Response::builder()
+                        .status(StatusCode::UNAUTHORIZED)
+                        .body(UNAUTHORIZED.into())
+                        .unwrap();
+                }
+            }
 
             let (http_response_data_producer, http_response_data_consumer) = unbounded();
 
@@ -63,7 +78,11 @@ async fn handle_connection(
     }
 }
 
-pub async fn run(event_producer: StreamHubEventSender, port: usize) -> Result<()> {
+pub async fn run(
+    event_producer: StreamHubEventSender,
+    port: usize,
+    auth: Option<Auth>,
+) -> Result<()> {
     let listen_address = format!("0.0.0.0:{port}");
     let sock_addr: SocketAddr = listen_address.parse().unwrap();
 
@@ -71,7 +90,7 @@ pub async fn run(event_producer: StreamHubEventSender, port: usize) -> Result<()
 
     log::info!("Httpflv server listening on http://{}", sock_addr);
 
-    let handle_connection = handle_connection.with_state(event_producer.clone());
+    let handle_connection = handle_connection.with_state((event_producer.clone(), auth));
 
     axum::serve(
         listener,
