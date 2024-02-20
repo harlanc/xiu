@@ -80,6 +80,7 @@ impl FlvDataReceiver {
             //will do an optimization in the future.
             //todo
             if retry_count > 10 {
+                self.media_processor.flush_remaining_data()?;
                 break;
             }
         }
