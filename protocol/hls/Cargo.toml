@@ -19,10 +19,9 @@ axum = { version = "0.7.4" }
 tokio-util = { version = "0.6.5", features = ["codec"] }
 
 streamhub = { path = "../../library/streamhub/" }
-commonlib = { path = "../../library/common/" }
 xmpegts = { path = "../../library/container/mpegts/" }
 xflv = { path = "../../library/container/flv/" }
-rtmp = { path = "../rtmp/" }
+commonlib = { path = "../../library/common/" }
 
 [dependencies.tokio]
 version = "1.4.0"

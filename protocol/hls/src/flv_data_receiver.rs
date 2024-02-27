@@ -5,7 +5,6 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
-    rtmp::session::errors::{SessionError, SessionErrorValue},
     std::time::Duration,
     streamhub::{
         define::{
@@ -124,11 +123,8 @@ impl FlvDataReceiver {
 
         let rv = self.event_producer.send(subscribe_event);
         if rv.is_err() {
-            let session_error = SessionError {
-                value: SessionErrorValue::StreamHubEventSendErr,
-            };
             return Err(HlsError {
-                value: HlsErrorValue::SessionError(session_error),
+                value: HlsErrorValue::StreamHubEventSendErr,
             });
         }
 
