@@ -33,9 +33,9 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 
 bytesio = { path = "../../library/bytesio/" }
 streamhub = { path = "../../library/streamhub/" }
-commonlib = { path = "../../library/common/" }
 h264-decoder = { path = "../../library/codec/h264/" }
 xflv = { path = "../../library/container/flv/" }
+commonlib = { path = "../../library/common/" }
 
 [dependencies.tokio]
 version = "1.4.0"

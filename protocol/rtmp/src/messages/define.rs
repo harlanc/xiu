@@ -1,4 +1,4 @@
-use {crate::amf0::define::Amf0ValueType, bytes::BytesMut};
+use {bytes::BytesMut, xflv::amf0::define::Amf0ValueType};
 
 #[allow(dead_code)]
 pub struct SetPeerBandwidthProperties {
