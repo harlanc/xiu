@@ -1418,7 +1418,6 @@ dependencies = [
  "commonlib",
  "failure",
  "log",
- "rtmp 0.4.1",
  "streamhub 0.1.1",
  "tokio",
  "tokio-util 0.6.10",
@@ -1543,7 +1542,6 @@ dependencies = [
  "failure",
  "futures",
  "log",
- "rtmp 0.4.1",
  "streamhub 0.1.1",
  "tokio",
  "xflv 0.3.0",
@@ -3929,6 +3927,7 @@ dependencies = [
  "bytesio 0.3.1",
  "failure",
  "h264-decoder 0.2.0",
+ "indexmap 1.9.3",
  "log",
  "serde",
 ]

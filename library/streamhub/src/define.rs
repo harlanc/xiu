@@ -1,7 +1,7 @@
 use crate::utils;
 
 use {
-    super::errors::ChannelError,
+    super::errors::StreamHubError,
     crate::statistics::StreamStatistics,
     crate::stream::StreamIdentifier,
     async_trait::async_trait,
@@ -98,7 +98,7 @@ impl Serialize for PublisherInfo {
         let mut state = serializer.serialize_struct("PublisherInfo", 3)?;
 
         state.serialize_field("id", &self.id.to_string())?;
-        state.serialize_field("sub_type", &self.pub_type)?;
+        state.serialize_field("pub_type", &self.pub_type)?;
         state.serialize_field("notify_info", &self.notify_info)?;
         state.end()
     }
@@ -167,9 +167,9 @@ pub type AvStatisticReceiver = mpsc::UnboundedReceiver<StreamStatistics>;
 pub type StreamStatisticSizeSender = oneshot::Sender<usize>;
 pub type StreamStatisticSizeReceiver = oneshot::Receiver<usize>;
 
-pub type SubEventExecuteResultSender = oneshot::Sender<Result<DataReceiver, ChannelError>>;
+pub type SubEventExecuteResultSender = oneshot::Sender<Result<DataReceiver, StreamHubError>>;
 pub type PubEventExecuteResultSender =
-    oneshot::Sender<Result<(Option<FrameDataSender>, Option<PacketDataSender>), ChannelError>>;
+    oneshot::Sender<Result<(Option<FrameDataSender>, Option<PacketDataSender>), StreamHubError>>;
 
 #[async_trait]
 pub trait TStreamHandler: Send + Sync {
@@ -177,7 +177,7 @@ pub trait TStreamHandler: Send + Sync {
         &self,
         sender: DataSender,
         sub_type: SubscribeType,
-    ) -> Result<(), ChannelError>;
+    ) -> Result<(), StreamHubError>;
     async fn get_statistic_data(&self) -> Option<StreamStatistics>;
     async fn send_information(&self, sender: InformationSender);
 }
@@ -280,17 +280,4 @@ pub enum BroadcastEvent {
     /*Need subscribe(pull) a stream from other rtmp server*/
     Subscribe { identifier: StreamIdentifier },
     UnSubscribe { identifier: StreamIdentifier },
-}
-
-//Used for kickoff
-#[derive(Debug, Clone)]
-pub enum PubSubInfo {
-    Subscribe {
-        identifier: StreamIdentifier,
-        sub_info: SubscriberInfo,
-    },
-
-    Publish {
-        identifier: StreamIdentifier,
-    },
 }

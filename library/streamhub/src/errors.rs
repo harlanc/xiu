@@ -4,7 +4,7 @@ use failure::Backtrace;
 
 use {failure::Fail, std::fmt};
 #[derive(Debug, Fail)]
-pub enum ChannelErrorValue {
+pub enum StreamHubErrorValue {
     #[fail(display = "no app name")]
     NoAppName,
     #[fail(display = "no stream name")]
@@ -27,17 +27,17 @@ pub enum ChannelErrorValue {
     NotCorrectDataSenderType,
 }
 #[derive(Debug)]
-pub struct ChannelError {
-    pub value: ChannelErrorValue,
+pub struct StreamHubError {
+    pub value: StreamHubErrorValue,
 }
 
-impl fmt::Display for ChannelError {
+impl fmt::Display for StreamHubError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)
     }
 }
 
-impl Fail for ChannelError {
+impl Fail for StreamHubError {
     fn cause(&self) -> Option<&dyn Fail> {
         self.value.cause()
     }
@@ -47,18 +47,18 @@ impl Fail for ChannelError {
     }
 }
 
-impl From<BytesReadError> for ChannelError {
+impl From<BytesReadError> for StreamHubError {
     fn from(error: BytesReadError) -> Self {
-        ChannelError {
-            value: ChannelErrorValue::BytesReadError(error),
+        StreamHubError {
+            value: StreamHubErrorValue::BytesReadError(error),
         }
     }
 }
 
-impl From<BytesWriteError> for ChannelError {
+impl From<BytesWriteError> for StreamHubError {
     fn from(error: BytesWriteError) -> Self {
-        ChannelError {
-            value: ChannelErrorValue::BytesWriteError(error),
+        StreamHubError {
+            value: StreamHubErrorValue::BytesWriteError(error),
         }
     }
 }
