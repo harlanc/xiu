@@ -1,6 +1,6 @@
 [package]
 name = "xrtsp"
-version = "0.2.0"
+version = "0.2.1"
 description = "A rtsp library."
 edition = "2021"
 authors = ["HarlanC <wawacry@qq.com>"]
@@ -25,5 +25,5 @@ base64 = "0.21.2"
 hex = "0.4.3"
 
 bytesio = "0.3.1"
-streamhub = "0.2.0"
+streamhub = "0.2.1"
 commonlib = "0.1.0"

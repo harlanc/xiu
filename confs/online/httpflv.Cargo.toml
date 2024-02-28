@@ -1,7 +1,7 @@
 [package]
 name = "httpflv"
 description = "httpflv library."
-version = "0.4.1"
+version = "0.4.2"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -18,9 +18,8 @@ log = "0.4"
 axum = { version = "0.7.4" }
 futures = "0.3"
 
-streamhub = "0.2.0"
-xflv = "0.4.0"
-rtmp = "0.6.1"
+streamhub = "0.2.1"
+xflv = "0.4.1"
 commonlib = "0.1.0"
 
 [dependencies.tokio]

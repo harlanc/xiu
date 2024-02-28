@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.2.1] - 2021-02-28
 - Refactor api_kick_off_client of streamhub to simplify the process; 
 - Rename struct name.
+- Use reqwest's vender feature to support cross compile.
 
 ## [0.2.0] 
 - Remove no used "\n" for error message.
