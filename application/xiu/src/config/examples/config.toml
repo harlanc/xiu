@@ -7,8 +7,8 @@ enabled = true
 port = 1935
 gop_num = 0
 [rtmp.auth]
-pull_enabled = true
-push_enabled = true
+pull_enabled = false
+push_enabled = false
 # simple or md5
 algorithm = "simple"
 # pull streams from other server node.
@@ -96,6 +96,6 @@ algorithm = "simple"
 level = "info"
 [log.file]
 # write log to file or not（Writing logs to file or console cannot be satisfied at the same time）.
-enabled = false
+enabled = true
 rotate = "hour" #[day,hour,minute]
-path = "./logs"
+path = "/app/logs"

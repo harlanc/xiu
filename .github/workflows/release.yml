@@ -36,6 +36,7 @@ jobs:
   release:
     name: Binary ${{ matrix.target }} (on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: publish
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
     strategy:

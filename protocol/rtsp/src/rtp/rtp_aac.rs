@@ -64,7 +64,7 @@ impl TPacker for RtpAacPacker {
         packet.payload.put(data);
 
         if let Some(f) = &self.on_packet_for_rtcp_handler {
-            f(packet.clone());
+            f(packet.clone()).await;
         }
 
         if let Some(f) = &self.on_packet_handler {
@@ -114,12 +114,13 @@ impl RtpAacUnPacker {
     }
 }
 
+#[async_trait]
 impl TUnPacker for RtpAacUnPacker {
-    fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
+    async fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
         let rtp_packet = RtpPacket::unmarshal(reader)?;
 
         if let Some(f) = &self.on_packet_for_rtcp_handler {
-            f(rtp_packet.clone());
+            f(rtp_packet.clone()).await;
         }
 
         let mut reader_payload = BytesReader::new(rtp_packet.payload);

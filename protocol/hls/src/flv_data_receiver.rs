@@ -18,7 +18,7 @@ use {
     xflv::define::FlvData,
 };
 
-////https://www.jianshu.com/p/d6311f03b81f
+///https://www.jianshu.com/p/d6311f03b81f
 
 pub struct FlvDataReceiver {
     app_name: String,

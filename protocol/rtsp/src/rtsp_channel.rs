@@ -69,9 +69,9 @@ impl RtpChannel {
     }
 
     //Receive av frame from network -> pack AV frame to RTP packet -> send to stream hub
-    pub fn on_packet(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
+    pub async fn on_packet(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
         if let Some(unpacker) = &mut self.rtp_unpacker {
-            unpacker.unpack(reader)?;
+            unpacker.unpack(reader).await?;
         }
         Ok(())
     }
