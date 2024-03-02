@@ -1,6 +1,5 @@
 use {
     crate::{
-        amf0::errors::Amf0WriteError,
         cache::errors::CacheError,
         chunk::errors::{PackError, UnpackError},
         handshake::errors::HandshakeError,
@@ -14,8 +13,9 @@ use {
     commonlib::errors::AuthError,
     failure::{Backtrace, Fail},
     std::fmt,
-    streamhub::errors::ChannelError,
+    streamhub::errors::StreamHubError,
     tokio::sync::oneshot::error::RecvError,
+    xflv::amf0::errors::Amf0WriteError,
 };
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ pub enum SessionErrorValue {
     #[fail(display = "tokio: oneshot receiver err: {}", _0)]
     RecvError(#[cause] RecvError),
     #[fail(display = "streamhub channel err: {}", _0)]
-    ChannelError(#[cause] ChannelError),
+    ChannelError(#[cause] StreamHubError),
 
     #[fail(display = "amf0 count not correct error")]
     Amf0ValueCountNotCorrect,
@@ -196,8 +196,8 @@ impl From<RecvError> for SessionError {
     }
 }
 
-impl From<ChannelError> for SessionError {
-    fn from(error: ChannelError) -> Self {
+impl From<StreamHubError> for SessionError {
+    fn from(error: StreamHubError) -> Self {
         SessionError {
             value: SessionErrorValue::ChannelError(error),
         }

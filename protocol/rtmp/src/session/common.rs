@@ -26,7 +26,7 @@ use {
             PublishType, PublisherInfo, StreamHubEvent, StreamHubEventSender, SubscribeType,
             SubscriberInfo, TStreamHandler,
         },
-        errors::{ChannelError, ChannelErrorValue},
+        errors::{StreamHubError, StreamHubErrorValue},
         statistics::StreamStatistics,
         stream::StreamIdentifier,
         utils::Uuid,
@@ -485,29 +485,29 @@ impl TStreamHandler for RtmpStreamHandler {
         &self,
         data_sender: DataSender,
         sub_type: SubscribeType,
-    ) -> Result<(), ChannelError> {
+    ) -> Result<(), StreamHubError> {
         let sender = match data_sender {
             DataSender::Frame { sender } => sender,
             DataSender::Packet { sender: _ } => {
-                return Err(ChannelError {
-                    value: ChannelErrorValue::NotCorrectDataSenderType,
+                return Err(StreamHubError {
+                    value: StreamHubErrorValue::NotCorrectDataSenderType,
                 });
             }
         };
         if let Some(cache) = &mut *self.cache.lock().await {
             if let Some(meta_body_data) = cache.get_metadata() {
-                sender.send(meta_body_data).map_err(|_| ChannelError {
-                    value: ChannelErrorValue::SendError,
+                sender.send(meta_body_data).map_err(|_| StreamHubError {
+                    value: StreamHubErrorValue::SendError,
                 })?;
             }
             if let Some(audio_seq_data) = cache.get_audio_seq() {
-                sender.send(audio_seq_data).map_err(|_| ChannelError {
-                    value: ChannelErrorValue::SendError,
+                sender.send(audio_seq_data).map_err(|_| StreamHubError {
+                    value: StreamHubErrorValue::SendError,
                 })?;
             }
             if let Some(video_seq_data) = cache.get_video_seq() {
-                sender.send(video_seq_data).map_err(|_| ChannelError {
-                    value: ChannelErrorValue::SendError,
+                sender.send(video_seq_data).map_err(|_| StreamHubError {
+                    value: StreamHubErrorValue::SendError,
                 })?;
             }
             match sub_type {
@@ -518,8 +518,8 @@ impl TStreamHandler for RtmpStreamHandler {
                     if let Some(gops_data) = cache.get_gops_data() {
                         for gop in gops_data {
                             for channel_data in gop.get_frame_data() {
-                                sender.send(channel_data).map_err(|_| ChannelError {
-                                    value: ChannelErrorValue::SendError,
+                                sender.send(channel_data).map_err(|_| StreamHubError {
+                                    value: StreamHubErrorValue::SendError,
                                 })?;
                             }
                         }

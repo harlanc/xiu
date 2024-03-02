@@ -9,7 +9,7 @@ use xflv::{
 };
 
 use super::errors::RtmpRemuxerError;
-use crate::amf0::{amf0_writer::Amf0Writer, Amf0ValueType};
+use xflv::amf0::{amf0_writer::Amf0Writer, Amf0ValueType};
 
 #[derive(Default)]
 pub struct RtmpCooker {}

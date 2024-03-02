@@ -1,4 +1,4 @@
-use streamhub::errors::ChannelError;
+use streamhub::errors::StreamHubError;
 use {
     bytesio::bytes_errors::BytesReadError,
     bytesio::{bytes_errors::BytesWriteError, bytesio_errors::BytesIOError},
@@ -26,7 +26,7 @@ pub enum SessionErrorValue {
     #[fail(display = "Utf8Error: {}", _0)]
     Utf8Error(#[cause] Utf8Error),
     #[fail(display = "event execute error: {}", _0)]
-    ChannelError(#[cause] ChannelError),
+    ChannelError(#[cause] StreamHubError),
     #[fail(display = "webrtc error: {}", _0)]
     RTCError(#[cause] RTCError),
     #[fail(display = "tokio: oneshot receiver err: {}", _0)]
@@ -89,8 +89,8 @@ impl From<Utf8Error> for SessionError {
     }
 }
 
-impl From<ChannelError> for SessionError {
-    fn from(error: ChannelError) -> Self {
+impl From<StreamHubError> for SessionError {
+    fn from(error: StreamHubError) -> Self {
         SessionError {
             value: SessionErrorValue::ChannelError(error),
         }

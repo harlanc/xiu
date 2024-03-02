@@ -666,7 +666,7 @@ mod tests {
         queue.push_back(3);
         queue.push_back(4);
 
-        for (_idx, data) in queue.iter().enumerate() {
+        for data in queue.iter() {
             println!("{}", data);
         }
     }

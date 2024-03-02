@@ -1,7 +1,7 @@
 use {
+    audiopus::error::Error as OpusError,
     failure::{Backtrace, Fail},
     fdk_aac::enc::EncoderError as AacEncoderError,
-    opus::Error as OpusError,
     std::fmt,
     std::num::ParseIntError,
     webrtc::error::Error as RTCError,

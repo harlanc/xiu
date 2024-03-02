@@ -1,6 +1,7 @@
 use crate::errors::Opus2AacError;
+use audiopus::coder::Decoder as OpusDecoder;
+use audiopus::MutSignals;
 use fdk_aac::enc::{Encoder as AacEncoder, EncoderParams};
-use opus::Decoder as OpusDecoder;
 pub struct Opus2AacTranscoder {
     decoder_channels_size: usize,
     decoder: OpusDecoder,
@@ -10,12 +11,15 @@ pub struct Opus2AacTranscoder {
 
 impl Opus2AacTranscoder {
     pub fn new(
-        decoder_sample_rate: u32,
-        decoder_channels: opus::Channels,
+        decoder_sample_rate: i32,
+        decoder_channels: audiopus::Channels,
         encoder_sample_rate: u32,
         encoder_channels: fdk_aac::enc::ChannelMode,
     ) -> Result<Self, Opus2AacError> {
-        let decoder = OpusDecoder::new(decoder_sample_rate, decoder_channels)?;
+        let decoder = OpusDecoder::new(
+            audiopus::SampleRate::try_from(decoder_sample_rate)?,
+            decoder_channels,
+        )?;
         let encoder = AacEncoder::new(EncoderParams {
             bit_rate: fdk_aac::enc::BitRate::VbrMedium,
             transport: fdk_aac::enc::Transport::Raw,
@@ -24,8 +28,8 @@ impl Opus2AacTranscoder {
         })?;
 
         let decoder_channels_size = match decoder_channels {
-            opus::Channels::Stereo => 2,
-            opus::Channels::Mono => 1,
+            audiopus::Channels::Stereo | audiopus::Channels::Auto => 2,
+            audiopus::Channels::Mono => 1,
         };
 
         Ok(Opus2AacTranscoder {
@@ -39,7 +43,11 @@ impl Opus2AacTranscoder {
     pub fn transcode(&mut self, input: &[u8]) -> Result<Vec<Vec<u8>>, Opus2AacError> {
         //https://opus-codec.org/docs/opus_api-1.1.2/group__opus__decoder.html#ga7d1111f64c36027ddcb81799df9b3fc9
         let mut pcm_output: Vec<i16> = vec![0; 1024 * 2];
-        let pcm_output_len = self.decoder.decode(input, &mut pcm_output[..], false)?;
+        let input_packet = audiopus::packet::Packet::try_from(input)?;
+        let mut_signals = MutSignals::try_from(&mut pcm_output)?;
+        let pcm_output_len = self
+            .decoder
+            .decode(Some(input_packet), mut_signals, false)?;
         self.pcm_data
             .extend_from_slice(&pcm_output[..pcm_output_len * self.decoder_channels_size]);
 

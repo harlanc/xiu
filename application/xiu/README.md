@@ -326,30 +326,6 @@ Use the above methods to push live stream to service 1, when you play the stream
 ## Others
 
 Open issues if you have any problems. Star and pull requests are welcomed. Your stars can make this project go faster and further.
- 
-
-## v0.5.0
-- Support rtmp gop number configuration.
-- Support query stream information using HTTP api.
-## v0.6.0
-- Support notify stream status.
-- Support HTTP API to kickoff clients.
-- Add a http-server for testing http notify.
-- Add a pull rtmp and push rtmp example: pprtmp.
-- Fix some RTMP library bugs.
-## v0.6.1
-- Fix error that cannot receive rtmp stream pushed from GStreamer.
-- Fix rtmp cts parse error.
-- Fix RTMP examples in README.
-## v0.7.0
-- Support RTSP.
-## v0.8.0
-- Support HLS record.
-## v0.9.1
-- Support WebRTC(whip/whep).
-## v0.10.0
-- Remove no used "\n" for error message.
-- Support remux from WHIP to RTMP.
 
 
 

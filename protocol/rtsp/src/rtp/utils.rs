@@ -58,9 +58,10 @@ pub trait TVideoPacker: TPacker {
     async fn pack_nalu(&mut self, nalu: BytesMut) -> Result<(), PackerError>;
 }
 
+#[async_trait]
 pub trait TUnPacker: TRtpReceiverForRtcp + Send + Sync {
     /*Assemble rtp fragments into complete frame and send to stream hub*/
-    fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError>;
+    async fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError>;
     /*Call back function used for processing a frame.*/
     fn on_frame_handler(&mut self, f: OnFrameFn);
 }

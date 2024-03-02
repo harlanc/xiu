@@ -63,7 +63,7 @@ impl RtspTrack {
                 match rtp_io.read().await {
                     Ok(data) => {
                         reader.extend_from_slice(&data[..]);
-                        if let Err(err) = rtp_channel_in.on_packet(&mut reader) {
+                        if let Err(err) = rtp_channel_in.on_packet(&mut reader).await {
                             log::error!("rtp_receive_loop on_packet error: {}", err);
                         }
                     }
@@ -111,7 +111,7 @@ impl RtspTrack {
     }
 
     pub async fn on_rtp(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
-        self.rtp_channel.lock().await.on_packet(reader)
+        self.rtp_channel.lock().await.on_packet(reader).await
     }
 
     pub async fn on_rtcp(

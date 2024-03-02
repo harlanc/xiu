@@ -16,6 +16,7 @@ bytes = "1.0.0"
 failure = "0.1.1"
 serde = { version = "1.0", features = ["derive", "rc"] }
 log = "0.4"
+indexmap = "1.9.3"
 
 bytesio = { path = "../../bytesio/" }
 h264-decoder = { path = "../../codec/h264/" }

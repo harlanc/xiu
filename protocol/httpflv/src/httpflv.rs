@@ -4,10 +4,6 @@ use {
         define::{tag_type, HttpResponseDataProducer},
         errors::{HttpFLvError, HttpFLvErrorValue},
     },
-    crate::rtmp::{
-        cache::metadata::MetaData,
-        session::errors::{SessionError, SessionErrorValue},
-    },
     bytes::BytesMut,
     std::net::SocketAddr,
     streamhub::define::{
@@ -19,6 +15,7 @@ use {
         utils::{RandomDigitCount, Uuid},
     },
     tokio::sync::mpsc,
+    xflv::amf0::amf0_writer::Amf0Writer,
     xflv::muxer::{FlvMuxer, HEADER_LENGTH},
 };
 
@@ -99,16 +96,19 @@ impl HttpFlv {
         self.unsubscribe_from_rtmp_channels().await
     }
 
+    //used for the http-flv protocol
+
     pub fn write_flv_tag(&mut self, channel_data: FrameData) -> Result<(), HttpFLvError> {
         let (common_data, common_timestamp, tag_type) = match channel_data {
             FrameData::Audio { timestamp, data } => (data, timestamp, tag_type::AUDIO),
             FrameData::Video { timestamp, data } => (data, timestamp, tag_type::VIDEO),
             FrameData::MetaData { timestamp, data } => {
-                let mut metadata = MetaData::new();
-                metadata.save(&data);
-                let data = metadata.remove_set_data_frame()?;
+                //remove @setDataFrame from RTMP's metadata
+                let mut amf_writer: Amf0Writer = Amf0Writer::new();
+                amf_writer.write_string(&String::from("@setDataFrame"))?;
+                let (_, right) = data.split_at(amf_writer.len());
 
-                (data, timestamp, tag_type::SCRIPT_DATA_AMF)
+                (BytesMut::from(right), timestamp, tag_type::SCRIPT_DATA_AMF)
             }
             _ => {
                 log::error!("should not be here!!!");
@@ -189,11 +189,8 @@ impl HttpFlv {
 
         let rv = self.event_producer.send(subscribe_event);
         if rv.is_err() {
-            let session_error = SessionError {
-                value: SessionErrorValue::SendFrameDataErr,
-            };
             return Err(HttpFLvError {
-                value: HttpFLvErrorValue::SessionError(session_error),
+                value: HttpFLvErrorValue::SendFrameDataErr,
             });
         }
 

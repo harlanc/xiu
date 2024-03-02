@@ -27,12 +27,12 @@ axum = "0.6.10"
 tokio-metrics = { version = "0.2.0", default-features = false }
 
 env_logger_extend = "0.1.1"
-streamhub = "0.2.0"
-rtmp = "0.6.1"
-xrtsp = "0.2.0"
-httpflv = "0.4.1"
-hls = "0.5.1"
-xwebrtc = "0.3.0"
+streamhub = "0.2.1"
+rtmp = "0.6.2"
+xrtsp = "0.2.1"
+httpflv = "0.4.2"
+hls = "0.5.2"
+xwebrtc = "0.3.1"
 commonlib = "0.1.0"
 
 [features]

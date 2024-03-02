@@ -1,10 +1,8 @@
 use {
-    crate::{
-        amf0::errors::{Amf0ReadError, Amf0WriteError},
-        chunk::errors::PackError,
-    },
+    crate::chunk::errors::PackError,
     failure::{Backtrace, Fail},
     std::fmt,
+    xflv::amf0::errors::{Amf0ReadError, Amf0WriteError},
 };
 
 #[derive(Debug)]

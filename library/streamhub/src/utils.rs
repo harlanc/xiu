@@ -34,7 +34,7 @@ fn u8_to_enum(digit: u8) -> RandomDigitCount {
 }
 
 impl Uuid {
-    pub fn from_str2(uuid: &String) -> Option<Uuid> {
+    pub fn from_str2(uuid: &str) -> Option<Uuid> {
         let length = uuid.len();
         if !(10..=16).contains(&length) {
             return None;

@@ -4,7 +4,7 @@ use streamhub::{
         DataSender, InformationSender, NotifyInfo, PublishType, PublisherInfo, StreamHubEvent,
         StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
-    errors::ChannelError,
+    errors::StreamHubError,
     statistics::StreamStatistics,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
@@ -562,7 +562,7 @@ impl TStreamHandler for WebRTCStreamHandler {
         &self,
         _data_sender: DataSender,
         _sub_type: SubscribeType,
-    ) -> Result<(), ChannelError> {
+    ) -> Result<(), StreamHubError> {
         Ok(())
     }
     async fn get_statistic_data(&self) -> Option<StreamStatistics> {

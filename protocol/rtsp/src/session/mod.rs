@@ -55,7 +55,7 @@ use streamhub::{
         FrameData, Information, InformationSender, NotifyInfo, PublishType, PublisherInfo,
         StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
-    errors::{ChannelError, ChannelErrorValue},
+    errors::{StreamHubError, StreamHubErrorValue},
     statistics::StreamStatistics,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
@@ -745,12 +745,12 @@ impl TStreamHandler for RtspStreamHandler {
         &self,
         data_sender: DataSender,
         sub_type: SubscribeType,
-    ) -> Result<(), ChannelError> {
+    ) -> Result<(), StreamHubError> {
         let sender = match data_sender {
             DataSender::Frame { sender } => sender,
             DataSender::Packet { sender: _ } => {
-                return Err(ChannelError {
-                    value: ChannelErrorValue::NotCorrectDataSenderType,
+                return Err(StreamHubError {
+                    value: StreamHubErrorValue::NotCorrectDataSenderType,
                 });
             }
         };

@@ -1,7 +1,6 @@
 use {
     super::errors::NetConnectionError,
     crate::{
-        amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
         chunk::{define as chunk_define, packetizer::ChunkPacketizer, ChunkInfo},
         messages::define as messages_define,
     },
@@ -9,6 +8,7 @@ use {
     indexmap::IndexMap,
     std::sync::Arc,
     tokio::sync::Mutex,
+    xflv::amf0::{amf0_writer::Amf0Writer, define::Amf0ValueType},
 };
 #[derive(Clone, Default, Debug)]
 pub struct ConnectProperties {

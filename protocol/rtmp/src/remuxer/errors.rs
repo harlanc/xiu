@@ -1,13 +1,12 @@
 use {
-    crate::{
-        amf0::errors::Amf0WriteError, cache::errors::MetadataError, session::errors::SessionError,
-    },
+    crate::{cache::errors::MetadataError, session::errors::SessionError},
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
     failure::Fail,
     std::fmt,
-    streamhub::errors::ChannelError,
+    streamhub::errors::StreamHubError,
     tokio::sync::broadcast::error::RecvError,
     tokio::sync::oneshot::error::RecvError as OneshotRecvError,
+    xflv::amf0::errors::Amf0WriteError,
     xflv::errors::FlvMuxerError,
     xflv::errors::Mpeg4AvcHevcError,
 };
@@ -39,7 +38,7 @@ pub enum RtmpRemuxerErrorValue {
     #[fail(display = "stream hub event send error")]
     StreamHubEventSendErr,
     #[fail(display = "event execute error: {}", _0)]
-    ChannelError(#[cause] ChannelError),
+    ChannelError(#[cause] StreamHubError),
     #[fail(display = "tokio: oneshot receiver err: {}", _0)]
     OneshotRecvError(#[cause] OneshotRecvError),
     #[fail(display = "Channel receive error")]
@@ -109,8 +108,8 @@ impl From<FlvMuxerError> for RtmpRemuxerError {
     }
 }
 
-impl From<ChannelError> for RtmpRemuxerError {
-    fn from(error: ChannelError) -> Self {
+impl From<StreamHubError> for RtmpRemuxerError {
+    fn from(error: StreamHubError) -> Self {
         RtmpRemuxerError {
             value: RtmpRemuxerErrorValue::ChannelError(error),
         }

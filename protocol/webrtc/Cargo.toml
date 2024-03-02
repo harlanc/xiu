@@ -17,10 +17,10 @@ bytes = "1.0.0"
 tokio = "1.4.0"
 failure = "0.1.1"
 log = "0.4"
-webrtc = "0.8.0"
+webrtc = "0.10.1"
 async-trait = "0.1.70"
 fdk-aac = "0.6.0"
-opus = "0.3.0"
+audiopus = "0.3.0-rc.0"
 
 bytesio = { path = "../../library/bytesio/" }
 streamhub = { path = "../../library/streamhub/" }

@@ -1,7 +1,8 @@
 use {
-    crate::{amf0::errors::Amf0WriteError, chunk::errors::PackError},
+    crate::chunk::errors::PackError,
     failure::{Backtrace, Fail},
     std::fmt,
+    xflv::amf0::errors::Amf0WriteError,
 };
 
 #[derive(Debug)]

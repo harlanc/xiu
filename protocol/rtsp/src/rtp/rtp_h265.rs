@@ -108,7 +108,7 @@ impl RtpH265Packer {
             }
 
             if let Some(f) = &self.on_packet_for_rtcp_handler {
-                f(packet.clone());
+                f(packet.clone()).await;
             }
 
             if let Some(f) = &self.on_packet_handler {
@@ -128,7 +128,7 @@ impl RtpH265Packer {
         self.header.seq_number += 1;
 
         if let Some(f) = &self.on_packet_for_rtcp_handler {
-            f(packet.clone());
+            f(packet.clone()).await;
         }
 
         if let Some(f) = &self.on_packet_handler {
@@ -178,12 +178,13 @@ pub struct RtpH265UnPacker {
     on_packet_for_rtcp_handler: Option<OnRtpPacketFn2>,
 }
 
+#[async_trait]
 impl TUnPacker for RtpH265UnPacker {
-    fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
+    async fn unpack(&mut self, reader: &mut BytesReader) -> Result<(), UnPackerError> {
         let rtp_packet = RtpPacket::unmarshal(reader)?;
 
         if let Some(f) = &self.on_packet_for_rtcp_handler {
-            f(rtp_packet.clone());
+            f(rtp_packet.clone()).await;
         }
 
         self.timestamp = rtp_packet.header.timestamp;

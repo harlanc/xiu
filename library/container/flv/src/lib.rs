@@ -1,3 +1,4 @@
+pub mod amf0;
 pub mod define;
 pub mod demuxer;
 pub mod errors;

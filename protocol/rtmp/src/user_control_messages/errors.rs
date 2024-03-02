@@ -1,8 +1,8 @@
 use {
-    crate::amf0::errors::Amf0WriteError,
-    failure::{Backtrace, Fail},
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},
+    failure::{Backtrace, Fail},
     std::fmt,
+    xflv::amf0::errors::Amf0WriteError,
 };
 
 #[derive(Debug)]

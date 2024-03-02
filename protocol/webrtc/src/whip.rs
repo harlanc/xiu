@@ -185,7 +185,7 @@ pub async fn handle_whip(
             let mut vcodec: VideoCodecType = VideoCodecType::H264;
             let mut opus2aac_transcoder = Opus2AacTranscoder::new(
                 48000,
-                opus::Channels::Stereo,
+                audiopus::Channels::Stereo,
                 48000,
                 fdk_aac::enc::ChannelMode::Stereo,
             )
@@ -212,13 +212,13 @@ pub async fn handle_whip(
                                         audio_codec = codec;
                                         let channels =
                                             match audio_codec.encoding_parameters.as_str() {
-                                                "1" => opus::Channels::Mono,
-                                                "2" => opus::Channels::Stereo,
-                                                _ => opus::Channels::Stereo,
+                                                "1" => audiopus::Channels::Mono,
+                                                "2" => audiopus::Channels::Stereo,
+                                                _ => audiopus::Channels::Stereo,
                                             };
 
                                         opus2aac_transcoder = Opus2AacTranscoder::new(
-                                            audio_codec.clock_rate,
+                                            audio_codec.clock_rate as i32,
                                             channels,
                                             audio_codec.clock_rate,
                                             fdk_aac::enc::ChannelMode::Stereo,
