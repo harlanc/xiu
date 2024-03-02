@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
-## [0.12.1]
+## [0.12.2]
 - Fix the failure in generating Docker images.
 
 ## [0.12.0]
