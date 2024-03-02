@@ -172,7 +172,7 @@ jobs:
           name: ${{ matrix.target }}
           path: |
             target/${{ matrix.target }}/release/xiu${{ env.EXE }}
-            target/${{ matrix.target }}/release/config/examples
+            target/${{ matrix.target }}/release/examples
             target/${{ matrix.target }}/release/index.html
             target/${{ matrix.target }}/release/whep.js
             target/${{ matrix.target }}/release/start.sh
