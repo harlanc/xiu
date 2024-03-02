@@ -272,7 +272,7 @@ jobs:
         run: podman manifest push xiu docker.io/harlancn/xiu:latest
 
       - name: podman manifest push tag version
-        run: podman manifest push xiu docker.io/harlancn/xiu:${{ needs.publish.outputs.version }}
+        run: podman manifest push xiu docker.io/harlancn/xiu:${{ needs.release.outputs.version }}
         if: startsWith(github.ref_name, 'v')
 
       #- name: podman build linux/arm64 (alpine edition)
