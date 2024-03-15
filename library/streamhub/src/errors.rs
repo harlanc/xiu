@@ -1,6 +1,8 @@
 use bytesio::bytes_errors::BytesReadError;
 use bytesio::bytes_errors::BytesWriteError;
 use failure::Backtrace;
+use serde_json::error::Error;
+use tokio::sync::oneshot::error::RecvError;
 
 use {failure::Fail, std::fmt};
 #[derive(Debug, Fail)]
@@ -25,6 +27,10 @@ pub enum StreamHubErrorValue {
     BytesWriteError(BytesWriteError),
     #[fail(display = "not correct data sender type")]
     NotCorrectDataSenderType,
+    #[fail(display = "Tokio oneshot recv error")]
+    RecvError(RecvError),
+    #[fail(display = "Serde json error")]
+    SerdeError(Error),
 }
 #[derive(Debug)]
 pub struct StreamHubError {
@@ -59,6 +65,22 @@ impl From<BytesWriteError> for StreamHubError {
     fn from(error: BytesWriteError) -> Self {
         StreamHubError {
             value: StreamHubErrorValue::BytesWriteError(error),
+        }
+    }
+}
+
+impl From<RecvError> for StreamHubError {
+    fn from(error: RecvError) -> Self {
+        StreamHubError {
+            value: StreamHubErrorValue::RecvError(error),
+        }
+    }
+}
+
+impl From<Error> for StreamHubError {
+    fn from(error: Error) -> Self {
+        StreamHubError {
+            value: StreamHubErrorValue::SerdeError(error),
         }
     }
 }

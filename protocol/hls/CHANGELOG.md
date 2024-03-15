@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.5.3] - 2021-03-15
+- Upgrade failure library.
+- Some changes for statistics feature.
+
 ## [0.5.2] - 2021-02-28
 - Refactor: remove the dependecy of HLS on RTMP.
 

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.2] - 2021-03-15
+- Upgrade failure library.
+- Some changes for statistics feature.
+- Fix publishing RTSP stream error caused by network.
+- Fix the issue that stopping the playback of RTSP stream leads to push(publish) failure.
+
 ## [0.2.1] - 2021-02-29
 - Reference the new version streamhub library.
 

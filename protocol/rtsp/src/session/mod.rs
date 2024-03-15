@@ -6,6 +6,7 @@ use crate::global_trait::Unmarshal;
 
 use crate::rtp::define::ANNEXB_NALU_START_CODE;
 use crate::rtp::utils::Marshal as RtpMarshal;
+
 use commonlib::http::HttpRequest as RtspRequest;
 use commonlib::http::HttpResponse as RtspResponse;
 use commonlib::http::Marshal as RtspMarshal;
@@ -56,7 +57,7 @@ use streamhub::{
         StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
     errors::{StreamHubError, StreamHubErrorValue},
-    statistics::StreamStatistics,
+    statistics::StatisticsStream,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
 };
@@ -71,6 +72,7 @@ pub struct RtspServerSession {
     tracks: HashMap<TrackType, RtspTrack>,
     sdp: Sdp,
     pub session_id: Option<Uuid>,
+    session_type: define::SessionType,
 
     stream_handler: Arc<RtspStreamHandler>,
     event_producer: StreamHubEventSender,
@@ -130,6 +132,7 @@ impl RtspServerSession {
             tracks: HashMap::new(),
             sdp: Sdp::default(),
             session_id: None,
+            session_type: define::SessionType::Server,
             event_producer,
             stream_handler: Arc::new(RtspStreamHandler::new()),
             auth,
@@ -190,7 +193,7 @@ impl RtspServerSession {
         let mut retry_count = 0;
         loop {
             // TODO(all) : shoud check if have '\r\n\r\n' firstly.
-            let data = self.reader.extract_remaining_bytes();
+            let data = self.reader.get_remaining_bytes();
             if let Some(rtsp_request_data) = RtspRequest::unmarshal(std::str::from_utf8(&data)?) {
                 // TCP packet sticking issue, if have content_length in header.
                 // should check the body
@@ -210,14 +213,13 @@ impl RtspServerSession {
                             }
                             retry_count += 1;
                             let data_recv = self.io.lock().await.read().await?;
-                            // re-push the previous data to reader firstly.
-                            self.reader.extend_from_slice(&data);
                             self.reader.extend_from_slice(&data_recv[..]);
                             continue;
                         }
                     }
                 }
                 rtsp_request = rtsp_request_data;
+                self.reader.extract_remaining_bytes();
             } else {
                 log::error!("corrupted rtsp message={}", std::str::from_utf8(&data)?);
                 return Ok(());
@@ -239,8 +241,8 @@ impl RtspServerSession {
                 self.handle_setup(&rtsp_request).await?;
             }
             rtsp_method_name::PLAY => {
-                if self.handle_play(&rtsp_request).await.is_err() {
-                    self.unsubscribe_from_stream_hub(rtsp_request.uri.path)?;
+                if let Err(err) = self.handle_play(&rtsp_request).await {
+                    log::info!("handle_play error: {}", err);
                 }
             }
             rtsp_method_name::RECORD => {
@@ -516,9 +518,11 @@ impl RtspServerSession {
 
         self.send_response(&response).await?;
 
+        self.session_type = define::SessionType::Client;
+
         let (event_result_sender, event_result_receiver) = oneshot::channel();
 
-        let publish_event = StreamHubEvent::Subscribe {
+        let subscribe_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.uri.path.clone(),
             },
@@ -526,13 +530,13 @@ impl RtspServerSession {
             result_sender: event_result_sender,
         };
 
-        if self.event_producer.send(publish_event).is_err() {
+        if self.event_producer.send(subscribe_event).is_err() {
             return Err(SessionError {
                 value: SessionErrorValue::StreamHubEventSendErr,
             });
         }
 
-        let mut receiver = event_result_receiver.await??.frame_receiver.unwrap();
+        let mut receiver = event_result_receiver.await??.0.frame_receiver.unwrap();
 
         let mut retry_times = 0;
         loop {
@@ -582,20 +586,6 @@ impl RtspServerSession {
         }
     }
 
-    pub fn unsubscribe_from_stream_hub(&mut self, stream_path: String) -> Result<(), SessionError> {
-        let identifier = StreamIdentifier::Rtsp { stream_path };
-
-        let subscribe_event = StreamHubEvent::UnSubscribe {
-            identifier,
-            info: self.get_subscriber_info(),
-        };
-        if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_stream_hub err {}", err);
-        }
-
-        Ok(())
-    }
-
     async fn handle_record(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
         if let Some(range_str) = rtsp_request.headers.get(&String::from("Range")) {
             if let Some(range) = RtspRange::unmarshal(range_str) {
@@ -616,27 +606,40 @@ impl RtspServerSession {
     }
 
     fn handle_teardown(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
-        let stream_path = &rtsp_request.uri.path;
-        let unpublish_event = StreamHubEvent::UnPublish {
-            identifier: StreamIdentifier::Rtsp {
-                stream_path: stream_path.clone(),
-            },
-            info: self.get_publisher_info(),
+        let identifier = StreamIdentifier::Rtsp {
+            stream_path: rtsp_request.uri.path.clone(),
         };
 
-        let rv = self.event_producer.send(unpublish_event);
+        let event = match self.session_type {
+            define::SessionType::Client => {
+                log::info!("handle_teardown: client");
+
+                StreamHubEvent::UnSubscribe {
+                    identifier,
+                    info: self.get_subscriber_info(),
+                }
+            }
+            define::SessionType::Server => {
+                log::info!("handle_teardown: server");
+                StreamHubEvent::UnPublish {
+                    identifier,
+                    info: self.get_publisher_info(),
+                }
+            }
+        };
+
+        let event_json_str = serde_json::to_string(&event).unwrap();
+
+        let rv = self.event_producer.send(event);
         match rv {
-            Err(_) => {
-                log::error!("unpublish_to_channels error.stream_name: {}", stream_path);
+            Err(err) => {
+                log::error!("handle_teardown: send event error: {err} for event: {event_json_str}");
                 Err(SessionError {
                     value: SessionErrorValue::StreamHubEventSendErr,
                 })
             }
             Ok(()) => {
-                log::info!(
-                    "unpublish_to_channels successfully.stream name: {}",
-                    stream_path
-                );
+                log::info!("handle_teardown: send event success: {event_json_str}");
                 Ok(())
             }
         }
@@ -866,7 +869,7 @@ impl TStreamHandler for RtspStreamHandler {
 
         Ok(())
     }
-    async fn get_statistic_data(&self) -> Option<StreamStatistics> {
+    async fn get_statistic_data(&self) -> Option<StatisticsStream> {
         None
     }
 

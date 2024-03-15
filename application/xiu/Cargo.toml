@@ -15,7 +15,7 @@ serde_derive = "1.0"
 serde = { version = "1.0.101", optional = true, features = ["derive"] }
 anyhow = "^1.0"
 log = "0.4.0"
-failure = "0.1.1"
+failure = "0.1.8"
 clap = "4.1.4"
 libc = "0.2.139"
 serde_json = { version = "1", default-features = false, features = [

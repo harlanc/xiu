@@ -5,7 +5,7 @@ use streamhub::{
         StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
     errors::StreamHubError,
-    statistics::StreamStatistics,
+    statistics::StatisticsStream,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
 };
@@ -367,7 +367,7 @@ impl WebRTCServerSession {
             });
         }
 
-        let receiver = event_result_receiver.await??.packet_receiver.unwrap();
+        let receiver = event_result_receiver.await??.0.packet_receiver.unwrap();
 
         let (pc_state_sender, mut pc_state_receiver) = broadcast::channel(1);
 
@@ -565,7 +565,7 @@ impl TStreamHandler for WebRTCStreamHandler {
     ) -> Result<(), StreamHubError> {
         Ok(())
     }
-    async fn get_statistic_data(&self) -> Option<StreamStatistics> {
+    async fn get_statistic_data(&self) -> Option<StatisticsStream> {
         None
     }
 

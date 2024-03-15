@@ -29,8 +29,6 @@ use {
     std::sync::Arc,
     //crate::utils::print::print,
     streamhub::define::StreamHubEventSender,
-    streamhub::utils::RandomDigitCount,
-    streamhub::utils::Uuid,
     tokio::{net::TcpStream, sync::Mutex},
     xflv::amf0::Amf0ValueType,
 };
@@ -78,10 +76,6 @@ pub struct ClientSession {
     //stream name with parameters
     raw_stream_name: String,
     stream_name: String,
-    /* Used to mark the subscriber's the data producer
-    in channels and delete it from map when unsubscribe
-    is called. */
-    session_id: Uuid,
     state: ClientSessionState,
     client_type: ClientType,
     sub_app_name: Option<String>,
@@ -110,8 +104,6 @@ impl ClientSession {
         let tcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
         let net_io = Arc::new(Mutex::new(tcp_io));
 
-        let subscriber_id = Uuid::new(RandomDigitCount::Four);
-
         let packetizer = if client_type == ClientType::Publish {
             Some(ChunkPacketizer::new(Arc::clone(&net_io)))
         } else {
@@ -130,7 +122,6 @@ impl ClientSession {
             app_name,
             raw_stream_name,
             stream_name,
-            session_id: subscriber_id,
             state: ClientSessionState::Handshake,
             client_type,
             sub_app_name: None,
@@ -527,18 +518,13 @@ impl ClientSession {
                         (&self.sub_app_name, &self.sub_stream_name)
                     {
                         self.common
-                            .subscribe_from_channels(
-                                app_name.clone(),
-                                stream_name.clone(),
-                                self.session_id,
-                            )
+                            .subscribe_from_channels(app_name.clone(), stream_name.clone())
                             .await?;
                     } else {
                         self.common
                             .subscribe_from_channels(
                                 self.app_name.clone(),
                                 self.stream_name.clone(),
-                                self.session_id,
                             )
                             .await?;
                     }
@@ -550,7 +536,6 @@ impl ClientSession {
                         .publish_to_channels(
                             self.app_name.clone(),
                             self.stream_name.clone(),
-                            self.session_id,
                             self.gop_num,
                         )
                         .await?

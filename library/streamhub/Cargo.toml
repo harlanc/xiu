@@ -10,15 +10,15 @@ repository = "https://github.com/harlanc/xiu"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-failure = "0.1.1"
+failure = "0.1.8"
 byteorder = "1.4.2"
 bytes = "1.0.0"
 rand = "0.8"
 log = "0.4"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 indexmap = "1.9.3"
 #use vendored feature to enable cross compile for openssl
-reqwest = {version = "0.11.24",features = ["native-tls-vendored"]}
+reqwest = { version = "0.11.24", features = ["native-tls-vendored"] }
 async-trait = "0.1.70"
 serde_json = { version = "1", default-features = false, features = [
     "alloc",

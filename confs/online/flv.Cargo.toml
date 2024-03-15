@@ -1,7 +1,7 @@
 [package]
 name = "xflv"
 description = "flv library."
-version = "0.4.1"
+version = "0.4.2"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -13,10 +13,11 @@ edition = "2018"
 [dependencies]
 byteorder = "1.4.2"
 bytes = "1.0.0"
-failure = "0.1.1"
+failure = "0.1.8"
 serde = { version = "1.0", features = ["derive", "rc"] }
 log = "0.4"
 indexmap = "1.9.3"
-bytesio = "0.3.1"
-h264-decoder = "0.2.1"
+
+bytesio = "0.3.2"
+h264-decoder = "0.2.2"
 

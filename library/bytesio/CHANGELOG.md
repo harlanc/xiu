@@ -9,29 +9,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
-## [0.4.2] - 2021-03-15
+## [0.3.2] - 2021-03-15
 - Upgrade failure library.
 
-## [0.4.1] - 2021-02-28
-- Move amf0 mod from RTMP library to this library
-
-## [0.4.0]
+## [0.3.1]
 - Remove no used "\n" for error message.
-- Add audio specific config generator.
+- Fix read timeout for UDP/TCP IO.
   
 ## [0.3.0]
-- Reference bytesio v0.3.0.
-- Do some refactoring for rtsp2rtmp.
-
-## [0.2.1]
-- Fix rtmp cts parse error.
+- Support Udp.
 
 ## [0.2.0]
-- Read audio and video codec information.
+- Add bits reader and writer.
 
-## [0.1.0]
-- Fix #20, clean up the remaing PPS data.
-- Fix the error chain.
+## [0.1.27]
+- Add functions.
+
+
+
+
 
 
 

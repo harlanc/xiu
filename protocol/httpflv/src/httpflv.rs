@@ -1,3 +1,4 @@
+use streamhub::define::{StatisticData, StatisticDataSender};
 use tokio::sync::oneshot;
 use {
     super::{
@@ -26,7 +27,9 @@ pub struct HttpFlv {
     muxer: FlvMuxer,
 
     event_producer: StreamHubEventSender,
-    data_consumer: FrameDataReceiver,
+    data_receiver: FrameDataReceiver,
+    /* now used for subscriber session */
+    statistic_data_sender: Option<StatisticDataSender>,
     http_response_data_producer: HttpResponseDataProducer,
     subscriber_id: Uuid,
     request_url: String,
@@ -42,14 +45,15 @@ impl HttpFlv {
         request_url: String,
         remote_addr: SocketAddr,
     ) -> Self {
-        let (_, data_consumer) = mpsc::unbounded_channel();
+        let (_, data_receiver) = mpsc::unbounded_channel();
         let subscriber_id = Uuid::new(RandomDigitCount::Four);
 
         Self {
             app_name,
             stream_name,
             muxer: FlvMuxer::new(),
-            data_consumer,
+            data_receiver,
+            statistic_data_sender: None,
             event_producer,
             http_response_data_producer,
             subscriber_id,
@@ -73,7 +77,7 @@ impl HttpFlv {
         let mut retry_count = 0;
         //write flv body
         loop {
-            if let Some(data) = self.data_consumer.recv().await {
+            if let Some(data) = self.data_receiver.recv().await {
                 if let Err(err) = self.write_flv_tag(data) {
                     if let HttpFLvErrorValue::MpscSendError(err_in) = &err.value {
                         if err_in.is_disconnected() {
@@ -100,8 +104,37 @@ impl HttpFlv {
 
     pub fn write_flv_tag(&mut self, channel_data: FrameData) -> Result<(), HttpFLvError> {
         let (common_data, common_timestamp, tag_type) = match channel_data {
-            FrameData::Audio { timestamp, data } => (data, timestamp, tag_type::AUDIO),
-            FrameData::Video { timestamp, data } => (data, timestamp, tag_type::VIDEO),
+            FrameData::Audio { timestamp, data } => {
+                if let Some(sender) = &self.statistic_data_sender {
+                    let statistic_audio_data = StatisticData::Audio {
+                        uuid: Some(self.subscriber_id),
+                        aac_packet_type: 1,
+                        data_size: data.len(),
+                        duration: 0,
+                    };
+                    if let Err(err) = sender.send(statistic_audio_data) {
+                        log::error!("send statistic data err: {}", err);
+                    }
+                }
+
+                (data, timestamp, tag_type::AUDIO)
+            }
+            FrameData::Video { timestamp, data } => {
+                if let Some(sender) = &self.statistic_data_sender {
+                    let statistic_video_data = StatisticData::Video {
+                        uuid: Some(self.subscriber_id),
+                        frame_count: 1,
+                        is_key_frame: None,
+                        data_size: data.len(),
+                        duration: 0,
+                    };
+                    if let Err(err) = sender.send(statistic_video_data) {
+                        log::error!("send statistic data err: {}", err);
+                    }
+                }
+
+                (data, timestamp, tag_type::VIDEO)
+            }
             FrameData::MetaData { timestamp, data } => {
                 //remove @setDataFrame from RTMP's metadata
                 let mut amf_writer: Amf0Writer = Amf0Writer::new();
@@ -194,8 +227,22 @@ impl HttpFlv {
             });
         }
 
-        let receiver = event_result_receiver.await??.frame_receiver.unwrap();
-        self.data_consumer = receiver;
+        let result_receiver = event_result_receiver.await??;
+        let receiver = result_receiver.0.frame_receiver.unwrap();
+        self.data_receiver = receiver;
+        self.statistic_data_sender = result_receiver.1;
+
+        if let Some(sender) = &self.statistic_data_sender {
+            let statistic_subscriber = StatisticData::Subscriber {
+                id: self.subscriber_id,
+                remote_addr: self.remote_addr.to_string(),
+                start_time: chrono::Local::now(),
+                sub_type: SubscribeType::PlayerHttpFlv,
+            };
+            if let Err(err) = sender.send(statistic_subscriber) {
+                log::error!("send statistic_subscriber err: {}", err);
+            }
+        }
 
         Ok(())
     }

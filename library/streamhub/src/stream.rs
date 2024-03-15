@@ -1,17 +1,18 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Default)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Default)]
 pub enum StreamIdentifier {
     #[default]
     Unkonwn,
+    #[serde(rename = "rtmp")]
     Rtmp {
         app_name: String,
         stream_name: String,
     },
-    Rtsp {
-        stream_path: String,
-    },
+    #[serde(rename = "rtsp")]
+    Rtsp { stream_path: String },
+    #[serde(rename = "webrtc")]
     WebRTC {
         app_name: String,
         stream_name: String,

@@ -1,6 +1,6 @@
 [package]
 name = "bytesio"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"
 description = "a network io library using tokio."
@@ -13,7 +13,7 @@ repository = "https://github.com/harlanc/xiu"
 byteorder = "1.4.2"
 bytes = "1.0.0"
 rand = "0.3"
-failure = "0.1.1"
+failure = "0.1.8"
 tokio-util = { version = "0.6.5", features = ["codec"] }
 futures = "0.3.5"
 tokio-stream = { version = "0.1" }

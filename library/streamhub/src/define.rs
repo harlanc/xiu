@@ -1,8 +1,12 @@
+use chrono::{DateTime, Local};
+use serde_json::Value;
+use xflv::define::{AacProfile, AvcCodecId, AvcLevel, AvcProfile, SoundFormat};
+
 use crate::utils;
 
 use {
     super::errors::StreamHubError,
-    crate::statistics::StreamStatistics,
+    crate::statistics::StatisticsStream,
     crate::stream::StreamIdentifier,
     async_trait::async_trait,
     bytes::BytesMut,
@@ -158,18 +162,31 @@ pub type StreamHubEventReceiver = mpsc::UnboundedReceiver<StreamHubEvent>;
 pub type BroadcastEventSender = broadcast::Sender<BroadcastEvent>;
 pub type BroadcastEventReceiver = broadcast::Receiver<BroadcastEvent>;
 
-pub type TransmitterEventSender = mpsc::UnboundedSender<TransmitterEvent>;
-pub type TransmitterEventReceiver = mpsc::UnboundedReceiver<TransmitterEvent>;
+pub type TransceiverEventSender = mpsc::UnboundedSender<TransceiverEvent>;
+pub type TransceiverEventReceiver = mpsc::UnboundedReceiver<TransceiverEvent>;
 
-pub type AvStatisticSender = mpsc::UnboundedSender<StreamStatistics>;
-pub type AvStatisticReceiver = mpsc::UnboundedReceiver<StreamStatistics>;
+pub type StatisticDataSender = mpsc::UnboundedSender<StatisticData>;
+pub type StatisticDataReceiver = mpsc::UnboundedReceiver<StatisticData>;
 
-pub type StreamStatisticSizeSender = oneshot::Sender<usize>;
-pub type StreamStatisticSizeReceiver = oneshot::Receiver<usize>;
+pub type StatisticStreamSender = mpsc::UnboundedSender<StatisticsStream>;
+pub type StatisticStreamReceiver = mpsc::UnboundedReceiver<StatisticsStream>;
 
-pub type SubEventExecuteResultSender = oneshot::Sender<Result<DataReceiver, StreamHubError>>;
-pub type PubEventExecuteResultSender =
-    oneshot::Sender<Result<(Option<FrameDataSender>, Option<PacketDataSender>), StreamHubError>>;
+pub type StatisticApiResultSender = oneshot::Sender<Value>;
+pub type StatisticApiResultReceiver = oneshot::Receiver<Value>;
+
+pub type SubEventExecuteResultSender =
+    oneshot::Sender<Result<(DataReceiver, Option<StatisticDataSender>), StreamHubError>>;
+pub type PubEventExecuteResultSender = oneshot::Sender<
+    Result<
+        (
+            Option<FrameDataSender>,
+            Option<PacketDataSender>,
+            Option<StatisticDataSender>,
+        ),
+        StreamHubError,
+    >,
+>;
+pub type TransceiverEventExecuteResultSender = oneshot::Sender<StatisticDataSender>;
 
 #[async_trait]
 pub trait TStreamHandler: Send + Sync {
@@ -178,7 +195,7 @@ pub trait TStreamHandler: Send + Sync {
         sender: DataSender,
         sub_type: SubscribeType,
     ) -> Result<(), StreamHubError>;
-    async fn get_statistic_data(&self) -> Option<StreamStatistics>;
+    async fn get_statistic_data(&self) -> Option<StatisticsStream>;
     async fn send_information(&self, sender: InformationSender);
 }
 
@@ -234,8 +251,10 @@ pub enum StreamHubEvent {
     },
     #[serde(skip_serializing)]
     ApiStatistic {
-        data_sender: AvStatisticSender,
-        size_sender: StreamStatisticSizeSender,
+        top_n: Option<usize>,
+        identifier: Option<StreamIdentifier>,
+        uuid: Option<Uuid>,
+        result_sender: StatisticApiResultSender,
     },
     #[serde(skip_serializing)]
     ApiKickClient { id: Uuid },
@@ -248,10 +267,11 @@ pub enum StreamHubEvent {
 }
 
 #[derive(Debug)]
-pub enum TransmitterEvent {
+pub enum TransceiverEvent {
     Subscribe {
         sender: DataSender,
         info: SubscriberInfo,
+        result_sender: TransceiverEventExecuteResultSender,
     },
     UnSubscribe {
         info: SubscriberInfo,
@@ -259,14 +279,15 @@ pub enum TransmitterEvent {
     UnPublish {},
 
     Api {
-        sender: AvStatisticSender,
+        sender: StatisticStreamSender,
+        uuid: Option<Uuid>,
     },
     Request {
         sender: InformationSender,
     },
 }
 
-impl fmt::Display for TransmitterEvent {
+impl fmt::Display for TransceiverEvent {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", *self)
     }
@@ -280,4 +301,44 @@ pub enum BroadcastEvent {
     /*Need subscribe(pull) a stream from other rtmp server*/
     Subscribe { identifier: StreamIdentifier },
     UnSubscribe { identifier: StreamIdentifier },
+}
+
+pub enum StatisticData {
+    AudioCodec {
+        sound_format: SoundFormat,
+        profile: AacProfile,
+        samplerate: u32,
+        channels: u8,
+    },
+    VideoCodec {
+        codec: AvcCodecId,
+        profile: AvcProfile,
+        level: AvcLevel,
+        width: u32,
+        height: u32,
+    },
+    Audio {
+        uuid: Option<Uuid>,
+        data_size: usize,
+        aac_packet_type: u8,
+        duration: usize,
+    },
+    Video {
+        uuid: Option<Uuid>,
+        data_size: usize,
+        frame_count: usize,
+        is_key_frame: Option<bool>,
+        duration: usize,
+    },
+    Publisher {
+        id: Uuid,
+        remote_addr: String,
+        start_time: DateTime<Local>,
+    },
+    Subscriber {
+        id: Uuid,
+        remote_addr: String,
+        sub_type: SubscribeType,
+        start_time: DateTime<Local>,
+    },
 }
