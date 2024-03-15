@@ -17,6 +17,7 @@ failure = "0.1.8"
 log = "0.4"
 axum = { version = "0.7.4" }
 futures = "0.3"
+chrono = "0.4"
 
 streamhub = "0.2.2"
 xflv = "0.4.2"

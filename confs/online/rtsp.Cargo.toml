@@ -23,6 +23,11 @@ chrono = "0.4"
 async-trait = "0.1.70"
 base64 = "0.21.2"
 hex = "0.4.3"
+serde_json = { version = "1", default-features = false, features = [
+    "alloc",
+    "raw_value",
+    "std",
+] }
 
 bytesio = "0.3.2"
 streamhub = "0.2.2"
