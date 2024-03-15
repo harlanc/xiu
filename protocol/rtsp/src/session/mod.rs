@@ -186,42 +186,76 @@ impl RtspServerSession {
     //publish stream: OPTIONS->ANNOUNCE->SETUP->RECORD->TEARDOWN
     //subscribe stream: OPTIONS->DESCRIBE->SETUP->PLAY->TEARDOWN
     async fn on_rtsp_message(&mut self) -> Result<(), SessionError> {
-        let data = self.reader.extract_remaining_bytes();
-
-        if let Some(rtsp_request) = RtspRequest::unmarshal(std::str::from_utf8(&data)?) {
-            match rtsp_request.method.as_str() {
-                rtsp_method_name::OPTIONS => {
-                    self.handle_options(&rtsp_request).await?;
-                }
-                rtsp_method_name::DESCRIBE => {
-                    self.handle_describe(&rtsp_request).await?;
-                }
-                rtsp_method_name::ANNOUNCE => {
-                    self.handle_announce(&rtsp_request).await?;
-                }
-                rtsp_method_name::SETUP => {
-                    self.handle_setup(&rtsp_request).await?;
-                }
-                rtsp_method_name::PLAY => {
-                    if self.handle_play(&rtsp_request).await.is_err() {
-                        self.unsubscribe_from_stream_hub(rtsp_request.uri.path)?;
+        let rtsp_request: RtspRequest;
+        let mut retry_count = 0;
+        loop {
+            // TODO(all) : shoud check if have '\r\n\r\n' firstly.
+            let data = self.reader.extract_remaining_bytes();
+            if let Some(rtsp_request_data) = RtspRequest::unmarshal(std::str::from_utf8(&data)?) {
+                // TCP packet sticking issue, if have content_length in header.
+                // should check the body
+                if let Some(content_length) =
+                    rtsp_request_data.get_header(&String::from("Content-Length"))
+                {
+                    if let Ok(uint_num) = content_length.parse::<usize>() {
+                        if rtsp_request_data.body.is_none()
+                            || uint_num > rtsp_request_data.body.clone().unwrap().len()
+                        {
+                            if retry_count >= 5 {
+                                log::error!(
+                                    "corrupted rtsp message={}",
+                                    std::str::from_utf8(&data)?
+                                );
+                                return Ok(());
+                            }
+                            retry_count += 1;
+                            let data_recv = self.io.lock().await.read().await?;
+                            // re-push the previous data to reader firstly.
+                            self.reader.extend_from_slice(&data);
+                            self.reader.extend_from_slice(&data_recv[..]);
+                            continue;
+                        }
                     }
                 }
-                rtsp_method_name::RECORD => {
-                    self.handle_record(&rtsp_request).await?;
-                }
-                rtsp_method_name::TEARDOWN => {
-                    self.handle_teardown(&rtsp_request)?;
-                }
-                rtsp_method_name::PAUSE => {}
-                rtsp_method_name::GET_PARAMETER => {}
-                rtsp_method_name::SET_PARAMETER => {}
-                rtsp_method_name::REDIRECT => {}
-
-                _ => {}
+                rtsp_request = rtsp_request_data;
+            } else {
+                log::error!("corrupted rtsp message={}", std::str::from_utf8(&data)?);
+                return Ok(());
             }
+            break;
         }
 
+        match rtsp_request.method.as_str() {
+            rtsp_method_name::OPTIONS => {
+                self.handle_options(&rtsp_request).await?;
+            }
+            rtsp_method_name::DESCRIBE => {
+                self.handle_describe(&rtsp_request).await?;
+            }
+            rtsp_method_name::ANNOUNCE => {
+                self.handle_announce(&rtsp_request).await?;
+            }
+            rtsp_method_name::SETUP => {
+                self.handle_setup(&rtsp_request).await?;
+            }
+            rtsp_method_name::PLAY => {
+                if self.handle_play(&rtsp_request).await.is_err() {
+                    self.unsubscribe_from_stream_hub(rtsp_request.uri.path)?;
+                }
+            }
+            rtsp_method_name::RECORD => {
+                self.handle_record(&rtsp_request).await?;
+            }
+            rtsp_method_name::TEARDOWN => {
+                self.handle_teardown(&rtsp_request)?;
+            }
+            rtsp_method_name::PAUSE => {}
+            rtsp_method_name::GET_PARAMETER => {}
+            rtsp_method_name::SET_PARAMETER => {}
+            rtsp_method_name::REDIRECT => {}
+
+            _ => {}
+        }
         Ok(())
     }
 
