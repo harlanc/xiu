@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.12.5]
+- Support querying more detailed statistic data by adding two new HTTP APIs.
+- Fix publishing RTSP stream error caused by network problem. by @bailb
+- Fix the bug that stopping the playback of RTSP stream leads to push(publish) failure.
+- Upgrade failure library.
+
 ## [0.12.4]
 - Fix the failure in generating Docker images.
 

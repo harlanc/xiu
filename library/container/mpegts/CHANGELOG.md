@@ -9,24 +9,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
-## [0.3.2] - 2021-03-15
+## [0.2.2] - 2021-03-15
 - Upgrade failure library.
-- Some changes for statistics feature.
 
-## [0.3.1] - 2021-02-29
-- Update the opus library from opus-rs to audiopus for cross compile。
-
-## [0.3.0]
-- Support auth.
-
-## [0.2.0]
+## [0.2.1] 
 - Remove no used "\n" for error message.
-- Receive and process sub event result.
-- Support remux from WHIP to RTMP.
+  
+## [0.2.0]
+- Reference bytesio v0.3.0.
 
 ## [0.1.1]
-- Support receiving RTC stream using Whip
-- Support sending RTC stream using Whep
+- Refactor codes.
+
+## [0.1.0] 
+- Fix the error chain.
+- Remove compile warnings.
+  
+## [0.0.2]
+- Remove no used dependences.
+
+## [0.0.1]
+- Support mux H264/AAC data to ts format.
+
+
+
+
+
 
 
 

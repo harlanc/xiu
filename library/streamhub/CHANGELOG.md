@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.2] - 2021-03-15
+- Upgrade failure library.
+- Support querying more detailed statistic data.
+
 ## [0.2.1] - 2021-02-28
 - Refactor api_kick_off_client of streamhub to simplify the process; 
 - Rename struct name.

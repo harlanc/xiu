@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.4.3] - 2021-03-15
+- Upgrade failure library.
+- Support querying more detailed statistic data.
+
 ## [0.4.2] - 2021-02-28
 - Refactor: remove the dependency of HTTP-FLV on RTMP.
 

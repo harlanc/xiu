@@ -1,7 +1,7 @@
 [package]
 name = "xmpegts"
 description = "mpegts library."
-version = "0.2.1"
+version = "0.2.2"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -13,6 +13,6 @@ edition = "2018"
 [dependencies]
 byteorder = "1.4.2"
 bytes = "1.0.0"
-failure = "0.1.1"
+failure = "0.1.8"
 
-bytesio = "0.3.1"
+bytesio = "0.3.2"

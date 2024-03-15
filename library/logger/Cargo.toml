@@ -1,6 +1,6 @@
 [package]
 name = "env_logger_extend"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["HarlanC <wawacry@qq.com>"]
 edition = "2018"
 description = "a logger library."
