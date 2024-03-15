@@ -316,21 +316,17 @@ impl StreamDataTransceiver {
                     sub_type,
                     start_time,
                 } => {
-                    {
-                        let subscriber = &mut statistics_data.lock().await.subscribers;
-                        let sub = StatisticSubscriber {
-                            id,
-                            remote_address: remote_addr,
-                            sub_type,
-                            start_time,
-                            send_bitrate: 0,
-                            send_bytes: 0,
-                            total_send_bytes: 0,
-                        };
-                        subscriber.insert(id, sub);
-                    }
-
-                    statistics_data.lock().await.subscriber_count += 1;
+                    let subscriber = &mut statistics_data.lock().await.subscribers;
+                    let sub = StatisticSubscriber {
+                        id,
+                        remote_address: remote_addr,
+                        sub_type,
+                        start_time,
+                        send_bitrate: 0,
+                        send_bytes: 0,
+                        total_send_bytes: 0,
+                    };
+                    subscriber.insert(id, sub);
                 }
             }
         }
@@ -405,6 +401,9 @@ impl StreamDataTransceiver {
                                     err
                                 )
                             }
+
+                            let mut statistics_data = statistics_data.lock().await;
+                            statistics_data.subscriber_count += 1;
                         }
                         TransceiverEvent::UnSubscribe { info } => {
                             match info.sub_type {
