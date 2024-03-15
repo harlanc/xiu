@@ -5,6 +5,7 @@ use serde::Serialize;
 pub enum SoundFormat {
     #[default]
     AAC = 10,
+    OPUS = 13,
 }
 
 pub mod aac_packet_type {

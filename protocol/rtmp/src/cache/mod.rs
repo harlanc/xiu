@@ -9,9 +9,7 @@ use {
     errors::CacheError,
     gop::Gop,
     std::collections::VecDeque,
-    streamhub::define::FrameData,
-    streamhub::statistics::avstatistics::AvStatistics,
-    streamhub::stream::StreamIdentifier,
+    streamhub::define::{FrameData, StatisticData, StatisticDataSender},
     xflv::{
         define,
         flv_tag_header::{AudioTagHeader, VideoTagHeader},
@@ -30,23 +28,13 @@ pub struct Cache {
     audio_seq: BytesMut,
     audio_timestamp: u32,
     gops: Gops,
-    pub av_statistics: AvStatistics,
-}
-
-impl Drop for Cache {
-    #[allow(unused_must_use)]
-    fn drop(&mut self) {
-        self.av_statistics.sender.send(true);
-    }
+    statistic_data_sender: Option<StatisticDataSender>,
 }
 
 impl Cache {
-    pub fn new(app_name: String, stream_name: String, gop_num: usize) -> Self {
-        let identifier = StreamIdentifier::Rtmp {
-            app_name,
-            stream_name,
-        };
-        let mut cache = Cache {
+    pub fn new(gop_num: usize, statistic_data_sender: Option<StatisticDataSender>) -> Self {
+        
+        Cache {
             metadata: metadata::MetaData::new(),
             metadata_timestamp: 0,
             video_seq: BytesMut::new(),
@@ -54,10 +42,8 @@ impl Cache {
             audio_seq: BytesMut::new(),
             audio_timestamp: 0,
             gops: Gops::new(gop_num),
-            av_statistics: AvStatistics::new(identifier),
-        };
-        cache.av_statistics.start();
-        cache
+            statistic_data_sender,
+        }
     }
 
     //, values: Vec<Amf0ValueType>
@@ -98,18 +84,36 @@ impl Cache {
             self.audio_seq = chunk_body.clone();
             self.audio_timestamp = timestamp;
 
-            let mut aac_processor = Mpeg4AacProcessor::default();
-            let aac = aac_processor
-                .extend_data(reader.extract_remaining_bytes())
-                .audio_specific_config_load()?;
-            self.av_statistics
-                .notify_audio_codec_info(&aac.mpeg4_aac)
-                .await;
+            if let Some(statistic_data_sender) = &self.statistic_data_sender {
+                let mut aac_processor = Mpeg4AacProcessor::default();
+
+                let aac = aac_processor
+                    .extend_data(reader.extract_remaining_bytes())
+                    .audio_specific_config_load()?;
+
+                let statistic_audio_codec = StatisticData::AudioCodec {
+                    sound_format: define::SoundFormat::AAC,
+                    profile: define::u8_2_aac_profile(aac.mpeg4_aac.object_type),
+                    samplerate: aac.mpeg4_aac.sampling_frequency,
+                    channels: aac.mpeg4_aac.channels,
+                };
+                if let Err(err) = statistic_data_sender.send(statistic_audio_codec) {
+                    log::error!("send statistic_data err: {}", err);
+                }
+            }
         }
 
-        self.av_statistics
-            .notify_audio_statistics_info(chunk_body.len(), tag_header.aac_packet_type)
-            .await;
+        if let Some(statistic_data_sender) = &self.statistic_data_sender {
+            let statistic_audio_data = StatisticData::Audio {
+                uuid: None,
+                data_size: chunk_body.len(),
+                aac_packet_type: tag_header.aac_packet_type,
+                duration: 0,
+            };
+            if let Err(err) = statistic_data_sender.send(statistic_audio_data) {
+                log::error!("send statistic_data err: {}", err);
+            }
+        }
 
         Ok(())
     }
@@ -151,21 +155,39 @@ impl Cache {
         self.gops.save_frame_data(channel_data, is_key_frame);
 
         if is_key_frame && tag_header.avc_packet_type == define::avc_packet_type::AVC_SEQHDR {
-            let mut avc_processor = Mpeg4AvcProcessor::default();
-            avc_processor.decoder_configuration_record_load(&mut reader)?;
-
-            self.av_statistics
-                .notify_video_codec_info(&avc_processor.mpeg4_avc)
-                .await;
-
             self.video_seq = chunk_body.clone();
             self.video_timestamp = timestamp;
+
+            if let Some(statistic_data_sender) = &self.statistic_data_sender {
+                let mut avc_processor = Mpeg4AvcProcessor::default();
+                avc_processor.decoder_configuration_record_load(&mut reader)?;
+
+                let statistic_video_codec = StatisticData::VideoCodec {
+                    codec: define::AvcCodecId::H264,
+                    profile: define::u8_2_avc_profile(avc_processor.mpeg4_avc.profile),
+                    level: define::u8_2_avc_level(avc_processor.mpeg4_avc.level),
+                    width: avc_processor.mpeg4_avc.width,
+                    height: avc_processor.mpeg4_avc.height,
+                };
+                if let Err(err) = statistic_data_sender.send(statistic_video_codec) {
+                    log::error!("send statistic_data err: {}", err);
+                }
+            }
         }
 
-        self.av_statistics
-            .notify_video_statistics_info(chunk_body.len(), is_key_frame)
-            .await;
+        if let Some(statistic_data_sender) = &self.statistic_data_sender {
+            let statistic_video_data = StatisticData::Video {
+                uuid: None,
+                data_size: chunk_body.len(),
+                frame_count: 1,
+                is_key_frame: Some(is_key_frame),
+                duration: 0,
+            };
 
+            if let Err(err) = statistic_data_sender.send(statistic_video_data) {
+                log::error!("send statistic_data err: {}", err);
+            }
+        }
         Ok(())
     }
 

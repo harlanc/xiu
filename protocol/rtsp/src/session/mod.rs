@@ -56,7 +56,7 @@ use streamhub::{
         StreamHubEvent, StreamHubEventSender, SubscribeType, SubscriberInfo, TStreamHandler,
     },
     errors::{StreamHubError, StreamHubErrorValue},
-    statistics::StreamStatistics,
+    statistics::StatisticsStream,
     stream::StreamIdentifier,
     utils::{RandomDigitCount, Uuid},
 };
@@ -498,7 +498,7 @@ impl RtspServerSession {
             });
         }
 
-        let mut receiver = event_result_receiver.await??.frame_receiver.unwrap();
+        let mut receiver = event_result_receiver.await??.0.frame_receiver.unwrap();
 
         let mut retry_times = 0;
         loop {
@@ -832,7 +832,7 @@ impl TStreamHandler for RtspStreamHandler {
 
         Ok(())
     }
-    async fn get_statistic_data(&self) -> Option<StreamStatistics> {
+    async fn get_statistic_data(&self) -> Option<StatisticsStream> {
         None
     }
 

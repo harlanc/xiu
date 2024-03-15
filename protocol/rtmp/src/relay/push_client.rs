@@ -53,8 +53,8 @@ impl PushClient {
                             stream,
                             ClientType::Publish,
                             self.address.clone(),
-                            app_name.clone(),
-                            stream_name.clone(),
+                            app_name,
+                            stream_name,
                             self.channel_event_producer.clone(),
                             0,
                         );

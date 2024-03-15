@@ -128,7 +128,7 @@ impl FlvDataReceiver {
             });
         }
 
-        let receiver = event_result_receiver.await??.frame_receiver.unwrap();
+        let receiver = event_result_receiver.await??.0.frame_receiver.unwrap();
 
         self.data_consumer = receiver;
 

@@ -31,7 +31,6 @@ pub struct Whip2RtmpRemuxerSession {
     app_name: String,
     stream_name: String,
 
-    publishe_id: Uuid,
     //WHIP
     data_receiver: FrameDataReceiver,
 
@@ -84,7 +83,6 @@ impl Whip2RtmpRemuxerSession {
             event_producer: event_producer.clone(),
 
             subscribe_id: Uuid::new(RandomDigitCount::Four),
-            publishe_id: Uuid::new(RandomDigitCount::Four),
             video_clock_rate: 1000,
             audio_clock_rate: 1000,
             base_audio_timestamp: 0,
@@ -107,23 +105,14 @@ impl Whip2RtmpRemuxerSession {
 
     pub async fn publish_rtmp(&mut self) -> Result<(), RtmpRemuxerError> {
         self.rtmp_handler
-            .publish_to_channels(
-                self.app_name.clone(),
-                self.stream_name.clone(),
-                self.publishe_id,
-                1,
-            )
+            .publish_to_channels(self.app_name.clone(), self.stream_name.clone(), 1)
             .await?;
         Ok(())
     }
 
     pub async fn unpublish_rtmp(&mut self) -> Result<(), RtmpRemuxerError> {
         self.rtmp_handler
-            .unpublish_to_channels(
-                self.app_name.clone(),
-                self.stream_name.clone(),
-                self.publishe_id,
-            )
+            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
             .await?;
         Ok(())
     }
@@ -156,7 +145,7 @@ impl Whip2RtmpRemuxerSession {
             });
         }
 
-        let receiver = event_result_receiver.await??;
+        let receiver = event_result_receiver.await??.0;
         self.data_receiver = receiver.frame_receiver.unwrap();
         Ok(())
     }
