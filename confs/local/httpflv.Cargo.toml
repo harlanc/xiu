@@ -13,15 +13,16 @@ edition = "2018"
 [dependencies]
 byteorder = "1.4.2"
 bytes = "1.0.0"
-failure = "0.1.1"
+failure = "0.1.8"
 log = "0.4"
 axum = { version = "0.7.4" }
 futures = "0.3"
+chrono = "0.4"
 
 streamhub = { path = "../../library/streamhub/" }
 xflv = { path = "../../library/container/flv/" }
-rtmp = { path = "../rtmp/" }                      #"0.0.4"
 commonlib = { path = "../../library/common/" }
+
 [dependencies.tokio]
 version = "1.4.0"
 default-features = false

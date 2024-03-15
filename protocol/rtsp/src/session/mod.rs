@@ -6,7 +6,7 @@ use crate::global_trait::Unmarshal;
 
 use crate::rtp::define::ANNEXB_NALU_START_CODE;
 use crate::rtp::utils::Marshal as RtpMarshal;
-use chrono::serde;
+
 use commonlib::http::HttpRequest as RtspRequest;
 use commonlib::http::HttpResponse as RtspResponse;
 use commonlib::http::Marshal as RtspMarshal;
@@ -241,8 +241,8 @@ impl RtspServerSession {
                 self.handle_setup(&rtsp_request).await?;
             }
             rtsp_method_name::PLAY => {
-                if self.handle_play(&rtsp_request).await.is_err() {
-                    self.unsubscribe_from_stream_hub(rtsp_request.uri.path)?;
+                if let Err(err) = self.handle_play(&rtsp_request).await {
+                    log::info!("handle_play error: {}", err);
                 }
             }
             rtsp_method_name::RECORD => {

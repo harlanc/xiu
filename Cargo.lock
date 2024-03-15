@@ -448,6 +448,7 @@ dependencies = [
  "js-sys",
  "num-integer",
  "num-traits",
+ "serde",
  "time 0.1.44",
  "wasm-bindgen",
  "winapi",
@@ -1320,6 +1321,7 @@ dependencies = [
  "axum 0.7.4",
  "byteorder",
  "bytes",
+ "chrono",
  "commonlib",
  "failure",
  "futures",
@@ -3856,6 +3858,7 @@ dependencies = [
  "lazy_static",
  "log",
  "rand 0.8.5",
+ "serde_json",
  "streamhub 0.1.1",
  "tokio",
 ]
