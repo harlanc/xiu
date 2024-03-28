@@ -84,6 +84,11 @@ impl StreamDataTransceiver {
                     data: _,
                 } => {}
                 FrameData::Audio { timestamp, data } => {
+                    if data.len() <= 4 {
+                        log::info!("ignore received Audio Frame with len {}", data.len());
+                        return;
+                    }
+
                     let data = FrameData::Audio {
                         timestamp,
                         data: data.clone(),

@@ -436,7 +436,17 @@ impl Mpeg4AacProcessor {
             0xF0 /* 12-syncword */ | (id << 3)/*1-ID*/| 0x01, /*1-protection_absent*/
         )?; //1
 
-        let profile = self.mpeg4_aac.object_type;
+        // workaround: profile - 1 overflow error. If profile == 0:reserved, then force
+        // profile to 2:AAC_LC.
+        // If publish pure AAC file to RTMP by ffmpeg, the AAC object type is 0:reserved,
+        // If publish a opus file to RTMP, ffmpeg will convert opus to aac, then use FLV as container,
+        // the object type is normal 2:AAC_LC.
+        let profile = if self.mpeg4_aac.object_type > 0 {
+            self.mpeg4_aac.object_type
+        } else {
+            2
+        };
+
         let sampling_frequency_index = self.mpeg4_aac.sampling_frequency_index;
         let channel_configuration = self.mpeg4_aac.channel_configuration;
         self.bytes_writer.write_u8(
