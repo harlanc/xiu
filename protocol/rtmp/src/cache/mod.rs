@@ -33,7 +33,6 @@ pub struct Cache {
 
 impl Cache {
     pub fn new(gop_num: usize, statistic_data_sender: Option<StatisticDataSender>) -> Self {
-        
         Cache {
             metadata: metadata::MetaData::new(),
             metadata_timestamp: 0,
@@ -78,7 +77,10 @@ impl Cache {
         let mut reader = BytesReader::new(chunk_body.clone());
         let tag_header = AudioTagHeader::unmarshal(&mut reader)?;
 
-        if tag_header.sound_format == define::SoundFormat::AAC as u8
+        let remain_bytes = reader.extract_remaining_bytes();
+
+        if remain_bytes.len() >= 2
+            && tag_header.sound_format == define::SoundFormat::AAC as u8
             && tag_header.aac_packet_type == define::aac_packet_type::AAC_SEQHDR
         {
             self.audio_seq = chunk_body.clone();
@@ -88,7 +90,7 @@ impl Cache {
                 let mut aac_processor = Mpeg4AacProcessor::default();
 
                 let aac = aac_processor
-                    .extend_data(reader.extract_remaining_bytes())
+                    .extend_data(remain_bytes)
                     .audio_specific_config_load()?;
 
                 let statistic_audio_codec = StatisticData::AudioCodec {

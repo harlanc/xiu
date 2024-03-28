@@ -33,7 +33,11 @@ pub struct UdpIO {
 
 impl UdpIO {
     pub async fn new(remote_domain: String, remote_port: u16, local_port: u16) -> Option<Self> {
-        let remote_address = format!("{remote_domain}:{remote_port}");
+        let remote_address = if remote_domain == "localhost" {
+            format!("127.0.0.1:{remote_port}")
+        } else {
+            format!("{remote_domain}:{remote_port}")
+        };
         log::info!("remote address: {}", remote_address);
         let local_address = format!("0.0.0.0:{local_port}");
         if let Ok(local_socket) = UdpSocket::bind(local_address).await {
@@ -41,10 +45,13 @@ impl UdpIO {
                 if let Err(err) = local_socket.connect(remote_socket_addr).await {
                     log::info!("connect to remote udp socket error: {}", err);
                 }
+
+                return Some(Self {
+                    socket: local_socket,
+                });
+            } else {
+                log::error!("remote_address parse error: {:?}", remote_address);
             }
-            return Some(Self {
-                socket: local_socket,
-            });
         }
 
         None
@@ -75,7 +82,7 @@ impl TNetIO for UdpIO {
             Ok(data) => data,
             Err(err) => Err(BytesIOError {
                 value: BytesIOErrorValue::TimeoutError(err),
-            })
+            }),
         }
     }
 
@@ -120,7 +127,7 @@ impl TNetIO for TcpIO {
             Ok(data) => data,
             Err(err) => Err(BytesIOError {
                 value: BytesIOErrorValue::TimeoutError(err),
-            })
+            }),
         }
     }
 

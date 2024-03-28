@@ -185,7 +185,10 @@ impl FlvAudioTagDemuxer {
         if tag_header.sound_format == SoundFormat::AAC as u8 {
             match tag_header.aac_packet_type {
                 aac_packet_type::AAC_SEQHDR => {
-                    self.aac_processor.audio_specific_config_load()?;
+                    if self.aac_processor.bytes_reader.len() >= 2 {
+                        self.aac_processor.audio_specific_config_load()?;
+                    }
+
                     return Ok(FlvDemuxerAudioData::new());
                 }
                 aac_packet_type::AAC_RAW => {
