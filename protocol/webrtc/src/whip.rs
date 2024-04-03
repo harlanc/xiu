@@ -200,7 +200,7 @@ pub async fn handle_whip(
                         if attr.starts_with("rtpmap:") {
                             if let Ok(codec) = parse_rtpmap(&attr) {
                                 log::info!("codec: {}", codec);
-                                match codec.name.as_str() {
+                                match codec.name.to_uppercase().as_str() {
                                     "H264" => {
                                         video_codec = codec;
                                     }
