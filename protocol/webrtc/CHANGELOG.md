@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [0.3.3] - 2021-04-03
 - Fix bug that the whip stream can not be established successfully.
 - Fix the issue of not correctly recognizing Opus encoding parameters.
+- Fix the issue of not being able to read HTTP resources when pulling streams using the WHEP.
 
 ## [0.3.2] - 2021-03-15
 - Upgrade failure library.
