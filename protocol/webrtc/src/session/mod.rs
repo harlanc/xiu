@@ -114,12 +114,27 @@ impl WebRTCServerSession {
             let eles: Vec<&str> = http_request.uri.path.splitn(2, '/').collect();
             let pars_map = &http_request.query_pairs;
 
+            let exe_directory = if let Ok(mut exe_path) = std::env::current_exe() {
+                exe_path.pop();
+                exe_path.to_string_lossy().to_string()
+            } else {
+                "/app".to_string()
+            };
+
             let request_method = http_request.method.as_str();
             if request_method == http_method_name::GET {
                 let response = match http_request.uri.path.as_str() {
-                    "/" => Self::gen_file_response("./index.html"),
-                    "/whip.js" => Self::gen_file_response("./whip.js"),
-                    "/whep.js" => Self::gen_file_response("./whep.js"),
+                    "/" => Self::gen_file_response(
+                        format!("{}/{}", exe_directory, "index.html").as_str(),
+                    ),
+                    "/whip.js" => {
+                        Self::gen_file_response(format!("{}/{}", exe_directory, "whip.js").as_str())
+                    }
+
+                    "/whep.js" => {
+                        Self::gen_file_response(format!("{}/{}", exe_directory, "whep.js").as_str())
+                    }
+
                     _ => {
                         log::warn!(
                             "the http get path: {} is not supported.",

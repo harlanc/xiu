@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.12.6] - 2021-04-03
+- Fix bug that the whip stream can not be established successfully #111.
+- Fix the issue of not correctly recognizing Opus encoding parameters.
+- Fix the issue of not being able to read HTTP resources when pulling streams using the WHEP.
+
 ## [0.12.5]
 - Support querying more detailed statistic data by adding two new HTTP APIs.
 - Fix publishing RTSP stream error caused by network problem. by @bailb
