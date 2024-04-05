@@ -63,8 +63,18 @@ impl M3u8 {
         stream_name: String,
         need_record: bool,
     ) -> Self {
-        let m3u8_folder = format!("./{app_name}/{stream_name}");
+        let exe_directory = if let Ok(mut exe_path) = std::env::current_exe() {
+            exe_path.pop();
+            exe_path.to_string_lossy().to_string()
+        } else {
+            log::error!("cannot get current exe path, using /app");
+            "/app".to_string()
+        };
+
+        let m3u8_folder = format!("{exe_directory}/{app_name}/{stream_name}");
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
+
+        log::info!("m3u8 folder: {m3u8_folder}");
 
         let live_m3u8_name = format!("{stream_name}.m3u8");
         let vod_m3u8_name = if need_record {
