@@ -77,7 +77,7 @@ Start the service with the following command to get help:
     Options:
       -c, --config <path>   Specify the xiu server configuration file path.
       -r, --rtmp <port>     Specify the RTMP listening port(e.g.:1935).
-      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:554).
+      -t, --rtsp <port>     Specify the rtsp listening port.(e.g.:5544).
       -w, --webrtc <port>   Specify the whip/whep listening port.(e.g.:8900).
       -f, --httpflv <port>  Specify the HTTP-FLV listening port(e.g.:8080).
       -s, --hls <port>      Specify the HLS listening port(e.g.:8081).
@@ -164,14 +164,14 @@ You can use command line to configure the xiu server easily. You can specify to 
     # true or false to enable or disable the feature
     enabled = true
     # listening port
-    port = 8081
+    port = 8080
 
 ##### HLS
     [hls]
     # true or false to enable or disable the feature
     enabled = true
     # listening port
-    port = 8080
+    port = 8081
     # need record the live stream or not
     need_record = true
 
@@ -240,8 +240,8 @@ Use ffplay to play the rtmp/rtsp/httpflv/hls live stream:
     ffplay -i rtmp://localhost:1935/live/test
     ffplay -i rtsp://127.0.0.1:5544/live/test
     ffplay -rtsp_transport tcp -i rtsp://127.0.0.1:5544/live/test
-    ffplay -i http://localhost:8081/live/test.flv
-    ffplay -i http://localhost:8080/live/test/test.m3u8
+    ffplay -i http://localhost:8080/live/test.flv
+    ffplay -i http://localhost:8081/live/test/test.m3u8
 
 - How to play WebRTC stream*(Whep)
 
