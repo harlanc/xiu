@@ -137,6 +137,10 @@ impl Flv2HlsRemuxer {
                 dts = data.dts;
                 pid = self.audio_pid;
                 payload.extend_from_slice(&data.data[..]);
+
+                if dts - self.last_ts_dts >= self.duration * 1000 {
+                    self.need_new_segment = true;
+                }
             }
             _ => return Ok(()),
         }

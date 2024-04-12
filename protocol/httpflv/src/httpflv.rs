@@ -26,6 +26,10 @@ pub struct HttpFlv {
 
     muxer: FlvMuxer,
 
+    has_audio: bool,
+    has_video: bool,
+    has_send_header: bool,
+
     event_producer: StreamHubEventSender,
     data_receiver: FrameDataReceiver,
     /* now used for subscriber session */
@@ -52,6 +56,9 @@ impl HttpFlv {
             app_name,
             stream_name,
             muxer: FlvMuxer::new(),
+            has_audio: false,
+            has_video: false,
+            has_send_header: false,
             data_receiver,
             statistic_data_sender: None,
             event_producer,
@@ -70,14 +77,56 @@ impl HttpFlv {
     }
 
     pub async fn send_media_stream(&mut self) -> Result<(), HttpFLvError> {
-        self.muxer.write_flv_header()?;
-        self.muxer.write_previous_tag_size(0)?;
-
-        self.flush_response_data()?;
         let mut retry_count = 0;
+
+        let mut max_av_frame_num_to_guess_av = 0;
+        // the first av frames are sequence configs, must be cached;
+        let mut cached_frames = Vec::new();
         //write flv body
         loop {
             if let Some(data) = self.data_receiver.recv().await {
+                if !self.has_send_header {
+                    max_av_frame_num_to_guess_av += 1;
+
+                    match data {
+                        FrameData::Audio {
+                            timestamp: _,
+                            data: _,
+                        } => {
+                            self.has_audio = true;
+                            cached_frames.push(data);
+                        }
+                        FrameData::Video {
+                            timestamp: _,
+                            data: _,
+                        } => {
+                            self.has_video = true;
+                            cached_frames.push(data);
+                        }
+                        FrameData::MetaData {
+                            timestamp: _,
+                            data: _,
+                        } => cached_frames.push(data),
+                        _ => {}
+                    }
+
+                    if (self.has_audio && self.has_video) || max_av_frame_num_to_guess_av > 10 {
+                        self.has_send_header = true;
+                        self.muxer
+                            .write_flv_header(self.has_audio, self.has_video)?;
+                        self.muxer.write_previous_tag_size(0)?;
+
+                        self.flush_response_data()?;
+
+                        for frame in &cached_frames {
+                            self.write_flv_tag(frame.clone())?;
+                        }
+                        cached_frames.clear();
+                    }
+
+                    continue;
+                }
+
                 if let Err(err) = self.write_flv_tag(data) {
                     if let HttpFLvErrorValue::MpscSendError(err_in) = &err.value {
                         if err_in.is_disconnected() {
