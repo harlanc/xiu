@@ -3,7 +3,7 @@ use {
         body::Body,
         extract::{Request, State},
         handler::Handler,
-        http::StatusCode,
+        http::{HeaderValue, StatusCode},
         response::Response,
     },
     commonlib::auth::Auth,
@@ -81,7 +81,18 @@ async fn simple_file_send(filename: &str) -> Response<Body> {
     if let Ok(file) = File::open(filename).await {
         let stream = FramedRead::new(file, BytesCodec::new());
         let body = Body::from_stream(stream);
-        return Response::new(body);
+        let mut response = Response::new(body);
+        let headers = response.headers_mut();
+        headers.insert("Access-Control-Allow-Origin", HeaderValue::from_static("*"));
+        headers.insert(
+            "Access-Control-Allow-Methods",
+            HeaderValue::from_static("GET, POST, OPTIONS"),
+        );
+        headers.insert(
+            "Access-Control-Allow-Headers",
+            HeaderValue::from_static("*"),
+        );
+        return response;
     }
 
     not_found()
