@@ -48,6 +48,7 @@ use define::rtsp_method_name;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 use commonlib::auth::Auth;
@@ -150,7 +151,12 @@ impl RtspServerSession {
                 match data {
                     Some(a) => {
                         if self.reader.len() < a.length as usize {
-                            let data = self.io.lock().await.read().await?;
+                            let data = self
+                                .io
+                                .lock()
+                                .await
+                                .read_min_bytes_with_timeout(Duration::from_millis(1000), a.length.into())
+                                .await?;
                             self.reader.extend_from_slice(&data[..]);
                         }
                         self.on_rtp_over_rtsp_message(a.channel_identifier, a.length as usize)
