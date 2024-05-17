@@ -55,7 +55,7 @@ Xiu is a simple,high performance and secure live media server written in pure Ru
 
 
 ## Contributors
-<a href="https://github.com/bytedance/monoio/graphs/contributors"><img src="https://opencollective.com/xiu/contributors.svg?width=890&button=false" /></a>
+<a href="https://github.com/harlanc/xiu/graphs/contributors"><img src="https://opencollective.com/xiu/contributors.svg?width=890&button=false" /></a>
 
 Thanks for their contributions!
 
