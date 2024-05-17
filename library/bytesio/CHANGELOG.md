@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.3.3] - 2021-05-18
+- Support localhost domain.
+
 ## [0.3.2] - 2021-03-15
 - Upgrade failure library.
 

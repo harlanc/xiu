@@ -1,7 +1,7 @@
 [package]
 name = "hls"
 description = "hls library."
-version = "0.5.3"
+version = "0.5.4"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -18,9 +18,9 @@ log = "0.4"
 axum = { version = "0.7.4" }
 tokio-util = { version = "0.6.5", features = ["codec"] }
 
-streamhub = "0.2.2"
-xflv = "0.4.2"
-xmpegts = "0.2.2"
+streamhub = "0.2.3"
+xflv = "0.4.3"
+xmpegts = "0.2.3"
 commonlib = "0.1.1"
 
 [dependencies.tokio]

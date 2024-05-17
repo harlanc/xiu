@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.3.4] - 2021-05-18
+- Reference bytesio v0.3.3.
+
 ## [0.3.3] - 2021-04-03
 - Fix bug that the whip stream can not be established successfully.
 - Fix the issue of not correctly recognizing Opus encoding parameters.

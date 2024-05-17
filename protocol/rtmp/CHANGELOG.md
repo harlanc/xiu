@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
-- Fix: RTMP Auth failing due to empty string query string in packet
+
+
+## [0.6.4] - 2021-05-18
+- Fix: RTMP publish single AAC from ffmpeg client. 
+- Fix: RTMP Auth failing due to empty string query string in packet.
 
 ## [0.6.3] - 2021-03-15
 - Upgrade failure library.

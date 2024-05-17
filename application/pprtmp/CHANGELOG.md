@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.3] - 2021-05-18
+- Reference new RTMP and streamhub versions.
+
 ## [0.1.1]
 
 ## [0.1.0]

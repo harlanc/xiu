@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "bytesio"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -1358,7 +1358,7 @@ version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "failure",
  "log",
 ]
@@ -2508,7 +2508,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "chrono",
  "commonlib",
  "failure",
@@ -2892,7 +2892,7 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "chrono",
  "failure",
  "indexmap 1.9.3",
@@ -3957,7 +3957,7 @@ version = "0.3.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "failure",
  "h264-decoder 0.2.0",
  "indexmap 1.9.3",
@@ -4012,7 +4012,7 @@ version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "failure",
 ]
 
@@ -4024,7 +4024,7 @@ dependencies = [
  "base64 0.21.2",
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "chrono",
  "commonlib",
  "failure",
@@ -4047,7 +4047,7 @@ dependencies = [
  "audiopus",
  "byteorder",
  "bytes",
- "bytesio 0.3.2",
+ "bytesio 0.3.3",
  "commonlib",
  "failure",
  "fdk-aac",

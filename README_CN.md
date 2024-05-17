@@ -307,6 +307,10 @@ OBS（3.0或者更高版本）支持whip协议，按照如下配置推流：
 
     ffplay -i rtmp://localhost:1935/live/test
     ffplay -i rtmp://localhost:1936/live/test
+
+## Contributors
+
+<a href="https://github.com/harlanc/xiu/graphs/contributors"><img src="https://opencollective.com/monoio/contributors.svg?width=890&button=false"/></a>
     
 ## Star History
 

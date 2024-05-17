@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.12.7] - 2021-05-18
+- Fix: RTMP publish single AAC from ffmpeg client.  by @suzp1984
+- Fix: RTMP Auth failing due to empty string query string in packet. by @radiohertz
+- Improve: the xiu application README for new beginners. by @radiohertz
+- Fix: the xiu application version.
+
 ## [0.12.6] - 2021-04-03
 - Fix bug that the whip stream can not be established successfully #111.
 - Fix the issue of not correctly recognizing Opus encoding parameters.
