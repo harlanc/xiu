@@ -438,7 +438,11 @@ impl ServerSession {
 
         let app_name = command_obj.get("app");
         self.app_name = match app_name {
-            Some(Amf0ValueType::UTF8String(app)) => app.clone(),
+            Some(Amf0ValueType::UTF8String(app)) => {
+                // the value can weirdly have the query params, lets just remove it
+                // example: live/stream?token=123
+                app.split(&['?', '/']).next().unwrap_or(app).to_string()
+            }
             _ => {
                 return Err(SessionError {
                     value: SessionErrorValue::NoAppName,
@@ -672,9 +676,28 @@ impl ServerSession {
             }
         };
 
-        (self.stream_name, self.query) =
-            RtmpUrlParser::parse_stream_name_with_query(&stream_name_with_query);
+        if !stream_name_with_query.is_empty() {
+            (self.stream_name, self.query) =
+                RtmpUrlParser::parse_stream_name_with_query(&stream_name_with_query);
+        } else {
+            log::warn!("stream_name_with_query is empty, extracing info from swf_url instead...");
+            let mut url = RtmpUrlParser::new(
+                self.connect_properties
+                    .swf_url
+                    .clone()
+                    .unwrap_or("".to_string()),
+            );
 
+            match url.parse_url() {
+                Ok(_) => {
+                    self.stream_name = url.stream_name;
+                    self.query = url.query;
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse swf_url: {e}");
+                }
+            }
+        }
         if let Some(auth) = &self.auth {
             auth.authenticate(&self.stream_name, &self.query, false)?
         }
