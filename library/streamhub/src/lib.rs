@@ -516,11 +516,11 @@ pub struct StreamsHub {
     //enable hls
     hls_enabled: bool,
     //http notifier on sub/pub event
-    notifier: Option<Notifier>,
+    notifier: Option<Arc<dyn Notifier>>,
 }
 
 impl StreamsHub {
-    pub fn new(notifier: Option<Notifier>) -> Self {
+    pub fn new(notifier: Option<Arc<dyn Notifier>>) -> Self {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
         let (client_producer, _) = broadcast::channel(100);
 
@@ -566,15 +566,9 @@ impl StreamsHub {
     }
 
     pub async fn event_loop(&mut self) {
-        while let Some(message) = self.hub_event_receiver.recv().await {
-            let event_serialize_str = if let Ok(data) = serde_json::to_string(&message) {
-                log::info!("event data: {}", data);
-                data
-            } else {
-                String::from("empty body")
-            };
-
-            match message {
+        while let Some(event) = self.hub_event_receiver.recv().await {
+            let message = event.to_message();
+            match event {
                 StreamHubEvent::Publish {
                     identifier,
                     info,
@@ -627,7 +621,7 @@ impl StreamsHub {
                     {
                         Ok(statistic_data_sender) => {
                             if let Some(notifier) = &self.notifier {
-                                notifier.on_publish_notify(event_serialize_str).await;
+                                notifier.on_publish_notify(&message).await;
                             }
                             self.un_pub_sub_events
                                 .insert(info.id, StreamHubEvent::UnPublish { identifier, info });
@@ -658,7 +652,7 @@ impl StreamsHub {
                     }
 
                     if let Some(notifier) = &self.notifier {
-                        notifier.on_unpublish_notify(event_serialize_str).await;
+                        notifier.on_unpublish_notify(&message).await;
                     }
                 }
                 StreamHubEvent::Subscribe {
@@ -700,7 +694,7 @@ impl StreamsHub {
                     let rv = match self.subscribe(&identifier, info_clone, sender).await {
                         Ok(statistic_data_sender) => {
                             if let Some(notifier) = &self.notifier {
-                                notifier.on_play_notify(event_serialize_str).await;
+                                notifier.on_play_notify(&message).await;
                             }
 
                             self.un_pub_sub_events
@@ -720,7 +714,7 @@ impl StreamsHub {
                 StreamHubEvent::UnSubscribe { identifier, info } => {
                     if self.unsubscribe(&identifier, info).is_ok() {
                         if let Some(notifier) = &self.notifier {
-                            notifier.on_stop_notify(event_serialize_str).await;
+                            notifier.on_stop_notify(&message).await;
                         }
                     }
                 }
@@ -999,7 +993,7 @@ impl StreamsHub {
             None => {
                 return Err(StreamHubError {
                     value: StreamHubErrorValue::NoAppName,
-                })
+                });
             }
         }
 

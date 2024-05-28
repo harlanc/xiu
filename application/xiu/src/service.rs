@@ -1,6 +1,6 @@
 use commonlib::auth::AuthType;
 use rtmp::remuxer::RtmpRemuxer;
-
+use std::sync::Arc;
 use crate::config::{AuthConfig, AuthSecretConfig};
 
 use {
@@ -16,7 +16,7 @@ use {
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
-    streamhub::{notify::Notifier, StreamsHub},
+    streamhub::{notify::Notifier, notify::http::HttpNotifier, StreamsHub},
     tokio,
     xrtsp::rtsp::RtspServer,
     xwebrtc::webrtc::WebRTCServer,
@@ -61,16 +61,16 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let notifier = if let Some(httpnotifier) = &self.cfg.httpnotify {
+        let notifier: Option<Arc<dyn Notifier>> = if let Some(httpnotifier) = &self.cfg.httpnotify {
             if !httpnotifier.enabled {
                 None
             } else {
-                Some(Notifier::new(
+                Some(Arc::new(HttpNotifier::new(
                     httpnotifier.on_publish.clone(),
                     httpnotifier.on_unpublish.clone(),
                     httpnotifier.on_play.clone(),
                     httpnotifier.on_stop.clone(),
-                ))
+                )))
             }
         } else {
             None
