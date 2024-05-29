@@ -225,6 +225,27 @@ pub enum PubDataType {
     Both,
 }
 
+#[derive(Clone, Serialize)]
+pub enum StreamHubEventMessage {
+    Subscribe {
+        identifier: StreamIdentifier,
+        info: SubscriberInfo,
+    },
+    UnSubscribe {
+        identifier: StreamIdentifier,
+        info: SubscriberInfo,
+    },
+    Publish {
+        identifier: StreamIdentifier,
+        info: PublisherInfo,
+    },
+    UnPublish {
+        identifier: StreamIdentifier,
+        info: PublisherInfo,
+    },
+    NotSupport {},
+}
+
 #[derive(Serialize)]
 pub enum StreamHubEvent {
     Subscribe {
@@ -264,6 +285,28 @@ pub enum StreamHubEvent {
         identifier: StreamIdentifier,
         sender: InformationSender,
     },
+}
+
+impl StreamHubEvent {
+    pub fn to_message(&self) -> StreamHubEventMessage {
+        match self {
+            StreamHubEvent::Subscribe { identifier, info, result_sender: _result_sender } => {
+                StreamHubEventMessage::Subscribe { identifier: identifier.clone(), info: info.clone() }
+            }
+            StreamHubEvent::UnSubscribe { identifier, info } => {
+                StreamHubEventMessage::UnSubscribe { identifier: identifier.clone(), info: info.clone() }
+            }
+            StreamHubEvent::Publish { identifier, info, result_sender: _result_sender, stream_handler: _stream_handler } => {
+                StreamHubEventMessage::Publish { identifier: identifier.clone(), info: info.clone() }
+            }
+            StreamHubEvent::UnPublish { identifier, info } => {
+                StreamHubEventMessage::UnPublish { identifier: identifier.clone(), info: info.clone() }
+            }
+            _ => {
+                StreamHubEventMessage::NotSupport {}
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
