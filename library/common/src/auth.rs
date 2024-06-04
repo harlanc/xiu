@@ -26,6 +26,7 @@ pub struct Auth {
     algorithm: AuthAlgorithm,
     key: String,
     password: String,
+    push_password: Option<String>,
     pub auth_type: AuthType,
 }
 
@@ -33,6 +34,7 @@ impl Auth {
     pub fn new(
         key: String,
         password: String,
+        push_password: Option<String>,
         algorithm: AuthAlgorithm,
         auth_type: AuthType,
     ) -> Self {
@@ -40,6 +42,7 @@ impl Auth {
             algorithm,
             key,
             password,
+            push_password,
             auth_type,
         }
     }
@@ -70,7 +73,7 @@ impl Auth {
                 }
 
                 if let Some(token) = query_pairs.get("token") {
-                    if self.check(stream_name, token) {
+                    if self.check(stream_name, token, is_pull) {
                         return Ok(());
                     }
                     auth_err_reason = format!("token is not correct: {}", token);
@@ -90,11 +93,15 @@ impl Auth {
         Ok(())
     }
 
-    fn check(&self, stream_name: &String, auth_str: &str) -> bool {
+    fn check(&self, stream_name: &String, auth_str: &str, is_pull: bool) -> bool {
+        let password = if is_pull {
+            &self.password
+        } else {
+            self.push_password.as_ref().unwrap_or(&self.password)
+        };
+
         match self.algorithm {
-            AuthAlgorithm::Simple => {
-                self.password == auth_str
-            }
+            AuthAlgorithm::Simple => password == auth_str,
             AuthAlgorithm::Md5 => {
                 let raw_data = format!("{}{}", self.key, stream_name);
                 let digest_str = format!("{:x}", md5::compute(raw_data));

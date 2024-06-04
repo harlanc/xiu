@@ -52,6 +52,7 @@ impl Service {
             Some(Auth::new(
                 authsecret.key.clone(),
                 authsecret.password.clone(),
+                authsecret.push_password.clone(),
                 cfg.algorithm.clone(),
                 auth_type,
             ))
