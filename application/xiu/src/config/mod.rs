@@ -187,6 +187,7 @@ pub struct HttpNotifierConfig {
 pub struct AuthSecretConfig {
     pub key: String,
     pub password: String,
+    pub push_password: Option<String>
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
