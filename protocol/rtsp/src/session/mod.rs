@@ -7,6 +7,7 @@ use crate::global_trait::Unmarshal;
 use crate::rtp::define::ANNEXB_NALU_START_CODE;
 use crate::rtp::utils::Marshal as RtpMarshal;
 
+use commonlib::auth::SecretCarrier;
 use commonlib::http::HttpRequest as RtspRequest;
 use commonlib::http::HttpResponse as RtspResponse;
 use commonlib::http::Marshal as RtspMarshal;
@@ -314,7 +315,15 @@ impl RtspServerSession {
     async fn handle_announce(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
         if let Some(auth) = &self.auth {
             let stream_name = rtsp_request.uri.path.clone();
-            auth.authenticate(&stream_name, &rtsp_request.uri.query, false)?;
+            auth.authenticate(
+                &stream_name,
+                &rtsp_request
+                    .uri
+                    .query
+                    .as_ref()
+                    .map(|q| SecretCarrier::Query(q.to_string())),
+                false,
+            )?;
         }
 
         if let Some(request_body) = &rtsp_request.body {
@@ -465,7 +474,15 @@ impl RtspServerSession {
     async fn handle_play(&mut self, rtsp_request: &RtspRequest) -> Result<(), SessionError> {
         if let Some(auth) = &self.auth {
             let stream_name = rtsp_request.uri.path.clone();
-            auth.authenticate(&stream_name, &rtsp_request.uri.query, true)?;
+            auth.authenticate(
+                &stream_name,
+                &rtsp_request
+                    .uri
+                    .query
+                    .as_ref()
+                    .map(|q| SecretCarrier::Query(q.to_string())),
+                true,
+            )?;
         }
 
         for track in self.tracks.values_mut() {
