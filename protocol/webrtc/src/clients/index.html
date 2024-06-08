@@ -88,9 +88,11 @@
         <label for="app-name">App Name:</label>
         <input type="text" id="app-name" name="app-name" value="live">
         <label for="stream-name">Stream Name:</label>
-        <input type="text" id="stream-name" name="stream-name" value="test">
+        <input type="text" id="stream-name" name="stream-name" value="test"><br>
         <label for="token">Token:</label>
         <input type="text" id="token" name="token" value="123">
+        <label for="use-header">Use Authorization header:</label>
+        <input type="checkbox" id="use-header" name="use-header">
         <br><br>
         <button id="start-whep-btn">Start WHEP</button>
     </div>
@@ -106,6 +108,7 @@
             const appName = document.getElementById("app-name").value;
             const streamName = document.getElementById("stream-name").value;
             const token = document.getElementById("token").value;
+            const useHeader = document.getElementById("use-header").checked;
 
             //Create peerconnection
             const pc = window.pc = new RTCPeerConnection();
@@ -126,11 +129,11 @@
             //Create whep client
             const whep = new WHEPClient();
 
-            const url = location.origin + "/whep?app=" + appName + "&stream=" + streamName + "&token=" + token;
+            const url = location.origin + "/whep?app=" + appName + "&stream=" + streamName + (!useHeader ? "&token=" + token : "");
             //const token = ""
 
             //Start viewing
-            whep.view(pc, url, token);
+            whep.view(pc, url, useHeader ? token : null);
 
         });
     </script>
