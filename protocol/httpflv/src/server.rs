@@ -7,7 +7,7 @@ use {
         http::StatusCode,
         response::Response,
     },
-    commonlib::auth::Auth,
+    commonlib::auth::{Auth, SecretCarrier},
     futures::channel::mpsc::unbounded,
     std::net::SocketAddr,
     streamhub::define::StreamHubEventSender,
@@ -37,7 +37,11 @@ async fn handle_connection(
 
             if let Some(auth_val) = auth {
                 if auth_val
-                    .authenticate(&stream_name, &query_string, true)
+                    .authenticate(
+                        &stream_name,
+                        &query_string.map(|q| SecretCarrier::Query(q)),
+                        true,
+                    )
                     .is_err()
                 {
                     return Response::builder()

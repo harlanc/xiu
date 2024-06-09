@@ -14,6 +14,49 @@ pub enum AuthAlgorithm {
     Md5,
 }
 
+pub enum SecretCarrier {
+    Query(String),
+    Bearer(String),
+}
+
+pub fn get_secret(carrier: &SecretCarrier) -> Result<String, AuthError> {
+    match carrier {
+        SecretCarrier::Query(query) => {
+            let mut query_pairs = IndexMap::new();
+            let pars_array: Vec<&str> = query.split('&').collect();
+            for ele in pars_array {
+                let (k, v) = scanf!(ele, '=', String, String);
+                if k.is_none() || v.is_none() {
+                    continue;
+                }
+                query_pairs.insert(k.unwrap(), v.unwrap());
+            }
+
+            query_pairs.get("token").map_or(
+                Err(AuthError {
+                    value: AuthErrorValue::NoTokenFound,
+                }),
+                |t| Ok(t.to_string()),
+            )
+        }
+        SecretCarrier::Bearer(header) => {
+            let invalid_format = Err(AuthError {
+                value: AuthErrorValue::InvalidTokenFormat,
+            });
+            let (prefix, token) = scanf!(header, " ", String, String);
+            if prefix.is_none() || token.is_none() {
+                invalid_format
+            } else {
+                if prefix.unwrap() != "Bearer" {
+                    invalid_format
+                } else {
+                    Ok(token.unwrap())
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum AuthType {
     Pull,
@@ -50,7 +93,7 @@ impl Auth {
     pub fn authenticate(
         &self,
         stream_name: &String,
-        query: &Option<String>,
+        secret: &Option<SecretCarrier>,
         is_pull: bool,
     ) -> Result<(), AuthError> {
         if self.auth_type == AuthType::Both
@@ -61,24 +104,13 @@ impl Auth {
             let mut err: AuthErrorValue = AuthErrorValue::NoTokenFound;
 
             /*Here we should do auth and it must be successful. */
-            if let Some(query_val) = query {
-                let mut query_pairs = IndexMap::new();
-                let pars_array: Vec<&str> = query_val.split('&').collect();
-                for ele in pars_array {
-                    let (k, v) = scanf!(ele, '=', String, String);
-                    if k.is_none() || v.is_none() {
-                        continue;
-                    }
-                    query_pairs.insert(k.unwrap(), v.unwrap());
+            if let Some(secret_value) = secret {
+                let token = get_secret(secret_value)?;
+                if self.check(stream_name, token.as_str(), is_pull) {
+                    return Ok(());
                 }
-
-                if let Some(token) = query_pairs.get("token") {
-                    if self.check(stream_name, token, is_pull) {
-                        return Ok(());
-                    }
-                    auth_err_reason = format!("token is not correct: {}", token);
-                    err = AuthErrorValue::TokenIsNotCorrect;
-                }
+                auth_err_reason = format!("token is not correct: {}", token);
+                err = AuthErrorValue::TokenIsNotCorrect;
             }
 
             log::error!(

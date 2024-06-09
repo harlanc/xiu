@@ -1,3 +1,5 @@
+use commonlib::auth::SecretCarrier;
+
 use crate::chunk::{errors::UnpackErrorValue, packetizer::ChunkPacketizer};
 
 use {
@@ -626,7 +628,14 @@ impl ServerSession {
         (self.stream_name, self.query) =
             RtmpUrlParser::parse_stream_name_with_query(&raw_stream_name);
         if let Some(auth) = &self.auth {
-            auth.authenticate(&self.stream_name, &self.query, true)?
+            auth.authenticate(
+                &self.stream_name,
+                &self
+                    .query
+                    .as_ref()
+                    .map(|q| SecretCarrier::Query(q.to_string())),
+                true,
+            )?
         }
 
         let query = if let Some(query_val) = &self.query {
@@ -699,7 +708,14 @@ impl ServerSession {
             }
         }
         if let Some(auth) = &self.auth {
-            auth.authenticate(&self.stream_name, &self.query, false)?
+            auth.authenticate(
+                &self.stream_name,
+                &self
+                    .query
+                    .as_ref()
+                    .map(|q| SecretCarrier::Query(q.to_string())),
+                false,
+            )?
         }
 
         /*Now it can update the request url*/

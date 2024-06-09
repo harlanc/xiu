@@ -6,7 +6,7 @@ use {
         http::StatusCode,
         response::Response,
     },
-    commonlib::auth::Auth,
+    commonlib::auth::{Auth, SecretCarrier},
     std::net::SocketAddr,
     tokio::{fs::File, net::TcpListener},
     tokio_util::codec::{BytesCodec, FramedRead},
@@ -36,7 +36,11 @@ async fn handle_connection(State(auth): State<Option<Auth>>, req: Request<Body>)
 
             if let Some(auth_val) = auth {
                 if auth_val
-                    .authenticate(&stream_name, &query_string, true)
+                    .authenticate(
+                        &stream_name,
+                        &query_string.map(|q| SecretCarrier::Query(q)),
+                        true,
+                    )
                     .is_err()
                 {
                     return Response::builder()

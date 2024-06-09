@@ -18,8 +18,8 @@ use std::io::Read;
 use std::{collections::HashMap, fs::File, sync::Arc};
 use tokio::net::TcpStream;
 
-use commonlib::define::http_method_name;
 use commonlib::http::{parse_content_length, HttpRequest, HttpResponse};
+use commonlib::{auth::SecretCarrier, define::http_method_name};
 
 use commonlib::http::Marshal as HttpMarshal;
 use commonlib::http::Unmarshal as HttpUnmarshal;
@@ -184,17 +184,28 @@ impl WebRTCServerSession {
                     );
                     let offer = RTCSessionDescription::offer(sdp_data.clone())?;
 
+                    let bearer_carrier = http_request
+                        .get_header(&"Authorization".to_string())
+                        .map(|header| SecretCarrier::Bearer(header.to_string()));
+                    let query_carrier = http_request
+                        .uri
+                        .query
+                        .as_ref()
+                        .map(|q| SecretCarrier::Query(q.to_string()));
+
+                    let token_carrier = bearer_carrier.or(query_carrier);
+
                     match t.to_lowercase().as_str() {
                         "whip" => {
                             if let Some(auth) = &self.auth {
-                                auth.authenticate(&stream_name, &http_request.uri.query, false)?;
+                                auth.authenticate(&stream_name, &token_carrier, false)?;
                             }
                             self.publish_whip(app_name, stream_name, path, offer)
                                 .await?;
                         }
                         "whep" => {
                             if let Some(auth) = &self.auth {
-                                auth.authenticate(&stream_name, &http_request.uri.query, true)?;
+                                auth.authenticate(&stream_name, &token_carrier, true)?;
                             }
                             self.subscribe_whep(app_name, stream_name, path, offer)
                                 .await?;
