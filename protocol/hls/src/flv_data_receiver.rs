@@ -51,7 +51,7 @@ impl FlvDataReceiver {
     }
 
     pub async fn run(&mut self) -> Result<(), HlsError> {
-        self.subscribe_from_rtmp_channels(self.app_name.clone(), self.stream_name.clone())
+        self.subscribe_from_stream_hub(self.app_name.clone(), self.stream_name.clone())
             .await?;
         self.receive_flv_data().await?;
 
@@ -85,14 +85,14 @@ impl FlvDataReceiver {
         }
 
         self.media_processor.clear_files()?;
-        self.unsubscribe_from_rtmp_channels().await
+        self.unsubscribe_from_stream_hub().await
     }
 
     pub fn flush_response_data(&mut self) -> Result<(), HlsError> {
         Ok(())
     }
 
-    pub async fn subscribe_from_rtmp_channels(
+    pub async fn subscribe_from_stream_hub(
         &mut self,
         app_name: String,
         stream_name: String,
@@ -100,7 +100,7 @@ impl FlvDataReceiver {
         /*the sub info is only used to transfer from RTMP to HLS, but not for client player */
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
-            sub_type: SubscribeType::GenerateHls,
+            sub_type: SubscribeType::RtmpRemux2Hls,
             sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -135,10 +135,10 @@ impl FlvDataReceiver {
         Ok(())
     }
 
-    pub async fn unsubscribe_from_rtmp_channels(&mut self) -> Result<(), HlsError> {
+    pub async fn unsubscribe_from_stream_hub(&mut self) -> Result<(), HlsError> {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
-            sub_type: SubscribeType::PlayerHls,
+            sub_type: SubscribeType::RtmpRemux2Hls,
             sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -156,7 +156,7 @@ impl FlvDataReceiver {
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}", err);
+            log::error!("unsubscribe_from_stream_hub err {}", err);
         }
 
         Ok(())

@@ -28,17 +28,24 @@ pub mod rtsp_method_name {
     ];
 }
 
-pub enum SessionType {
-    Client,
-    Server,
+pub enum ServerSessionType {
+    Pull,
+    Push,
 }
 
-impl fmt::Display for SessionType {
+pub enum ClientSessionType {
+    Pull,
+    Push,
+}
+
+impl fmt::Display for ServerSessionType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let client_type = match self {
-            SessionType::Client => String::from("client"),
-            SessionType::Server => String::from("server"),
+            ServerSessionType::Pull => String::from("pull"),
+            ServerSessionType::Push => String::from("push"),
         };
         write!(f, "{client_type}")
     }
 }
+
+pub const USER_AGENT: &str = "xiu 0.12.8";

@@ -164,7 +164,7 @@ impl ServerSession {
                 }
                 Err(err) => {
                     self.common
-                        .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                        .unpublish_to_stream_hub(self.app_name.clone(), self.stream_name.clone())
                         .await?;
 
                     return Err(SessionError {
@@ -196,7 +196,7 @@ impl ServerSession {
                 Err(err) => {
                     if let UnpackErrorValue::CannotParse = err.value {
                         self.common
-                            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+                            .unpublish_to_stream_hub(self.app_name.clone(), self.stream_name.clone())
                             .await?;
                         return Err(err)?;
                     }
@@ -212,7 +212,7 @@ impl ServerSession {
             Ok(_) => {}
             Err(err) => {
                 self.common
-                    .unsubscribe_from_channels(self.app_name.clone(), self.stream_name.clone())
+                    .unsubscribe_from_stream_hub(self.app_name.clone(), self.stream_name.clone())
                     .await?;
                 return Err(err);
             }
@@ -489,7 +489,7 @@ impl ServerSession {
         stream_id: &f64,
     ) -> Result<(), SessionError> {
         self.common
-            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .unpublish_to_stream_hub(self.app_name.clone(), self.stream_name.clone())
             .await?;
 
         let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
@@ -654,7 +654,7 @@ impl ServerSession {
         /*Now it can update the request url*/
         self.common.request_url = self.get_request_url(raw_stream_name);
         self.common
-            .subscribe_from_channels(self.app_name.clone(), self.stream_name.clone())
+            .subscribe_from_stream_hub(self.app_name.clone(), self.stream_name.clone())
             .await?;
 
         self.state = ServerSessionState::Play;
@@ -764,7 +764,7 @@ impl ServerSession {
         );
 
         self.common
-            .publish_to_channels(
+            .publish_to_stream_hub(
                 self.app_name.clone(),
                 self.stream_name.clone(),
                 self.gop_num,

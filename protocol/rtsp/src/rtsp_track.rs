@@ -62,6 +62,7 @@ impl RtspTrack {
             loop {
                 match rtp_io.read().await {
                     Ok(data) => {
+                        //log::info!("read rtp data");
                         reader.extend_from_slice(&data[..]);
                         if let Err(err) = rtp_channel_in.on_packet(&mut reader).await {
                             log::error!("rtp_receive_loop on_packet error: {}", err);

@@ -1,6 +1,6 @@
 use {
     super::errors::ClientError,
-    crate::session::client_session::{ClientSession, ClientType},
+    crate::session::client_session::{ClientSession, ClientSessionType},
     streamhub::{
         define::{StreamHubEventSender, BroadcastEvent, BroadcastEventReceiver},
         stream::StreamIdentifier,
@@ -51,7 +51,7 @@ impl PushClient {
 
                         let mut client_session = ClientSession::new(
                             stream,
-                            ClientType::Publish,
+                            ClientSessionType::Push,
                             self.address.clone(),
                             app_name,
                             stream_name,

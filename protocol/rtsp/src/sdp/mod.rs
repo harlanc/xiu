@@ -378,14 +378,14 @@ mod tests {
     }
     #[test]
     fn test_str() {
-        let fmts: Vec<u8> = vec![5];
-        // fmts.push(6);
-        let fmts_str = fmts
-            .iter()
-            .map(|b| b.to_string())
-            .collect::<Vec<String>>()
-            .join(" ");
+        //let fmts: Vec<u8> = vec![5];
+        //// fmts.push(6);
+        //let fmts_str = fmts
+        //    .iter()
+        //    .map(|b| b.to_string())
+        //    .collect::<Vec<String>>()
+        //    .join(" ");
 
-        println!("=={fmts_str}==");
+        //println!("=={fmts_str}==");
     }
 }
