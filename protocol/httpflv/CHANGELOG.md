@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.4.5] - 2021-08-11
+- some refactor work.
+
 ## [0.4.4] - 2021-05-18
 - fix RTMP publish single AAC from ffmpeg client.
 

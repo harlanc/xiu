@@ -2,7 +2,7 @@ use streamhub::stream::StreamIdentifier;
 
 use {
     super::errors::ClientError,
-    crate::session::client_session::{ClientSession, ClientType},
+    crate::session::client_session::{ClientSession, ClientSessionType},
     streamhub::define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
     tokio::net::TcpStream,
 };
@@ -32,11 +32,14 @@ impl PullClient {
             let event = self.client_event_consumer.recv().await?;
 
             if let BroadcastEvent::Subscribe {
+                id: _,
                 identifier:
                     StreamIdentifier::Rtmp {
                         app_name,
                         stream_name,
                     },
+                server_address: _,
+                result_sender: _,
             } = event
             {
                 log::info!(
@@ -48,7 +51,7 @@ impl PullClient {
 
                 let mut client_session = ClientSession::new(
                     stream,
-                    ClientType::Play,
+                    ClientSessionType::Pull,
                     self.address.clone(),
                     app_name.clone(),
                     stream_name.clone(),

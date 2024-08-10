@@ -488,7 +488,7 @@ impl WebRTCServerSession {
 
         SubscriberInfo {
             id,
-            sub_type: SubscribeType::PlayerWebrtc,
+            sub_type: SubscribeType::WhepPull,
             sub_data_type: streamhub::define::SubDataType::Packet,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -506,7 +506,7 @@ impl WebRTCServerSession {
 
         PublisherInfo {
             id,
-            pub_type: PublishType::PushWebRTC,
+            pub_type: PublishType::WhipPush,
             pub_data_type: streamhub::define::PubDataType::Both,
             notify_info: NotifyInfo {
                 request_url: String::from(""),

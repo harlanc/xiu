@@ -1,7 +1,8 @@
+use crate::config::{AuthConfig, AuthSecretConfig};
 use commonlib::auth::AuthType;
 use rtmp::remuxer::RtmpRemuxer;
 use std::sync::Arc;
-use crate::config::{AuthConfig, AuthSecretConfig};
+use xrtsp::relay::pull_client_manager::RtspPullClientManager;
 
 use {
     super::api,
@@ -16,7 +17,7 @@ use {
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
-    streamhub::{notify::Notifier, notify::http::HttpNotifier, StreamsHub},
+    streamhub::{notify::http::HttpNotifier, notify::Notifier, StreamsHub},
     tokio,
     xrtsp::rtsp::RtspServer,
     xwebrtc::webrtc::WebRTCServer,
@@ -255,6 +256,19 @@ impl Service {
                     log::error!("rtsp server error: {}", err);
                 }
             });
+
+            if rtsp_cfg_value.relay_enabled {
+                let mut rtsp_relay_manager = RtspPullClientManager::new(
+                    stream_hub.get_client_event_consumer(),
+                    stream_hub.get_hub_event_sender(),
+                );
+
+                tokio::spawn(async move {
+                    if let Err(err) = rtsp_relay_manager.run().await {
+                        log::error!("rtsp relay manager error: {}", err);
+                    }
+                });
+            }
         }
 
         Ok(())

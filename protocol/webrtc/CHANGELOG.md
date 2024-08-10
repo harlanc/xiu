@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.3.5] - 2021-08-11
+- Implement Authorization header support for WebRTC.
+
 ## [0.3.4] - 2021-05-18
 - Reference bytesio v0.3.3.
 

@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local};
+use serde::Deserialize;
 use serde_json::Value;
 use xflv::define::{AacProfile, AvcCodecId, AvcLevel, AvcProfile, SoundFormat};
 
@@ -19,41 +20,50 @@ use {
     utils::Uuid,
 };
 
+/* Subscribe streams from stream hub */
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum SubscribeType {
-    /* Remote client request playing rtmp stream.*/
-    PlayerRtmp,
-    /* Remote client request playing http-flv stream.*/
-    PlayerHttpFlv,
-    /* Remote client request playing hls stream.*/
-    PlayerHls,
-    /* Remote/local client request playing rtsp stream.*/
-    PlayerRtsp,
-    /* Local client request playing webrtc stream, it's used for protocol remux.*/
-    PlayerWebrtc,
-    /* Remote client request playing rtsp or webrtc(whep) raw rtp stream.*/
-    PlayerRtp,
-    GenerateHls,
-    /* Local client *subscribe* from local rtmp session
-    and *publish* (relay push) the stream to remote server.*/
-    PublisherRtmp,
+    /* Remote client request pulling(play) a rtmp stream.*/
+    RtmpPull,
+    /* Remote request to play httpflv triggers remux from RTMP to httpflv. */
+    RtmpRemux2HttpFlv,
+    /* The publishing of RTMP stream triggers remuxing from RTMP to HLS protocol.(NOTICE:It is not triggerred by players.)*/
+    RtmpRemux2Hls,
+    /* Relay(Push) local RTMP stream from stream hub to other RTMP nodes.*/
+    RtmpRelay,
+    /* Remote client request pulling(play) a rtsp stream.*/
+    RtspPull,
+    /* The publishing of RTSP stream triggers remuxing from RTSP to RTMP protocol.*/
+    RtspRemux2Rtmp,
+    /* Relay(Push) local RTSP stream to other RTSP nodes.*/
+    RtspRelay,
+    /* Remote client request pulling(play) stream through whep.*/
+    WhepPull,
+    /* Remuxing webrtc stream to RTMP */
+    WebRTCRemux2Rtmp,
+    /* Relay(Push) the local webRTC stream to other nodes using Whip.*/
+    WhipRelay,
+    /* Pull rtp stream by subscribing from stream hub.*/
+    RtpPull,
 }
 
-//session publish type
+/* Publish streams to stream hub */
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 pub enum PublishType {
-    /* Receive rtmp stream from remote push client */
-    PushRtmp,
-    /* Local client *publish* the rtmp stream to local session,
-    the rtmp stream is *subscribed* (pull) from remote server.*/
-    RelayRtmp,
+    /* Receive rtmp stream from remote push client. */
+    RtmpPush,
+    /* Relay(Pull) remote RTMP stream to local stream hub. */
+    RtmpRelay,
     /* Receive rtsp stream from remote push client */
-    PushRtsp,
-    RelayRtsp,
-    /* Receive webrtc stream from remote push client(whip),  */
-    PushWebRTC,
+    RtspPush,
+    /* Relay(Pull) remote RTSP stream to local stream hub. */
+    RtspRelay,
+    /* Receive whip stream from remote push client. */
+    WhipPush,
+    /* Relay(Pull) remote WebRTC stream to local stream hub using Whep. */
+    WhepRelay,
     /* It used for publishing raw rtp data of rtsp/whbrtc(whip) */
-    PushRtp,
+    RtpPush,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -186,6 +196,9 @@ pub type PubEventExecuteResultSender = oneshot::Sender<
         StreamHubError,
     >,
 >;
+// The trait bound `BroadcastEvent: Clone` should be satisfied, so here we cannot use oneshot.
+pub type BroadcastEventExecuteResultSender = mpsc::Sender<Result<(), StreamHubError>>;
+pub type ApiRelayStreamResultSender = oneshot::Sender<Result<(), StreamHubError>>;
 pub type TransceiverEventExecuteResultSender = oneshot::Sender<StatisticDataSender>;
 
 #[async_trait]
@@ -225,7 +238,7 @@ pub enum PubDataType {
     Both,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug)]
 pub enum StreamHubEventMessage {
     Subscribe {
         identifier: StreamIdentifier,
@@ -244,6 +257,13 @@ pub enum StreamHubEventMessage {
         info: PublisherInfo,
     },
     NotSupport {},
+}
+
+//we can pub frame or packet or both.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RelayType {
+    Pull,
+    Push,
 }
 
 #[derive(Serialize)]
@@ -279,7 +299,20 @@ pub enum StreamHubEvent {
     },
     #[serde(skip_serializing)]
     ApiKickClient { id: Uuid },
-
+    #[serde(skip_serializing)]
+    ApiStartRelayStream {
+        id: String,
+        identifier: StreamIdentifier,
+        server_address: String,
+        relay_type: RelayType,
+        result_sender: ApiRelayStreamResultSender,
+    },
+    #[serde(skip_serializing)]
+    ApiStopRelayStream {
+        id: String,
+        relay_type: RelayType,
+        result_sender: ApiRelayStreamResultSender,
+    },
     #[serde(skip_serializing)]
     Request {
         identifier: StreamIdentifier,
@@ -290,21 +323,34 @@ pub enum StreamHubEvent {
 impl StreamHubEvent {
     pub fn to_message(&self) -> StreamHubEventMessage {
         match self {
-            StreamHubEvent::Subscribe { identifier, info, result_sender: _result_sender } => {
-                StreamHubEventMessage::Subscribe { identifier: identifier.clone(), info: info.clone() }
-            }
+            StreamHubEvent::Subscribe {
+                identifier,
+                info,
+                result_sender: _result_sender,
+            } => StreamHubEventMessage::Subscribe {
+                identifier: identifier.clone(),
+                info: info.clone(),
+            },
             StreamHubEvent::UnSubscribe { identifier, info } => {
-                StreamHubEventMessage::UnSubscribe { identifier: identifier.clone(), info: info.clone() }
+                StreamHubEventMessage::UnSubscribe {
+                    identifier: identifier.clone(),
+                    info: info.clone(),
+                }
             }
-            StreamHubEvent::Publish { identifier, info, result_sender: _result_sender, stream_handler: _stream_handler } => {
-                StreamHubEventMessage::Publish { identifier: identifier.clone(), info: info.clone() }
-            }
-            StreamHubEvent::UnPublish { identifier, info } => {
-                StreamHubEventMessage::UnPublish { identifier: identifier.clone(), info: info.clone() }
-            }
-            _ => {
-                StreamHubEventMessage::NotSupport {}
-            }
+            StreamHubEvent::Publish {
+                identifier,
+                info,
+                result_sender: _result_sender,
+                stream_handler: _stream_handler,
+            } => StreamHubEventMessage::Publish {
+                identifier: identifier.clone(),
+                info: info.clone(),
+            },
+            StreamHubEvent::UnPublish { identifier, info } => StreamHubEventMessage::UnPublish {
+                identifier: identifier.clone(),
+                info: info.clone(),
+            },
+            _ => StreamHubEventMessage::NotSupport {},
         }
     }
 }
@@ -339,11 +385,25 @@ impl fmt::Display for TransceiverEvent {
 #[derive(Debug, Clone)]
 pub enum BroadcastEvent {
     /*Need publish(push) a stream to other rtmp server*/
-    Publish { identifier: StreamIdentifier },
-    UnPublish { identifier: StreamIdentifier },
+    Publish {
+        identifier: StreamIdentifier,
+    },
+    UnPublish {
+        identifier: StreamIdentifier,
+    },
     /*Need subscribe(pull) a stream from other rtmp server*/
-    Subscribe { identifier: StreamIdentifier },
-    UnSubscribe { identifier: StreamIdentifier },
+    Subscribe {
+        id: String,
+        identifier: StreamIdentifier,
+        server_address: Option<String>,
+        result_sender: Option<BroadcastEventExecuteResultSender>,
+    },
+    UnSubscribe {
+        id: String,
+        result_sender: Option<BroadcastEventExecuteResultSender>,
+        //identifier: StreamIdentifier,
+        //server_address: Option<String>,
+    },
 }
 
 pub enum StatisticData {

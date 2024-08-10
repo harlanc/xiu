@@ -44,6 +44,7 @@ impl Config {
         if rtsp_port > 0 {
             rtsp_config = Some(RtspConfig {
                 enabled: true,
+                relay_enabled: false,
                 port: rtsp_port,
                 auth: None,
             });
@@ -123,6 +124,7 @@ pub struct RtspConfig {
     pub enabled: bool,
     pub port: usize,
     pub auth: Option<AuthConfig>,
+    pub relay_enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -187,7 +189,7 @@ pub struct HttpNotifierConfig {
 pub struct AuthSecretConfig {
     pub key: String,
     pub password: String,
-    pub push_password: Option<String>
+    pub push_password: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -211,7 +213,7 @@ fn test_toml_parse() {
         Err(err) => println!("{}", err),
     }
 
-    let str = fs::read_to_string("./src/config/config.toml");
+    let str = fs::read_to_string("./src/config/examples/config1.toml");
 
     match str {
         Ok(val) => {

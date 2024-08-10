@@ -473,24 +473,6 @@ checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
 
 [[package]]
 name = "bytesio"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff19234db41a12c2dedbfda4b113b7e4bc39a3dba3ce29ff0ce258cad0a54129"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes",
- "failure",
- "futures",
- "log",
- "rand 0.3.23",
- "tokio",
- "tokio-stream",
- "tokio-util 0.6.10",
-]
-
-[[package]]
-name = "bytesio"
 version = "0.3.3"
 dependencies = [
  "async-trait",
@@ -1357,20 +1339,7 @@ version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
- "failure",
- "log",
-]
-
-[[package]]
-name = "h264-decoder"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8f343949d0d608d23ba6ebf2d79337ef188749bae7143c187da2851e80bc171"
-dependencies = [
- "byteorder",
- "bytes",
- "bytesio 0.3.1",
+ "bytesio",
  "failure",
  "log",
 ]
@@ -1427,10 +1396,10 @@ dependencies = [
  "commonlib",
  "failure",
  "log",
- "streamhub 0.1.1",
+ "streamhub",
  "tokio",
  "tokio-util 0.6.10",
- "xflv 0.3.0",
+ "xflv",
  "xmpegts",
 ]
 
@@ -1552,9 +1521,9 @@ dependencies = [
  "failure",
  "futures",
  "log",
- "streamhub 0.1.1",
+ "streamhub",
  "tokio",
- "xflv 0.3.0",
+ "xflv",
 ]
 
 [[package]]
@@ -2231,8 +2200,8 @@ dependencies = [
  "clap",
  "env_logger",
  "log",
- "rtmp 0.4.0",
- "streamhub 0.1.0",
+ "rtmp",
+ "streamhub",
  "tokio",
 ]
 
@@ -2476,42 +2445,16 @@ dependencies = [
 
 [[package]]
 name = "rtmp"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93e619cfc092d254ad1b5f08f99b88af0721a10ab257822109adc4f7a16e0db1"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes",
- "bytesio 0.3.1",
- "chrono",
- "failure",
- "h264-decoder 0.2.1",
- "hmac 0.11.0",
- "indexmap 1.9.3",
- "log",
- "rand 0.3.23",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.9.9",
- "streamhub 0.1.0",
- "tokio",
- "xflv 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rtmp"
 version = "0.4.1"
 dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
+ "bytesio",
  "chrono",
  "commonlib",
  "failure",
- "h264-decoder 0.2.0",
+ "h264-decoder",
  "hex",
  "hmac 0.11.0",
  "indexmap 1.9.3",
@@ -2520,9 +2463,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.9.9",
- "streamhub 0.1.1",
+ "streamhub",
  "tokio",
- "xflv 0.3.0",
+ "xflv",
 ]
 
 [[package]]
@@ -2864,34 +2807,12 @@ dependencies = [
 
 [[package]]
 name = "streamhub"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2ed21d266e3a637f461a706bb1bfa6eb01b7acf57c1b42f8c0aa5bb05f00d71"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes",
- "bytesio 0.3.1",
- "chrono",
- "failure",
- "indexmap 1.9.3",
- "log",
- "rand 0.8.5",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "xflv 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "streamhub"
 version = "0.1.1"
 dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
+ "bytesio",
  "chrono",
  "failure",
  "indexmap 1.9.3",
@@ -2901,7 +2822,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "xflv 0.3.0",
+ "xflv",
 ]
 
 [[package]]
@@ -3958,25 +3879,10 @@ version = "0.3.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
+ "bytesio",
  "failure",
- "h264-decoder 0.2.0",
+ "h264-decoder",
  "indexmap 1.9.3",
- "log",
- "serde",
-]
-
-[[package]]
-name = "xflv"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99aa4657821f6191a4640e7f7566f8aece2efd6269845403b520dd26266a7577"
-dependencies = [
- "byteorder",
- "bytes",
- "bytesio 0.3.1",
- "failure",
- "h264-decoder 0.2.1",
  "log",
  "serde",
 ]
@@ -3995,11 +3901,11 @@ dependencies = [
  "httpflv",
  "libc",
  "log",
- "rtmp 0.4.1",
+ "rtmp",
  "serde",
  "serde_derive",
  "serde_json",
- "streamhub 0.1.1",
+ "streamhub",
  "tokio",
  "tokio-metrics",
  "toml",
@@ -4013,7 +3919,7 @@ version = "0.2.0"
 dependencies = [
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
+ "bytesio",
  "failure",
 ]
 
@@ -4025,7 +3931,7 @@ dependencies = [
  "base64 0.21.2",
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
+ "bytesio",
  "chrono",
  "commonlib",
  "failure",
@@ -4036,7 +3942,7 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "serde_json",
- "streamhub 0.1.1",
+ "streamhub",
  "tokio",
 ]
 
@@ -4048,17 +3954,17 @@ dependencies = [
  "audiopus",
  "byteorder",
  "bytes",
- "bytesio 0.3.3",
+ "bytesio",
  "commonlib",
  "failure",
  "fdk-aac",
  "http 0.2.9",
  "indexmap 1.9.3",
  "log",
- "streamhub 0.1.1",
+ "streamhub",
  "tokio",
  "webrtc",
- "xflv 0.3.0",
+ "xflv",
 ]
 
 [[package]]

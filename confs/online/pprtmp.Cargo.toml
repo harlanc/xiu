@@ -1,6 +1,6 @@
 [package]
 name = "pprtmp"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "A pull push RTMP app"
 authors = ["HarlanC <wawacry@qq.com"]
@@ -16,8 +16,8 @@ log = "0.4.0"
 env_logger = "0.10.0"
 clap = "4.1.4"
 
-rtmp = "0.6.4"
-streamhub = "0.2.3"
+rtmp = "0.6.5"
+streamhub = "0.2.4"
 
 [dependencies.tokio]
 version = "1.26.0"

@@ -105,14 +105,14 @@ impl Whip2RtmpRemuxerSession {
 
     pub async fn publish_rtmp(&mut self) -> Result<(), RtmpRemuxerError> {
         self.rtmp_handler
-            .publish_to_channels(self.app_name.clone(), self.stream_name.clone(), 1)
+            .publish_to_stream_hub(self.app_name.clone(), self.stream_name.clone(), 1)
             .await?;
         Ok(())
     }
 
     pub async fn unpublish_rtmp(&mut self) -> Result<(), RtmpRemuxerError> {
         self.rtmp_handler
-            .unpublish_to_channels(self.app_name.clone(), self.stream_name.clone())
+            .unpublish_to_stream_hub(self.app_name.clone(), self.stream_name.clone())
             .await?;
         Ok(())
     }
@@ -122,7 +122,7 @@ impl Whip2RtmpRemuxerSession {
 
         let sub_info = SubscriberInfo {
             id: self.subscribe_id,
-            sub_type: SubscribeType::PlayerRtmp,
+            sub_type: SubscribeType::WebRTCRemux2Rtmp,
             sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -153,7 +153,7 @@ impl Whip2RtmpRemuxerSession {
     pub async fn unsubscribe_whip(&mut self) -> Result<(), RtmpRemuxerError> {
         let sub_info = SubscriberInfo {
             id: self.subscribe_id,
-            sub_type: SubscribeType::PlayerRtmp,
+            sub_type: SubscribeType::WebRTCRemux2Rtmp,
             sub_data_type: streamhub::define::SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: String::from(""),
@@ -169,7 +169,7 @@ impl Whip2RtmpRemuxerSession {
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}", err);
+            log::error!("unsubscribe_whip err {}", err);
         }
 
         Ok(())

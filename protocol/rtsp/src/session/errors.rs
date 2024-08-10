@@ -5,6 +5,7 @@ use {
     commonlib::errors::AuthError,
     failure::{Backtrace, Fail},
     std::fmt,
+    std::io::Error,
     std::str::Utf8Error,
     streamhub::errors::StreamHubError,
     tokio::sync::oneshot::error::RecvError,
@@ -41,6 +42,10 @@ pub enum SessionErrorValue {
     AuthError(#[cause] AuthError),
     #[fail(display = "Channel receive error")]
     ChannelRecvError,
+    #[fail(display = "io error")]
+    IOError(#[cause] Error),
+    #[fail(display = "RTSP response status error")]
+    RtspResponseStatusError,
 }
 
 impl From<BytesIOError> for SessionError {
@@ -111,6 +116,14 @@ impl From<AuthError> for SessionError {
     fn from(error: AuthError) -> Self {
         SessionError {
             value: SessionErrorValue::AuthError(error),
+        }
+    }
+}
+
+impl From<Error> for SessionError {
+    fn from(error: Error) -> Self {
+        SessionError {
+            value: SessionErrorValue::IOError(error),
         }
     }
 }

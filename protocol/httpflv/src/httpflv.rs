@@ -70,7 +70,7 @@ impl HttpFlv {
     }
 
     pub async fn run(&mut self) -> Result<(), HttpFLvError> {
-        self.subscribe_from_rtmp_channels().await?;
+        self.subscribe_from_stream_hub().await?;
         self.send_media_stream().await?;
 
         Ok(())
@@ -146,7 +146,7 @@ impl HttpFlv {
                 break;
             }
         }
-        self.unsubscribe_from_rtmp_channels().await
+        self.unsubscribe_from_stream_hub().await
     }
 
     //used for the http-flv protocol
@@ -218,10 +218,10 @@ impl HttpFlv {
         Ok(())
     }
 
-    pub async fn unsubscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
+    pub async fn unsubscribe_from_stream_hub(&mut self) -> Result<(), HttpFLvError> {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
-            sub_type: SubscribeType::PlayerHttpFlv,
+            sub_type: SubscribeType::RtmpRemux2HttpFlv,
             sub_data_type: SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: self.request_url.clone(),
@@ -239,16 +239,16 @@ impl HttpFlv {
             info: sub_info,
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}", err);
+            log::error!("unsubscribe_from_stream_hub err {}", err);
         }
 
         Ok(())
     }
 
-    pub async fn subscribe_from_rtmp_channels(&mut self) -> Result<(), HttpFLvError> {
+    pub async fn subscribe_from_stream_hub(&mut self) -> Result<(), HttpFLvError> {
         let sub_info = SubscriberInfo {
             id: self.subscriber_id,
-            sub_type: SubscribeType::PlayerHttpFlv,
+            sub_type: SubscribeType::RtmpRemux2HttpFlv,
             sub_data_type: SubDataType::Frame,
             notify_info: NotifyInfo {
                 request_url: self.request_url.clone(),
@@ -286,7 +286,7 @@ impl HttpFlv {
                 id: self.subscriber_id,
                 remote_addr: self.remote_addr.to_string(),
                 start_time: chrono::Local::now(),
-                sub_type: SubscribeType::PlayerHttpFlv,
+                sub_type: SubscribeType::RtmpRemux2HttpFlv,
             };
             if let Err(err) = sender.send(statistic_subscriber) {
                 log::error!("send statistic_subscriber err: {}", err);

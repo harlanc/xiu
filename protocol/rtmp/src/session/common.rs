@@ -286,8 +286,8 @@ impl Common {
         };
 
         let sub_type = match self.session_type {
-            SessionType::Client => SubscribeType::PublisherRtmp,
-            SessionType::Server => SubscribeType::PlayerRtmp,
+            SessionType::Client => SubscribeType::RtmpRelay,
+            SessionType::Server => SubscribeType::RtmpPull,
         };
 
         SubscriberInfo {
@@ -311,8 +311,8 @@ impl Common {
         };
 
         let pub_type = match self.session_type {
-            SessionType::Client => PublishType::RelayRtmp,
-            SessionType::Server => PublishType::PushRtmp,
+            SessionType::Client => PublishType::RtmpRelay,
+            SessionType::Server => PublishType::RtmpPush,
         };
 
         PublisherInfo {
@@ -326,14 +326,14 @@ impl Common {
         }
     }
 
-    /*Subscribe from local channels and then send data to retmote common player or local RTMP relay push client*/
-    pub async fn subscribe_from_channels(
+    /* Subscribe from stream hub and push stream data to players or other rtmp nodes */
+    pub async fn subscribe_from_stream_hub(
         &mut self,
         app_name: String,
         stream_name: String,
     ) -> Result<(), SessionError> {
         log::info!(
-            "subscribe_from_channels, app_name: {} stream_name: {} subscribe_id: {}",
+            "subscribe_from_stream_hub, app_name: {} stream_name: {} subscribe_id: {}",
             app_name,
             stream_name,
             self.session_id
@@ -369,7 +369,7 @@ impl Common {
                 id: self.session_id,
                 remote_addr: self.remote_addr.unwrap().to_string(),
                 start_time: chrono::Local::now(),
-                sub_type: SubscribeType::PlayerRtmp,
+                sub_type: SubscribeType::RtmpPull,
             };
             if let Err(err) = sender.send(statistic_subscriber) {
                 log::error!("send statistic_subscriber err: {}", err);
@@ -381,7 +381,7 @@ impl Common {
         Ok(())
     }
 
-    pub async fn unsubscribe_from_channels(
+    pub async fn unsubscribe_from_stream_hub(
         &mut self,
         app_name: String,
         stream_name: String,
@@ -396,14 +396,14 @@ impl Common {
             info: self.get_subscriber_info(),
         };
         if let Err(err) = self.event_producer.send(subscribe_event) {
-            log::error!("unsubscribe_from_channels err {}", err);
+            log::error!("unsubscribe_from_stream_hub err {}", err);
         }
 
         Ok(())
     }
 
-    /*Begin to receive stream data from remote RTMP push client or local RTMP relay pull client*/
-    pub async fn publish_to_channels(
+    /* Publish RTMP streams to stream hub, the streams can be pushed from remote or pulled from remote to local */
+    pub async fn publish_to_stream_hub(
         &mut self,
         app_name: String,
         stream_name: String,
@@ -451,13 +451,13 @@ impl Common {
         Ok(())
     }
 
-    pub async fn unpublish_to_channels(
+    pub async fn unpublish_to_stream_hub(
         &mut self,
         app_name: String,
         stream_name: String,
     ) -> Result<(), SessionError> {
         log::info!(
-            "unpublish_to_channels, app_name:{}, stream_name:{}",
+            "unpublish_to_stream_hub, app_name:{}, stream_name:{}",
             app_name,
             stream_name
         );
@@ -472,7 +472,7 @@ impl Common {
         match self.event_producer.send(unpublish_event) {
             Err(_) => {
                 log::error!(
-                    "unpublish_to_channels error.app_name: {}, stream_name: {}",
+                    "unpublish_to_stream_hub error.app_name: {}, stream_name: {}",
                     app_name,
                     stream_name
                 );
@@ -482,7 +482,7 @@ impl Common {
             }
             _ => {
                 log::info!(
-                    "unpublish_to_channels successfully.app_name: {}, stream_name: {}",
+                    "unpublish_to_stream_hub successfully.app_name: {}, stream_name: {}",
                     app_name,
                     stream_name
                 );
@@ -577,10 +577,9 @@ impl TStreamHandler for RtmpStreamHandler {
                 })?;
             }
             match sub_type {
-                SubscribeType::PlayerRtmp
-                | SubscribeType::PlayerHttpFlv
-                | SubscribeType::PlayerHls
-                | SubscribeType::GenerateHls => {
+                SubscribeType::RtmpPull
+                | SubscribeType::RtmpRemux2HttpFlv
+                | SubscribeType::RtmpRemux2Hls => {
                     if let Some(gops_data) = cache.get_gops_data() {
                         for gop in gops_data {
                             for channel_data in gop.get_frame_data() {

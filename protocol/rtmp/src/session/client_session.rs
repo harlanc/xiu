@@ -61,9 +61,9 @@ enum ClientSessionPublishState {
 }
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq)]
-pub enum ClientType {
-    Play,
-    Publish,
+pub enum ClientSessionType {
+    Pull,
+    Push,
 }
 pub struct ClientSession {
     io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
@@ -77,7 +77,7 @@ pub struct ClientSession {
     raw_stream_name: String,
     stream_name: String,
     state: ClientSessionState,
-    client_type: ClientType,
+    client_type: ClientSessionType,
     sub_app_name: Option<String>,
     sub_stream_name: Option<String>,
     /*configure how many gops will be cached.*/
@@ -87,7 +87,7 @@ pub struct ClientSession {
 impl ClientSession {
     pub fn new(
         stream: TcpStream,
-        client_type: ClientType,
+        client_type: ClientSessionType,
         raw_domain_name: String,
         app_name: String,
         raw_stream_name: String,
@@ -104,7 +104,7 @@ impl ClientSession {
         let tcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
         let net_io = Arc::new(Mutex::new(tcp_io));
 
-        let packetizer = if client_type == ClientType::Publish {
+        let packetizer = if client_type == ClientSessionType::Push {
             Some(ChunkPacketizer::new(Arc::clone(&net_io)))
         } else {
             None
@@ -338,7 +338,7 @@ impl ClientSession {
         properties.app = Some(self.app_name.clone());
 
         match self.client_type {
-            ClientType::Play => {
+            ClientSessionType::Pull => {
                 properties.flash_ver = Some("LNX 9,0,124,2".to_string());
                 properties.tc_url = Some(url.clone());
                 properties.fpad = Some(false);
@@ -347,7 +347,7 @@ impl ClientSession {
                 properties.video_codecs = Some(252_f64);
                 properties.video_function = Some(1_f64);
             }
-            ClientType::Publish => {
+            ClientSessionType::Push => {
                 properties.pub_type = Some("nonprivate".to_string());
                 properties.flash_ver = Some("FMLE/3.0 (compatible; xiu)".to_string());
                 properties.fpad = Some(false);
@@ -469,10 +469,10 @@ impl ClientSession {
 
     pub fn on_result_create_stream(&mut self) -> Result<(), SessionError> {
         match self.client_type {
-            ClientType::Play => {
+            ClientSessionType::Pull => {
                 self.state = ClientSessionState::Play;
             }
-            ClientType::Publish => {
+            ClientSessionType::Push => {
                 self.state = ClientSessionState::PublishingContent;
             }
         }
@@ -518,11 +518,11 @@ impl ClientSession {
                         (&self.sub_app_name, &self.sub_stream_name)
                     {
                         self.common
-                            .subscribe_from_channels(app_name.clone(), stream_name.clone())
+                            .subscribe_from_stream_hub(app_name.clone(), stream_name.clone())
                             .await?;
                     } else {
                         self.common
-                            .subscribe_from_channels(
+                            .subscribe_from_stream_hub(
                                 self.app_name.clone(),
                                 self.stream_name.clone(),
                             )
@@ -533,7 +533,7 @@ impl ClientSession {
                 "NetStream.Play.Start" => {
                     //pull from remote rtmp server and publish to local session
                     self.common
-                        .publish_to_channels(
+                        .publish_to_stream_hub(
                             self.app_name.clone(),
                             self.stream_name.clone(),
                             self.gop_num,

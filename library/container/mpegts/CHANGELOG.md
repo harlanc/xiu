@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 
 ## [Unreleased] - ReleaseDate
+
+## [0.2.4] - 2021-08-11
+- Reference bytesio v0.3.4.
+
 ## [0.2.3] - 2021-05-18
 - Reference bytesio v0.3.3.
 

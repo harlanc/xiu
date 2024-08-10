@@ -1,6 +1,6 @@
 use define::{
-    FrameDataReceiver, PacketDataReceiver, PacketDataSender, StatisticData, StatisticDataReceiver,
-    StatisticDataSender,
+    FrameDataReceiver, PacketDataReceiver, PacketDataSender, RelayType, StatisticData,
+    StatisticDataReceiver, StatisticDataSender,
 };
 use serde_json::{json, Value};
 use statistics::{StatisticSubscriber, StatisticsStream};
@@ -407,7 +407,7 @@ impl StreamDataTransceiver {
                         }
                         TransceiverEvent::UnSubscribe { info } => {
                             match info.sub_type {
-                                SubscribeType::PlayerRtp | SubscribeType::PlayerWebrtc => {
+                                SubscribeType::RtpPull | SubscribeType::WhepPull => {
                                     packet_senders.lock().await.remove(&info.id);
                                 }
                                 _ => {
@@ -568,6 +568,7 @@ impl StreamsHub {
     pub async fn event_loop(&mut self) {
         while let Some(event) = self.hub_event_receiver.recv().await {
             let message = event.to_message();
+
             match event {
                 StreamHubEvent::Publish {
                     identifier,
@@ -725,7 +726,6 @@ impl StreamsHub {
                     uuid,
                     result_sender,
                 } => {
-                    log::info!("api_statistic1:  stream identifier: {:?}", identifier);
                     let result = match self.api_statistic(top_n, identifier, uuid).await {
                         Ok(rv) => rv,
                         Err(err) => {
@@ -741,6 +741,32 @@ impl StreamsHub {
                 StreamHubEvent::ApiKickClient { id } => {
                     if let Err(err) = self.api_kick_off_client(id) {
                         log::error!("api_kick_off_client api error: {}", err);
+                    }
+                }
+                StreamHubEvent::ApiStartRelayStream {
+                    id,
+                    identifier,
+                    server_address,
+                    relay_type,
+                    result_sender,
+                } => {
+                    let result = self
+                        .api_start_relay_stream(id, &relay_type, identifier, server_address)
+                        .await;
+
+                    if let Err(err) = result_sender.send(result) {
+                        log::error!("event_loop api error: {:?}", err);
+                    }
+                }
+                StreamHubEvent::ApiStopRelayStream {
+                    id,
+                    relay_type,
+                    result_sender,
+                } => {
+                    let result = self.api_stop_relay_stream(id, &relay_type).await;
+
+                    if let Err(err) = result_sender.send(result) {
+                        log::error!("event_loop api error: {:?}", err);
                     }
                 }
                 StreamHubEvent::Request { identifier, sender } => {
@@ -868,6 +894,69 @@ impl StreamsHub {
         Ok(())
     }
 
+    async fn api_start_relay_stream(
+        &mut self,
+        id: String,
+        relay_type: &RelayType,
+        identifier: StreamIdentifier,
+        server_address: String,
+    ) -> Result<(), StreamHubError> {
+        let (result_sender, mut result_receiver) = mpsc::channel(1);
+
+        match relay_type {
+            RelayType::Pull => {
+                let client_event = BroadcastEvent::Subscribe {
+                    id,
+                    identifier,
+                    server_address: Some(server_address),
+                    result_sender: Some(result_sender),
+                };
+
+                //send subscribe info to pull clients
+                self.client_event_sender
+                    .send(client_event)
+                    .map_err(|_| StreamHubError {
+                        value: StreamHubErrorValue::SendError,
+                    })?;
+            }
+            RelayType::Push => {}
+        }
+
+        if let Some(received_message) = result_receiver.recv().await {
+            return received_message;
+        }
+        Ok(())
+    }
+
+    async fn api_stop_relay_stream(
+        &mut self,
+        id: String,
+        relay_type: &RelayType,
+    ) -> Result<(), StreamHubError> {
+        let (result_sender, mut result_receiver) = mpsc::channel(1);
+        match relay_type {
+            RelayType::Pull => {
+                let client_event = BroadcastEvent::UnSubscribe {
+                    id,
+                    result_sender: Some(result_sender),
+                };
+
+                //send subscribe info to pull clients
+                self.client_event_sender
+                    .send(client_event)
+                    .map_err(|_| StreamHubError {
+                        value: StreamHubErrorValue::SendError,
+                    })?;
+            }
+            RelayType::Push => {}
+        }
+
+        if let Some(received_message) = result_receiver.recv().await {
+            return received_message;
+        }
+        Ok(())
+    }
+
     //player subscribe a stream
     pub async fn subscribe(
         &mut self,
@@ -894,7 +983,10 @@ impl StreamsHub {
             log::info!("subscribe: try to pull stream, identifier: {}", identifer);
 
             let client_event = BroadcastEvent::Subscribe {
+                id: String::from("rtmp_relay"),
                 identifier: identifer.clone(),
+                server_address: None,
+                result_sender: None,
             };
 
             //send subscribe info to pull clients

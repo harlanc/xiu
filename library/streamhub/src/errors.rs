@@ -31,6 +31,8 @@ pub enum StreamHubErrorValue {
     RecvError(RecvError),
     #[fail(display = "Serde json error")]
     SerdeError(Error),
+    #[fail(display = "the client session error: {}", _0)]
+    RtspClientSessionError(String),
 }
 #[derive(Debug)]
 pub struct StreamHubError {
@@ -81,6 +83,14 @@ impl From<Error> for StreamHubError {
     fn from(error: Error) -> Self {
         StreamHubError {
             value: StreamHubErrorValue::SerdeError(error),
+        }
+    }
+}
+
+impl From<String> for StreamHubError {
+    fn from(error: String) -> Self {
+        StreamHubError {
+            value: StreamHubErrorValue::RtspClientSessionError(error),
         }
     }
 }

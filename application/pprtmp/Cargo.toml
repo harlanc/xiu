@@ -16,8 +16,9 @@ log = "0.4.0"
 env_logger = "0.10.0"
 clap = "4.1.4"
 
-rtmp = "0.4.0"
-streamhub = "0.1.0"
+streamhub = { path = "../../library/streamhub/" }
+rtmp = { path = "../../protocol/rtmp/" }
+
 
 [dependencies.tokio]
 version = "1.26.0"
