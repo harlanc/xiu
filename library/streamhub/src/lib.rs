@@ -726,7 +726,6 @@ impl StreamsHub {
                     uuid,
                     result_sender,
                 } => {
-                    log::info!("api_statistic1:  stream identifier: {:?}", identifier);
                     let result = match self.api_statistic(top_n, identifier, uuid).await {
                         Ok(rv) => rv,
                         Err(err) => {
@@ -771,7 +770,6 @@ impl StreamsHub {
                     }
                 }
                 StreamHubEvent::Request { identifier, sender } => {
-                    log::info!("request");
                     if let Err(err) = self.request(&identifier, sender) {
                         log::error!("event_loop request error: {}", err);
                     }
