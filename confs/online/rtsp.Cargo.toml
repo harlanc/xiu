@@ -1,6 +1,6 @@
 [package]
 name = "xrtsp"
-version = "0.2.3"
+version = "0.3.0"
 description = "A rtsp library."
 edition = "2021"
 authors = ["HarlanC <wawacry@qq.com>"]
@@ -30,5 +30,5 @@ serde_json = { version = "1", default-features = false, features = [
 ] }
 
 bytesio = "0.3.3"
-streamhub = "0.2.3"
-commonlib = "0.1.1"
+streamhub = "0.2.4"
+commonlib = "0.1.2"

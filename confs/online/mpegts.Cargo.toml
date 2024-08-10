@@ -1,7 +1,7 @@
 [package]
 name = "xmpegts"
 description = "mpegts library."
-version = "0.2.3"
+version = "0.2.4"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"

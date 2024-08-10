@@ -2,7 +2,7 @@ use {
     anyhow::Result,
     clap::{value_parser, Arg, Command},
     rtmp::session::client_session::ClientSession,
-    rtmp::session::client_session::ClientType,
+    rtmp::session::client_session::ClientSessionType,
     rtmp::utils::RtmpUrlParser,
     std::env,
     std::process::exit,
@@ -59,13 +59,13 @@ async fn main() -> Result<()> {
         log::error!("err: {}", err);
     }
     pull_parser.append_port(String::from("1935"));
-    let stream1 = TcpStream::connect(pull_parser.raw_domain_name.clone()).await?;
+    let stream1 = TcpStream::connect(pull_parser.host_with_port.clone()).await?;
     let mut pull_client_session = ClientSession::new(
         stream1,
-        ClientType::Play,
-        pull_parser.raw_domain_name,
+        ClientSessionType::Pull,
+        pull_parser.host_with_port,
         pull_parser.app_name.clone(),
-        pull_parser.raw_stream_name,
+        pull_parser.stream_name_with_query,
         producer.clone(),
         0,
     );
@@ -83,13 +83,13 @@ async fn main() -> Result<()> {
     }
     push_parser.append_port(String::from("1935"));
     // push the rtmp stream from local to remote rtmp server
-    let stream2 = TcpStream::connect(push_parser.raw_domain_name.clone()).await?;
+    let stream2 = TcpStream::connect(push_parser.host_with_port.clone()).await?;
     let mut push_client_session = ClientSession::new(
         stream2,
-        ClientType::Publish,
-        push_parser.raw_domain_name,
+        ClientSessionType::Push,
+        push_parser.host_with_port,
         push_parser.app_name,
-        push_parser.raw_stream_name,
+        push_parser.stream_name_with_query,
         producer.clone(),
         0,
     );

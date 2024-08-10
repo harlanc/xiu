@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.4] - 2021-08-11
+- Abstract streamhub message notifications.
+- Add HTTP API for RTSP pull client.
+- Some refactor work.
+
 ## [0.2.3] - 2021-05-18
 - Reference bytesio v0.3.3.
 

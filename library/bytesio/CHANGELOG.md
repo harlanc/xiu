@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.3.4] - 2021-08-11
+- Add new function new_udpio_pair for RTSP protocol.
+
 ## [0.3.3] - 2021-05-18
 - Support localhost domain.
 

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.13.0] - 2021-08-11
+- Feat: Abstract streamhub message notifications.  by @karaler 
+- Feat: Add optional push_password for simple authentication. by @Ceron257 
+- Feat: Implement Authorization header support for WebRTC. by @Ceron257 
+- Fix: XIU cannot receive RTSP stream published by gstreamer #135
+- Feat: Support Rtsp pull client logic, and you can pull a remote RTSP stream using HTTP API to XIU now.
+
 ## [0.12.7] - 2021-05-18
 - Fix: RTMP publish single AAC from ffmpeg client.  by @suzp1984
 - Fix: RTMP Auth failing due to empty string query string in packet. by @radiohertz
