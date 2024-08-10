@@ -39,7 +39,7 @@ async fn handle_connection(
                 if auth_val
                     .authenticate(
                         &stream_name,
-                        &query_string.map(|q| SecretCarrier::Query(q)),
+                        &query_string.map(SecretCarrier::Query),
                         true,
                     )
                     .is_err()

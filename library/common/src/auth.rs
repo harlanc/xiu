@@ -44,14 +44,27 @@ pub fn get_secret(carrier: &SecretCarrier) -> Result<String, AuthError> {
                 value: AuthErrorValue::InvalidTokenFormat,
             });
             let (prefix, token) = scanf!(header, " ", String, String);
-            if prefix.is_none() || token.is_none() {
-                invalid_format
-            } else {
-                if prefix.unwrap() != "Bearer" {
-                    invalid_format
-                } else {
-                    Ok(token.unwrap())
-                }
+
+            //if prefix.is_none() || token.is_none() {
+            //    invalid_format
+            //} else if prefix.unwrap() != "Bearer" {
+            //    invalid_format
+            //} else {
+            //    Ok(token.unwrap())
+            //}
+            //fix cargo clippy --fix --allow-dirty --allow-no-vcs warnings
+            match token {
+                Some(token_val) => match prefix {
+                    Some(prefix_val) => {
+                        if prefix_val != "Bearer" {
+                            invalid_format
+                        } else {
+                            Ok(token_val)
+                        }
+                    }
+                    None => invalid_format,
+                },
+                None => invalid_format,
             }
         }
     }

@@ -38,7 +38,7 @@ async fn handle_connection(State(auth): State<Option<Auth>>, req: Request<Body>)
                 if auth_val
                     .authenticate(
                         &stream_name,
-                        &query_string.map(|q| SecretCarrier::Query(q)),
+                        &query_string.map(SecretCarrier::Query),
                         true,
                     )
                     .is_err()

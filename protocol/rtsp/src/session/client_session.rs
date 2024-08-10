@@ -139,18 +139,13 @@ impl RtspClientSession {
                 self.reader.extend_from_slice(&data[..]);
             }
 
-            if let Ok(data) = InterleavedBinaryData::new(&mut self.reader) {
-                match data {
-                    Some(a) => {
-                        if self.reader.len() < a.length as usize {
-                            let data = self.io.lock().await.read().await?;
-                            self.reader.extend_from_slice(&data[..]);
-                        }
-                        self.on_rtp_over_rtsp_message(a.channel_identifier, a.length as usize)
-                            .await?;
-                    }
-                    None => {}
+            if let Ok(Some(a)) = InterleavedBinaryData::new(&mut self.reader) {
+                if self.reader.len() < a.length as usize {
+                    let data = self.io.lock().await.read().await?;
+                    self.reader.extend_from_slice(&data[..]);
                 }
+                self.on_rtp_over_rtsp_message(a.channel_identifier, a.length as usize)
+                    .await?;
             }
         }
 
@@ -255,13 +250,15 @@ impl RtspClientSession {
                 }
                 ProtocolType::UDP => {
                     if let Some((socket_rtp, socket_rtcp)) = new_udpio_pair().await {
-                        let mut media_transport = RtspTransport::default();
-                        media_transport.protocol_type = ProtocolType::UDP;
-                        media_transport.cast_type = CastType::Unicast;
-                        media_transport.client_port = Some([
-                            socket_rtp.get_local_port().unwrap(),
-                            socket_rtcp.get_local_port().unwrap(),
-                        ]);
+                        let media_transport = RtspTransport {
+                            protocol_type: ProtocolType::UDP,
+                            cast_type: CastType::Unicast,
+                            client_port: Some([
+                                socket_rtp.get_local_port().unwrap(),
+                                socket_rtcp.get_local_port().unwrap(),
+                            ]),
+                            ..Default::default()
+                        };
 
                         request
                             .headers

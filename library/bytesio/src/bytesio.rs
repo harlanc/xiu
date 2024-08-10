@@ -93,16 +93,12 @@ pub async fn new_udpio_pair() -> Option<(UdpIO, UdpIO)> {
 
         if first_local_port == 65535 {
             next_local_port = 1;
+        } else if let Some(udpio_1) = UdpIO::new_with_local_port(first_local_port + 1).await {
+            return Some((udpio_0, udpio_1));
+        } else if first_local_port + 1 == 65535 {
+            next_local_port = 1;
         } else {
-            if let Some(udpio_1) = UdpIO::new_with_local_port(first_local_port + 1).await {
-                return Some((udpio_0, udpio_1));
-            } else {
-                if first_local_port + 1 == 65535 {
-                    next_local_port = 1;
-                } else {
-                    next_local_port = first_local_port + 2;
-                }
-            }
+            next_local_port = first_local_port + 2;
         }
     } else {
         return None;
@@ -123,12 +119,10 @@ pub async fn new_udpio_pair() -> Option<(UdpIO, UdpIO)> {
         if let Some(udpio_0) = UdpIO::new_with_local_port(next_local_port).await {
             if let Some(udpio_1) = UdpIO::new_with_local_port(next_local_port + 1).await {
                 return Some((udpio_0, udpio_1));
+            } else if next_local_port + 1 == 65535 {
+                next_local_port = 1;
             } else {
-                if next_local_port + 1 == 65535 {
-                    next_local_port = 1;
-                } else {
-                    next_local_port = next_local_port + 2;
-                }
+                next_local_port += 2;
             }
         } else {
             // try next port
@@ -282,7 +276,7 @@ mod tests {
         //The object udpio_0 is automatically cleared and released when it goes out of scope here.
         println!("first_local_port: {}", first_local_port);
 
-        if let Some(_) = UdpIO::new_with_local_port(first_local_port).await {
+        if (UdpIO::new_with_local_port(first_local_port).await).is_some() {
             println!("success")
         } else {
             println!("fail")
