@@ -822,7 +822,7 @@ impl TStreamHandler for RtspStreamHandler {
             }
         };
         match sub_type {
-            SubscribeType::RtmpPull => {
+            SubscribeType::RtspRemux2Rtmp => {
                 let sdp_info = self.sdp.lock().await;
                 let mut video_clock_rate: u32 = 0;
                 let mut audio_clock_rate: u32 = 0;
