@@ -6,7 +6,7 @@ authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
 readme = "README.md"
-categories = ["flv"]
+categories = ["multimedia", "multimedia::video", 'multimedia::audio']
 keywords = ["flv", "video", "streaming"]
 edition = "2018"
 
