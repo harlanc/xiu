@@ -15,5 +15,5 @@ bytes = "1.0.0"
 log = "0.4"
 failure = "0.1.8"
 
-bytesio = "0.3.3"
+bytesio = "0.3.4"
 

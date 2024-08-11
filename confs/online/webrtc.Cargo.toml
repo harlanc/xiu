@@ -22,7 +22,7 @@ async-trait = "0.1.70"
 fdk-aac = "0.6.0"
 audiopus = "0.3.0-rc.0"
 
-bytesio = "0.3.3"
+bytesio = "0.3.4"
 streamhub = "0.2.4"
 xflv = "0.4.4"
 commonlib = "0.1.2"

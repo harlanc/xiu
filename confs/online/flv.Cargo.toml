@@ -18,6 +18,6 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 log = "0.4"
 indexmap = "1.9.3"
 
-bytesio = "0.3.3"
+bytesio = "0.3.4"
 h264-decoder = "0.2.4"
 

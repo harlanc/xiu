@@ -32,7 +32,7 @@ serde = { version = "1.0", features = ["derive", "rc"] }
 
 streamhub = "0.2.4"
 xflv = "0.4.4"
-bytesio = "0.3.3"
+bytesio = "0.3.4"
 h264-decoder = "0.2.4"
 commonlib = "0.1.2"
 

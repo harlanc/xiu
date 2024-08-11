@@ -29,6 +29,6 @@ serde_json = { version = "1", default-features = false, features = [
     "std",
 ] }
 
-bytesio = "0.3.3"
+bytesio = "0.3.4"
 streamhub = "0.2.4"
 commonlib = "0.1.2"

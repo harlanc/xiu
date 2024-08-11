@@ -8,6 +8,7 @@ MODE=$1
 
 copy_conf_files() {
 
+    cp ./$MODE/bytesio.Cargo.toml "../library/bytesio/Cargo.toml"
     cp ./$MODE/common.Cargo.toml "../library/common/Cargo.toml"
     cp ./$MODE/h264.Cargo.toml "../library/codec/h264/Cargo.toml"
     cp ./$MODE/mpegts.Cargo.toml "../library/container/mpegts/Cargo.toml"
