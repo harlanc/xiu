@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use {
     crate::{
         protocol_control_messages::errors::ProtocolControlMessageReaderError,

@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use bytesio::bits_errors::BitError;
 use failure::{Backtrace, Fail};
 use std::fmt;

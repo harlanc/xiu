@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use super::bytesio_errors::BytesIOError;
 use std::io;
 // use tokio::time::Elapsed;

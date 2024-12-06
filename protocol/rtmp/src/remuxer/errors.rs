@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use {
     crate::{cache::errors::MetadataError, session::errors::SessionError},
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},

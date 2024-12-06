@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use {
     bytesio::bits_errors::BitError,
     bytesio::bytes_errors::{BytesReadError, BytesWriteError},

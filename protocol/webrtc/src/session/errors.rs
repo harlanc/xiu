@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use streamhub::errors::StreamHubError;
 use {
     bytesio::bytes_errors::BytesReadError,

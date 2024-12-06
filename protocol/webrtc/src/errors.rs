@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use {
     audiopus::error::Error as OpusError,
     failure::{Backtrace, Fail},

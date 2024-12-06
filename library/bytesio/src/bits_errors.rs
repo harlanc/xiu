@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use super::bytes_errors::BytesReadError;
 use super::bytes_errors::BytesWriteError;
 use failure::{Backtrace, Fail};

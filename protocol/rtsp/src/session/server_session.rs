@@ -48,6 +48,7 @@ use bytesio::bytesio::TcpIO;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::net::SocketAddr;
 use tokio::sync::mpsc;
 
 use commonlib::auth::Auth;
@@ -81,6 +82,7 @@ pub struct RtspServerSession {
 
     pub stream_identifier: Option<StreamIdentifier>,
     pub is_normal_exit: bool,
+    remote_addr: SocketAddr,
 }
 
 pub struct InterleavedBinaryData {
@@ -125,6 +127,7 @@ impl RtspServerSession {
         //     None
         // };
 
+        let remote_addr = stream.peer_addr().unwrap_or(stream.local_addr().unwrap());
         let net_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
         let io = Arc::new(Mutex::new(net_io));
 
@@ -141,6 +144,7 @@ impl RtspServerSession {
             auth,
             stream_identifier: None,
             is_normal_exit: false,
+            remote_addr,
         }
     }
 
@@ -159,7 +163,7 @@ impl RtspServerSession {
             if let Ok(data) = InterleavedBinaryData::new(&mut self.reader) {
                 match data {
                     Some(a) => {
-                        if self.reader.len() < a.length as usize {
+                        while self.reader.len() < a.length as usize {
                             let data = self.io.lock().await.read().await?;
                             self.reader.extend_from_slice(&data[..]);
                         }
@@ -428,7 +432,7 @@ impl RtspServerSession {
                                     (0, 0)
                                 };
 
-                            let address = rtsp_request.uri.host.clone();
+                            let address = self.remote_addr.ip().to_string();
                             if let Some(rtp_io) = UdpIO::new(address.clone(), rtp_port, 0).await {
                                 rtp_server_port = rtp_io.get_local_port();
 
