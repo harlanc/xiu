@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use {
     crate::rtp::errors::{PackerError, UnPackerError},
     bytesio::bytes_errors::BytesReadError,

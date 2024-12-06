@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use {
     crate::chunk::errors::PackError,
     bytesio::bytes_errors::BytesReadError,
