@@ -17,3 +17,7 @@ members = [
   "library/streamhub",
   "library/common",
 ]
+
+[profile.release]
+codegen-units = 1
+lto = true
