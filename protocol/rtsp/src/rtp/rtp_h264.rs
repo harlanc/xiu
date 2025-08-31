@@ -93,7 +93,8 @@ impl RtpH264Packer {
             }
 
             left_nalu_bytes = nalu_reader.len();
-            self.header.seq_number += 1;
+            // rtp seq-numer should be adding wrapping
+            self.header.seq_number = self.header.seq_number.wrapping_add(1);
         }
 
         Ok(())
@@ -104,7 +105,7 @@ impl RtpH264Packer {
         packet.payload.put(nalu);
 
         // let packet_bytesmut = packet.marshal()?;
-        self.header.seq_number += 1;
+        self.header.seq_number = self.header.seq_number.wrapping_add(1);
 
         if let Some(f) = &self.on_packet_for_rtcp_handler {
             f(packet.clone()).await;

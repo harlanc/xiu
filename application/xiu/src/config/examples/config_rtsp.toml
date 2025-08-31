@@ -1,0 +1,32 @@
+##########################
+#    RTSP configurations  #
+##########################
+[rtsp]
+enabled = true
+port = 8554
+relay_enabled = false
+[rtsp.auth]
+pull_enabled = false
+push_enabled = false
+# simple or md5
+algorithm = "simple"
+
+##########################
+#    Auth configurations #
+##########################
+[authsecret]
+# used for md5 authentication
+key = ""
+# used for simple authentication
+password = ""
+
+##########################
+#   LOG configurations   #
+##########################
+[log]
+level = "info"
+[log.file]
+# write log to file or not（Writing logs to file or console cannot be satisfied at the same time）.
+enabled = true
+rotate = "hour" #[day,hour,minute]
+path = "/tmp/logs"
