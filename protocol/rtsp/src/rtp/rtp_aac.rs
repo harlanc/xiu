@@ -71,7 +71,7 @@ impl TPacker for RtpAacPacker {
             f(self.io.clone(), packet).await?;
         }
 
-        self.header.seq_number += 1;
+        self.header.seq_number = self.header.seq_number.wrapping_add(1);
 
         Ok(())
     }
