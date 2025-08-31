@@ -3,7 +3,7 @@
 ##########################
 [rtsp]
 enabled = true
-port = 445
+port = 8554
 relay_enabled = false
 [rtsp.auth]
 pull_enabled = false
