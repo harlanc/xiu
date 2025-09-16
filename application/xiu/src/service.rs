@@ -332,10 +332,7 @@ impl Service {
             let mut hls_remuxer = HlsRemuxer::new(
                 cient_event_consumer,
                 event_producer,
-                hls_cfg_value.need_record,
-                hls_cfg_value.path.clone(),
-                hls_cfg_value.fragment,
-                hls_cfg_value.aof_ratio,
+                self.cfg.hls.clone(),
             );
 
             tokio::spawn(async move {

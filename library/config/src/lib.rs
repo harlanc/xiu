@@ -78,6 +78,7 @@ impl Config {
                 path: None,
                 fragment: None,
                 aof_ratio: None,
+                live_ts_count: None,
             });
         }
 
@@ -154,6 +155,7 @@ pub struct HlsConfig {
     pub path: Option<String>,
     pub fragment: Option<i64>,
     pub aof_ratio: Option<i64>,
+    pub live_ts_count: Option<usize>,
 }
 
 pub enum LogLevel {

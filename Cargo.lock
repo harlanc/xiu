@@ -1405,6 +1405,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "commonlib",
+ "config",
  "failure",
  "log",
  "streamhub",
