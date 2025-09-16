@@ -174,6 +174,12 @@ You can use command line to configure the xiu server easily. You can specify to 
     port = 8081
     # need record the live stream or not
     need_record = true
+    # target fragment size in seconds. Optional (default 2)
+    fragment = 2
+    # path to save playlist and segments. Optional (default "./")
+    path = "./"
+    # audio overflow ratio. Optional (default 1)
+    aof_ratio = 1 
 
 ##### Log
 
