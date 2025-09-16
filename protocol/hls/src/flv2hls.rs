@@ -30,7 +30,6 @@ pub struct Flv2HlsRemuxer {
     audio_pid: u16,
 
     m3u8_handler: M3u8,
-    path: String,
     aof_ratio: i64,
 }
 
@@ -69,9 +68,8 @@ impl Flv2HlsRemuxer {
             video_pid,
             audio_pid,
         
-            m3u8_handler: M3u8::new(duration, 6, app_name, stream_name, need_record, path.clone()),
+            m3u8_handler: M3u8::new(duration, 6, app_name, stream_name, need_record, path),
 
-            path,
             aof_ratio,
         }
     }
