@@ -318,6 +318,10 @@ pub enum StreamHubEvent {
         identifier: StreamIdentifier,
         sender: InformationSender,
     },
+    OnHls {
+        identifier: StreamIdentifier,
+        segment: Segment,
+    }
 }
 
 impl StreamHubEvent {
@@ -444,4 +448,34 @@ pub enum StatisticData {
         sub_type: SubscribeType,
         start_time: DateTime<Local>,
     },
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Segment {
+    /*ts duration*/
+    pub duration: i64,
+    pub discontinuity: bool,
+    /*ts name*/
+    pub name: String,
+    pub path: String,
+    pub is_eof: bool,
+}
+
+impl Segment {
+    pub fn new(
+        duration: i64,
+        discontinuity: bool,
+        name: String,
+        path: String,
+        is_eof: bool,
+    ) -> Self {
+        Self {
+            duration,
+            discontinuity,
+            name,
+            path,
+            is_eof,
+        }
+    }
 }

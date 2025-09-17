@@ -72,6 +72,7 @@ impl Service {
                     httpnotifier.on_unpublish.clone(),
                     httpnotifier.on_play.clone(),
                     httpnotifier.on_stop.clone(),
+                    httpnotifier.on_hls.clone(), 
                 )))
             }
         } else {

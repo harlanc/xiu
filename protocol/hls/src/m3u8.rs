@@ -2,35 +2,9 @@ use {
     super::{errors::MediaError, ts::Ts},
     bytes::BytesMut,
     std::{collections::VecDeque, fs, fs::File, io::Write},
+    streamhub::define::Segment,
 };
 
-pub struct Segment {
-    /*ts duration*/
-    pub duration: i64,
-    pub discontinuity: bool,
-    /*ts name*/
-    pub name: String,
-    path: String,
-    pub is_eof: bool,
-}
-
-impl Segment {
-    pub fn new(
-        duration: i64,
-        discontinuity: bool,
-        name: String,
-        path: String,
-        is_eof: bool,
-    ) -> Self {
-        Self {
-            duration,
-            discontinuity,
-            name,
-            path,
-            is_eof,
-        }
-    }
-}
 
 pub struct M3u8 {
     version: u16,

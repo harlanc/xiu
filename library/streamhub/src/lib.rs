@@ -774,6 +774,11 @@ impl StreamsHub {
                         log::error!("event_loop request error: {}", err);
                     }
                 }
+                StreamHubEvent::OnHls { identifier: _ , segment: _ } => {
+                    if let Some(notifier) = &self.notifier {
+                        notifier.on_hls_notify(&message).await;
+                    } 
+                }
             }
         }
     }

@@ -23,6 +23,7 @@ pub struct HttpNotifier {
     on_unpublish_url: Option<String>,
     on_play_url: Option<String>,
     on_stop_url: Option<String>,
+    on_hls_url: Option<String>,
 }
 
 impl HttpNotifier {
@@ -31,6 +32,8 @@ impl HttpNotifier {
         on_unpublish_url: Option<String>,
         on_play_url: Option<String>,
         on_stop_url: Option<String>,
+        on_hls_url: Option<String>,
+
     ) -> Self {
         Self {
             request_client: reqwest::Client::new(),
@@ -38,6 +41,7 @@ impl HttpNotifier {
             on_unpublish_url,
             on_play_url,
             on_stop_url,
+            on_hls_url,
         }
     }
 }
@@ -115,6 +119,25 @@ impl Notifier for HttpNotifier {
                 }
                 Ok(response) => {
                     log::info!("on_stop success: {:?}", response);
+                }
+            }
+        }
+    }
+
+    async fn on_hls_notify(&self, event: &StreamHubEventMessage) {
+        if let Some(on_hls_url) = &self.on_hls_url {
+            match self
+                .request_client
+                .post(on_hls_url)
+                .body(serialize_event!(event))
+                .send()
+                .await
+            {
+                Err(err) => {
+                    log::error!("on_hls error: {}", err);
+                }
+                Ok(response) => {
+                    log::info!("on_hls success: {:?}", response);
                 }
             }
         }
