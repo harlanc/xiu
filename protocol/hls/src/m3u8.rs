@@ -17,7 +17,7 @@ pub struct M3u8 {
     The normal recommendation is 3, but the optimum number may be larger.*/
     live_ts_count: usize,
 
-    segments: VecDeque<Segment>,
+    pub segments: VecDeque<Segment>,
 
     m3u8_folder: String,
     live_m3u8_name: String,

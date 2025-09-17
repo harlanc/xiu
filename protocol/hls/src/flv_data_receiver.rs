@@ -44,8 +44,8 @@ impl FlvDataReceiver {
             app_name: app_name.clone(),
             stream_name: stream_name.clone(),
             data_consumer,
-            event_producer,
-            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name, need_record),
+            event_producer: event_producer.clone(),
+            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name, need_record, Some(event_producer)),
             subscriber_id,
         }
     }
