@@ -163,9 +163,13 @@ impl Flv2HlsRemuxer {
             if let Some(segment) = self.m3u8_handler.segments.back() {
                 let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
                 let hub_event = StreamHubEvent::OnHls { identifier: identifier.clone(), segment: segment.clone() };
-                if let Err(err) = self.event_producer.clone().unwrap().send(hub_event) {
-                    log::error!("send notify on_hls event error: {}", err);
-                } 
+                if let Some(producer) = self.event_producer.clone() {
+                    if let Err(err) = producer.send(hub_event) {
+                        log::error!("send notify on_hls event error: {}", err);
+                    }
+                } else {
+                    log::warn!("event_producer is None, cannot send on_hls event");
+                }
                 log::info!("on_hls success: {:?}", identifier);
             }
             self.m3u8_handler
