@@ -321,9 +321,8 @@ impl Service {
     }
 
     async fn start_hls(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
-        let hls_cfg = &self.cfg.hls;
 
-        if let Some(hls_cfg_value) = hls_cfg {
+        if let Some(hls_cfg_value) = &self.cfg.hls {
             if !hls_cfg_value.enabled {
                 return Ok(());
             }
@@ -334,6 +333,9 @@ impl Service {
                 cient_event_consumer,
                 event_producer,
                 hls_cfg_value.need_record,
+                hls_cfg_value.path.clone(),
+                hls_cfg_value.fragment,
+                hls_cfg_value.aof_ratio,
             );
 
             tokio::spawn(async move {

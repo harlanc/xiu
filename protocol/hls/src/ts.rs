@@ -10,13 +10,12 @@ pub struct Ts {
 }
 
 impl Ts {
-    pub fn new(app_name: String, stream_name: String) -> Self {
-        let live_path = format!("./{app_name}/{stream_name}");
-        fs::create_dir_all(live_path.clone()).unwrap();
+    pub fn new(path: String) -> Self {
+        fs::create_dir_all(path.clone()).unwrap();
 
         Self {
             ts_number: 0,
-            live_path,
+            live_path: path,
         }
     }
     pub fn write(&mut self, data: BytesMut) -> Result<(String, String), MediaError> {
