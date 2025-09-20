@@ -1,5 +1,3 @@
-extern crate rtmp;
-extern crate serde_derive;
+extern crate config;
 pub mod api;
-pub mod config;
 pub mod service;
