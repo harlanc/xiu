@@ -179,7 +179,7 @@ You can use command line to configure the xiu server easily. You can specify to 
     # path to save playlist and segments. Optional (default "./")
     path = "./"
     # audio overflow ratio. Optional (default 1)
-    aof_ratio = 1 
+    aof_ratio = 1
 
 ##### Log
 

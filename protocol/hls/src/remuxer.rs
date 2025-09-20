@@ -24,7 +24,6 @@ impl HlsRemuxer {
         fragment: Option<i64>,
         aof_ratio: Option<i64>,
     ) -> Self {
-        
         Self {
             client_event_consumer: consumer,
             event_producer,
