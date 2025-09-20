@@ -75,6 +75,9 @@ impl Config {
                 port: hls_port,
                 need_record: false,
                 auth: None,
+                path: None,
+                fragment: None,
+                aof_ratio: None,
             });
         }
 
@@ -148,6 +151,9 @@ pub struct HlsConfig {
     //record or not
     pub need_record: bool,
     pub auth: Option<AuthConfig>,
+    pub path: Option<String>,
+    pub fragment: Option<i64>,
+    pub aof_ratio: Option<i64>,
 }
 
 pub enum LogLevel {

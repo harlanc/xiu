@@ -34,11 +34,20 @@ pub struct Flv2HlsRemuxer {
     event_producer: Option<StreamHubEventSender>,
     app_name: String,
     stream_name: String,
+    aof_ratio: i64,
 
 }
 
 impl Flv2HlsRemuxer {
-    pub fn new(duration: i64, app_name: String, stream_name: String, need_record: bool, event_producer: Option<StreamHubEventSender>) -> Self {
+    pub fn new(
+        duration: i64,
+        app_name: String,
+        stream_name: String,
+        need_record: bool,
+        event_producer: Option<StreamHubEventSender>,
+        path: String,
+        aof_ratio: i64,
+    ) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
@@ -64,11 +73,12 @@ impl Flv2HlsRemuxer {
 
             video_pid,
             audio_pid,
-
-            m3u8_handler: M3u8::new(duration, 6, app_name.clone(), stream_name.clone(), need_record),
+        
+            m3u8_handler: M3u8::new(duration, 6, app_name.clone(), stream_name.clone(), need_record, path),
             event_producer,
             app_name,
             stream_name,
+            aof_ratio,
         }
     }
 
@@ -146,7 +156,7 @@ impl Flv2HlsRemuxer {
                 pid = self.audio_pid;
                 payload.extend_from_slice(&data.data[..]);
 
-                if dts - self.last_ts_dts >= self.duration * 1000 {
+                if dts - self.last_ts_dts >= self.duration * 1000 * self.aof_ratio {
                     self.need_new_segment = true;
                 }
             }
