@@ -2,35 +2,9 @@ use {
     super::{errors::MediaError, ts::Ts},
     bytes::BytesMut,
     std::{collections::VecDeque, fs, fs::File, io::Write},
+    streamhub::define::Segment,
 };
 
-pub struct Segment {
-    /*ts duration*/
-    pub duration: i64,
-    pub discontinuity: bool,
-    /*ts name*/
-    pub name: String,
-    path: String,
-    pub is_eof: bool,
-}
-
-impl Segment {
-    pub fn new(
-        duration: i64,
-        discontinuity: bool,
-        name: String,
-        path: String,
-        is_eof: bool,
-    ) -> Self {
-        Self {
-            duration,
-            discontinuity,
-            name,
-            path,
-            is_eof,
-        }
-    }
-}
 
 pub struct M3u8 {
     version: u16,
@@ -43,7 +17,7 @@ pub struct M3u8 {
     The normal recommendation is 3, but the optimum number may be larger.*/
     live_ts_count: usize,
 
-    segments: VecDeque<Segment>,
+    pub segments: VecDeque<Segment>,
 
     m3u8_folder: String,
     live_m3u8_name: String,
