@@ -65,7 +65,7 @@ mod tests {
 
         let start = Instant::now();
         let mut media_demuxer =
-            Flv2HlsRemuxer::new(String::from("live"), String::from("test"), None);
+            Flv2HlsRemuxer::new(String::from("live"), String::from("test"), None, None);
 
         loop {
             let data_ = demuxer.read_flv_tag();

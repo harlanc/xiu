@@ -19,7 +19,6 @@ impl HlsRemuxer {
         event_producer: StreamHubEventSender,
         hls_config: Option<HlsConfig>
     ) -> Self {
-        
         Self {
             client_event_consumer: consumer,
             event_producer,
