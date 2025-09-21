@@ -5,6 +5,7 @@ use {
         define::{frame_type, FlvData},
         demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
     },
+    streamhub::{define::{StreamHubEventSender, StreamHubEvent}, stream::StreamIdentifier},
     xmpegts::{
         define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
         ts::TsMuxer,
@@ -30,7 +31,11 @@ pub struct Flv2HlsRemuxer {
     audio_pid: u16,
 
     m3u8_handler: M3u8,
+    event_producer: Option<StreamHubEventSender>,
+    app_name: String,
+    stream_name: String,
     aof_ratio: i64,
+
 }
 
 impl Flv2HlsRemuxer {
@@ -39,6 +44,7 @@ impl Flv2HlsRemuxer {
         app_name: String,
         stream_name: String,
         need_record: bool,
+        event_producer: Option<StreamHubEventSender>,
         path: String,
         aof_ratio: i64,
     ) -> Self {
@@ -68,8 +74,10 @@ impl Flv2HlsRemuxer {
             video_pid,
             audio_pid,
         
-            m3u8_handler: M3u8::new(duration, 6, app_name, stream_name, need_record, path),
-
+            m3u8_handler: M3u8::new(duration, 6, app_name.clone(), stream_name.clone(), need_record, path),
+            event_producer,
+            app_name,
+            stream_name,
             aof_ratio,
         }
     }
@@ -162,6 +170,18 @@ impl Flv2HlsRemuxer {
             }
             let data = self.ts_muxer.get_data();
 
+            if let Some(segment) = self.m3u8_handler.segments.back() {
+                let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
+                let hub_event = StreamHubEvent::OnHls { identifier: identifier.clone(), segment: segment.clone() };
+                if let Some(producer) = self.event_producer.clone() {
+                    if let Err(err) = producer.send(hub_event) {
+                        log::error!("send notify on_hls event error: {}", err);
+                    }
+                } else {
+                    log::warn!("event_producer is None, cannot send on_hls event");
+                }
+                log::info!("on_hls success: {:?}", identifier);
+            }
             self.m3u8_handler
                 .add_segment(dts - self.last_ts_dts, discontinuity, false, data)?;
             self.m3u8_handler.refresh_playlist()?;
