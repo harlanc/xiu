@@ -10,12 +10,9 @@ categories = ["multimedia", "multimedia::video", 'multimedia::audio']
 keywords = ["rtmp", "hls", "httpflv", "video", "streaming"]
 edition = "2018"
 [dependencies]
-toml = "0.5.8"
-serde_derive = "1.0"
 serde = { version = "1.0.101", optional = true, features = ["derive"] }
 anyhow = "^1.0"
 log = "0.4.0"
-failure = "0.1.8"
 clap = "4.1.4"
 libc = "0.2.139"
 serde_json = { version = "1", default-features = false, features = [
@@ -29,6 +26,7 @@ tokio-metrics = { version = "0.2.0", default-features = false }
 env_logger_extend = { path = "../../library/logger/" }
 streamhub = { path = "../../library/streamhub/" }
 commonlib = { path = "../../library/common/" }
+config = { path = "../../library/config/" }
 rtmp = { path = "../../protocol/rtmp/" }
 xrtsp = { path = "../../protocol/rtsp/" }
 xwebrtc = { path = "../../protocol/webrtc/" }

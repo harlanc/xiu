@@ -1,0 +1,21 @@
+[package]
+name = "config"
+version = "0.1.0"
+authors = ["HarlanC <wawacry@qq.com>"]
+edition = "2018"
+description = "a config library."
+license = "MIT"
+repository = "https://github.com/harlanc/xiu"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+toml = "0.5.8"
+serde_derive = "1.0"
+serde = { version = "1.0.101", optional = true, features = ["derive"] }
+failure = "0.1.8"
+
+commonlib = { path = "../common/" }
+
+[features]
+default = ["std"]
+std = ["serde"]
