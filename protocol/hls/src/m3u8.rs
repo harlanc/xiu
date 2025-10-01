@@ -47,7 +47,7 @@ impl M3u8 {
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
         let live_m3u8_name = format!("{stream_name}.m3u8");
 
-        let need_record= hls_config
+        let need_record = hls_config
             .as_ref() 
             .and_then(|config| Some(config.need_record))
             .unwrap_or(false);
