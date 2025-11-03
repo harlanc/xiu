@@ -31,12 +31,12 @@ We would like to thank the following sponsors for their support of this project.
 
 ### Recall.ai - API for meeting recordings
 <p align="center" width="100%">
-    <a href="https://www.recall.ai/">
+    <a href="https://www.recall.ai/product/meeting-recording-api?utm_source=github&utm_medium=sponsorship&utm_campaign=harlanc-xiu">
         <img width="20%" src="https://raw.githubusercontent.com/harlanc/xiu/a4b70646597e66c2df955537411eb256b69eb9d1/doc/recall-logo.svg">
     </a>
 </p>
 
-If you’re looking for a meeting recording API, consider checking out [Recall.ai](https://www.recall.ai/product/meeting-recording-api), an API that records Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
+If you’re looking for a meeting recording API, consider checking out [Recall.ai](https://www.recall.ai/product/meeting-recording-api?utm_source=github&utm_medium=sponsorship&utm_campaign=harlanc-xiu), an API that records Zoom, Google Meet, Microsoft Teams, in-person meetings, and more.
 
 
 
