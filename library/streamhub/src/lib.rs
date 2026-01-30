@@ -520,8 +520,11 @@ pub struct StreamsHub {
 }
 
 impl StreamsHub {
-    pub fn new(notifier: Option<Arc<dyn Notifier>>) -> Self {
-        let (event_producer, event_consumer) = mpsc::unbounded_channel();
+    pub fn new(
+        notifier: Option<Arc<dyn Notifier>>,
+        event_producer: StreamHubEventSender,
+        event_consumer: StreamHubEventReceiver,
+        ) -> Self {
         let (client_producer, _) = broadcast::channel(100);
 
         Self {
