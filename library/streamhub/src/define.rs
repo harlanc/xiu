@@ -256,6 +256,10 @@ pub enum StreamHubEventMessage {
         identifier: StreamIdentifier,
         info: PublisherInfo,
     },
+    OnHls {
+        identifier: StreamIdentifier,
+        segment: Segment,
+    },
     NotSupport {},
 }
 
@@ -353,6 +357,10 @@ impl StreamHubEvent {
             StreamHubEvent::UnPublish { identifier, info } => StreamHubEventMessage::UnPublish {
                 identifier: identifier.clone(),
                 info: info.clone(),
+            },
+            StreamHubEvent::OnHls { identifier, segment } => StreamHubEventMessage::OnHls {
+                identifier: identifier.clone(),
+                segment: segment.clone(),
             },
             _ => StreamHubEventMessage::NotSupport {},
         }
