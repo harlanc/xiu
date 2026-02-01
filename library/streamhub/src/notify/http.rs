@@ -1,7 +1,7 @@
 use crate::notify::Notifier;
 use reqwest::Client;
 use async_trait::async_trait;
-use crate::define::{StreamHubEventMessage};
+use crate::define::{PublisherInfo, StreamHubEventMessage, StreamHubEventSender, StreamHubEvent};
 
 macro_rules! serialize_event {
     ($message:expr) => {{
@@ -24,6 +24,7 @@ pub struct HttpNotifier {
     on_play_url: Option<String>,
     on_stop_url: Option<String>,
     on_hls_url: Option<String>,
+    event_producer: StreamHubEventSender,
 }
 
 impl HttpNotifier {
@@ -33,6 +34,7 @@ impl HttpNotifier {
         on_play_url: Option<String>,
         on_stop_url: Option<String>,
         on_hls_url: Option<String>,
+        event_producer: StreamHubEventSender,
 
     ) -> Self {
         Self {
@@ -42,6 +44,7 @@ impl HttpNotifier {
             on_play_url,
             on_stop_url,
             on_hls_url,
+            event_producer,
         }
     }
 }
@@ -61,6 +64,9 @@ impl Notifier for HttpNotifier {
                     log::error!("on_publish error: {}", err);
                 }
                 Ok(response) => {
+                    if response.status() != 200 {
+                        self.kick_off_client(event).await;
+                    }
                     log::info!("on_publish success: {:?}", response);
                 }
             }
@@ -140,6 +146,16 @@ impl Notifier for HttpNotifier {
                     log::info!("on_hls success: {:?}", response);
                 }
             }
+        }
+    }
+
+    async fn kick_off_client(&self, event: &StreamHubEventMessage) {
+        if let StreamHubEventMessage::Publish { identifier, info } = event {
+            let hub_event = StreamHubEvent::ApiKickClient { id: info.id.clone() };
+            if let Err(err) = self.event_producer.send(hub_event) {
+                log::error!("send notify kick_off_client event error: {}", err);
+            }
+            log::info!("kick from hook: {:?}", identifier);
         }
     }
 }

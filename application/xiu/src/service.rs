@@ -19,6 +19,7 @@ use {
     },
     streamhub::{notify::http::HttpNotifier, notify::Notifier, StreamsHub},
     tokio,
+    tokio::sync::mpsc,
     xrtsp::rtsp::RtspServer,
     xwebrtc::webrtc::WebRTCServer,
 };
@@ -63,6 +64,7 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        let (event_producer, event_consumer) = mpsc::unbounded_channel();
         let notifier: Option<Arc<dyn Notifier>> = if let Some(httpnotifier) = &self.cfg.httpnotify {
             if !httpnotifier.enabled {
                 None
@@ -72,14 +74,15 @@ impl Service {
                     httpnotifier.on_unpublish.clone(),
                     httpnotifier.on_play.clone(),
                     httpnotifier.on_stop.clone(),
-                    httpnotifier.on_hls.clone(), 
+                    httpnotifier.on_hls.clone(),
+                    event_producer.clone(),
                 )))
             }
         } else {
             None
         };
 
-        let mut stream_hub = StreamsHub::new(notifier);
+        let mut stream_hub = StreamsHub::new(notifier, event_producer, event_consumer);
 
         self.start_httpflv(&mut stream_hub).await?;
         self.start_hls(&mut stream_hub).await?;

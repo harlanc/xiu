@@ -7,6 +7,7 @@ use {
     std::env,
     std::process::exit,
     streamhub::StreamsHub,
+    tokio::sync::mpsc,
     tokio::net::TcpStream,
     tokio::signal,
     tokio::time::Duration,
@@ -50,7 +51,8 @@ async fn main() -> Result<()> {
     let pull_rtmp_url = matches.get_one::<String>("pullrtmp").unwrap().clone();
     let push_rtmp_url = matches.get_one::<String>("pushrtmp").unwrap().clone();
 
-    let mut stream_hub = StreamsHub::new(None);
+    let (event_producer, event_consumer) = mpsc::unbounded_channel();
+    let mut stream_hub = StreamsHub::new(None, event_producer, event_consumer);
     let producer = stream_hub.get_hub_event_sender();
     tokio::spawn(async move { stream_hub.run().await });
 
