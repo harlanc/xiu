@@ -150,9 +150,8 @@ impl Notifier for HttpNotifier {
     }
 
     async fn kick_off_client(&self, event: &StreamHubEventMessage) {
-        if let  StreamHubEventMessage::Publish { identifier, info} = &event {
-            let PublisherInfo { id, pub_type: _, pub_data_type: _, notify_info: _  } = &info; 
-            let hub_event = StreamHubEvent::ApiKickClient { id: id.clone() };
+        if let StreamHubEventMessage::Publish { identifier, info } = event {
+            let hub_event = StreamHubEvent::ApiKickClient { id: info.id.clone() };
             if let Err(err) = self.event_producer.send(hub_event) {
                 log::error!("send notify kick_off_client event error: {}", err);
             }
