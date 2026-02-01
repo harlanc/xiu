@@ -258,7 +258,6 @@ pub enum StreamHubEventMessage {
     },
     OnHls {
         identifier: StreamIdentifier,
-        #[serde(skip_serializing)]
         segment: Segment,
     },
     NotSupport {},
