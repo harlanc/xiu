@@ -2826,6 +2826,7 @@ dependencies = [
  "bytes",
  "bytesio",
  "chrono",
+ "config",
  "failure",
  "indexmap 1.9.3",
  "log",

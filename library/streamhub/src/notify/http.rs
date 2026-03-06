@@ -1,7 +1,8 @@
 use crate::notify::Notifier;
 use reqwest::Client;
 use async_trait::async_trait;
-use crate::define::{PublisherInfo, StreamHubEventMessage, StreamHubEventSender, StreamHubEvent};
+use crate::define::{StreamHubEventMessage, StreamHubEventSender, StreamHubEvent};
+use config::HttpNotifierConfig;
 
 macro_rules! serialize_event {
     ($message:expr) => {{
@@ -29,21 +30,16 @@ pub struct HttpNotifier {
 
 impl HttpNotifier {
     pub fn new(
-        on_publish_url: Option<String>,
-        on_unpublish_url: Option<String>,
-        on_play_url: Option<String>,
-        on_stop_url: Option<String>,
-        on_hls_url: Option<String>,
+        config: HttpNotifierConfig,
         event_producer: StreamHubEventSender,
-
     ) -> Self {
         Self {
             request_client: reqwest::Client::new(),
-            on_publish_url,
-            on_unpublish_url,
-            on_play_url,
-            on_stop_url,
-            on_hls_url,
+            on_publish_url: config.on_publish,
+            on_unpublish_url: config.on_unpublish,
+            on_play_url: config.on_play,
+            on_stop_url: config.on_stop,
+            on_hls_url: config.on_hls,
             event_producer,
         }
     }
