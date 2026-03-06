@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 use serde::{Serialize, Serializer};
 use std::fmt;
 use std::time::SystemTime;
@@ -77,10 +77,10 @@ impl Uuid {
             value[i] = c;
         }
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let random_size = random_digit_count as usize;
         for i in 0..random_size {
-            let number = rng.gen_range(0..=9);
+            let number = rng.random_range(0..=9);
             if let Some(c) = std::char::from_digit(number, 10) {
                 value[10 + i] = c;
             }

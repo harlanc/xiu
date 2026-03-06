@@ -13,12 +13,12 @@ serde_json = { version = "1", default-features = false, features = [
     "raw_value",
     "std",
 ] }
-axum = "0.6.10"
-log = "0.4.0"
-env_logger = "0.10.0"
+axum = "0.8.8"
+log = "0.4.29"
+env_logger = "0.11.9"
 
 [dependencies.tokio]
-version = "1.4.0"
+version = "1.49.0"
 default-features = false
 #features = ["rt-core", "rt-threaded", "macros", "time","sync"]
 features = ["full"]

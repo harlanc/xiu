@@ -11,6 +11,8 @@ pub struct ConfigError {
 #[derive(Debug, Fail)]
 pub enum ConfigErrorValue {
     #[fail(display = "IO error: {}", _0)]
+    TomlError(toml::de::Error),
+    #[fail(display = "IO error: {}", _0)]
     IOError(Error),
 }
 

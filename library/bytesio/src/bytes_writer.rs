@@ -6,7 +6,7 @@ use {
     byteorder::{ByteOrder, WriteBytesExt},
     bytes::BytesMut,
     rand,
-    rand::Rng,
+    rand::RngExt,
     std::{io::Write, sync::Arc, time::Duration},
     tokio::{sync::Mutex, time::timeout},
 };
@@ -112,9 +112,9 @@ impl BytesWriter {
     }
 
     pub fn write_random_bytes(&mut self, length: u32) -> Result<(), BytesWriteError> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..length {
-            self.bytes.write_u8(rng.gen())?;
+            self.bytes.write_u8(rng.random())?;
         }
         Ok(())
     }
