@@ -598,6 +598,7 @@ dependencies = [
  "failure",
  "serde",
  "serde_derive",
+ "serde_json",
  "toml",
 ]
 
