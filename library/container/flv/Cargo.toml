@@ -11,12 +11,12 @@ keywords = ["flv", "video", "streaming"]
 edition = "2018"
 
 [dependencies]
-byteorder = "1.4.2"
-bytes = "1.0.0"
+byteorder = "1.5.0"
+bytes = "1.11.1"
 failure = "0.1.8"
 serde = { version = "1.0", features = ["derive", "rc"] }
 log = "0.4"
-indexmap = "1.9.3"
+indexmap = "2.13.0"
 
 bytesio = { path = "../../bytesio/" }
 h264-decoder = { path = "../../codec/h264/" }

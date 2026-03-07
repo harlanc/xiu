@@ -9,9 +9,9 @@ repository = "https://github.com/harlanc/xiu"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-toml = "0.5.8"
+toml = "1.0.3"
 serde_derive = "1.0"
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
+serde = { version = "1.0.228", optional = true, features = ["derive"] }
 failure = "0.1.8"
 
 commonlib = { path = "../common/" }

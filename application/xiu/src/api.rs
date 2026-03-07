@@ -7,6 +7,7 @@ use {
     },
     serde::Deserialize,
     serde_json::Value,
+    std::net::Ipv4Addr,
     std::sync::Arc,
     streamhub::{
         define::{self, RelayType, StreamHubEventSender},
@@ -298,8 +299,6 @@ pub async fn run(producer: StreamHubEventSender, port: usize) {
         .route("/api/stop_relay_stream", post(stop_relay_stream));
 
     log::info!("Http api server listening on http://0.0.0.0:{}", port);
-    axum::Server::bind(&([0, 0, 0, 0], port as u16).into())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind((Ipv4Addr::UNSPECIFIED, port as u16)).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
