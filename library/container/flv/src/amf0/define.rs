@@ -6,6 +6,7 @@ pub enum Amf0ValueType {
     Boolean(bool),
     UTF8String(String),
     Object(IndexMap<String, Amf0ValueType>),
+    StrictArray(Vec<Amf0ValueType>),
     Null,
     EcmaArray(IndexMap<String, Amf0ValueType>),
     LongUTF8String(String),
