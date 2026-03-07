@@ -48,6 +48,7 @@ impl Amf0Reader {
             amf0_markers::NULL => self.read_null(),
             amf0_markers::ECMA_ARRAY => self.read_ecma_array(),
             amf0_markers::LONG_STRING => self.read_long_string(),
+            amf0_markers::STRICT_ARRAY => self.read_strict_array(),
             _ => Err(Amf0ReadError {
                 value: Amf0ReadErrorValue::UnknownMarker { marker: markers },
             }),
@@ -153,6 +154,19 @@ impl Amf0Reader {
 
         let val = String::from_utf8(buff.to_vec())?;
         Ok(Amf0ValueType::LongUTF8String(val))
+    }
+
+    pub fn read_strict_array(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
+        let l = self.reader.read_u32::<BigEndian>()?;
+
+        let mut properties = Vec::with_capacity(l as usize);
+
+        for _ in 0..l {
+            let val = self.read_any()?;
+            properties.push(val);
+        }
+         
+        Ok(Amf0ValueType::StrictArray(properties))
     }
 
     // pub fn get_remaining_bytes(&mut self) -> BytesMut {
@@ -367,5 +381,33 @@ mod tests {
         // print::printu8(amf_writer.get_current_bytes());
 
         assert_eq!(command_obj_raw.unwrap(), Amf0ValueType::Object(properties));
+    }
+
+    #[test]
+    fn test_strict_array() {
+        // STRICT_ARRAY payload: marker 0x0a + length (u32 big-endian) + typed elements
+        // Format: [0x0a, length_bytes, element1_marker, element1_data, element2_marker, element2_data, ...]
+        // This test includes: Number(42.0), String("hello"), Null
+        let data: [u8; 23] = [
+            0x0a,                                          // STRICT_ARRAY marker
+            0x00, 0x00, 0x00, 0x03,                        // length = 3
+            0x00, 0x40, 0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // NUMBER marker + 42.0 (1+8 bytes)
+            0x02, 0x00, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f, // STRING marker + "hello" (1+2+5 bytes)
+            0x05,                                          // NULL marker
+        ];
+
+        let mut bytes_reader = BytesReader::new(BytesMut::new());
+        bytes_reader.extend_from_slice(&data);
+        let mut amf_reader = Amf0Reader::new(bytes_reader);
+
+        let strict_array = amf_reader.read_any().unwrap();
+
+        // Build expected IndexMap with string keys for array indices
+        let mut expected = Vec::with_capacity(3);
+        expected.push(Amf0ValueType::Number(42.0));
+        expected.push(Amf0ValueType::UTF8String(String::from("hello")));
+        expected.push(Amf0ValueType::Null);
+
+        assert_eq!(strict_array, Amf0ValueType::StrictArray(expected));
     }
 }
