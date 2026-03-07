@@ -1,7 +1,7 @@
 pub mod errors;
 
 use commonlib::auth::AuthAlgorithm;
-use errors::ConfigError;
+use errors::{ConfigError, ConfigErrorValue};
 use serde_derive::Deserialize;
 use std::fs;
 use std::vec::Vec;
@@ -210,7 +210,28 @@ pub struct AuthConfig {
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
     let content = fs::read_to_string(cfg_path)?;
-    let decoded_config = toml::from_str(&content[..]).unwrap();
+    let extension = std::path::Path::new(cfg_path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("");
+
+    match extension {
+        "toml" => {
+            let decoded_config = toml::from_str(&content[..])?;
+            Ok(decoded_config)
+        }
+        "json" => {
+            let decoded_config = serde_json::from_str(&content[..])?;
+            Ok(decoded_config)
+        }
+        _ => Err(ConfigError {
+            value: ConfigErrorValue::UnsupportedFormat(extension.to_string()),
+        }),
+    }
+}
+
+pub fn load_from_json(json_content: &str) -> Result<Config, ConfigError> {
+    let decoded_config = serde_json::from_str(json_content)?;
     Ok(decoded_config)
 }
 

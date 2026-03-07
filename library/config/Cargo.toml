@@ -12,6 +12,11 @@ repository = "https://github.com/harlanc/xiu"
 toml = "1.0.3"
 serde_derive = "1.0"
 serde = { version = "1.0.228", optional = true, features = ["derive"] }
+serde_json = { version = "1", default-features = false, features = [
+    "alloc",
+    "raw_value",
+    "std",
+] }
 failure = "0.1.8"
 
 commonlib = { path = "../common/" }
