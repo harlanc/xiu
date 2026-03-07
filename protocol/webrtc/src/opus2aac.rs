@@ -1,7 +1,7 @@
 use crate::errors::Opus2AacError;
 use audiopus::coder::Decoder as OpusDecoder;
 use audiopus::MutSignals;
-use fdk_aac::enc::{Encoder as AacEncoder, EncoderParams};
+use fdk_aac::enc::{Encoder as AacEncoder, EncoderParams, AudioObjectType};
 pub struct Opus2AacTranscoder {
     decoder_channels_size: usize,
     decoder: OpusDecoder,
@@ -25,6 +25,7 @@ impl Opus2AacTranscoder {
             transport: fdk_aac::enc::Transport::Raw,
             channels: encoder_channels,
             sample_rate: encoder_sample_rate,
+            audio_object_type: AudioObjectType::Mpeg2Aac,
         })?;
 
         let decoder_channels_size = match decoder_channels {

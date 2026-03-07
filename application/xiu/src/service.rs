@@ -70,11 +70,7 @@ impl Service {
                 None
             } else {
                 Some(Arc::new(HttpNotifier::new(
-                    httpnotifier.on_publish.clone(),
-                    httpnotifier.on_unpublish.clone(),
-                    httpnotifier.on_play.clone(),
-                    httpnotifier.on_stop.clone(),
-                    httpnotifier.on_hls.clone(),
+                    httpnotifier.clone(),
                     event_producer.clone(),
                 )))
             }

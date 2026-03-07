@@ -12,16 +12,16 @@ license = "MIT"
 
 [dependencies]
 anyhow = "^1.0"
-log = "0.4.0"
-env_logger = "0.10.0"
-clap = "4.1.4"
+log = "0.4.29"
+env_logger = "0.11.9"
+clap = "4.5.60"
 
 streamhub = { path = "../../library/streamhub/" }
 rtmp = { path = "../../protocol/rtmp/" }
 
 
 [dependencies.tokio]
-version = "1.26.0"
+version = "1.49.0"
 default-features = false
 #features = ["rt-core", "rt-threaded", "macros", "time","sync"]
 features = ["full"]

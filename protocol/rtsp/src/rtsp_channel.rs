@@ -30,7 +30,7 @@ use bytesio::bytes_errors::BytesWriteError;
 use bytesio::bytes_reader::BytesReader;
 use bytesio::bytes_writer::AsyncBytesWriter;
 use bytesio::bytesio::TNetIO;
-use rand::Rng;
+use rand::RngExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -56,7 +56,7 @@ pub struct RtcpChannel {
 
 impl RtpChannel {
     pub fn new(codec_info: RtspCodecInfo) -> Self {
-        let ssrc: u32 = rand::thread_rng().gen();
+        let ssrc: u32 = rand::rng().random();
         let mut rtp_channel = RtpChannel {
             codec_info,
             ssrc,

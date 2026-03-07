@@ -11,12 +11,12 @@ repository = "https://github.com/harlanc/xiu"
 
 [dependencies]
 anyhow = "^1.0"
-env_logger = "0.10.0"
-job_scheduler_ng = "2.0.4"
+env_logger = "0.11.9"
+job_scheduler_ng = "2.4.0"
 chrono = "0.4"
 failure = "0.1.8"
-log = "0.4.0"
-indexmap = "1.9.3"
-md5 = "0.7.0"
+log = "0.4.29"
+indexmap = "2.13.0"
+md5 = "0.8.0"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_derive = "1.0"

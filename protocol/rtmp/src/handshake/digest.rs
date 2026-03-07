@@ -6,7 +6,7 @@ use {
     },
     bytes::BytesMut,
     bytesio::bytes_reader::BytesReader,
-    hmac::{Hmac, Mac, NewMac},
+    hmac::{Hmac, Mac},
     sha2::Sha256,
 };
 
