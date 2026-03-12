@@ -68,7 +68,11 @@ impl M3u8 {
 
         let s3_config = hls_config.as_ref().and_then(|config| config.s3.clone());
         let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
-        let s3_prefix: Option<String> = s3_config.as_ref().map(|c| c.prefix.clone()).expect("No prefix");
+        let s3_prefix = if let Some(prefix) = s3_config.as_ref().map(|c| c.prefix.clone()).unwrap() {
+            format!("{}/{}/{}/", prefix, app_name, stream_name)
+        } else {
+            format!("{}/{}", app_name, stream_name)
+        };
 
         let prefix = if let Some(prefix) = hls_config.and_then(|config| config.prefix) {
             Some(format!("{}/{}/{}/", prefix, app_name, stream_name))
