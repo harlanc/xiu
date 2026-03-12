@@ -5,6 +5,7 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
+    aws_sdk_s3::Client as S3Client,
     config::HlsConfig,
     std::time::Duration,
     streamhub::{
@@ -36,6 +37,7 @@ impl FlvDataReceiver {
         stream_name: String,
         event_producer: StreamHubEventSender,
         hls_config: Option<HlsConfig>,
+        s3_client: Option<S3Client>,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
         let subscriber_id = Uuid::new(RandomDigitCount::Four);
@@ -45,7 +47,7 @@ impl FlvDataReceiver {
             stream_name: stream_name.clone(),
             data_consumer,
             event_producer: event_producer.clone(),
-            media_processor: Flv2HlsRemuxer::new(app_name, stream_name, hls_config, Some(event_producer)),
+            media_processor: Flv2HlsRemuxer::new(app_name, stream_name, hls_config, Some(event_producer), s3_client),
             subscriber_id,
         }
     }
@@ -69,7 +71,7 @@ impl FlvDataReceiver {
                     _ => continue,
                 };
                 retry_count = 0;
-                self.media_processor.process_flv_data(flv_data)?;
+                self.media_processor.process_flv_data(flv_data).await?;
             } else {
                 sleep(Duration::from_millis(100)).await;
                 retry_count += 1;
@@ -79,12 +81,12 @@ impl FlvDataReceiver {
             //will do an optimization in the future.
             //todo
             if retry_count > 10 {
-                self.media_processor.flush_remaining_data()?;
+                self.media_processor.flush_remaining_data().await?;
                 break;
             }
         }
 
-        self.media_processor.clear_files()?;
+        self.media_processor.clear_files().await?;
         self.unsubscribe_from_stream_hub().await
     }
 

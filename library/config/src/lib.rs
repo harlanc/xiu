@@ -80,6 +80,7 @@ impl Config {
                 aof_ratio: None,
                 live_ts_count: None,
                 prefix: None,
+                s3: None,
             });
         }
 
@@ -158,6 +159,7 @@ pub struct HlsConfig {
     pub aof_ratio: Option<i64>,
     pub live_ts_count: Option<usize>,
     pub prefix: Option<String>,
+    pub s3: Option<S3Config>,
 }
 
 pub enum LogLevel {
@@ -208,6 +210,39 @@ pub struct AuthConfig {
     pub pull_enabled: bool,
     pub push_enabled: Option<bool>,
     pub algorithm: AuthAlgorithm,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct S3Config {
+    pub enabled: bool,
+    pub bucket: String,
+    pub region: String,
+    pub access_key: Option<String>,
+    pub secret_key: Option<String>,
+    pub endpoint: Option<String>,
+    pub prefix: Option<String>,
+}
+
+impl S3Config {
+    pub fn new(
+        enabled: bool,
+        bucket: String,
+        region: String,
+        access_key: Option<String>,
+        secret_key: Option<String>,
+        endpoint: Option<String>,
+        prefix: Option<String>,
+    ) -> Self {
+        Self {
+            enabled,
+            bucket,
+            region,
+            access_key,
+            secret_key,
+            endpoint,
+            prefix,
+        }
+    }
 }
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
