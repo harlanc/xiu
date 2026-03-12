@@ -17,6 +17,8 @@ failure = "0.1.8"
 log = "0.4"
 axum = { version = "0.8.8" }
 tokio-util = { version = "0.7.18", features = ["codec"] }
+aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.124.0"
 
 streamhub = { path = "../../library/streamhub/" }
 xmpegts = { path = "../../library/container/mpegts/" }
