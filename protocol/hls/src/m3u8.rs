@@ -70,6 +70,12 @@ impl M3u8 {
         let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
         let s3_prefix: Option<String> = s3_config.as_ref().map(|c| c.prefix.clone()).expect("No prefix");
 
+        let prefix = if let Some(prefix) = hls_config.and_then(|config| config.prefix) {
+            Some(format!("{}/{}/{}/", prefix, app_name, stream_name))
+        } else {
+            None
+        };
+        
         let mut m3u8 = Self {
             version: 3,
             sequence_no: 0,
@@ -83,7 +89,7 @@ impl M3u8 {
             need_record,
             vod_m3u8_content: String::default(),
             vod_m3u8_name,
-            prefix: hls_config.and_then(|config| config.prefix),
+            prefix: prefix,
         };
 
         if need_record {
