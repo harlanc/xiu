@@ -40,7 +40,7 @@ impl Unmarshal for RtspRange {
                                 return -1;
                             }
                         };
-                    datetime.timestamp()
+                    datetime.and_utc().timestamp()
                 };
 
                 rtsp_range.begin = get_clock_time(ranges[0]);
