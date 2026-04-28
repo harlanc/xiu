@@ -298,7 +298,12 @@ pub async fn run(producer: StreamHubEventSender, port: usize) {
         .route("/api/start_relay_stream", post(start_relay_stream))
         .route("/api/stop_relay_stream", post(stop_relay_stream));
 
-    log::info!("Http api server listening on http://0.0.0.0:{}", port);
-    let listener = tokio::net::TcpListener::bind((Ipv4Addr::UNSPECIFIED, port as u16)).await.unwrap();
+    let listener = tokio::net::TcpListener::bind((Ipv4Addr::UNSPECIFIED, port as u16))
+        .await
+        .unwrap();
+    log::info!(
+        "Http api server listening on http://{}",
+        listener.local_addr().unwrap()
+    );
     axum::serve(listener, app).await.unwrap();
 }

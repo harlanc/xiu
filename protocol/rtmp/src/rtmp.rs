@@ -32,7 +32,8 @@ impl RtmpServer {
         let socket_addr: &SocketAddr = &self.address.parse().unwrap();
         let listener = TcpListener::bind(socket_addr).await?;
 
-        log::info!("Rtmp server listening on tcp://{}", socket_addr);
+        log::info!("Rtmp server listening on tcp://{}", listener.local_addr()?);
+
         loop {
             let (tcp_stream, _) = listener.accept().await?;
             //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
