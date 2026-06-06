@@ -123,6 +123,7 @@ impl Service {
             } else {
                 1
             };
+            let gop_max_frame_num = rtmp_cfg_value.gop_max_frame_num;
 
             let producer = stream_hub.get_hub_event_sender();
 
@@ -182,7 +183,8 @@ impl Service {
             let address = format!("0.0.0.0:{listen_port}");
 
             let auth = Self::gen_auth(&rtmp_cfg_value.auth, &self.cfg.authsecret);
-            let mut rtmp_server = RtmpServer::new(address, producer, gop_num, auth);
+            let mut rtmp_server =
+                RtmpServer::new(address, producer, gop_num, gop_max_frame_num, auth);
             tokio::spawn(async move {
                 if let Err(err) = rtmp_server.run().await {
                     log::error!("rtmp server error: {}", err);

@@ -6,6 +6,11 @@
 enabled = true
 port = 1935
 gop_num = 0
+# Maximum number of frames cached per GOP. Bounds memory for audio-only streams,
+# which never produce a video key frame to rotate the cache. Only takes effect
+# when gop_num > 0 (the cache is disabled when gop_num = 0). Optional; defaults
+# to a built-in value when unset.
+gop_max_frame_num = 2000
 [rtmp.auth]
 pull_enabled = false
 push_enabled = false
