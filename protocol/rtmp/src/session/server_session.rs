@@ -60,6 +60,9 @@ pub struct ServerSession {
     pub common: Common,
     /*configure how many gops will be cached.*/
     gop_num: usize,
+    /*configure the maximum number of frames cached per gop (bounds memory for
+    audio-only streams that never produce a video key frame).*/
+    gop_max_frame_num: Option<usize>,
     auth: Option<Auth>,
 }
 
@@ -68,6 +71,7 @@ impl ServerSession {
         stream: TcpStream,
         event_producer: StreamHubEventSender,
         gop_num: usize,
+        gop_max_frame_num: Option<usize>,
         auth: Option<Auth>,
     ) -> Self {
         let remote_addr = if let Ok(addr) = stream.peer_addr() {
@@ -99,6 +103,7 @@ impl ServerSession {
             has_remaing_data: false,
             connect_properties: ConnectProperties::default(),
             gop_num,
+            gop_max_frame_num,
             auth,
         }
     }
@@ -768,6 +773,7 @@ impl ServerSession {
                 self.app_name.clone(),
                 self.stream_name.clone(),
                 self.gop_num,
+                self.gop_max_frame_num,
             )
             .await?;
 

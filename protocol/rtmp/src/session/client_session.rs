@@ -547,6 +547,7 @@ impl ClientSession {
                             self.app_name.clone(),
                             self.stream_name.clone(),
                             self.gop_num,
+                            None,
                         )
                         .await?
                 }
