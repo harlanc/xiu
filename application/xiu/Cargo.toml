@@ -31,7 +31,7 @@ streamhub = { path = "../../library/streamhub/" }
 commonlib = { path = "../../library/common/" }
 rtmp = { path = "../../protocol/rtmp/" }
 xrtsp = { path = "../../protocol/rtsp/" }
-xwebrtc = { path = "../../protocol/webrtc/" }
+# xwebrtc = { path = "../../protocol/webrtc/" }
 httpflv = { path = "../../protocol/httpflv/" }
 hls = { path = "../../protocol/hls/" }
 

@@ -1,0 +1,40 @@
+# ARG DEBIAN_FRONTEND=noninteractive
+From ubuntu:noble as ffnc
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+WORKDIR /
+COPY ./deploy/sources_noble.list /etc/apt/sources.list
+RUN apt-get update; exit 0
+RUN apt-get install -y libopus-dev libopus0 opus-tools libssl-dev libffi-dev gcc g++ make cmake curl openssl pkg-config libwebrtc-audio-processing-dev
+#protobuf-compiler libprotobuf-dev
+# COPY ./deploy/rustup-init ./
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN /bin/bash -c "source '$HOME/.cargo/env'"
+# COPY ./deploy/config-global /root/.cargo/config
+
+RUN apt-get install -y perl perl-modules
+RUN apt-get install -y clang
+
+RUN mkdir /app
+
+WORKDIR /app
+COPY ./application /app/application
+COPY ./confs /app/confs
+COPY ./library /app/library
+COPY ./protocol /app/protocol
+COPY ./Cargo.toml /app/Cargo.toml
+COPY ./Cargo.lock /app/Cargo.lock
+COPY ./rtsp.toml /app/rtsp.toml
+# COPY ./.env /app/.env
+
+
+RUN /root/.cargo/bin/cargo build --bin xiu --release
+
+RUN mv /app/target/release/xiu ./
+RUN rm -rf ./application ./confs ./library ./protocol ./Cargo.toml ./Cargo.lock ./target
+RUN mkdir /app/logs
+
+EXPOSE 8554 8000
+
+CMD ["/app/xiu", "-c", "/app/rtsp.toml"]

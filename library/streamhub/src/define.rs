@@ -321,7 +321,7 @@ pub enum StreamHubEvent {
     OnHls {
         identifier: StreamIdentifier,
         segment: Segment,
-    }
+    },
 }
 
 impl StreamHubEvent {
@@ -346,11 +346,14 @@ impl StreamHubEvent {
                 info,
                 result_sender: _result_sender,
                 stream_handler: _stream_handler,
+                ..
             } => StreamHubEventMessage::Publish {
                 identifier: identifier.clone(),
                 info: info.clone(),
             },
-            StreamHubEvent::UnPublish { identifier, info } => StreamHubEventMessage::UnPublish {
+            StreamHubEvent::UnPublish {
+                identifier, info, ..
+            } => StreamHubEventMessage::UnPublish {
                 identifier: identifier.clone(),
                 info: info.clone(),
             },
@@ -449,7 +452,6 @@ pub enum StatisticData {
         start_time: DateTime<Local>,
     },
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Segment {

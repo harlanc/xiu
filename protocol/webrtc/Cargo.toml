@@ -19,9 +19,10 @@ failure = "0.1.8"
 log = "0.4"
 webrtc = "0.8.0"
 async-trait = "0.1.70"
-fdk-aac = "0.6.0"
+# fdk-aac = "0.6.0"
 audiopus = "0.3.0-rc.0"
 
+fdk-aac = { path = "../../library/fdk-aac-rs/" }
 bytesio = { path = "../../library/bytesio/" }
 streamhub = { path = "../../library/streamhub/" }
 xflv = { path = "../../library/container/flv/" }

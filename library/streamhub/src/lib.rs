@@ -418,7 +418,9 @@ impl StreamDataTransceiver {
                             let subscribers = &mut statistics_data.subscribers;
                             subscribers.remove(&info.id);
 
-                            statistics_data.subscriber_count -= 1;
+                            if statistics_data.subscriber_count > 0 {
+                                statistics_data.subscriber_count -= 1;
+                            }
                         }
                         TransceiverEvent::UnPublish {} => {
                             if let Err(err) = exit.send(()) {
@@ -644,6 +646,33 @@ impl StreamsHub {
                     identifier,
                     info: _,
                 } => {
+                    let unsubcribe_evts = self
+                        .un_pub_sub_events
+                        .iter()
+                        .map(|(_, v)| {
+                            if let StreamHubEvent::UnSubscribe { identifier, info } = v {
+                                Some((identifier.clone(), info.clone()))
+                            } else {
+                                None
+                            }
+                        })
+                        .filter(|v| {
+                            if let Some(s) = v {
+                                s.0 == identifier
+                            } else {
+                                false
+                            }
+                        })
+                        .map(|v| v.unwrap())
+                        .collect::<Vec<(StreamIdentifier, SubscriberInfo)>>();
+                    for (identifier, info) in unsubcribe_evts.into_iter() {
+                        if self.unsubscribe(&identifier, info.clone()).is_ok() {
+                            if let Some(notifier) = &self.notifier {
+                                notifier.on_stop_notify(&message).await;
+                            }
+                        }
+                    }
+                    // log::info!("receive {val} evt");
                     if let Err(err) = self.unpublish(&identifier) {
                         log::error!(
                             "event_loop Unpublish err: {} with identifier: {}",
@@ -651,7 +680,6 @@ impl StreamsHub {
                             identifier
                         );
                     }
-
                     if let Some(notifier) = &self.notifier {
                         notifier.on_unpublish_notify(&message).await;
                     }
@@ -663,7 +691,6 @@ impl StreamsHub {
                 } => {
                     let sub_id = info.id;
                     let info_clone = info.clone();
-
                     //new chan for Frame/Packet sender and receiver
                     let (sender, receiver) = match info.sub_data_type {
                         define::SubDataType::Frame => {
@@ -774,10 +801,13 @@ impl StreamsHub {
                         log::error!("event_loop request error: {}", err);
                     }
                 }
-                StreamHubEvent::OnHls { identifier: _ , segment: _ } => {
+                StreamHubEvent::OnHls {
+                    identifier: _,
+                    segment: _,
+                } => {
                     if let Some(notifier) = &self.notifier {
                         notifier.on_hls_notify(&message).await;
-                    } 
+                    }
                 }
             }
         }

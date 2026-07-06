@@ -1,5 +1,6 @@
 pub mod global_trait;
 // pub mod http;
+pub mod aac_filter;
 pub mod relay;
 pub mod rtp;
 pub mod rtsp;

@@ -1,0 +1,29 @@
+# [source.crates-io]
+# replace-with = 'ustc'
+
+# [source.tuna]
+# registry = "https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git"
+
+# # 中国科学技术大学
+# [source.ustc]
+# registry = "git://mirrors.ustc.edu.cn/crates.io-index"
+
+
+# [source.crates-io]
+# replace-with = 'tuna'
+
+# [source.tuna]
+# registry = "https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git"
+
+
+[source.crates-io]
+replace-with = 'rsproxy'
+
+[source.rsproxy]
+registry = "https://rsproxy.cn/crates.io-index"
+
+[registries.rsproxy]
+index = "https://rsproxy.cn/crates.io-index"
+
+[net]
+git-fetch-with-cli = true

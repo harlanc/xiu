@@ -1,0 +1,12 @@
+[package]
+name = "fdk-aac"
+version = "0.6.0"
+authors = ["Hailey Somerville <hailey@hailey.lol>"]
+edition = "2018"
+license = "MIT"
+description = "AAC encoding library binding to libfdk-aac"
+homepage = "https://github.com/haileys/fdk-aac-rs"
+repository = "https://github.com/haileys/fdk-aac-rs"
+
+[dependencies]
+fdk-aac-sys = { version = "0.5", path = "fdk-aac-sys" }

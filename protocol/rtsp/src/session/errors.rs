@@ -47,6 +47,8 @@ pub enum SessionErrorValue {
     IOError(#[cause] Error),
     #[fail(display = "RTSP response status error")]
     RtspResponseStatusError,
+    #[fail(display = "Codec mismatch error")]
+    CodecMismatchError,
 }
 
 impl From<BytesIOError> for SessionError {

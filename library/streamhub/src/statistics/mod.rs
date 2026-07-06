@@ -60,6 +60,7 @@ pub struct StatisticsStream {
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct StatisticPublisher {
     pub id: Uuid,
+    path: String,
     identifier: StreamIdentifier,
     pub start_time: DateTime<Local>,
     pub video: VideoInfo,
@@ -76,7 +77,19 @@ pub struct StatisticPublisher {
 impl StatisticPublisher {
     pub fn new(identifier: StreamIdentifier) -> Self {
         Self {
-            identifier,
+            identifier: identifier.clone(),
+            path: match identifier {
+                StreamIdentifier::Rtsp { stream_path } => stream_path,
+                StreamIdentifier::Rtmp {
+                    app_name,
+                    stream_name,
+                } => format!("{app_name}/{stream_name}"),
+                StreamIdentifier::WebRTC {
+                    app_name,
+                    stream_name,
+                } => format!("{app_name}/{stream_name}"),
+                _ => "".to_owned(),
+            },
             ..Default::default()
         }
     }

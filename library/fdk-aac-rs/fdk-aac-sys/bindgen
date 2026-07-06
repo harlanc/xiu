@@ -1,0 +1,2 @@
+#!/bin/bash
+bindgen -o src/bindings.rs wrapper.h -- "-I" "aac/libAACdec/include" "-I" "aac/libAACenc/include" "-I" "aac/libPCMutils/include" "-I" "aac/libFDK/include" "-I" "aac/libSYS/include" "-I" "aac/libMpegTPDec/include" "-I" "aac/libMpegTPEnc/include" "-I" "aac/libSBRdec/include" "-I" "aac/libSBRenc/include" "-I" "aac/libArithCoding/include" "-I" "aac/libDRCdec/include" "-I" "aac/libSACdec/include" "-I" "aac/libSACenc/include"

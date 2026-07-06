@@ -1,0 +1,24 @@
+version: "2"
+
+services:
+  web:
+    restart: always
+    image: rtxp_server:v0.1
+    container_name: rtxp_server
+    network_mode: host
+    ports:
+      - "8554:8554"
+      - "8000:8000"
+      # - "49152-49352:49152-49352/udp"
+    volumes:
+      - ./rtsp.toml:/app/rtsp.toml
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: "all"
+    #           capabilities: [ gpu ]

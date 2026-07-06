@@ -24,7 +24,16 @@ serde_json = { version = "1", default-features = false, features = [
     "raw_value",
     "std",
 ] }
+rubato = "0.16"
+webrtc-audio-processing = "0.5"
+bytemuck = "1.24"
+fdk-aac = "0.8"
+anyhow = "1"
 
 bytesio = { path = "../../library/bytesio/" }
 streamhub = { path = "../../library/streamhub/" }
 commonlib = { path = "../../library/common/" }
+xflv = { path = "../../library/container/flv/" }
+
+[dev-dependencies]
+adts-reader = "0.3"

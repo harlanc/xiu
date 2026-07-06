@@ -1,15 +1,24 @@
+use crate::aac_filter::AacFilter;
 use crate::global_trait::Marshal;
 use crate::global_trait::Unmarshal;
 use crate::rtsp_codec;
 
 use crate::rtp::define::ANNEXB_NALU_START_CODE;
 use crate::rtp::utils::Marshal as RtpMarshal;
+use crate::rtsp_codec::RtspCodecId;
 
 use commonlib::auth::SecretCarrier;
 use commonlib::http::HttpRequest as RtspRequest;
 use commonlib::http::HttpResponse as RtspResponse;
 use commonlib::http::Marshal as RtspMarshal;
 use commonlib::http::Unmarshal as RtspUnmarshal;
+use streamhub::define::StatisticData;
+use tokio::sync::mpsc::WeakUnboundedSender;
+use xflv::define::AacProfile;
+use xflv::define::AvcCodecId;
+use xflv::define::AvcLevel;
+use xflv::define::AvcProfile;
+use xflv::define::SoundFormat;
 
 use crate::rtp::RtpPacket;
 use crate::rtsp_range::RtspRange;
@@ -47,8 +56,9 @@ use bytesio::bytesio::TNetIO;
 use bytesio::bytesio::TcpIO;
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::mpsc;
 
 use commonlib::auth::Auth;
@@ -66,7 +76,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 pub struct RtspServerSession {
-    io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
+    pub io: Arc<Mutex<Box<dyn TNetIO + Send + Sync>>>,
     reader: BytesReader,
     writer: AsyncBytesWriter,
 
@@ -79,10 +89,15 @@ pub struct RtspServerSession {
     event_producer: StreamHubEventSender,
 
     auth: Option<Auth>,
+    apm: Option<AacFilter>,
+    enable_apm: bool,
 
     pub stream_identifier: Option<StreamIdentifier>,
     pub is_normal_exit: bool,
     remote_addr: SocketAddr,
+
+    pub hub_sender: Option<WeakUnboundedSender<StatisticData>>,
+    pub hb: Instant,
 }
 
 pub struct InterleavedBinaryData {
@@ -119,6 +134,7 @@ impl RtspServerSession {
         stream: TcpStream,
         event_producer: StreamHubEventSender,
         auth: Option<Auth>,
+        enable_apm: bool,
     ) -> Self {
         // let remote_addr = if let Ok(addr) = stream.peer_addr() {
         //     log::info!("server session: {}", addr.to_string());
@@ -142,14 +158,34 @@ impl RtspServerSession {
             event_producer,
             stream_handler: Arc::new(RtspStreamHandler::new()),
             auth,
+            apm: None,
+            enable_apm,
             stream_identifier: None,
             is_normal_exit: false,
             remote_addr,
+
+            hub_sender: None,
+            hb: Instant::now(),
         }
     }
 
     pub async fn run(&mut self) -> Result<(), SessionError> {
         loop {
+            // log::info!(
+            //     "id {} reading",
+            //     self.session_id
+            //         .map(|v| v.to_string())
+            //         .unwrap_or("".to_owned()),
+            // );
+            if let Some(weak_sender) = &self.hub_sender {
+                if weak_sender.upgrade().is_none() {
+                    return Err(SessionError {
+                        value: SessionErrorValue::ChannelError(StreamHubError {
+                            value: StreamHubErrorValue::NoStreamName,
+                        }),
+                    });
+                }
+            }
             while self.reader.len() < 4 {
                 let data = self.io.lock().await.read().await?;
                 self.reader.extend_from_slice(&data[..]);
@@ -256,7 +292,10 @@ impl RtspServerSession {
             }
             rtsp_method_name::PLAY => {
                 if let Err(err) = self.handle_play(&rtsp_request).await {
-                    log::info!("handle_play error: {}", err);
+                    log::warn!("handle_play error: {}", err);
+                    if let SessionErrorValue::CannotReceiveFrameData = err.value {
+                        return Err(err);
+                    }
                 }
             }
             rtsp_method_name::RECORD => {
@@ -346,7 +385,7 @@ impl RtspServerSession {
         }
 
         //new tracks for publish session
-        self.new_tracks()?;
+        let codec_map = self.new_tracks()?;
 
         let (event_result_sender, event_result_receiver) = oneshot::channel();
 
@@ -355,10 +394,11 @@ impl RtspServerSession {
         };
         self.stream_identifier = Some(identifier.clone());
 
+        let publisher_info = self.get_publisher_info();
         let publish_event = StreamHubEvent::Publish {
             identifier,
             result_sender: event_result_sender,
-            info: self.get_publisher_info(),
+            info: publisher_info.clone(),
             stream_handler: self.stream_handler.clone(),
         };
 
@@ -368,7 +408,50 @@ impl RtspServerSession {
             });
         }
 
-        let sender = event_result_receiver.await??.0.unwrap();
+        let (sender_opt, _, statistics_sender_opt) = event_result_receiver.await??;
+        if let Some(statistics_sender) = &statistics_sender_opt {
+            let _ = statistics_sender.send(StatisticData::Publisher {
+                id: publisher_info.id,
+                remote_addr: self.remote_addr.to_string(),
+                start_time: chrono::Local::now(),
+            });
+            for (type_, track) in &codec_map {
+                if TrackType::Video == *type_ {
+                    let _ = statistics_sender.send(StatisticData::VideoCodec {
+                        codec: match track.codec_id {
+                            RtspCodecId::H264 => AvcCodecId::H264,
+                            RtspCodecId::H265 => AvcCodecId::HEVC,
+                            _ => {
+                                return Err(SessionError {
+                                    value: SessionErrorValue::CodecMismatchError,
+                                })
+                            }
+                        },
+                        profile: AvcProfile::UNKNOWN,
+                        level: AvcLevel::UNKNOWN,
+                        width: 0,
+                        height: 0,
+                    });
+                } else if TrackType::Audio == *type_ {
+                    let _ = statistics_sender.send(StatisticData::AudioCodec {
+                        sound_format: match track.codec_id {
+                            RtspCodecId::AAC => SoundFormat::AAC,
+                            _ => {
+                                return Err(SessionError {
+                                    value: SessionErrorValue::CodecMismatchError,
+                                })
+                            }
+                        },
+                        profile: AacProfile::UNKNOWN,
+                        samplerate: track.sample_rate,
+                        channels: track.channel_count,
+                    });
+                }
+            }
+            self.hub_sender.replace(statistics_sender.downgrade());
+        }
+        // let sender = event_result_receiver.await??.0.unwrap();
+        let sender = sender_opt.unwrap();
 
         for track in self.tracks.values_mut() {
             let sender_out = sender.clone();
@@ -554,11 +637,12 @@ impl RtspServerSession {
 
         let (event_result_sender, event_result_receiver) = oneshot::channel();
 
+        let subscriber_info = self.get_subscriber_info();
         let subscribe_event = StreamHubEvent::Subscribe {
             identifier: StreamIdentifier::Rtsp {
                 stream_path: rtsp_request.uri.path.clone(),
             },
-            info: self.get_subscriber_info(),
+            info: subscriber_info.clone(),
             result_sender: event_result_sender,
         };
 
@@ -568,7 +652,23 @@ impl RtspServerSession {
             });
         }
 
-        let mut receiver = event_result_receiver.await??.0.frame_receiver.unwrap();
+        let (data_receiver, statistics_sender_opt) = event_result_receiver.await??;
+        if let Some(statistics_sender) = &statistics_sender_opt {
+            let _ = statistics_sender.send(StatisticData::Subscriber {
+                id: subscriber_info.id,
+                remote_addr: self.remote_addr.to_string(),
+                sub_type: SubscribeType::RtspPull,
+                start_time: chrono::Local::now(),
+            });
+
+            self.hub_sender.replace(statistics_sender.downgrade());
+        }
+        let mut receiver = data_receiver.frame_receiver.unwrap();
+
+        // define::ClientSessionType::Push => StreamHubEvent::UnSubscribe {
+        //     identifier,
+        //     info: self.get_subscriber_info(),
+        // },
 
         let mut retry_times = 0;
         loop {
@@ -579,6 +679,11 @@ impl RtspServerSession {
                         mut data,
                     } => {
                         if let Some(audio_track) = self.tracks.get_mut(&TrackType::Audio) {
+                            if let Some(apm) = &mut self.apm {
+                                if let Ok(d) = apm.pipeline(&data) {
+                                    data = d;
+                                }
+                            }
                             audio_track
                                 .rtp_channel
                                 .lock()
@@ -679,7 +784,8 @@ impl RtspServerSession {
         }
     }
 
-    fn new_tracks(&mut self) -> Result<(), SessionError> {
+    fn new_tracks(&mut self) -> Result<HashMap<TrackType, RtspCodecInfo>, SessionError> {
+        let mut result = HashMap::new();
         for media in &self.sdp.medias {
             let media_control = if let Some(media_control_val) = media.attributes.get("control") {
                 media_control_val.clone()
@@ -704,8 +810,19 @@ impl RtspServerSession {
 
                     log::info!("audio codec info: {:?}", codec_info);
 
-                    let track = RtspTrack::new(TrackType::Audio, codec_info, media_control);
+                    if self.enable_apm && self.apm.is_none() {
+                        let filter = AacFilter::new(
+                            codec_info.sample_rate as i32,
+                            codec_info.channel_count as u8,
+                        )
+                        .map_err(|_| SessionError {
+                            value: SessionErrorValue::CodecMismatchError,
+                        })?;
+                        self.apm.replace(filter);
+                    }
+                    let track = RtspTrack::new(TrackType::Audio, codec_info.clone(), media_control);
                     self.tracks.insert(TrackType::Audio, track);
+                    result.insert(TrackType::Audio, codec_info);
                 }
                 "video" => {
                     let codec_id = rtsp_codec::RTSP_CODEC_NAME_2_ID
@@ -718,13 +835,17 @@ impl RtspServerSession {
                         sample_rate: media.rtpmap.clock_rate,
                         ..Default::default()
                     };
-                    let track = RtspTrack::new(TrackType::Video, codec_info, media_control);
+
+                    log::info!("video codec info: {:?}", codec_info);
+
+                    let track = RtspTrack::new(TrackType::Video, codec_info.clone(), media_control);
                     self.tracks.insert(TrackType::Video, track);
+                    result.insert(TrackType::Video, codec_info);
                 }
                 _ => {}
             }
         }
-        Ok(())
+        Ok(result)
     }
 
     fn gen_response(status_code: StatusCode, rtsp_request: &RtspRequest) -> RtspResponse {
