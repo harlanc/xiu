@@ -10,6 +10,7 @@ pub struct RtmpServer {
     address: String,
     event_producer: StreamHubEventSender,
     gop_num: usize,
+    gop_max_frame_num: Option<usize>,
     auth: Option<Auth>,
 }
 
@@ -18,12 +19,14 @@ impl RtmpServer {
         address: String,
         event_producer: StreamHubEventSender,
         gop_num: usize,
+        gop_max_frame_num: Option<usize>,
         auth: Option<Auth>,
     ) -> Self {
         Self {
             address,
             event_producer,
             gop_num,
+            gop_max_frame_num,
             auth,
         }
     }
@@ -41,6 +44,7 @@ impl RtmpServer {
                 tcp_stream,
                 self.event_producer.clone(),
                 self.gop_num,
+                self.gop_max_frame_num,
                 self.auth.clone(),
             );
             tokio::spawn(async move {

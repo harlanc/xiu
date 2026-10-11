@@ -32,7 +32,11 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn new(gop_num: usize, statistic_data_sender: Option<StatisticDataSender>) -> Self {
+    pub fn new(
+        gop_num: usize,
+        gop_max_frame_num: Option<usize>,
+        statistic_data_sender: Option<StatisticDataSender>,
+    ) -> Self {
         Cache {
             metadata: metadata::MetaData::new(),
             metadata_timestamp: 0,
@@ -40,7 +44,7 @@ impl Cache {
             video_timestamp: 0,
             audio_seq: BytesMut::new(),
             audio_timestamp: 0,
-            gops: Gops::new(gop_num),
+            gops: Gops::new(gop_num, gop_max_frame_num),
             statistic_data_sender,
         }
     }

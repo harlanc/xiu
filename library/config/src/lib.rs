@@ -33,6 +33,7 @@ impl Config {
             rtmp_config = Some(RtmpConfig {
                 enabled: true,
                 gop_num: Some(1),
+                gop_max_frame_num: None,
                 port: rtmp_port,
                 pull: None,
                 push: None,
@@ -106,6 +107,9 @@ pub struct RtmpConfig {
     pub enabled: bool,
     pub port: usize,
     pub gop_num: Option<usize>,
+    // Maximum number of frames cached per GOP; bounds memory for audio-only
+    // streams that never produce a video key frame. Defaults when unset.
+    pub gop_max_frame_num: Option<usize>,
     pub pull: Option<RtmpPullConfig>,
     pub push: Option<Vec<RtmpPushConfig>>,
     pub auth: Option<AuthConfig>,
