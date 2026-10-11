@@ -28,6 +28,7 @@ pub struct M3u8 {
     need_record: bool,
     vod_m3u8_content: String,
     vod_m3u8_name: String,
+    prefix: Option<String>,
 }
 
 impl M3u8 {
@@ -62,7 +63,11 @@ impl M3u8 {
         } else {
             String::default()
         };
-
+        let prefix = if let Some(prefix) = hls_config.and_then(|config| config.prefix) {
+            Some(format!("{}/{}/{}/", prefix, app_name, stream_name))
+        } else {
+            None
+        };
         let mut m3u8 = Self {
             version: 3,
             sequence_no: 0,
@@ -76,6 +81,7 @@ impl M3u8 {
             need_record,
             vod_m3u8_content: String::default(),
             vod_m3u8_name,
+            prefix: prefix,
         };
 
         if need_record {
@@ -103,7 +109,11 @@ impl M3u8 {
         }
         self.duration = std::cmp::max(duration, self.duration);
         let (ts_name, ts_path) = self.ts_handler.write(ts_data)?;
-        let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof);
+        let ts_name_with_prefix = self.prefix
+            .as_ref()
+            .map(|prefix| format!("{}{}", prefix, ts_name))
+            .unwrap_or(ts_name);
+        let segment = Segment::new(duration, discontinuity, ts_name_with_prefix, ts_path, is_eof);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);
