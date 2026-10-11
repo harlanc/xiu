@@ -43,9 +43,9 @@ mod tests {
         // Convert the timestamp string into an i64
         let timestamp = "1524820690".parse::<i64>().unwrap();
         // Create a NaiveDateTime from the timestamp
-        let naive = NaiveDateTime::from_timestamp(timestamp, 0);
+        let naive = chrono::DateTime::from_timestamp(timestamp, 0).unwrap().naive_utc();
         // Create a normal DateTime from the NaiveDateTime
-        let datetime: DateTime<Utc> = DateTime::from_utc(naive, Utc);
+        let datetime: DateTime<Utc> = Utc.from_utc_datetime(&naive);
         // Format the datetime how you want
         let newdate = datetime.format("%Y-%m-%d %H:%M:%S");
         // Print the newly formatted date and time
