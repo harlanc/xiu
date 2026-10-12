@@ -22,6 +22,9 @@ serde_json = { version = "1", default-features = false, features = [
 ] }
 axum = "0.8.8"
 tokio-metrics = { version = "0.4.9", default-features = false }
+aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.124.0"
+aws-credential-types = "1.2.13"
 
 env_logger_extend = { path = "../../library/logger/" }
 streamhub = { path = "../../library/streamhub/" }

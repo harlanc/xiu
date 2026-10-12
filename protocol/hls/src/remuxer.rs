@@ -1,5 +1,6 @@
 use {
     super::{errors::HlsError, flv_data_receiver::FlvDataReceiver},
+    aws_sdk_s3::Client as S3Client,
     config::HlsConfig,
     streamhub::{
         define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
@@ -11,18 +12,21 @@ pub struct HlsRemuxer {
     client_event_consumer: BroadcastEventReceiver,
     event_producer: StreamHubEventSender,
     hls_config: Option<HlsConfig>,
+    s3_client: Option<S3Client>,
 }
 
 impl HlsRemuxer {
     pub fn new(
         consumer: BroadcastEventReceiver,
         event_producer: StreamHubEventSender,
-        hls_config: Option<HlsConfig>
+        hls_config: Option<HlsConfig>,
+        s3_client: Option<S3Client>,
     ) -> Self {
         Self {
             client_event_consumer: consumer,
             event_producer,
             hls_config,
+            s3_client,
         }
     }
 
@@ -41,6 +45,7 @@ impl HlsRemuxer {
                             stream_name,
                             self.event_producer.clone(),
                             self.hls_config.clone(),
+                            self.s3_client.clone(),
                         );
 
                         tokio::spawn(async move {

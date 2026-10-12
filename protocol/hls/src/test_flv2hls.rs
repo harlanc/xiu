@@ -50,7 +50,7 @@ mod tests {
 
     //#[test]
     #[allow(dead_code)]
-    fn test_flv2hls() -> Result<(), MediaError> {
+    async fn test_flv2hls() -> Result<(), MediaError> {
         let mut file =
             File::open("/Users/zexu/github/xiu/protocol/hls/src/xgplayer_demo.flv").unwrap();
         let mut contents = Vec::new();
@@ -65,7 +65,7 @@ mod tests {
 
         let start = Instant::now();
         let mut media_demuxer =
-            Flv2HlsRemuxer::new(String::from("live"), String::from("test"), None, None);
+            Flv2HlsRemuxer::new(String::from("live"), String::from("test"), None, None, None);
 
         loop {
             let data_ = demuxer.read_flv_tag();
@@ -73,12 +73,12 @@ mod tests {
             match data_ {
                 Ok(data) => {
                     if let Some(real_data) = data {
-                        media_demuxer.process_flv_data(real_data)?;
+                        media_demuxer.process_flv_data(real_data).await?;
                     }
                 }
 
                 Err(err) => {
-                    media_demuxer.flush_remaining_data()?;
+                    media_demuxer.flush_remaining_data().await?;
                     log::error!("readd err: {}", err);
                     break;
                 }
