@@ -7,7 +7,10 @@ use {
         response::Response,
     },
     commonlib::auth::{Auth, SecretCarrier},
-    std::net::SocketAddr,
+    std::{
+        convert::TryInto,
+        net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    },
     tokio::{fs::File, net::TcpListener},
     tokio_util::codec::{BytesCodec, FramedRead},
 };
@@ -146,12 +149,15 @@ async fn handle_connection(State(auth): State<Option<Auth>>, req: Request<Body>)
 }
 
 pub async fn run(port: usize, auth: Option<Auth>) -> Result<()> {
-    let listen_address = format!("0.0.0.0:{port}");
-    let sock_addr: SocketAddr = listen_address.parse().unwrap();
+    let sock_addr: SocketAddr = SocketAddrV4::new(
+        Ipv4Addr::UNSPECIFIED,
+        port.try_into().expect("Port should be a u16"),
+    )
+    .into();
 
     let listener = TcpListener::bind(sock_addr).await?;
 
-    log::info!("Hls server listening on http://{}", sock_addr);
+    log::info!("Hls server listening on http://{}", listener.local_addr()?);
 
     let handle_connection = handle_connection.with_state(auth);
 

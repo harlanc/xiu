@@ -10,6 +10,7 @@ pub struct RtmpServer {
     address: String,
     event_producer: StreamHubEventSender,
     gop_num: usize,
+    gop_max_frame_num: Option<usize>,
     auth: Option<Auth>,
 }
 
@@ -18,12 +19,14 @@ impl RtmpServer {
         address: String,
         event_producer: StreamHubEventSender,
         gop_num: usize,
+        gop_max_frame_num: Option<usize>,
         auth: Option<Auth>,
     ) -> Self {
         Self {
             address,
             event_producer,
             gop_num,
+            gop_max_frame_num,
             auth,
         }
     }
@@ -32,7 +35,8 @@ impl RtmpServer {
         let socket_addr: &SocketAddr = &self.address.parse().unwrap();
         let listener = TcpListener::bind(socket_addr).await?;
 
-        log::info!("Rtmp server listening on tcp://{}", socket_addr);
+        log::info!("Rtmp server listening on tcp://{}", listener.local_addr()?);
+
         loop {
             let (tcp_stream, _) = listener.accept().await?;
             //tcp_stream.set_keepalive(Some(Duration::from_secs(30)))?;
@@ -41,6 +45,7 @@ impl RtmpServer {
                 tcp_stream,
                 self.event_producer.clone(),
                 self.gop_num,
+                self.gop_max_frame_num,
                 self.auth.clone(),
             );
             tokio::spawn(async move {
