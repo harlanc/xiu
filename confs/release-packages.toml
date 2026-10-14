@@ -1,0 +1,81 @@
+# This is the single inventory of crates managed by the automated release.
+# `release` is the manifest published to crates.io; `manifest` is its in-tree
+# counterpart.  Keep this list in sync when a publishable crate is added.
+
+[[package]]
+name = "bytesio"
+source = "library/bytesio"
+release = "confs/release/bytesio.Cargo.toml"
+manifest = "library/bytesio/Cargo.toml"
+
+[[package]]
+name = "commonlib"
+source = "library/common"
+release = "confs/release/common.Cargo.toml"
+manifest = "library/common/Cargo.toml"
+
+[[package]]
+name = "h264-decoder"
+source = "library/codec/h264"
+release = "confs/release/h264.Cargo.toml"
+manifest = "library/codec/h264/Cargo.toml"
+
+[[package]]
+name = "xmpegts"
+source = "library/container/mpegts"
+release = "confs/release/mpegts.Cargo.toml"
+manifest = "library/container/mpegts/Cargo.toml"
+
+[[package]]
+name = "xflv"
+source = "library/container/flv"
+release = "confs/release/flv.Cargo.toml"
+manifest = "library/container/flv/Cargo.toml"
+
+[[package]]
+name = "streamhub"
+source = "library/streamhub"
+release = "confs/release/streamhub.Cargo.toml"
+manifest = "library/streamhub/Cargo.toml"
+
+[[package]]
+name = "hls"
+source = "protocol/hls"
+release = "confs/release/hls.Cargo.toml"
+manifest = "protocol/hls/Cargo.toml"
+
+[[package]]
+name = "httpflv"
+source = "protocol/httpflv"
+release = "confs/release/httpflv.Cargo.toml"
+manifest = "protocol/httpflv/Cargo.toml"
+
+[[package]]
+name = "rtmp"
+source = "protocol/rtmp"
+release = "confs/release/rtmp.Cargo.toml"
+manifest = "protocol/rtmp/Cargo.toml"
+
+[[package]]
+name = "xrtsp"
+source = "protocol/rtsp"
+release = "confs/release/rtsp.Cargo.toml"
+manifest = "protocol/rtsp/Cargo.toml"
+
+[[package]]
+name = "xwebrtc"
+source = "protocol/webrtc"
+release = "confs/release/webrtc.Cargo.toml"
+manifest = "protocol/webrtc/Cargo.toml"
+
+[[package]]
+name = "pprtmp"
+source = "application/pprtmp"
+release = "confs/release/pprtmp.Cargo.toml"
+manifest = "application/pprtmp/Cargo.toml"
+
+[[package]]
+name = "xiu"
+source = "application/xiu"
+release = "confs/release/xiu.Cargo.toml"
+manifest = "application/xiu/Cargo.toml"

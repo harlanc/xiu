@@ -1,13 +1,6 @@
-COPY_CONF_FILES = sh ./update_project_conf.sh
+all: build
 
-not_spport:
-	echo "input make <local|online|build|clean|check>"
-# build local source codes
-local:
-	cd ./confs && $(COPY_CONF_FILES) "local"
-# pull the online crates codes and build
-online:
-	cd ./confs && $(COPY_CONF_FILES) "online"
+# Build the checked-out local source tree. No manifest replacement is needed.
 check:
 	cargo clippy --fix --allow-dirty --allow-no-vcs
 clean:

@@ -100,12 +100,9 @@ XIU是用纯Rust开发的一款简单和安全的流媒体服务器，目前支�
 #### 编译
 为了编译方便，把cargo相关的编译命令封装到了makefle中，使用下面的命令进行编译：
 
-- 使用make local编译本地代码：
+- 编译本地代码：
 
-        make local && make build
-- 使用make online拉取线上crates仓库代码进行编译
-                
-        make online && make build
+        make
 
 
 #### 运行

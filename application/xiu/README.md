@@ -97,12 +97,9 @@ use master branch
 
 We use makefile to build xiu and revelant libraries.
 
-- Using make local to build local source codes:
+- Build the checked-out local source code:
 
-        make local && make build
-- Using make online to pull the online crates codes and build:
-
-        make online && make build 
+        make
 
 #### Run
 

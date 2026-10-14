@@ -5,38 +5,14 @@ on:
   push:
     # Pattern matched against refs/tags
     tags:
-      - "*" # Push events to every tag not containing /
+      - "v*" # Formal xiu tags only; release-request/* never builds artifacts.
 
 jobs:
-  # cargo publish libraries and xiu to crates.io
-  publish:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Replace Online Manifest file
-        run: make online
-
-      - name: Install Cargo-workspace
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-workspaces
-          version: "^0.3.1" # You can specify any semver range
-
-      - name: Run cargo workspace publish
-        run: cargo workspaces publish --from-git --no-git-push --no-git-tag --no-global-tag --allow-dirty --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
   # release on github including writing release note and build binaries on different os and upload
   release:
     name: Binary ${{ matrix.target }} (on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: publish
+    environment: crates-publish
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
     strategy:
@@ -212,6 +188,7 @@ jobs:
   container-images:
     name: Publish images
     runs-on: ubuntu-latest
+    environment: crates-publish
     needs: release
     # Run for tags and pushes to the default branch
     if: (startsWith(github.ref_name, 'v') && github.ref_type == 'tag') || github.event.repository.default_branch == github.ref_name

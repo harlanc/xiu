@@ -1,0 +1,146 @@
+name: Prepare and publish release request
+
+on:
+  push:
+    tags:
+      - "release-request/v*"
+
+# Publishing crates is irreversible. A release request is deliberately
+# serialized, and normal code pushes must not race it.
+concurrency:
+  group: xiu-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: crates-publish
+    steps:
+      - name: Require release bot credentials
+        env:
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          test -n "$RELEASE_BOT_TOKEN" || {
+            echo "RELEASE_BOT_TOKEN is required so the formal tag triggers release.yml." >&2
+            exit 1
+          }
+          test -n "$CARGO_REGISTRY_TOKEN" || {
+            echo "CARGO_REGISTRY_TOKEN is required to publish to crates.io." >&2
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_BOT_TOKEN }}
+
+      - name: Validate request and repository state
+        id: request
+        env:
+          REQUEST_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUEST_TAG" =~ ^release-request/v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          RELEASE_TAG="v${REQUEST_TAG#release-request/v}"
+          git fetch --force --tags origin master
+          REQUEST_SHA="$(git rev-parse "${GITHUB_SHA}^{commit}")"
+          test "$(git rev-parse origin/master)" = "$REQUEST_SHA" || {
+            echo "The request tag must point at the current master tip." >&2
+            exit 1
+          }
+          ! git rev-parse -q --verify "refs/tags/$RELEASE_TAG" >/dev/null || {
+            echo "Formal tag $RELEASE_TAG already exists." >&2
+            exit 1
+          }
+          echo "request_sha=$REQUEST_SHA" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Calculate and apply release metadata
+        env:
+          REQUEST_TAG: ${{ github.ref_name }}
+        run: |
+          python3 scripts/release_prepare.py \
+            --tag "$REQUEST_TAG" \
+            --prepare \
+            --plan-out release-plan.json
+          git diff --check
+          git diff -- confs/release application/xiu/CHANGELOG.md
+
+      - name: Verify release candidate
+        run: |
+          set -euo pipefail
+          cargo test --workspace
+
+      - name: Commit release metadata
+        id: commit
+        env:
+          RELEASE_TAG: ${{ steps.request.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "xiu release bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git add -- confs/release application/xiu/CHANGELOG.md
+          git diff --cached --quiet && {
+            echo "Release preparation produced no changes." >&2
+            exit 1
+          }
+          git commit -m "chore(release): prepare $RELEASE_TAG"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Materialize release manifests for publishing only
+        run: |
+          python3 scripts/materialize_release_manifests.py release
+          git diff --exit-code -- confs/release application/xiu/CHANGELOG.md
+
+      - name: Dry-run crate publishing in dependency order
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r name manifest; do
+            echo "Dry-running $name"
+            cargo publish --dry-run --allow-dirty --manifest-path "$manifest"
+          done < <(jq -r '.publish_order[] | [.name, .manifest] | @tsv' release-plan.json)
+
+      - name: Publish crates in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r name version manifest; do
+            crate_url="https://crates.io/api/v1/crates/$name/$version"
+            if curl --fail --silent --show-error "$crate_url" >/dev/null; then
+              echo "$name $version is already published; skipping."
+              continue
+            fi
+            cargo publish --allow-dirty --manifest-path "$manifest" --token "$CARGO_REGISTRY_TOKEN"
+            for _ in $(seq 1 30); do
+              curl --fail --silent --show-error "$crate_url" >/dev/null && break
+              sleep 2
+            done
+            curl --fail --silent --show-error "$crate_url" >/dev/null || {
+              echo "$name $version was not visible on crates.io after publishing." >&2
+              exit 1
+            }
+          done < <(jq -r '.publish_order[] | [.name, .version, .manifest] | @tsv' release-plan.json)
+
+      - name: Push release commit and create formal tag
+        env:
+          REQUEST_SHA: ${{ steps.request.outputs.request_sha }}
+          RELEASE_SHA: ${{ steps.commit.outputs.sha }}
+          RELEASE_TAG: ${{ steps.request.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$REQUEST_SHA" || {
+            echo "master advanced while crates were being published; do not create a tag." >&2
+            exit 1
+          }
+          git push origin "$RELEASE_SHA:refs/heads/master"
+          git tag --annotate "$RELEASE_TAG" "$RELEASE_SHA" --message "Release $RELEASE_TAG"
+          git push origin "refs/tags/$RELEASE_TAG"

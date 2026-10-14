@@ -1,0 +1,102 @@
+name: Release preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Target xiu version, without the v prefix (for example 0.14.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: xiu-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Validate release environment and candidate
+    runs-on: ubuntu-latest
+    environment: crates-publish
+    steps:
+      - name: Validate required secrets are present
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          for secret_name in ACCESS_TOKEN CARGO_REGISTRY_TOKEN DOCKERHUB_TOKEN DOCKERHUB_USERNAME RELEASE_BOT_TOKEN; do
+            test -n "${!secret_name}" || {
+              echo "Missing required secret: $secret_name" >&2
+              exit 1
+            }
+          done
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_BOT_TOKEN }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate version and create a local request tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch --force --tags origin master
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" || {
+            echo "Preflight must run against the current master tip." >&2
+            exit 1
+          }
+          ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null || {
+            echo "Formal tag v$VERSION already exists." >&2
+            exit 1
+          }
+          git tag --force "release-request/v$VERSION" HEAD
+
+      - name: Prepare and test the release candidate
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release_prepare.py \
+            --tag "release-request/v$VERSION" \
+            --prepare \
+            --plan-out release-plan.json
+          cargo test --workspace
+          python3 scripts/materialize_release_manifests.py release
+
+      - name: Dry-run every crates.io publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r name manifest; do
+            echo "Dry-running $name"
+            cargo publish --dry-run --allow-dirty --manifest-path "$manifest" --token "$CARGO_REGISTRY_TOKEN"
+          done < <(jq -r '.publish_order[] | [.name, .manifest] | @tsv' release-plan.json)
+
+      - name: Validate Docker Hub credentials without publishing
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: docker login --username "$DOCKERHUB_USERNAME" --password "$DOCKERHUB_TOKEN" docker.io
+
+      - name: Validate GitHub credentials without changing remote refs
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer $ACCESS_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY" >/dev/null
+          git push --dry-run origin "HEAD:refs/heads/release-preflight-$GITHUB_RUN_ID"

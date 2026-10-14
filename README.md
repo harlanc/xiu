@@ -32,7 +32,7 @@ We would like to thank the following sponsors for their support of this project.
 ### Recall.ai - API for meeting recordings
 <p align="center" width="100%">
     <a href="https://www.recall.ai/product/meeting-recording-api?utm_source=github&utm_medium=sponsorship&utm_campaign=harlanc-xiu">
-        <img width="20%" src="https://raw.githubusercontent.com/harlanc/xiu/a4b70646597e66c2df955537411eb256b69eb9d1/doc/recall-logo.svg">
+        <img width="20%" src="https://raw.githubusercontent.com/harlanc/xiu/master/docs/recall-logo.svg">
     </a>
 </p>
 
