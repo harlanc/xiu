@@ -7,11 +7,13 @@ pull requests never publish a crate, a GitHub Release, or a Docker image.
 
 Before creating a request tag, run **Actions → Release preflight → Run
 workflow** and enter the target version, for example `0.14.0`. It performs the
-same version planning, test, manifest materialization, package validation, and
-a `cargo publish --dry-run` against the first dependency-safe crate as a real
-release. It also verifies the crates.io, Docker Hub, GitHub Release, and
-release-bot credentials. It uses only a disposable runner: it does not push a
-commit or tag, publish a crate, or publish an image.
+same version planning, test, manifest materialization, and a `cargo publish
+--dry-run` against the first dependency-safe crate as a real release. It also
+verifies the crates.io, Docker Hub, GitHub Release, and release-bot
+credentials. It uses only a disposable runner: it does not push a commit or
+tag, publish a crate, or publish an image. Dependent crates are not dry-run:
+their new dependency versions do not exist on crates.io until the real release
+has published the preceding crates.
 
 Push a request tag that points to the current `master` tip:
 

@@ -73,16 +73,11 @@ jobs:
           cargo test --workspace
           python3 scripts/materialize_release_manifests.py release
 
-      - name: Package every crate and dry-run the first publish
+      - name: Dry-run the first dependency-safe crates.io publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           set -euo pipefail
-          while IFS=$'\t' read -r name manifest; do
-            echo "Packaging $name"
-            python3 scripts/with_isolated_workspace.py "$manifest" \
-              package --allow-dirty --no-verify
-          done < <(jq -r '.publish_order[] | [.name, .manifest] | @tsv' release-plan.json)
           first_manifest="$(jq -r '.publish_order[0].manifest' release-plan.json)"
           python3 scripts/with_isolated_workspace.py "$first_manifest" \
             publish --dry-run --allow-dirty --token "$CARGO_REGISTRY_TOKEN"
