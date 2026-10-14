@@ -99,12 +99,13 @@ jobs:
           python3 scripts/materialize_release_manifests.py release
           git diff --exit-code -- confs/release application/xiu/CHANGELOG.md
 
-      - name: Dry-run crate publishing in dependency order
+      - name: Package every crate in dependency order
         run: |
           set -euo pipefail
           while IFS=$'\t' read -r name manifest; do
-            echo "Dry-running $name"
-            cargo publish --dry-run --allow-dirty --manifest-path "$manifest"
+            echo "Packaging $name"
+            python3 scripts/with_isolated_workspace.py "$manifest" \
+              package --allow-dirty --no-verify
           done < <(jq -r '.publish_order[] | [.name, .manifest] | @tsv' release-plan.json)
 
       - name: Publish crates in dependency order
@@ -118,7 +119,8 @@ jobs:
               echo "$name $version is already published; skipping."
               continue
             fi
-            cargo publish --allow-dirty --manifest-path "$manifest" --token "$CARGO_REGISTRY_TOKEN"
+            python3 scripts/with_isolated_workspace.py "$manifest" \
+              publish --allow-dirty --token "$CARGO_REGISTRY_TOKEN"
             for _ in $(seq 1 30); do
               curl --fail --silent --show-error "$crate_url" >/dev/null && break
               sleep 2
