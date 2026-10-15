@@ -105,7 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           while IFS=$'\t' read -r name version manifest; do
-            if cargo info "$name@$version" >/dev/null 2>&1; then
+            if cargo info --registry crates-io "$name@$version" >/dev/null 2>&1; then
               echo "$name $version is already published; skipping."
               continue
             fi
