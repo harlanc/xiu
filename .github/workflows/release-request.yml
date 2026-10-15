@@ -105,21 +105,12 @@ jobs:
         run: |
           set -euo pipefail
           while IFS=$'\t' read -r name version manifest; do
-            crate_url="https://crates.io/api/v1/crates/$name/$version"
-            if curl --fail --silent --show-error "$crate_url" >/dev/null; then
+            if cargo info "$name@$version" >/dev/null 2>&1; then
               echo "$name $version is already published; skipping."
               continue
             fi
             python3 scripts/with_isolated_workspace.py "$manifest" \
               publish --allow-dirty --token "$CARGO_REGISTRY_TOKEN"
-            for _ in $(seq 1 30); do
-              curl --fail --silent --show-error "$crate_url" >/dev/null && break
-              sleep 2
-            done
-            curl --fail --silent --show-error "$crate_url" >/dev/null || {
-              echo "$name $version was not visible on crates.io after publishing." >&2
-              exit 1
-            }
           done < <(jq -r '.publish_order[] | [.name, .version, .manifest] | @tsv' release-plan.json)
 
       - name: Push release commit and create formal tag
