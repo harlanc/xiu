@@ -33,7 +33,8 @@ greater than the version in `confs/release/xiu.Cargo.toml`.
 2. finds changed crates from `confs/release-packages.toml`, including every
    reverse dependency, and increments their patch versions;
 3. updates the affected release manifests and their internal dependencies;
-4. generates the xiu changelog entry, tests and dry-runs every publish;
+4. generates a versioned changelog entry for every affected crate, tests and
+   dry-runs every publish;
 5. publishes crates in dependency order;
 6. creates a release commit on `master`, then creates the formal `vX.Y.Z`
    tag at that commit.

@@ -229,14 +229,37 @@ def update_manifest(path: Path, package: Package, versions: dict[str, str]) -> N
     path.write_text(text)
 
 
-def update_changelog(plan: dict) -> None:
-    path = ROOT / "application/xiu/CHANGELOG.md"
+def changelog_entries(plan: dict, package: Package) -> str:
+    """Return changelog items appropriate for one published crate."""
+    if package.name == "xiu":
+        subjects = run(
+            "git", "log", "--format=%s", f"{plan['previous_tag']}..{plan['request_tag']}"
+        ).splitlines()
+    elif package.name in plan["direct_packages"]:
+        subjects = run(
+            "git",
+            "log",
+            "--format=%s",
+            f"{plan['previous_tag']}..{plan['request_tag']}",
+            "--",
+            package.source,
+        ).splitlines()
+    else:
+        return "- Update internal dependencies."
+    return "\n".join(f"- {subject}" for subject in subjects if subject) or "- Internal release."
+
+
+def update_changelog(plan: dict, package: Package) -> None:
+    if package.name not in plan["versions"]:
+        return
+    path = ROOT / package.source / "CHANGELOG.md"
+    if not path.is_file():
+        raise ReleaseError(f"missing CHANGELOG for published package {package.name}: {path.relative_to(ROOT)}")
     text = path.read_text()
-    version = plan["release_tag"][1:]
+    version = plan["versions"][package.name]
     if re.search(rf"(?m)^## \[{re.escape(version)}\]", text):
-        raise ReleaseError(f"CHANGELOG already has an entry for {version}")
-    subjects = run("git", "log", "--format=%s", f"{plan['previous_tag']}..{plan['request_tag']}").splitlines()
-    entries = "\n".join(f"- {subject}" for subject in subjects if subject) or "- Internal release."
+        raise ReleaseError(f"{package.name} CHANGELOG already has an entry for {version}")
+    entries = changelog_entries(plan, package)
     # Releases are maintained in China Standard Time; GitHub-hosted runners
     # use UTC and can otherwise produce the previous calendar date.
     release_date = dt.datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
@@ -261,7 +284,7 @@ def main() -> int:
         if args.prepare:
             for package in packages.values():
                 update_manifest(ROOT / package.release, package, plan["versions"])
-            update_changelog(plan)
+                update_changelog(plan, package)
         encoded = json.dumps(plan, indent=2, sort_keys=True) + "\n"
         if args.plan_out:
             target = args.plan_out if args.plan_out.is_absolute() else ROOT / args.plan_out

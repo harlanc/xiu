@@ -6,6 +6,15 @@ on:
     # Pattern matched against refs/tags
     tags:
       - "v*" # Formal xiu tags only; release-request/* never builds artifacts.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing formal vX.Y.Z tag to rebuild and publish"
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   # release on github including writing release note and build binaries on different os and upload
@@ -94,6 +103,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Validate release tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -143,7 +160,7 @@ jobs:
           cp -f "./docker/start.sh" "target/${{ matrix.target }}/release/"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
           path: |
@@ -156,7 +173,7 @@ jobs:
       - name: Get version from tag
         id: extract_version
         run: |
-          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Install CHANGELOG parser
@@ -164,7 +181,7 @@ jobs:
 
       - name: Get CHANGELOG entry
         run: parse-changelog ./application/xiu/CHANGELOG.md ${{ steps.extract_version.outputs.version }} | tee changelog_entry
-        if: startsWith(github.ref_name, 'v') && github.ref_type == 'tag'
+        if: startsWith(env.RELEASE_TAG, 'v')
         shell: bash
 
       - name: Read changelog entry from file
@@ -172,17 +189,17 @@ jobs:
         uses: juliangruber/read-file-action@v1
         with:
           path: ./changelog_entry
-        if: startsWith(github.ref_name, 'v') && github.ref_type == 'tag'
+        if: startsWith(env.RELEASE_TAG, 'v')
 
       - name: Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.ACCESS_TOKEN }}
           file: target/${{ matrix.target }}/release/xiu${{ env.EXE }}
-          tag: ${{ github.ref_name }}
+          tag: ${{ env.RELEASE_TAG }}
           asset_name: xiu-${{ steps.extract_version.outputs.version }}-${{ matrix.target }}${{ env.EXE }}
           body: ${{ steps.changelog_entry.outputs.content }}
-        if: startsWith(github.ref_name, 'v') && github.ref_type == 'tag'
+        if: startsWith(env.RELEASE_TAG, 'v')
 
   # Build docker images and upload to docker hub
   container-images:
@@ -191,44 +208,46 @@ jobs:
     environment: crates-publish
     needs: release
     # Run for tags and pushes to the default branch
-    if: (startsWith(github.ref_name, 'v') && github.ref_type == 'tag') || github.event.repository.default_branch == github.ref_name
+    if: startsWith(env.RELEASE_TAG, 'v') || github.event.repository.default_branch == github.ref_name
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Download artifact aarch64-unknown-linux-gnu
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: aarch64-unknown-linux-gnu
           path: target/aarch64-unknown-linux-gnu/release
 
       - name: Download artifact x86_64-unknown-linux-gnu
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: x86_64-unknown-linux-gnu
           path: target/x86_64-unknown-linux-gnu/release
 
       - name: Download artifact armv7-unknown-linux-gnueabihf
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: armv7-unknown-linux-gnueabihf
           path: target/armv7-unknown-linux-gnueabihf/release
 
       #- name: Download artifact aarch64-unknown-linux-musl
-      #  uses: actions/download-artifact@v3
+      #  uses: actions/download-artifact@v4
       #  with:
       #    name: aarch64-unknown-linux-musl
       #    path: target/aarch64-unknown-linux-musl/release
 
       #- name: Download artifact x86_64-unknown-linux-musl
-      #  uses: actions/download-artifact@v3
+      #  uses: actions/download-artifact@v4
       #  with:
       #    name: x86_64-unknown-linux-musl
       #    path: target/x86_64-unknown-linux-musl/release
 
       #- name: Download artifact armv7-unknown-linux-musleabihf
-      #  uses: actions/download-artifact@v3
+      #  uses: actions/download-artifact@v4
       #  with:
       #    name: armv7-unknown-linux-musleabihf
       #    path: target/armv7-unknown-linux-musleabihf/release
@@ -250,7 +269,7 @@ jobs:
 
       - name: podman manifest push tag version
         run: podman manifest push xiu docker.io/harlancn/xiu:${{ needs.release.outputs.version }}
-        if: startsWith(github.ref_name, 'v')
+        if: startsWith(env.RELEASE_TAG, 'v')
 
       #- name: podman build linux/arm64 (alpine edition)
       #  run: podman build --format docker --platform linux/arm64/v8 --manifest myexe-alpine -f Containerfile.alpine target/aarch64-unknown-linux-musl/release

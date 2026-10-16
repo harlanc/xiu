@@ -71,7 +71,7 @@ jobs:
             --prepare \
             --plan-out release-plan.json
           git diff --check
-          git diff -- confs/release application/xiu/CHANGELOG.md
+          git diff -- confs/release ':(glob)**/CHANGELOG.md'
 
       - name: Verify release candidate
         run: |
@@ -86,7 +86,7 @@ jobs:
           set -euo pipefail
           git config user.name "xiu release bot"
           git config user.email "release-bot@users.noreply.github.com"
-          git add -- confs/release application/xiu/CHANGELOG.md
+          git add -- confs/release ':(glob)**/CHANGELOG.md'
           git diff --cached --quiet && {
             echo "Release preparation produced no changes." >&2
             exit 1
@@ -97,7 +97,7 @@ jobs:
       - name: Materialize release manifests for publishing only
         run: |
           python3 scripts/materialize_release_manifests.py release
-          git diff --exit-code -- confs/release application/xiu/CHANGELOG.md
+          git diff --exit-code -- confs/release ':(glob)**/CHANGELOG.md'
 
       - name: Publish crates in dependency order
         env:
