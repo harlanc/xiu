@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.3.1] - 2026-10-17
+- remove deprecated calls (#186)
+- log ports from listeners' local addrs (#189)
+- Pr/versions (#184)
+- fix(rtp_aac): fix rtp seq_number overflow of the audio stream
+- fix(rtp_h264): solve rtsp adding overflow issue
+- ignore lint warning:non_local_definitions
+- rtsp udp remote address fix
+
+
 ## [0.3.0] - 2021-08-11
 - Support Rtsp pull client.
 

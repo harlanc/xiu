@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.5] - 2026-10-17
+- fix: split config crates library
+- Pr/versions (#184)
+- use config object instead of single val (#181)
+- kick_stream (#180)
+- fix on_hls message (#179)
+- on_hls notification
+- ignore lint warning:non_local_definitions
+
+
 ## [0.2.4] - 2021-08-11
 - Abstract streamhub message notifications.
 - Add HTTP API for RTSP pull client.

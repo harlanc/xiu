@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.2.5] - 2026-10-17
+- Pr/versions (#184)
+- ignore lint warning:non_local_definitions
+
+
 ## [0.2.4] - 2021-08-11
 - Reference bytesio v0.3.4.
 

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.4.6] - 2026-10-17
+- log ports from listeners' local addrs (#189)
+- Pr/versions (#184)
+- ignore lint warning:non_local_definitions
+
+
 ## [0.4.5] - 2021-08-11
 - some refactor work.
 

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.5.6] - 2026-10-17
+- fix: split config crates library
+- Pr/s3 (#187)
+- hls prefix support (#185)
+- log ports from listeners' local addrs (#189)
+- Pr/versions (#184)
+- Update protocol/hls/src/m3u8.rs
+- Merge branch 'hls_params2' into hls_params3
+- Merge branch 'orig' into hls_notify
+- Update protocol/hls/src/flv2hls.rs
+- Update protocol/hls/src/remuxer.rs
+- use hls notification
+- on_hls notification
+- use one config object
+- fix tests
+- remove unused
+- add some hls params
+- ignore lint warning:non_local_definitions
+- Add content types for HLS playlist & segments. Add HLS path parsing for security (countering path traversal attacks).
+
+
 ## [0.5.5] - 2021-08-11
 - Some refactor work.
 

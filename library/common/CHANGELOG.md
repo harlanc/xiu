@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.3] - 2026-10-17
+- Pr/versions (#184)
+- ignore lint warning:non_local_definitions
+
+
 ## [0.1.2] - 2021-08-11
 - Implement Authorization header support for WebRTC.
 - Add get header for HttpResponse.

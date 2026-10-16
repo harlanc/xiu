@@ -1,7 +1,7 @@
 [package]
 name = "hls"
 description = "hls library."
-version = "0.5.5"
+version = "0.5.6"
 authors = ["HarlanC <wawacry@qq.com"]
 repository = "https://github.com/harlanc/xiu"
 license = "MIT"
@@ -20,10 +20,10 @@ tokio-util = { version = "0.7.18", features = ["codec"] }
 aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.124.0"
 
-streamhub = "0.2.4"
-xflv = "0.4.4"
-xmpegts = "0.2.4"
-commonlib = "0.1.2"
+streamhub = "0.2.5"
+xflv = "0.4.5"
+xmpegts = "0.2.5"
+commonlib = "0.1.3"
 
 [dependencies.tokio]
 version = "1.49.0"

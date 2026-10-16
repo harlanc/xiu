@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.6.6] - 2026-10-17
+- log ports from listeners' local addrs (#189)
+- fix GOP cache memory leak for audio-only streams (#191)
+- Pr/versions (#184)
+- ignore lint warning:non_local_definitions
+- feat: add rtmp client session timeout option
+
+
 ## [0.6.5] - 2021-08-11
 - Some refactor work. 
 

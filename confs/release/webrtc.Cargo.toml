@@ -1,6 +1,6 @@
 [package]
 name = "xwebrtc"
-version = "0.3.5"
+version = "0.3.6"
 description = "A whip/whep library."
 edition = "2021"
 authors = ["HarlanC <wawacry@qq.com>"]
@@ -22,7 +22,7 @@ async-trait = "0.1.89"
 fdk-aac = "0.8.0"
 audiopus = "0.3.0-rc.0"
 
-bytesio = "0.3.4"
-streamhub = "0.2.4"
-xflv = "0.4.4"
-commonlib = "0.1.2"
+bytesio = "0.3.5"
+streamhub = "0.2.5"
+xflv = "0.4.5"
+commonlib = "0.1.3"

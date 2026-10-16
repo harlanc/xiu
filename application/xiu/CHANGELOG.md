@@ -9,6 +9,73 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - ReleaseDate
 
+## [0.14.0] - 2026-10-17
+- fix release error
+- fix: update crate CHANGELOG and release error
+- fix: split config crates library
+- fix crates check
+- remove rust.yml
+- fix: use cargo registry for release publish checks
+- update checkout to v7
+- update the version number of the crates.io dependency library.
+- fix: version check error
+- fix: isolate crates during release publishing
+- chore: automate release workflow
+- Pr/s3 (#187)
+- remove deprecated calls (#186)
+- hls prefix support (#185)
+- log ports from listeners' local addrs (#189)
+- fix GOP cache memory leak for audio-only streams (#191)
+- add STRICT_ARRAY support (#183)
+- initial json support (#182)
+- Pr/versions (#184)
+- use config object instead of single val (#181)
+- kick_stream (#180)
+- fix on_hls message (#179)
+- update
+- add sponsor recall.ai
+- add recall logo
+- Merge pull request #177 from nikitos/hls_params3
+- Update protocol/hls/src/m3u8.rs
+- Merge branch 'orig' into hls_params3
+- Merge pull request #176 from nikitos/hls_params2
+- Merge branch 'hls_params2' into hls_params3
+- fix spaces
+- Merge branch 'hls_params2' into hls_params3
+- fix version
+- Merge branch 'orig' into hls_params2
+- Merge pull request #175 from nikitos/hls_notify
+- Merge branch 'orig' into hls_params2
+- Merge branch 'orig' into hls_notify
+- Update protocol/hls/src/flv2hls.rs
+- Merge pull request #174 from nikitos/hls_params
+- Update protocol/hls/src/remuxer.rs
+- Update application/xiu/README.md
+- use hls notification
+- on_hls notification
+- use one config object
+- move config to separate module
+- add examples
+- fix tests
+- remove unused
+- add some hls params
+- Merge pull request #172 from feiyangyy/master
+- fix(rtp_aac): fix rtp seq_number overflow of the audio stream
+- fix(rtp_h264): solve rtsp adding overflow issue
+- feat(application): add rtsp example config
+- Merge pull request #164 from zamazan4ik/patch-1
+- feat: enable LTO and codegen-units = 1 optimization
+- Merge pull request #160 from huiminghao/rtsp_udp_fix
+- ignore lint warning:non_local_definitions
+- rtsp udp remote address fix
+- Merge pull request #156 from akadan47/fix-hls-compatibility-security
+- Add content types for HLS playlist & segments. Add HLS path parsing for security (countering path traversal attacks).
+- Merge pull request #155 from Morb0/fix
+- Fix local config dependencies
+- Merge pull request #152 from vaptu/master
+- feat: add rtmp client session timeout option
+
+
 ## [0.13.0] - 2021-08-11
 - Feat: Abstract streamhub message notifications.  by @karaler 
 - Feat: Add optional push_password for simple authentication. by @Ceron257 
