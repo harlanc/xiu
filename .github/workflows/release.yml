@@ -152,7 +152,8 @@ jobs:
           files: target/${{ matrix.target }}/release/xiu${{ env.EXE }}
           args: --best --lzma
           strip: false # We're stripping already in Cargo.toml
-        if: ${{ matrix.compress }}
+        # UPX does not support packing macOS Mach-O binaries.
+        if: ${{ matrix.compress && !startsWith(matrix.os, 'macos') }}
 
       - name: Copy Files
         if: ${{ !startsWith(matrix.os, 'windows') }}
