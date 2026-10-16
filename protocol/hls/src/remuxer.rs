@@ -1,7 +1,7 @@
 use {
     super::{errors::HlsError, flv_data_receiver::FlvDataReceiver},
+    crate::config::HlsRemuxerConfig,
     aws_sdk_s3::Client as S3Client,
-    config::HlsConfig,
     streamhub::{
         define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
         stream::StreamIdentifier,
@@ -11,7 +11,7 @@ use {
 pub struct HlsRemuxer {
     client_event_consumer: BroadcastEventReceiver,
     event_producer: StreamHubEventSender,
-    hls_config: Option<HlsConfig>,
+    hls_config: Option<HlsRemuxerConfig>,
     s3_client: Option<S3Client>,
 }
 
@@ -19,7 +19,7 @@ impl HlsRemuxer {
     pub fn new(
         consumer: BroadcastEventReceiver,
         event_producer: StreamHubEventSender,
-        hls_config: Option<HlsConfig>,
+        hls_config: Option<HlsRemuxerConfig>,
         s3_client: Option<S3Client>,
     ) -> Self {
         Self {

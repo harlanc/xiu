@@ -71,7 +71,7 @@ impl Service {
                 None
             } else {
                 Some(Arc::new(HttpNotifier::new(
-                    httpnotifier.clone(),
+                    httpnotifier.streamhub_config(),
                     event_producer.clone(),
                 )))
             }
@@ -324,7 +324,6 @@ impl Service {
     }
 
     async fn start_hls(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
-
         if let Some(hls_cfg_value) = &self.cfg.hls {
             if !hls_cfg_value.enabled {
                 return Ok(());
@@ -346,7 +345,8 @@ impl Service {
                             config_builder = config_builder.credentials_provider(credentials);
                         }
 
-                        config_builder = config_builder.region(aws_sdk_s3::config::Region::new(s3_config.region.clone()));
+                        config_builder = config_builder
+                            .region(aws_sdk_s3::config::Region::new(s3_config.region.clone()));
 
                         if let Some(endpoint) = &s3_config.endpoint {
                             config_builder = config_builder.endpoint_url(endpoint.clone());
@@ -364,13 +364,12 @@ impl Service {
                 None
             };
 
-
             let event_producer = stream_hub.get_hub_event_sender();
             let cient_event_consumer = stream_hub.get_client_event_consumer();
             let mut hls_remuxer = HlsRemuxer::new(
                 cient_event_consumer,
                 event_producer,
-                self.cfg.hls.clone(),
+                self.cfg.hls.as_ref().map(|config| config.remuxer_config()),
                 s3_client,
             );
 

@@ -1,3 +1,3 @@
-extern crate config;
 pub mod api;
+pub mod config;
 pub mod service;

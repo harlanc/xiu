@@ -1043,18 +1043,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "config"
-version = "0.1.0"
-dependencies = [
- "commonlib",
- "failure",
- "serde",
- "serde_derive",
- "serde_json",
- "toml",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1873,7 +1861,6 @@ dependencies = [
  "byteorder",
  "bytes",
  "commonlib",
- "config",
  "failure",
  "log",
  "streamhub",
@@ -3788,7 +3775,6 @@ dependencies = [
  "bytes",
  "bytesio",
  "chrono",
- "config",
  "failure",
  "indexmap",
  "log",
@@ -5190,18 +5176,20 @@ dependencies = [
  "axum",
  "clap",
  "commonlib",
- "config",
  "env_logger_extend",
+ "failure",
  "hls",
  "httpflv",
  "libc",
  "log",
  "rtmp",
  "serde",
+ "serde_derive",
  "serde_json",
  "streamhub",
  "tokio",
  "tokio-metrics",
+ "toml",
  "xrtsp",
  "xwebrtc",
 ]

@@ -1,14 +1,19 @@
 use {
-    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, bytes::BytesMut, config::HlsConfig, xflv::{
+    super::{config::HlsRemuxerConfig, define::FlvDemuxerData, errors::MediaError, m3u8::M3u8},
+    aws_sdk_s3::Client as S3Client,
+    bytes::BytesMut,
+    streamhub::{
+        define::{StreamHubEvent, StreamHubEventSender},
+        stream::StreamIdentifier,
+    },
+    xflv::{
         define::{frame_type, FlvData},
         demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
     },
-    aws_sdk_s3::Client as S3Client,
-    streamhub::{define::{StreamHubEventSender, StreamHubEvent}, stream::StreamIdentifier},
     xmpegts::{
         define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
         ts::TsMuxer,
-    }
+    },
 };
 
 pub struct Flv2HlsRemuxer {
@@ -34,14 +39,13 @@ pub struct Flv2HlsRemuxer {
     app_name: String,
     stream_name: String,
     aof_ratio: i64,
-
 }
 
 impl Flv2HlsRemuxer {
     pub fn new(
         app_name: String,
         stream_name: String,
-        hls_config: Option<HlsConfig>,
+        hls_config: Option<HlsRemuxerConfig>,
         event_producer: Option<StreamHubEventSender>,
         s3_client: Option<S3Client>,
     ) -> Self {
@@ -52,17 +56,17 @@ impl Flv2HlsRemuxer {
         let video_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
             .unwrap();
-        
+
         let duration = hls_config
-            .as_ref() 
+            .as_ref()
             .and_then(|config| config.fragment)
             .unwrap_or(5);
-        
+
         let aof_ratio = hls_config
-            .as_ref() 
+            .as_ref()
             .and_then(|config| config.aof_ratio)
             .unwrap_or(5);
-        
+
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
             audio_demuxer: FlvAudioTagDemuxer::new(),
@@ -80,7 +84,7 @@ impl Flv2HlsRemuxer {
 
             video_pid,
             audio_pid,
-        
+
             m3u8_handler: M3u8::new(
                 duration,
                 app_name.clone(),
@@ -122,12 +126,9 @@ impl Flv2HlsRemuxer {
         if self.last_dts > self.last_ts_dts + 15 * 1000 {
             discontinuity = true;
         }
-        self.m3u8_handler.add_segment(
-            self.last_dts - self.last_ts_dts,
-            discontinuity,
-            true,
-            data,
-        ).await?;
+        self.m3u8_handler
+            .add_segment(self.last_dts - self.last_ts_dts, discontinuity, true, data)
+            .await?;
         self.m3u8_handler.refresh_playlist()?;
 
         Ok(())
@@ -184,8 +185,14 @@ impl Flv2HlsRemuxer {
             let data = self.ts_muxer.get_data();
 
             if let Some(segment) = self.m3u8_handler.segments.back() {
-                let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
-                let hub_event = StreamHubEvent::OnHls { identifier: identifier.clone(), segment: segment.clone() };
+                let identifier = StreamIdentifier::Rtmp {
+                    app_name: self.app_name.clone(),
+                    stream_name: self.stream_name.clone(),
+                };
+                let hub_event = StreamHubEvent::OnHls {
+                    identifier: identifier.clone(),
+                    segment: segment.clone(),
+                };
                 if let Some(producer) = self.event_producer.clone() {
                     if let Err(err) = producer.send(hub_event) {
                         log::error!("send notify on_hls event error: {}", err);
@@ -196,7 +203,8 @@ impl Flv2HlsRemuxer {
                 log::info!("on_hls success: {:?}", identifier);
             }
             self.m3u8_handler
-                .add_segment(dts - self.last_ts_dts, discontinuity, false, data).await?;
+                .add_segment(dts - self.last_ts_dts, discontinuity, false, data)
+                .await?;
             self.m3u8_handler.refresh_playlist()?;
 
             self.ts_muxer.reset();

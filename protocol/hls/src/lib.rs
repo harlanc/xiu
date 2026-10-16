@@ -1,3 +1,4 @@
+pub mod config;
 pub mod define;
 pub mod errors;
 pub mod flv2hls;

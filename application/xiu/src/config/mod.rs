@@ -2,9 +2,10 @@ pub mod errors;
 
 use commonlib::auth::AuthAlgorithm;
 use errors::{ConfigError, ConfigErrorValue};
+use hls::config::{HlsRemuxerConfig, S3UploadConfig};
 use serde_derive::Deserialize;
-use std::fs;
-use std::vec::Vec;
+use std::{fs, vec::Vec};
+use streamhub::notify::HttpNotifierConfig as StreamhubHttpNotifierConfig;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -28,78 +29,56 @@ impl Config {
         hls_port: usize,
         log_level: String,
     ) -> Self {
-        let mut rtmp_config: Option<RtmpConfig> = None;
-        if rtmp_port > 0 {
-            rtmp_config = Some(RtmpConfig {
-                enabled: true,
-                gop_num: Some(1),
-                gop_max_frame_num: None,
-                port: rtmp_port,
-                pull: None,
-                push: None,
-                auth: None,
-            });
-        }
-
-        let mut rtsp_config: Option<RtspConfig> = None;
-        if rtsp_port > 0 {
-            rtsp_config = Some(RtspConfig {
-                enabled: true,
-                relay_enabled: false,
-                port: rtsp_port,
-                auth: None,
-            });
-        }
-
-        let mut webrtc_config: Option<WebRTCConfig> = None;
-        if webrtc_port > 0 {
-            webrtc_config = Some(WebRTCConfig {
-                enabled: true,
-                port: webrtc_port,
-                auth: None,
-            });
-        }
-
-        let mut httpflv_config: Option<HttpFlvConfig> = None;
-        if httpflv_port > 0 {
-            httpflv_config = Some(HttpFlvConfig {
-                enabled: true,
-                port: httpflv_port,
-                auth: None,
-            });
-        }
-
-        let mut hls_config: Option<HlsConfig> = None;
-        if hls_port > 0 {
-            hls_config = Some(HlsConfig {
-                enabled: true,
-                port: hls_port,
-                need_record: false,
-                auth: None,
-                path: None,
-                fragment: None,
-                aof_ratio: None,
-                live_ts_count: None,
-                prefix: None,
-                s3: None,
-            });
-        }
-
-        let log_config = Some(LogConfig {
-            level: log_level,
-            file: None,
+        let rtmp = (rtmp_port > 0).then_some(RtmpConfig {
+            enabled: true,
+            gop_num: Some(1),
+            gop_max_frame_num: None,
+            port: rtmp_port,
+            pull: None,
+            push: None,
+            auth: None,
         });
-
+        let rtsp = (rtsp_port > 0).then_some(RtspConfig {
+            enabled: true,
+            relay_enabled: false,
+            port: rtsp_port,
+            auth: None,
+        });
+        let webrtc = (webrtc_port > 0).then_some(WebRTCConfig {
+            enabled: true,
+            port: webrtc_port,
+            auth: None,
+        });
+        let httpflv = (httpflv_port > 0).then_some(HttpFlvConfig {
+            enabled: true,
+            port: httpflv_port,
+            auth: None,
+        });
+        let hls = (hls_port > 0).then_some(HlsConfig {
+            enabled: true,
+            port: hls_port,
+            need_record: false,
+            auth: None,
+            path: None,
+            fragment: None,
+            aof_ratio: None,
+            live_ts_count: None,
+            prefix: None,
+            s3: None,
+        });
         Self {
-            rtmp: rtmp_config,
-            rtsp: rtsp_config,
-            webrtc: webrtc_config,
-            httpflv: httpflv_config,
-            hls: hls_config,
+            rtmp,
+            rtsp,
+            webrtc,
+            httpflv,
+            hls,
             httpapi: None,
             httpnotify: None,
             authsecret: AuthSecretConfig::default(),
-            log: log_config,
+            log: Some(LogConfig {
+                level: log_level,
+                file: None,
+            }),
         }
     }
 }
@@ -109,8 +88,6 @@ pub struct RtmpConfig {
     pub enabled: bool,
     pub port: usize,
     pub gop_num: Option<usize>,
-    // Maximum number of frames cached per GOP; bounds memory for audio-only
-    // streams that never produce a video key frame. Defaults when unset.
     pub gop_max_frame_num: Option<usize>,
     pub pull: Option<RtmpPullConfig>,
     pub push: Option<Vec<RtmpPushConfig>>,
@@ -128,7 +105,6 @@ pub struct RtmpPushConfig {
     pub address: String,
     pub port: usize,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct RtspConfig {
     pub enabled: bool,
@@ -136,14 +112,12 @@ pub struct RtspConfig {
     pub auth: Option<AuthConfig>,
     pub relay_enabled: bool,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct WebRTCConfig {
     pub enabled: bool,
     pub port: usize,
     pub auth: Option<AuthConfig>,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct HttpFlvConfig {
     pub enabled: bool,
@@ -155,7 +129,6 @@ pub struct HttpFlvConfig {
 pub struct HlsConfig {
     pub enabled: bool,
     pub port: usize,
-    //record or not
     pub need_record: bool,
     pub auth: Option<AuthConfig>,
     pub path: Option<String>,
@@ -166,6 +139,23 @@ pub struct HlsConfig {
     pub s3: Option<S3Config>,
 }
 
+impl HlsConfig {
+    pub fn remuxer_config(&self) -> HlsRemuxerConfig {
+        HlsRemuxerConfig {
+            need_record: self.need_record,
+            path: self.path.clone(),
+            fragment: self.fragment,
+            aof_ratio: self.aof_ratio,
+            live_ts_count: self.live_ts_count,
+            prefix: self.prefix.clone(),
+            s3: self.s3.as_ref().map(|config| S3UploadConfig {
+                bucket: config.bucket.clone(),
+                prefix: config.prefix.clone(),
+            }),
+        }
+    }
+}
+
 pub enum LogLevel {
     Info,
     Warn,
@@ -173,20 +163,17 @@ pub enum LogLevel {
     Trace,
     Debug,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct LogConfig {
     pub level: String,
     pub file: Option<LogFile>,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct LogFile {
     pub enabled: bool,
     pub rotate: String,
     pub path: String,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct HttpApiConfig {
     pub port: usize,
@@ -202,20 +189,30 @@ pub struct HttpNotifierConfig {
     pub on_hls: Option<String>,
 }
 
+impl HttpNotifierConfig {
+    pub fn streamhub_config(&self) -> StreamhubHttpNotifierConfig {
+        StreamhubHttpNotifierConfig {
+            on_publish: self.on_publish.clone(),
+            on_unpublish: self.on_unpublish.clone(),
+            on_play: self.on_play.clone(),
+            on_stop: self.on_stop.clone(),
+            on_hls: self.on_hls.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct AuthSecretConfig {
     pub key: String,
     pub password: String,
     pub push_password: Option<String>,
 }
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct AuthConfig {
     pub pull_enabled: bool,
     pub push_enabled: Option<bool>,
     pub algorithm: AuthAlgorithm,
 }
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct S3Config {
     pub enabled: bool,
@@ -251,52 +248,19 @@ impl S3Config {
 
 pub fn load(cfg_path: &String) -> Result<Config, ConfigError> {
     let content = fs::read_to_string(cfg_path)?;
-    let extension = std::path::Path::new(cfg_path)
+    match std::path::Path::new(cfg_path)
         .extension()
         .and_then(|ext| ext.to_str())
-        .unwrap_or("");
-
-    match extension {
-        "toml" => {
-            let decoded_config = toml::from_str(&content[..])?;
-            Ok(decoded_config)
-        }
-        "json" => {
-            let decoded_config = serde_json::from_str(&content[..])?;
-            Ok(decoded_config)
-        }
-        _ => Err(ConfigError {
+        .unwrap_or("")
+    {
+        "toml" => Ok(toml::from_str(&content)?),
+        "json" => Ok(serde_json::from_str(&content)?),
+        extension => Err(ConfigError {
             value: ConfigErrorValue::UnsupportedFormat(extension.to_string()),
         }),
     }
 }
 
 pub fn load_from_json(json_content: &str) -> Result<Config, ConfigError> {
-    let decoded_config = serde_json::from_str(json_content)?;
-    Ok(decoded_config)
-}
-
-#[test]
-fn test_toml_parse() {
-    let path = std::env::current_dir();
-    match path {
-        Ok(val) => println!("The current directory is {}\n", val.display()),
-        Err(err) => println!("{}", err),
-    }
-
-    let str = fs::read_to_string("./src/config/examples/config1.toml");
-
-    match str {
-        Ok(val) => {
-            println!("++++++{val}\n");
-            let decoded: Config = toml::from_str(&val[..]).unwrap();
-            println!("whole config: {:?}", decoded);
-            let rtmp = decoded.httpnotify;
-
-            if let Some(val) = rtmp {
-                println!("++++++{val:?}\n");
-            }
-        }
-        Err(err) => println!("======{err}"),
-    }
+    Ok(serde_json::from_str(json_content)?)
 }

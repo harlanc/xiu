@@ -4,6 +4,7 @@ use {
     serde_json,
     std::{fmt, io::Error},
 };
+
 #[derive(Debug)]
 pub struct ConfigError {
     pub value: ConfigErrorValue,
@@ -55,7 +56,6 @@ impl Fail for ConfigError {
     fn cause(&self) -> Option<&dyn Fail> {
         self.value.cause()
     }
-
     fn backtrace(&self) -> Option<&Backtrace> {
         self.value.backtrace()
     }

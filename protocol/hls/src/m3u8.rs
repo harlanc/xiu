@@ -1,12 +1,11 @@
 use {
     super::{errors::MediaError, ts::Ts},
+    crate::config::HlsRemuxerConfig,
     aws_sdk_s3::Client as S3Client,
-    config::HlsConfig,
     bytes::BytesMut,
     std::{collections::VecDeque, fs, fs::File, io::Write},
     streamhub::define::Segment,
 };
-
 
 pub struct M3u8 {
     version: u16,
@@ -37,12 +36,11 @@ impl M3u8 {
         duration: i64,
         app_name: String,
         stream_name: String,
-        hls_config: Option<HlsConfig>,
+        hls_config: Option<HlsRemuxerConfig>,
         s3_client: Option<S3Client>,
     ) -> Self {
-
         let path = hls_config
-            .as_ref() 
+            .as_ref()
             .and_then(|config| config.path.clone())
             .unwrap_or("./".to_string());
 
@@ -51,14 +49,14 @@ impl M3u8 {
         let live_m3u8_name = format!("{stream_name}.m3u8");
 
         let need_record = hls_config
-            .as_ref() 
+            .as_ref()
             .and_then(|config| Some(config.need_record))
             .unwrap_or(false);
 
         let live_ts_count = hls_config
-            .as_ref() 
+            .as_ref()
             .and_then(|config| config.live_ts_count)
-            .unwrap_or(6); 
+            .unwrap_or(6);
 
         let vod_m3u8_name = if need_record {
             format!("vod_{stream_name}.m3u8")
@@ -68,7 +66,8 @@ impl M3u8 {
 
         let s3_config = hls_config.as_ref().and_then(|config| config.s3.clone());
         let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
-        let s3_prefix = if let Some(prefix) = s3_config.as_ref().map(|c| c.prefix.clone()).unwrap() {
+        let s3_prefix = if let Some(prefix) = s3_config.as_ref().map(|c| c.prefix.clone()).unwrap()
+        {
             format!("{}/{}/{}/", prefix, app_name, stream_name)
         } else {
             format!("{}/{}", app_name, stream_name)
@@ -79,7 +78,7 @@ impl M3u8 {
         } else {
             None
         };
-        
+
         let mut m3u8 = Self {
             version: 3,
             sequence_no: 0,
@@ -121,11 +120,18 @@ impl M3u8 {
         }
         self.duration = std::cmp::max(duration, self.duration);
         let (ts_name, ts_path) = self.ts_handler.write(ts_data).await?;
-        let ts_name_with_prefix = self.prefix
+        let ts_name_with_prefix = self
+            .prefix
             .as_ref()
             .map(|prefix| format!("{}{}", prefix, ts_name))
             .unwrap_or(ts_name);
-        let segment = Segment::new(duration, discontinuity, ts_name_with_prefix, ts_path, is_eof);
+        let segment = Segment::new(
+            duration,
+            discontinuity,
+            ts_name_with_prefix,
+            ts_path,
+            is_eof,
+        );
 
         if self.need_record {
             self.update_vod_m3u8(&segment);

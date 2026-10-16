@@ -5,8 +5,7 @@ use {
     env_logger_extend::logger::{Logger, Rotate},
     std::{env, str::FromStr},
     tokio::signal,
-    xiu::service::Service,
-    config::Config, 
+    xiu::{config, config::Config, service::Service},
 };
 
 // #[tokio::main(flavor = "current_thread")]

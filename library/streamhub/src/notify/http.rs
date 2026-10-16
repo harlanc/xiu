@@ -1,8 +1,16 @@
+use crate::define::{StreamHubEvent, StreamHubEventMessage, StreamHubEventSender};
 use crate::notify::Notifier;
-use reqwest::Client;
 use async_trait::async_trait;
-use crate::define::{StreamHubEventMessage, StreamHubEventSender, StreamHubEvent};
-use config::HttpNotifierConfig;
+use reqwest::Client;
+
+#[derive(Debug, Clone)]
+pub struct HttpNotifierConfig {
+    pub on_publish: Option<String>,
+    pub on_unpublish: Option<String>,
+    pub on_play: Option<String>,
+    pub on_stop: Option<String>,
+    pub on_hls: Option<String>,
+}
 
 macro_rules! serialize_event {
     ($message:expr) => {{
@@ -17,7 +25,6 @@ macro_rules! serialize_event {
     }};
 }
 
-
 pub struct HttpNotifier {
     request_client: Client,
     on_publish_url: Option<String>,
@@ -29,10 +36,7 @@ pub struct HttpNotifier {
 }
 
 impl HttpNotifier {
-    pub fn new(
-        config: HttpNotifierConfig,
-        event_producer: StreamHubEventSender,
-    ) -> Self {
+    pub fn new(config: HttpNotifierConfig, event_producer: StreamHubEventSender) -> Self {
         Self {
             request_client: reqwest::Client::new(),
             on_publish_url: config.on_publish,
@@ -147,7 +151,9 @@ impl Notifier for HttpNotifier {
 
     async fn kick_off_client(&self, event: &StreamHubEventMessage) {
         if let StreamHubEventMessage::Publish { identifier, info } = event {
-            let hub_event = StreamHubEvent::ApiKickClient { id: info.id.clone() };
+            let hub_event = StreamHubEvent::ApiKickClient {
+                id: info.id.clone(),
+            };
             if let Err(err) = self.event_producer.send(hub_event) {
                 log::error!("send notify kick_off_client event error: {}", err);
             }

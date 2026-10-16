@@ -5,8 +5,8 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
+    crate::config::HlsRemuxerConfig,
     aws_sdk_s3::Client as S3Client,
-    config::HlsConfig,
     std::time::Duration,
     streamhub::{
         define::{
@@ -36,7 +36,7 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
         event_producer: StreamHubEventSender,
-        hls_config: Option<HlsConfig>,
+        hls_config: Option<HlsRemuxerConfig>,
         s3_client: Option<S3Client>,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
@@ -47,7 +47,13 @@ impl FlvDataReceiver {
             stream_name: stream_name.clone(),
             data_consumer,
             event_producer: event_producer.clone(),
-            media_processor: Flv2HlsRemuxer::new(app_name, stream_name, hls_config, Some(event_producer), s3_client),
+            media_processor: Flv2HlsRemuxer::new(
+                app_name,
+                stream_name,
+                hls_config,
+                Some(event_producer),
+                s3_client,
+            ),
             subscriber_id,
         }
     }
