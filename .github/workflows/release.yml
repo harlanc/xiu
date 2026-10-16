@@ -22,6 +22,10 @@ jobs:
     name: Binary ${{ matrix.target }} (on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     environment: crates-publish
+    env:
+      # audiopus_sys 0.2.2 bundles an Opus CMake project that predates
+      # CMake 4, which is now installed on hosted Windows and macOS runners.
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
     strategy:
